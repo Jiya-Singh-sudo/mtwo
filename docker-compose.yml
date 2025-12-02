@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15
+    container_name: rajbhawan-db
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypass
+      POSTGRES_DB: bhawan
+    ports:
+      - "5434:5432"
+    volumes:
+      - mone_data:/var/lib/postgresql/data
+volumes:
+  mone_data:
