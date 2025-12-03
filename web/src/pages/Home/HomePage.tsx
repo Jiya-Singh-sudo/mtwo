@@ -1,12 +1,10 @@
-import styles from "./HomePage.module.css"
+// import styles from "./HomePage.module.css"
 
 export default function HomePage() {
-  return (
+  return (  // <--- Make sure this is the ONLY return starting here
     <div className="container">
-      <div className="card">
-        <h1 className={styles.title}>Dashboard Home</h1>
-        <p className={styles.subtitle}>Welcome to the MTWO Web Panel</p>
-      </div>
+       <h1>Dashboard Home</h1>
+       <p>Welcome to the MTWO Web Panel</p>
     </div>
-  )
+  );
 }
