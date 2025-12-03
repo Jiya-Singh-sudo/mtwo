@@ -18,7 +18,6 @@ export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [search, setSearch] = useState("");
 
-  // Temporary sample data
   useEffect(() => {
     const sample: Role[] = [
       {
@@ -62,20 +61,28 @@ export default function RolesPage() {
   });
 
   return (
-    <div className="container">
-      <h1 className={styles.title}>Roles</h1>
-      <p className={styles.subtitle}>Manage system roles & permissions</p>
+    <div className={styles.page}>
+      
+      {/* Orange Header Box */}
+      <div className={styles.headerCard}>
+        <div>
+          <h1 className={styles.title}>Roles</h1>
+          <p className={styles.subtitle}>Manage system roles & permissions</p>
+        </div>
+        <button className={styles.addButton}>+ Add Role</button>
+      </div>
 
       {/* Search Bar */}
       <input
         type="text"
         className={styles.search}
-        placeholder="Search roles by name, description, user or IP..."
+        placeholder="Search roles..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      <div className="card">
+      {/* Table Container */}
+      <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -99,13 +106,22 @@ export default function RolesPage() {
                 <td>{r.role_id}</td>
                 <td>{r.role_name}</td>
                 <td>{r.role_desc}</td>
-                <td>{r.is_active ? "Yes" : "No"}</td>
+                <td>
+                  <span
+                    className={`${styles.badge} ${
+                      r.is_active ? styles.active : styles.inactive
+                    }`}
+                  >
+                    {r.is_active ? "Active" : "Inactive"}
+                  </span>
+                </td>
                 <td>{r.inserted_at}</td>
                 <td>{r.inserted_by}</td>
                 <td>{r.inserted_ip}</td>
                 <td>{r.updated_at}</td>
                 <td>{r.updated_by}</td>
                 <td>{r.updated_ip}</td>
+
                 <td className={styles.actions}>
                   <button className={styles.editBtn}>Edit</button>
                   <button className={styles.deleteBtn}>Delete</button>
