@@ -1,17 +1,34 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'
-import { Prisma } from '@prisma/client';
+import { Inject, Injectable } from '@nestjs/common';
+import { Pool } from 'pg';
 
 @Injectable()
 export class GuestService {
-    constructor(private prisma: PrismaService) {}
+  constructor(@Inject('PG') private pool: Pool) {}
 
-  create(data: Prisma.GuestCreateInput) {
-    return this.prisma.guest.create({ data })
+  async create(data) {
+    const query = `
+      INSERT INTO guest 
+      (guestName, guestCompanions, guestContact, driver, email, foodPreferences, addDescription)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
+
+    const values = [
+      data.guestName,
+      data.guestCompanions,
+      data.guestContact,
+      data.driver,
+      data.email,
+      data.foodPreferences, // array
+      data.addDescription,
+    ];
+
+    const result = await this.pool.query(query, values);
+    return result.rows[0];
   }
 
-  findAll() {
-    return this.prisma.guest.findMany()
+  async findAll() {
+    const result = await this.pool.query('SELECT * FROM guest ORDER BY created_at DESC;');
+    return result.rows;
   }
 }
-
