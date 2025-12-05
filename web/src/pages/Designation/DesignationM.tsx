@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { designationAPI } from '../../services/api';
+import { designationAPI } from '../../config/api';
 // Ensure these types are actually exported from your types file
 import type { Designation, DesignationFormData } from '../types/Designation';
 import styles from './DesignationM.module.css';

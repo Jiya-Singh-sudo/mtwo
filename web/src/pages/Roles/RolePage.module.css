@@ -1,76 +1,261 @@
+/* Layout */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
 .title {
-  font-size: 32px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0;
+  color: #111;
 }
-
 .subtitle {
-  font-size: 16px;
-  color: #aaa;
-  margin-bottom: 20px;
+  margin: 4px 0 0 0;
+  color: #666;
+  font-size: 14px;
 }
 
+/* header right action */
+.headerActions {
+  display: flex;
+  align-items: center;
+}
+
+/* Controls row */
+.controlsRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.search {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #111;
+  outline: none;
+  box-shadow: 0 1px 0 rgba(16,24,40,0.04);
+}
+.search:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 6px rgba(59,130,246,0.06);
+}
+
+/* Page size select */
+.rightControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pageSizeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #444;
+  font-size: 13px;
+}
+.pageSizeSelect {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+/* card + table container */
+.card {
+  background: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06);
+}
+
+/* table wrap for scroll */
+.tableWrap {
+  overflow: hidden;
+}
+.tableScroll {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+/* Table */
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
 }
-
-.table th {
+.table thead th {
   text-align: left;
-  padding: 12px;
-  background: #1f1f2e;
-  color: #ccc;
+  padding: 12px 14px;
+  background: #f3f4f6;
+  color: #333;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid #e6e6e9;
 }
-
 .table td {
-  padding: 12px;
-  border-bottom: 1px solid #2a2a3b;
-  color: #ddd;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f0f2;
+  color: #222;
+}
+.table tr:hover td {
+  background: #fafafa;
 }
 
-.table tr:hover {
-  background: #2a2a3b;
+/* mono column for ids and ips */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+  font-size: 13px;
+  color: #0b1220;
 }
 
+/* actions */
 .actions {
   display: flex;
   gap: 8px;
 }
-
+.addBtn {
+  padding: 10px 14px;
+  background: #111827;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
 .editBtn {
   padding: 6px 10px;
-  background: #3b82f6;
-  color: white;
+  background: #2563eb;
+  color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  cursor: pointer;
 }
-
 .deleteBtn {
   padding: 6px 10px;
   background: #ef4444;
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 4px;
-}
-.search {
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 18px;
-  border-radius: 8px;
-  background: #1d1d2b;
-  border: 1px solid #2a2a3b;
-  color: #ddd;
-  outline: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-.search:focus {
-  border-color: #6b6bff;
-}
-
+/* no results */
 .noResults {
-  padding: 20px;
+  padding: 24px;
   text-align: center;
-  color: #aaa;
+  color: #666;
   font-style: italic;
+}
+
+/* footer / pagination */
+.footerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  gap: 12px;
+}
+.countText {
+  color: #444;
+  font-size: 13px;
+}
+.pagination {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pagerBtn {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #ddd;
+  color: #222;
+  cursor: pointer;
+}
+.pagerBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pageNumber {
+  color: #444;
+  font-size: 13px;
+}
+
+/* small helpers */
+.loading {
+  padding: 12px;
+  color: #666;
+}
+.error {
+  padding: 12px;
+  color: #ef4444;
+}
+
+/* ---------------- Modal styles (kept from yours but slightly tuned) ---------------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  z-index: 100;
+}
+
+.modal {
+  background: #ffffff;
+  padding: 18px;
+  border-radius: 10px;
+  width: 420px;
+  color: #111;
+  border: 1px solid #e6e6e9;
+  box-shadow: 0 10px 30px rgba(16,24,40,0.08);
+}
+
+.modalLabel {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #555;
+}
+
+.modalInput {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 100%;
+  color: #111;
+}
+
+.modalActions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.saveBtn {
+  padding: 8px 14px;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  color: white;
+}
+
+.cancelBtn {
+  padding: 8px 14px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 6px;
+  color: #111;
 }

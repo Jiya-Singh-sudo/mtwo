@@ -3,7 +3,7 @@ import axios from 'axios';
 // If types are in src/types, use '../types/Designation'
 import type { Designation, DesignationFormData } from '../pages/types/Designation';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+export const API_BASE_URL = "http://localhost:3000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
