@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Pool } from 'pg';
+import { DatabaseService } from './database.service';
 
 @Module({
   providers: [
@@ -16,7 +17,8 @@ import { Pool } from 'pg';
         return pool;
       },
     },
+    DatabaseService,
   ],
-  exports: ['PG'],
+  exports: ['PG', DatabaseService], 
 })
 export class DatabaseModule {}
