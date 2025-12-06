@@ -22,7 +22,7 @@ interface Role {
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -33,7 +33,11 @@ export default function RolesPage() {
   const [roleToEdit, setRoleToEdit] = useState<Role | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // fetch roles
+  const [showDescModal, setShowDescModal] = useState(false);
+  const [activeDescText, setActiveDescText] = useState<string | null>(null);
+  const [activeDescTitle, setActiveDescTitle] = useState<string | null>(null);
+
+  // Load roles
   async function loadRoles() {
     setLoading(true);
     setError(null);
@@ -51,7 +55,6 @@ export default function RolesPage() {
     loadRoles();
   }, []);
 
-  // reset page when search or pagesize changes
   useEffect(() => setPage(1), [search, pageSize]);
 
   const filtered = useMemo(() => {
@@ -73,12 +76,30 @@ export default function RolesPage() {
   const endIndex = Math.min(total, startIndex + pageSize);
   const pageItems = filtered.slice(startIndex, endIndex);
 
+  const [showTopBtn, setShowTopBtn] = useState(false);
+  // Show / hide Back-to-Top button on scroll
+  useEffect(() => {
+    function handleScroll() {
+      setShowTopBtn(window.scrollY > 300);
+    }
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Smooth scroll to top
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+
   function goTo(newPage: number) {
     const p = Math.max(1, Math.min(totalPages, newPage));
     setPage(p);
-    // scroll to table top for better UX
-    const el = document.querySelector(`.${styles.tableWrap}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // Removed scrollIntoView because it jumps the screen downward
+    // const el = document.querySelector(`.${styles.tableWrap}`);
+    // el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // Create
@@ -86,7 +107,6 @@ export default function RolesPage() {
     try {
       setLoading(true);
       const created = await createRole(payload);
-      // append created to top
       setRoles((prev) => [created, ...prev]);
       setShowCreateModal(false);
       setPage(1);
@@ -97,7 +117,7 @@ export default function RolesPage() {
     }
   }
 
-  // Edit / Update
+  // Update
   async function saveEdit(updated: Role) {
     try {
       setLoading(true);
@@ -105,7 +125,11 @@ export default function RolesPage() {
         role_name: updated.role_name,
         is_active: updated.is_active,
       });
-      setRoles((prev) => prev.map((r) => (r.role_id === saved.role_id ? saved : r)));
+
+      setRoles((prev) =>
+        prev.map((r) => (r.role_id === saved.role_id ? saved : r))
+      );
+
       setRoleToEdit(null);
     } catch (err: any) {
       alert(err?.message ?? "Failed to update role");
@@ -114,13 +138,13 @@ export default function RolesPage() {
     }
   }
 
-  // Soft-delete
+  // Soft delete
   async function confirmAndDelete() {
     if (!roleToDelete) return;
     try {
       setLoading(true);
       await apiDeleteRole(roleToDelete.role_id);
-      // remove from active view
+
       setRoles((prev) => prev.filter((r) => r.role_id !== roleToDelete.role_id));
       setRoleToDelete(null);
     } catch (err: any) {
@@ -128,6 +152,12 @@ export default function RolesPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function openDescModal(title: string, text: string) {
+    setActiveDescTitle(title);
+    setActiveDescText(text);
+    setShowDescModal(true);
   }
 
   return (
@@ -138,15 +168,9 @@ export default function RolesPage() {
           <p className={styles.subtitle}>Manage system roles & permissions</p>
         </div>
 
-        <div className={styles.headerActions}>
-          <button
-            className={styles.addBtn}
-            onClick={() => setShowCreateModal(true)}
-            aria-label="Create Role"
-          >
-            + Create Role
-          </button>
-        </div>
+        <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}>
+          + Create Role
+        </button>
       </header>
 
       <div className={styles.controlsRow}>
@@ -158,21 +182,24 @@ export default function RolesPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className={styles.rightControls}>
-          <label className={styles.pageSizeLabel}>
-            Show
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className={styles.pageSizeSelect}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            / page
-          </label>
-        </div>
+        <label className={styles.pageSizeLabel}>
+          Show
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className={styles.pageSizeSelect}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+          / page
+        </label>
+        {showTopBtn && (
+      <button className={`${styles.backToTop} show`} onClick={scrollToTop}>
+        ↑
+      </button>
+    )}
       </div>
 
       <div className={`card ${styles.tableWrap}`}>
@@ -202,7 +229,32 @@ export default function RolesPage() {
                 <tr key={r.role_id}>
                   <td className={styles.mono}>{r.role_id}</td>
                   <td>{r.role_name}</td>
-                  <td>{r.role_desc}</td>
+
+                  <td>
+                    {r.role_desc ? (
+                      <div>
+                        <div
+                          className={styles.descCell}
+                          title={r.role_desc}
+                          onClick={() => openDescModal(`${r.role_name}`, r.role_desc)}
+                        >
+                          {r.role_desc.length > 120
+                            ? r.role_desc.substring(0, 120) + "..."
+                            : r.role_desc}
+                        </div>
+
+                        <button
+                          className={styles.descView}
+                          onClick={() => openDescModal(`${r.role_name}`, r.role_desc)}
+                        >
+                          View
+                        </button>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
                   <td>{r.is_active ? "Yes" : "No"}</td>
                   <td>{r.inserted_at ? new Date(r.inserted_at).toLocaleString() : "—"}</td>
                   <td>{r.inserted_by ?? "—"}</td>
@@ -210,6 +262,7 @@ export default function RolesPage() {
                   <td>{r.updated_at ? new Date(r.updated_at).toLocaleString() : "—"}</td>
                   <td>{r.updated_by ?? "—"}</td>
                   <td className={styles.mono}>{r.updated_ip ?? "—"}</td>
+
                   <td className={styles.actions}>
                     <button className={styles.editBtn} onClick={() => setRoleToEdit(r)}>
                       Edit
@@ -233,14 +286,20 @@ export default function RolesPage() {
         </div>
       </div>
 
-      {/* footer / pagination */}
+      {/* Pagination */}
       <div className={styles.footerRow}>
         <div className={styles.countText}>
-          {total === 0 ? "No roles." : `Showing ${startIndex + 1}–${endIndex} of ${total} roles`}
+          {total === 0
+            ? "No roles."
+            : `Showing ${startIndex + 1}–${endIndex} of ${total} roles`}
         </div>
 
         <div className={styles.pagination}>
-          <button className={styles.pagerBtn} disabled={page <= 1} onClick={() => goTo(page - 1)}>
+          <button
+            className={styles.pagerBtn}
+            disabled={page <= 1}
+            onClick={() => goTo(page - 1)}
+          >
             Prev
           </button>
 
@@ -264,7 +323,7 @@ export default function RolesPage() {
           <div className={styles.modal}>
             <h3>Remove role from view?</h3>
             <p>
-              This will mark <strong>{roleToDelete.role_name}</strong> as inactive (soft delete).
+              This will mark <strong>{roleToDelete.role_name}</strong> as inactive.
             </p>
 
             <div className={styles.modalActions}>
@@ -281,25 +340,62 @@ export default function RolesPage() {
 
       {/* EDIT MODAL */}
       {roleToEdit && (
-        <EditModal
-          role={roleToEdit}
-          onCancel={() => setRoleToEdit(null)}
-          onSave={saveEdit}
-        />
+        <EditModal role={roleToEdit} onCancel={() => setRoleToEdit(null)} onSave={saveEdit} />
       )}
 
       {/* CREATE MODAL */}
       {showCreateModal && (
         <CreateModal
           onCancel={() => setShowCreateModal(false)}
-          onSave={(payload) => handleCreate(payload)}
+          onSave={handleCreate}
+        />
+      )}
+
+      {/* DESCRIPTION MODAL (Option A placement) */}
+      {showDescModal && (
+        <DescriptionModal
+          title={activeDescTitle}
+          text={activeDescText}
+          onClose={() => {
+            setShowDescModal(false);
+            setActiveDescText(null);
+            setActiveDescTitle(null);
+          }}
         />
       )}
     </div>
   );
 }
 
-/* ---------------- Edit Modal Component ---------------- */
+/* ---------------- Description Modal ---------------- */
+function DescriptionModal({
+  title,
+  text,
+  onClose,
+}: {
+  title: string | null;
+  text: string | null;
+  onClose: () => void;
+}) {
+  if (!text) return null;
+  return (
+    <div className={styles.modalOverlay}>
+      <div className={`${styles.modal} ${styles.descriptionModalContent}`}>
+        <h3 className={styles.descriptionModalTitle}>{title}</h3>
+
+        <div style={{ whiteSpace: "pre-wrap", marginTop: 10 }}>{text}</div>
+
+        <div className={styles.modalActions}>
+          <button className={styles.cancelBtn} onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Edit Modal ---------------- */
 
 function EditModal({
   role,
@@ -321,7 +417,6 @@ function EditModal({
       <div className={styles.modal}>
         <h3>Edit Role</h3>
 
-        {/* ROLE NAME */}
         <label className={styles.modalLabel}>Role Name</label>
         <input
           className={styles.modalInput}
@@ -329,28 +424,21 @@ function EditModal({
           onChange={(e) => update("role_name", e.target.value)}
         />
 
-        {/* REMOVED DESCRIPTION SECTION */}
-
-        {/* ACTIVE FIELD */}
         <label className={styles.modalLabel}>Active</label>
         <select
           className={styles.modalInput}
-          value={form.is_active ? "1" : "0"} // Convert boolean/number to string "1" or "0"
+          value={form.is_active ? "1" : "0"}
           onChange={(e) => update("is_active", Number(e.target.value))}
         >
           <option value={1}>Active</option>
           <option value={0}>Inactive</option>
         </select>
 
-        {/* ACTION BUTTONS */}
         <div className={styles.modalActions}>
           <button className={styles.cancelBtn} onClick={onCancel}>
             Cancel
           </button>
-          <button
-            className={styles.saveBtn}
-            onClick={() => onSave(form)}
-          >
+          <button className={styles.saveBtn} onClick={() => onSave(form)}>
             Save Changes
           </button>
         </div>
@@ -359,8 +447,7 @@ function EditModal({
   );
 }
 
-
-/* ---------------- Create Modal Component ---------------- */
+/* ---------------- Create Modal ---------------- */
 
 function CreateModal({
   onCancel,
@@ -378,9 +465,14 @@ function CreateModal({
       alert("Role name is required");
       return;
     }
+
     setSaving(true);
     try {
-      await onSave({ role_name: roleName.trim(), role_desc: roleDesc.trim() });
+      await onSave({
+        role_name: roleName.trim(),
+        role_desc: roleDesc.trim(),
+      });
+
       setRoleName("");
       setRoleDesc("");
     } catch (err: any) {

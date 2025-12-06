@@ -1,4 +1,7 @@
 /* Layout */
+body {
+  padding: 20px;
+}
 .header {
   display: flex;
   justify-content: space-between;
@@ -76,7 +79,11 @@
 
 /* table wrap for scroll */
 .tableWrap {
-  overflow: hidden;
+  max-height: calc(100vh - 240px); /* fits on screen */
+  overflow-y: auto;                /* scroll INSIDE the box */
+  overflow-x: hidden;
+  padding-bottom: 12px;
+  position: relative;
 }
 .tableScroll {
   overflow-x: auto;
@@ -92,13 +99,16 @@
 .table thead th {
   text-align: left;
   padding: 12px 14px;
-  background: #f3f4f6;
+  background: #f7f7f8;
   color: #333;
   font-weight: 600;
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 5;
+  height: 45px;
   border-bottom: 1px solid #e6e6e9;
+  position: relative;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.05);
 }
 .table td {
   padding: 12px 14px;
@@ -258,4 +268,68 @@
   border: none;
   border-radius: 6px;
   color: #111;
+}
+
+/* Truncated description cell */
+.descCell {
+  max-width: 280px;          /* adjust width to fit your layout */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  color: #111;
+}
+
+/* clickable "View" link inside cell (small, muted) */
+.descView {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #2563eb;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* Modal adjustments (if you keep your modal class names, ensure no duplication) */
+.descriptionModalContent {
+  max-width: 760px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 20px;
+  line-height: 1.45;
+  color: #222;
+}
+.descriptionModalTitle {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+/* Floating “Back to Top” arrow */
+.backToTop {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #2b6ef6;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  border: none;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  transition: opacity 0.25s ease;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.backToTop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.backToTop:hover {
+  background: #1d57cc;
 }
