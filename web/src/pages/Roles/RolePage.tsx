@@ -161,7 +161,11 @@ export default function RolesPage() {
   }
 
   return (
-    <div className="container">
+    <div className={styles.rolesContainer}>
+      
+      
+
+      
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Roles</h1>
