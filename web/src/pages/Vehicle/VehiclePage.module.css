@@ -1,0 +1,72 @@
+/* Vehicle.module.css updated attributes */
+
+.page {
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.title {
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0;
+  color: #520101;
+}
+
+.subtitle {
+  margin-top: 4px;
+  color: #666;
+}
+
+.search {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 12px;
+}
+
+.card {
+  background: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06);
+}
+
+.tableWrap {
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead th {
+  padding: 12px 14px;
+  background: #5f5f85;
+  font-weight: 600;
+  border-bottom: 1px solid #e6e6e9;
+  position: sticky;
+  top: 0;
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f0f2;
+}
+
+.mono {
+  font-family: monospace;
+}
