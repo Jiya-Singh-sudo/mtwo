@@ -1,7 +1,17 @@
 import React from "react";
 import styles from "./GovernmentLayout.module.css";
+import Carousel from '../carousel/Carousel'
 
 export default function GovernmentLayout({ children }: { children: React.ReactNode }) {
+  const images = [
+    "/c1.jpg",
+    "/c2.jpg",
+    "/c3.jpg",
+    "/c4.jpg",
+    "/c5.jpg",
+    "/c6.jpg"
+  ];
+
   return (
     <div className={styles.layoutWrapper}>
 
@@ -38,16 +48,27 @@ export default function GovernmentLayout({ children }: { children: React.ReactNo
       </div>
 
       {/* HERO IMAGE */}
-      <div className={styles.heroImage}>
+      {/* <div className={styles.heroImage}>
         <img src="/202309181239631543-1024x683.jpg" />
+      </div> */}
+
+      {/* CAROUSEL SECTION */}
+      <div style={{ marginTop: "20px", display: "flex", justifyContent: "center" }}>
+        <Carousel
+          autoplay={true}
+          autoplayDelay={1000}
+          loop={true}
+          pauseOnHover={true}
+          images={images}
+        />
       </div>
 
       {/* NAV BAR */}
       <div className={styles.navBar}>
         <div className={styles.navItem}>Home</div>
-        <div className={styles.navItem}>About Rajbhavan <span className="material-symbols-outlined"></span></div>
-        <div className={styles.navItem}>Notices <span className="material-symbols-outlined"></span></div>
-        <div className={styles.navItem}>Public Relations <span className="material-symbols-outlined"></span></div>
+        <div className={styles.navItem}>About Rajbhavan</div>
+        <div className={styles.navItem}>Notices</div>
+        <div className={styles.navItem}>Public Relations</div>
       </div>
 
       {/* PAGE CONTENT */}

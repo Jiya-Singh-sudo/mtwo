@@ -123,7 +123,7 @@ export default function RolesPage() {
       setLoading(true);
       const saved = await updateRole(updated.role_id, {
         role_name: updated.role_name,
-        is_active: updated.is_active,
+        is_active: Boolean(updated.is_active),
       });
 
       setRoles((prev) =>

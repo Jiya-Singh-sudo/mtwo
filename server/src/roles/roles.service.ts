@@ -96,11 +96,18 @@ export class RolesService {
       timeZone: "Asia/Kolkata",
       hour12: false,
     }).replace(",", "");
+
     const existing = await this.findOne(role_id);
 
     if (!existing) {
       throw new Error(`Role with id ${role_id} not found`);
     }
+
+    // 🔥 FIX: convert "1"/"0"/1/0/true/false → boolean
+    const activeBool =
+      dto.is_active === "1" ||
+      dto.is_active === 1 ||
+      dto.is_active === true;
 
     const sql = `
       UPDATE m_roles SET
@@ -117,7 +124,7 @@ export class RolesService {
     const params = [
       dto.role_name,
       dto.role_desc ?? existing.role_desc,
-      Boolean(dto.is_active),
+      activeBool,        // ← FIXED
       now,
       user,
       ip,
@@ -127,21 +134,23 @@ export class RolesService {
     const result = await this.db.query(sql, params);
     return result.rows[0];
   }
+
+
   // NO DELETE — Soft delete only
   async softDelete(role_id: string, user: string, ip: string) {
     const now = new Date().toISOString();
 
     const sql = `
       UPDATE m_roles SET
-        is_active = 0,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE role_id = $4
+        is_active = $1,
+        updated_at = $2,
+        updated_by = $3,
+        updated_ip = $4
+      WHERE role_id = $5
       RETURNING *;
     `;
 
-    const result = await this.db.query(sql, [now, user, ip, role_id]);
+    const result = await this.db.query(sql, [false, now, user, ip, role_id]);
     return result.rows[0];
   }
 }

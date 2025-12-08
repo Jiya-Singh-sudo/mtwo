@@ -4,5 +4,5 @@ export class UpdateVehicleDto {
   manufacturing: string;
   capacity: number;
   color: string;
-  is_active: boolean | number;
+  is_active: boolean | number | string;
 }
