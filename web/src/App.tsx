@@ -4,6 +4,7 @@ import HomePage from "./pages/Home/HomePage";
 import RolesPage from "./pages/Roles/RolePage";
 import DesignationM from './pages/Designation/DesignationM';  
 import VehiclePage from './pages/Vehicle/VehiclePage';
+import LoginPage from './pages/Login/LoginPage';
 import { BrowserRouter, Routes, Route} from "react-router-dom";
 import GovernmentLayout from './components/GovernmentLayout/GovernmentLayout';
 
@@ -17,6 +18,7 @@ function App() {
             <Route path="/roles" element={<RolesPage />} />
             <Route path="/designations" element={<DesignationM />} />
             <Route path="/vehicles" element={<VehiclePage />} />
+            <Route path="/login" element={<LoginPage/>}/>
           </Routes>
         </GovernmentLayout>
     </BrowserRouter>

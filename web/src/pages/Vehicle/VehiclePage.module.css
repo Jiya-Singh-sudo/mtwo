@@ -15,7 +15,7 @@
   font-size: 34px;
   font-weight: 700;
   margin: 0;
-  color: #520101;
+  color: #111;
 }
 
 .subtitle {
@@ -55,7 +55,7 @@
 
 .table thead th {
   padding: 12px 14px;
-  background: #5f5f85;
+  background: #f7f7f8;
   font-weight: 600;
   border-bottom: 1px solid #e6e6e9;
   position: sticky;

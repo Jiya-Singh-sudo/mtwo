@@ -46,7 +46,7 @@ export class VehiclesController {
   }
 
     @Post()
-    create(@Body() dto: CreateRoleDto, @Req() req: any) {
+    create(@Body() dto: CreateVehicleDto, @Req() req: any) {
       const user = req.headers['x-user'] || 'system';
       const ip = this.extractIp(req);
       return this.service.create(dto, user, ip);
@@ -55,7 +55,7 @@ export class VehiclesController {
     @Put(':role_id')
     update(
       @Param('role_id') id: string,
-      @Body() dto: UpdateRoleDto,
+      @Body() dto: UpdateVehicleDto,
       @Req() req: any,
     ) {
       const user = "admin";
