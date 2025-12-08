@@ -45,9 +45,9 @@ export default function GovernmentLayout({ children }: { children: React.ReactNo
       {/* NAV BAR */}
       <div className={styles.navBar}>
         <div className={styles.navItem}>Home</div>
-        <div className={styles.navItem}>About Rajbhavan <span className="material-symbols-outlined">keyboard_arrow_down</span></div>
-        <div className={styles.navItem}>Notices <span className="material-symbols-outlined">keyboard_arrow_down</span></div>
-        <div className={styles.navItem}>Public Relations <span className="material-symbols-outlined">keyboard_arrow_down</span></div>
+        <div className={styles.navItem}>About Rajbhavan <span className="material-symbols-outlined"></span></div>
+        <div className={styles.navItem}>Notices <span className="material-symbols-outlined"></span></div>
+        <div className={styles.navItem}>Public Relations <span className="material-symbols-outlined"></span></div>
       </div>
 
       {/* PAGE CONTENT */}
