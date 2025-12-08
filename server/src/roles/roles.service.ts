@@ -6,6 +6,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 @Injectable()
 export class RolesService {
   constructor(private readonly db: DatabaseService) {}
+
   // generate role_id abbreviation
   private generateRoleId(name: string): string {
     if (!name) return "RL";
