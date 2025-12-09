@@ -10,6 +10,9 @@ import { MealsModule } from './meals/meals.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { ButlersModule } from './butlers/butlers.module';
 import { NetworksModule } from './networks/networks.module';
+import { DesginationModule } from './desgination/designation.module';
+import { HousekeepingModule } from './housekeeping/housekeeping.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -22,6 +25,9 @@ import { NetworksModule } from './networks/networks.module';
     RoomsModule,
     ButlersModule,
     NetworksModule,
+    DesginationModule,
+    HousekeepingModule,
+    UsersModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
