@@ -1,0 +1,54 @@
+import {
+  Controller, Get, Post, Put, Delete,
+  Body, Param, Req
+} from '@nestjs/common';
+import { NetworksService } from './networks.service';
+import { CreateNetworkDto } from './dto/create-network.dto';
+import { UpdateNetworkDto } from './dto/update-network.dto';
+
+@Controller('wifi-providers')
+export class NetworksController {
+  constructor(private readonly service: NetworksService) {}
+
+  private extractIp(req: any): string {
+    let ip =
+      req.headers['x-forwarded-for'] ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.ip || '';
+    ip = ip.replace('::ffff:', '');
+    return ip.includes(',') ? ip.split(',')[0].trim() : ip;
+  }
+
+  @Get()
+  active() {
+    return this.service.findAll(true);
+  }
+
+  @Get('all')
+  all() {
+    return this.service.findAll(false);
+  }
+
+  @Post()
+  create(@Body() dto: CreateNetworkDto, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.create(dto, user, this.extractIp(req));
+  }
+
+  @Put(':provider_name')
+  update(
+    @Param('provider_name') name: string,
+    @Body() dto: UpdateNetworkDto,
+    @Req() req: any
+  ) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.update(name, dto, user, this.extractIp(req));
+  }
+
+  @Delete(':provider_name')
+  remove(@Param('provider_name') name: string, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.softDelete(name, user, this.extractIp(req));
+  }
+}

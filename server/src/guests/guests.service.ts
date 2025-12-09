@@ -76,7 +76,7 @@ export class GuestsService {
     const params = [
       guest_id,
       dto.guest_name,
-      dto.guest_name_local,
+      dto.guest_name_local_language,
       dto.guest_mobile,
       dto.guest_alternate_mobile,
       dto.guest_address,
@@ -125,7 +125,7 @@ export class GuestsService {
 
     const params = [
       dto.guest_name ?? existing.guest_name,
-      dto.guest_name_local ?? existing.guest_name_local,
+      dto.guest_name_local_language ?? existing.guest_name_local,
       dto.guest_mobile ?? existing.guest_mobile,
       dto.guest_alternate_mobile ?? existing.guest_alternate_mobile,
       dto.guest_address ?? existing.guest_address,

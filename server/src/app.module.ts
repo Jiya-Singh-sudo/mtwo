@@ -8,6 +8,8 @@ import { GuestsModule } from './guests/guests.module';
 import { DriversModule } from './drivers/drivers.module';
 import { MealsModule } from './meals/meals.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { ButlersModule } from './butlers/butlers.module';
+import { NetworksModule } from './networks/networks.module';
 
 @Module({
   imports: [
@@ -18,8 +20,10 @@ import { RoomsModule } from './rooms/rooms.module';
     DriversModule,
     MealsModule,
     RoomsModule,
+    ButlersModule,
+    NetworksModule,
   ],
-  controllers: [AppController], // <-- FIXED
+  controllers: [AppController], 
   providers: [AppService],
 })
 export class AppModule {}

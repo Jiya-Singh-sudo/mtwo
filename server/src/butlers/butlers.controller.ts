@@ -1,0 +1,56 @@
+import {
+  Controller, Get, Post, Put, Delete,
+  Body, Param, Req
+} from '@nestjs/common';
+import { ButlersService } from './butlers.service';
+import { CreateButlerDto } from './dto/create-butler.dto';
+import { UpdateButlerDto } from './dto/update-butler.dto';
+
+@Controller('butlers')
+export class ButlersController {
+  constructor(private readonly service: ButlersService) {}
+
+  private extractIp(req: any): string {
+    let ip =
+      req.headers['x-forwarded-for'] ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.ip || '';
+
+    if (ip === '::1' || ip === '127.0.0.1') return '127.0.0.1';
+    ip = ip.replace('::ffff:', '');
+    return ip.includes(',') ? ip.split(',')[0].trim() : ip;
+  }
+
+  @Get()
+  findAllActive() {
+    return this.service.findAll(true);
+  }
+
+  @Get('all')
+  findAll() {
+    return this.service.findAll(false);
+  }
+
+  @Post()
+  create(@Body() dto: CreateButlerDto, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.create(dto, user, this.extractIp(req));
+  }
+
+  @Put(':butler_name')
+  update(
+    @Param('butler_name') name: string,
+    @Body() dto: UpdateButlerDto,
+    @Req() req: any
+  ) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.update(name, dto, user, this.extractIp(req));
+  }
+
+  @Delete(':butler_name')
+  softDelete(@Param('butler_name') name: string, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    return this.service.softDelete(name, user, this.extractIp(req));
+  }
+}
