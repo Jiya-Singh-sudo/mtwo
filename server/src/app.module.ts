@@ -13,6 +13,14 @@ import { NetworksModule } from './networks/networks.module';
 import { DesginationModule } from './desgination/designation.module';
 import { HousekeepingModule } from './housekeeping/housekeeping.module';
 import { UsersModule } from './users/users.module';
+import { GuestDriverModule } from './guest-driver/guest-driver.module';
+import { GuestButlerModule } from './guest-butler/guest-butler.module';
+import { GuestInoutModule } from './guest-inout/guest-inout.module';
+import { GuestFoodModule } from './guest-food/guest-food.module';
+import { GuestRoomModule } from './guest-room/guest-room.module';
+import { GuestNetworkModule } from './guest-network/guest-network.module';
+import { GuestHousekeepingModule } from './guest-housekeeping/guest-housekeeping.module';
+import { GuestDesignationModule } from './guest-designation/guest-designation.module';
 
 @Module({
   imports: [
@@ -28,6 +36,14 @@ import { UsersModule } from './users/users.module';
     DesginationModule,
     HousekeepingModule,
     UsersModule,
+    GuestDriverModule,
+    GuestButlerModule,
+    GuestInoutModule,
+    GuestFoodModule,
+    GuestRoomModule,
+    GuestNetworkModule,
+    GuestHousekeepingModule,
+    GuestDesignationModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
