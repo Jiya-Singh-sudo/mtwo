@@ -24,7 +24,6 @@ import { GuestHousekeepingModule } from './guest-housekeeping/guest-housekeeping
 import { GuestDesignationModule } from './guest-designation/guest-designation.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsGateway } from './notifications/notifications.gateway';
-import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -52,7 +51,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     GuestHousekeepingModule,
     GuestDesignationModule,
     AuthModule,
-    NotificationsModule,
   ],
   controllers: [AppController], 
   providers: [AppService, NotificationsGateway],
