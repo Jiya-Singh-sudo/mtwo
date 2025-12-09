@@ -1,35 +1,30 @@
-import { apiGet, apiPost, apiPut, apiDelete } from "./apiClient";
+// src/api/guest.api.ts
+import api, { safeGet } from "./apiClient";
+import type { GuestCreateDto, GuestUpdateDto } from "../types/guests";
 
 export async function getActiveGuests() {
-  const res = await apiGet("/guests");
-
-  return res.data.map((g: any) => ({
-    id: g.guest_id || g.id || "",
-    name: g.guest_name || g.name || "",
-    designation: g.designation || "",
-    department: g.department || "",
-    category: g.category || "",
-    status: g.status || g.current_status || "",
-    arrival: g.arrival || g.arrival_date || "",
-    departure: g.departure || g.departure_date || "",
-    room: g.room_no || g.room || "",
-    vehicle: g.vehicle_no || g.vehicle || "",
-  }));
+  // GET /guests (controller returns active only by default)
+  return safeGet<any[]>("/guests");
 }
 
-
-export function getAllGuests() {
-  return apiGet("/guests/all");
+export async function createGuest(data: GuestCreateDto, user = "system") {
+  // backend will attach IP+timestamp; we pass user in header as controller expects x-user
+  const res = await api.post("/guests", data, {
+    headers: { "x-user": user }
+  });
+  return res.data;
 }
 
-export function createGuest(data: any, user = "system") {
-  return apiPost("/guests", data, user);
+export async function updateGuest(guestName: string, data: GuestUpdateDto, user = "system") {
+  const res = await api.put(`/guests/${encodeURIComponent(guestName)}`, data, {
+    headers: { "x-user": user }
+  });
+  return res.data;
 }
 
-export function updateGuest(name: string, data: any, user = "system") {
-  return apiPut(`/guests/${encodeURIComponent(name)}`, data, user);
-}
-
-export function softDeleteGuest(name: string, user = "system") {
-  return apiDelete(`/guests/${encodeURIComponent(name)}`, user);
+export async function softDeleteGuest(guestName: string, user = "system") {
+  const res = await api.delete(`/guests/${encodeURIComponent(guestName)}`, {
+    headers: { "x-user": user }
+  });
+  return res.data;
 }
