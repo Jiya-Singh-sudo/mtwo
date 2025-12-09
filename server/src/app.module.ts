@@ -23,7 +23,6 @@ import { GuestNetworkModule } from './guest-network/guest-network.module';
 import { GuestHousekeepingModule } from './guest-housekeeping/guest-housekeeping.module';
 import { GuestDesignationModule } from './guest-designation/guest-designation.module';
 import { AuthModule } from './auth/auth.module';
-import { NotificationsGateway } from './notifications/notifications.gateway';
 
 @Module({
   imports: [
@@ -53,6 +52,6 @@ import { NotificationsGateway } from './notifications/notifications.gateway';
     AuthModule,
   ],
   controllers: [AppController], 
-  providers: [AppService, NotificationsGateway],
+  providers: [AppService],
 })
 export class AppModule {}
