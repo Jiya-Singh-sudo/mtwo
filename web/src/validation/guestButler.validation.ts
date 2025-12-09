@@ -1,0 +1,28 @@
+import { z } from "zod";
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+
+export const guestButlerSchema = z.object({
+  guest_id: z.string().min(1, "guest_id is required"),
+  butler_id: z.string().min(1, "butler_id is required"),
+  room_id: z.string().optional(),
+
+  check_in_date: z.string().regex(dateRegex).optional(),
+  check_in_time: z.string().regex(timeRegex).optional(),
+
+  check_out_date: z.string().regex(dateRegex).optional(),
+  check_out_time: z.string().regex(timeRegex).optional(),
+
+  service_type: z.string().min(1, "service_type is required"),
+  service_description: z.string().optional(),
+
+  service_date: z.string().regex(dateRegex).optional(),
+  service_time: z.string().regex(timeRegex).optional(),
+
+  remarks: z.string().optional(),
+});
+
+export const guestButlerUpdateSchema = guestButlerSchema.partial().extend({
+  is_active: z.boolean().optional(),
+});
