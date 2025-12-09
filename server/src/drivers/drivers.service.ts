@@ -6,7 +6,7 @@ import { UpdateDriverDto } from './dto/updateDriver.dto';
 @Injectable()
 export class DriversService {
   constructor(private readonly db: DatabaseService) {}
-
+  
   // Generate ID like D001, D002 ...
   private async generateDriverId(): Promise<string> {
     const sql = `SELECT driver_id FROM m_driver ORDER BY driver_id DESC LIMIT 1`;

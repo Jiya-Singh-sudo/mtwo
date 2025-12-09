@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
@@ -21,9 +22,15 @@ import { GuestRoomModule } from './guest-room/guest-room.module';
 import { GuestNetworkModule } from './guest-network/guest-network.module';
 import { GuestHousekeepingModule } from './guest-housekeeping/guest-housekeeping.module';
 import { GuestDesignationModule } from './guest-designation/guest-designation.module';
+import { AuthModule } from './auth/auth.module';
+import { NotificationsGateway } from './notifications/notifications.gateway';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     DatabaseModule,
     RolesModule,
     VehiclesModule,
@@ -44,8 +51,10 @@ import { GuestDesignationModule } from './guest-designation/guest-designation.mo
     GuestNetworkModule,
     GuestHousekeepingModule,
     GuestDesignationModule,
+    AuthModule,
+    NotificationsModule,
   ],
   controllers: [AppController], 
-  providers: [AppService],
+  providers: [AppService, NotificationsGateway],
 })
 export class AppModule {}

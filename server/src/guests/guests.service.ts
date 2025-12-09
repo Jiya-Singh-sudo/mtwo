@@ -54,7 +54,7 @@ export class GuestsService {
       INSERT INTO m_guest (
         guest_id,
         guest_name,
-        guest_name_local,
+        guest_name_local_language,
         guest_mobile,
         guest_alternate_mobile,
         guest_address,
@@ -108,7 +108,7 @@ export class GuestsService {
     const sql = `
       UPDATE m_guest SET
         guest_name = $1,
-        guest_name_local = $2,
+        guest_name_local_language = $2,
         guest_mobile = $3,
         guest_alternate_mobile = $4,
         guest_address = $5,
@@ -125,7 +125,7 @@ export class GuestsService {
 
     const params = [
       dto.guest_name ?? existing.guest_name,
-      dto.guest_name_local_language ?? existing.guest_name_local,
+      dto.guest_name_local_language ?? existing.guest_name_local_language,
       dto.guest_mobile ?? existing.guest_mobile,
       dto.guest_alternate_mobile ?? existing.guest_alternate_mobile,
       dto.guest_address ?? existing.guest_address,

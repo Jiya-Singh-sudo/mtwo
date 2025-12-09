@@ -2,10 +2,15 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
 import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
+import { NotificationsService } from '../notifications/notifications.service';
+                                                    
 
 @Injectable()
 export class GuestDriverService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly notifications: NotificationsService,
+  ) { }
 
   private async generateId(): Promise<string> {
     const sql = `SELECT guest_driver_id FROM t_guest_driver ORDER BY guest_driver_id DESC LIMIT 1`;
@@ -18,6 +23,37 @@ export class GuestDriverService {
 
     return "GD" + next;
   }
+
+  async assignDriverToGuest(guestId: string, driverId: string) {
+    // 1. fetch guest
+    const guestRes = await this.db.query(`SELECT * FROM m_guest WHERE guest_id = $1`, [guestId]);
+    const guest = guestRes.rows[0];
+
+    // 2. fetch driver
+    const driverRes = await this.db.query(`SELECT * FROM m_driver WHERE driver_id = $1`, [driverId]);
+    const driver = driverRes.rows[0];
+
+    if (!guest || !driver) {
+      this.notifications['logger'].warn(`AssignDriver: Guest ${guestId} or Driver ${driverId} not found`);
+      return;
+    }
+
+    // 3. enqueue notifications
+    // Note: m_driver does not currently have email or pushToken, so we only use phone (whatsapp/sms)
+    await this.notifications.notifyDriverAssigned({
+      guestName: guest.guest_name,
+      driverName: driver.driver_name,
+      vehicle: 'TBD', // Vehicle is typically assigned in t_guest_driver, not on driver master
+      pickupTime: new Date().toISOString(),
+      toPhone: driver.driver_contact,
+      toEmail: undefined,
+      pushToken: undefined,
+      channels: ['whatsapp', 'email'],
+      meta: { guestId, driverId },
+    });
+
+  }
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
