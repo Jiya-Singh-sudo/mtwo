@@ -2,14 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
 import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
-import { NotificationsService } from '../notifications/notifications.service';
+// import { NotificationsService } from '../notifications/notifications.service';
                                                     
 
 @Injectable()
 export class GuestDriverService {
   constructor(
     private readonly db: DatabaseService,
-    private readonly notifications: NotificationsService,
+    // private readonly notifications: NotificationsService,
   ) { }
 
   private async generateId(): Promise<string> {
@@ -33,24 +33,6 @@ export class GuestDriverService {
     const driverRes = await this.db.query(`SELECT * FROM m_driver WHERE driver_id = $1`, [driverId]);
     const driver = driverRes.rows[0];
 
-    if (!guest || !driver) {
-      this.notifications['logger'].warn(`AssignDriver: Guest ${guestId} or Driver ${driverId} not found`);
-      return;
-    }
-
-    // 3. enqueue notifications
-    // Note: m_driver does not currently have email or pushToken, so we only use phone (whatsapp/sms)
-    await this.notifications.notifyDriverAssigned({
-      guestName: guest.guest_name,
-      driverName: driver.driver_name,
-      vehicle: 'TBD', // Vehicle is typically assigned in t_guest_driver, not on driver master
-      pickupTime: new Date().toISOString(),
-      toPhone: driver.driver_contact,
-      toEmail: undefined,
-      pushToken: undefined,
-      channels: ['whatsapp', 'email'],
-      meta: { guestId, driverId },
-    });
 
   }
 
