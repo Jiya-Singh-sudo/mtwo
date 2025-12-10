@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { DashboardStats } from './components/DashboardStats';
 import { QuickActions } from './components/QuickActions';
 import { RecentActivity } from './components/RecentActivity';
-import { GuestManagement } from './components/modules/GuestManagement';
+import { GuestManagement } from './components/modules/GuestManagement/Page';
 import { RoomManagement } from './components/modules/RoomManagement';
 import { VehicleManagement } from './components/modules/VehicleManagement';
 import { DutyRoster } from './components/modules/DutyRoster';
@@ -19,7 +19,7 @@ import { Search, Globe } from 'lucide-react';
 // import maharashtraSeal from './assets/maharashtra_seal.png';
 // import indianFlag from './assets/indian_flag.png';
 
-export type ModuleType = 
+export type ModuleType =
   | 'dashboard'
   | 'guest-management'
   | 'room-management'
@@ -77,7 +77,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar activeModule={activeModule} onNavigate={setActiveModule} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
         <header className="bg-white border-b border-gray-200">
@@ -89,19 +89,19 @@ export default function App() {
               </button>
             </div>
           </div>
-          
+
           {/* Main header with logos */}
           <div className="px-8 py-4">
             <div className="flex items-center justify-between">
               {/* Left: Ashoka emblem and text */}
               <div className="flex items-center gap-4">
                 {/* Ashoka Emblem - Real Image */}
-                <img 
-                  src={"./public/ashoka_emblem.png"} 
-                  alt="Government of India Emblem" 
+                <img
+                  src={"./public/ashoka_emblem.png"}
+                  alt="Government of India Emblem"
                   className="w-20 h-24 object-contain"
                 />
-                
+
                 {/* Title */}
                 <div>
                   <h1 className="text-[#00247D] tracking-wide">राजभवन महाराष्ट्र</h1>
@@ -109,20 +109,20 @@ export default function App() {
                   <p className="text-sm text-gray-600 mt-1">Guest House Management System</p>
                 </div>
               </div>
-              
+
               {/* Right: Government seal and flag */}
               <div className="flex items-center gap-6">
                 {/* Maharashtra Government Seal - Real Image */}
-                <img 
-                  src={"./public/maharashtra_seal.png"} 
-                  alt="Maharashtra Government Seal" 
+                <img
+                  src={"./public/maharashtra_seal.png"}
+                  alt="Maharashtra Government Seal"
                   className="w-20 h-20 object-contain"
                 />
-                
+
                 {/* Indian Flag - Real Image */}
-                <img 
-                  src={"./public/indian_flag.png"} 
-                  alt="Indian National Flag" 
+                <img
+                  src={"./public/indian_flag.png"}
+                  alt="Indian National Flag"
                   className="w-20 h-14 object-cover rounded-sm shadow border border-gray-300"
                 />
               </div>
@@ -147,7 +147,7 @@ export default function App() {
               {/* Language Preferences */}
               <div className="flex items-center gap-3">
                 <Globe className="w-5 h-5 text-gray-600" />
-                <select 
+                <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as 'english' | 'hindi')}
                   className="px-4 py-2 bg-white border border-gray-300 rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-[#F5A623] focus:border-transparent cursor-pointer"

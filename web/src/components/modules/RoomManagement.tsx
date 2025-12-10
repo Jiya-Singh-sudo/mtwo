@@ -1,124 +1,256 @@
-export function RoomManagement() {
-  const floors = [
-    {
-      name: 'Ground Floor',
-      rooms: [
-        { number: '101', status: 'available', type: 'Standard', guest: null },
-        { number: '102', status: 'occupied', type: 'Standard', guest: 'Shri A. Kumar' },
-        { number: '103', status: 'available', type: 'Standard', guest: null },
-        { number: '104', status: 'housekeeping', type: 'Standard', guest: null },
-        { number: '105', status: 'occupied', type: 'Deluxe', guest: 'Shri Amit Verma' },
-      ]
-    },
-    {
-      name: 'First Floor',
-      rooms: [
-        { number: '201', status: 'occupied', type: 'Suite', guest: 'Shri Rajesh Kumar' },
-        { number: '202', status: 'reserved', type: 'Suite', guest: 'Reserved for VIP' },
-        { number: '203', status: 'available', type: 'Deluxe', guest: null },
-        { number: '204', status: 'maintenance', type: 'Deluxe', guest: null },
-        { number: '205', status: 'available', type: 'Standard', guest: null },
-      ]
-    },
-    {
-      name: 'Second Floor',
-      rooms: [
-        { number: '301', status: 'available', type: 'Standard', guest: null },
-        { number: '302', status: 'occupied', type: 'Standard', guest: 'Dr. Singh' },
-        { number: '303', status: 'available', type: 'Standard', guest: null },
-        { number: '304', status: 'reserved', type: 'Deluxe', guest: 'Reserved' },
-        { number: '305', status: 'maintenance', type: 'Standard', guest: null },
-      ]
-    },
-  ];
+import { useState } from 'react';
+import { Search, Edit, Eye, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-green-500 border-green-600';
-      case 'occupied': return 'bg-red-500 border-red-600';
-      case 'reserved': return 'bg-yellow-500 border-yellow-600';
-      case 'housekeeping': return 'bg-blue-500 border-blue-600';
-      case 'maintenance': return 'bg-gray-500 border-gray-600';
-      default: return 'bg-gray-300 border-gray-400';
+interface Room {
+  id: string;
+  roomNo: string;
+  category: 'VVIP Suite' | 'VIP Room' | 'Standard' | 'Deluxe';
+  status: 'Available' | 'Occupied' | 'Reserved' | 'Housekeeping' | 'Maintenance';
+  guest: string;
+  floor: string;
+  capacity: number;
+}
+
+export function RoomManagement() {
+  const [rooms, setRooms] = useState<Room[]>([
+    { id: '1', roomNo: 'A-101', category: 'VVIP Suite', status: 'Occupied', guest: 'Dr. Rajesh Kumar', floor: '1st Floor', capacity: 2 },
+    { id: '2', roomNo: 'A-102', category: 'VVIP Suite', status: 'Available', guest: '-', floor: '1st Floor', capacity: 2 },
+    { id: '3', roomNo: 'B-201', category: 'VIP Room', status: 'Reserved', guest: 'Reserved for VIP', floor: '2nd Floor', capacity: 2 },
+    { id: '4', roomNo: 'B-202', category: 'VIP Room', status: 'Available', guest: '-', floor: '2nd Floor', capacity: 2 },
+    { id: '5', roomNo: 'B-205', category: 'VIP Room', status: 'Occupied', guest: 'Mrs. Anita Deshmukh', floor: '2nd Floor', capacity: 2 },
+    { id: '6', roomNo: 'C-301', category: 'Standard', status: 'Housekeeping', guest: '-', floor: '3rd Floor', capacity: 1 },
+    { id: '7', roomNo: 'C-302', category: 'Standard', status: 'Available', guest: '-', floor: '3rd Floor', capacity: 1 },
+    { id: '8', roomNo: 'D-401', category: 'Deluxe', status: 'Maintenance', guest: '-', floor: '4th Floor', capacity: 2 }
+  ]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [newStatus, setNewStatus] = useState<Room['status']>('Available');
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleChangeStatus = async () => {
+    if (selectedRoom) {
+      try {
+        setIsLoading(true);
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        setRooms(rooms.map(r => r.id === selectedRoom.id ? { ...r, status: newStatus } : r));
+        setIsStatusModalOpen(false);
+        setSelectedRoom(null);
+      } catch (error) {
+        console.error("Failed to update status", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const stats = [
-    { label: 'Available', count: 12, color: 'bg-green-500' },
-    { label: 'Occupied', count: 20, color: 'bg-red-500' },
-    { label: 'Reserved', count: 5, color: 'bg-yellow-500' },
-    { label: 'Housekeeping', count: 1, color: 'bg-blue-500' },
-    { label: 'Maintenance', count: 2, color: 'bg-gray-500' },
-  ];
+  const openStatusModal = (room: Room) => {
+    setSelectedRoom(room);
+    setNewStatus(room.status);
+    setIsStatusModalOpen(true);
+  };
+
+  const openDetailsModal = (room: Room) => {
+    setSelectedRoom(room);
+    setIsDetailsModalOpen(true);
+  };
+
+  const filteredRooms = rooms.filter(room =>
+    room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    room.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    room.guest.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Available': return 'bg-green-100 text-green-800';
+      case 'Occupied': return 'bg-red-100 text-red-800';
+      case 'Reserved': return 'bg-yellow-100 text-yellow-800';
+      case 'Housekeeping': return 'bg-blue-100 text-blue-800';
+      case 'Maintenance': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'VVIP Suite': return 'bg-purple-100 text-purple-800';
+      case 'VIP Room': return 'bg-blue-100 text-blue-800';
+      case 'Deluxe': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div>
         <h2 className="text-[#00247D]">Room Management</h2>
-        <p className="text-sm text-gray-600">कक्ष प्रबंधन - Floor-wise room status and allocation</p>
+        <p className="text-gray-600 text-sm mt-1">Manage room status and allocations | कक्ष प्रबंधन</p>
       </div>
 
-      {/* Status Legend */}
-      <div className="bg-white border border-gray-200 rounded-sm p-6">
-        <h3 className="text-[#00247D] mb-4">Room Status Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex items-center gap-3">
-              <div className={`w-6 h-6 ${stat.color} rounded`} />
-              <div>
-                <p className="text-sm text-gray-700">{stat.label}</p>
-                <p className="text-xl text-[#00247D]">{stat.count}</p>
-              </div>
-            </div>
-          ))}
+      {/* Search Bar */}
+      <div className="bg-white border border-gray-200 rounded-sm p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Input
+            type="text"
+            placeholder="Search by room number, category, or guest..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
       </div>
 
-      {/* Floor-wise Room Layout */}
-      <div className="space-y-6">
-        {floors.map((floor) => (
-          <div key={floor.name} className="bg-white border border-gray-200 rounded-sm p-6">
-            <h3 className="text-[#00247D] mb-4">{floor.name}</h3>
-            
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {floor.rooms.map((room) => (
-                <button
-                  key={room.number}
-                  className={`${getStatusColor(room.status)} border-2 rounded-sm p-4 hover:shadow-lg transition-all text-white text-left`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-lg">{room.number}</p>
-                    <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
-                      {room.type}
+      {/* Room List Table */}
+      <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-[#F5A623] text-white">
+                <th className="px-4 py-3 text-left text-sm">Room No</th>
+                <th className="px-4 py-3 text-left text-sm">Category</th>
+                <th className="px-4 py-3 text-left text-sm">Status</th>
+                <th className="px-4 py-3 text-left text-sm">Guest</th>
+                <th className="px-4 py-3 text-left text-sm">Floor</th>
+                <th className="px-4 py-3 text-left text-sm">Capacity</th>
+                <th className="px-4 py-3 text-left text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRooms.map((room, index) => (
+                <tr key={room.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
+                    {room.roomNo}
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200">
+                    <span className={`inline-block px-2 py-1 rounded-sm text-xs ${getCategoryColor(room.category)}`}>
+                      {room.category}
                     </span>
-                  </div>
-                  <p className="text-xs opacity-90 capitalize">{room.status}</p>
-                  {room.guest && (
-                    <p className="text-xs mt-2 opacity-90 truncate">{room.guest}</p>
-                  )}
-                </button>
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200">
+                    <span className={`inline-block px-2 py-1 rounded-sm text-xs ${getStatusColor(room.status)}`}>
+                      {room.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
+                    {room.guest}
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
+                    {room.floor}
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
+                    {room.capacity} {room.capacity === 1 ? 'Person' : 'Persons'}
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openDetailsModal(room)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => openStatusModal(room)}
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                        title="Change Status"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button className="bg-[#00247D] text-white p-4 rounded-sm hover:bg-blue-900 transition-colors">
-          <p>Smart Room Allocation</p>
-          <p className="text-xs opacity-90 mt-1">Auto-suggest based on category</p>
-        </button>
-        <button className="bg-green-600 text-white p-4 rounded-sm hover:bg-green-700 transition-colors">
-          <p>Housekeeping Schedule</p>
-          <p className="text-xs opacity-90 mt-1">Manage cleaning roster</p>
-        </button>
-        <button className="bg-orange-600 text-white p-4 rounded-sm hover:bg-orange-700 transition-colors">
-          <p>Maintenance Log</p>
-          <p className="text-xs opacity-90 mt-1">View repair history</p>
-        </button>
-      </div>
+      {/* Change Status Modal */}
+      <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#00247D]">Change Room Status</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">Room: <span className="text-gray-900">{selectedRoom?.roomNo}</span></p>
+              <p className="text-sm text-gray-600">Current Status: <span className="text-gray-900">{selectedRoom?.status}</span></p>
+            </div>
+            <Label>New Status</Label>
+            <Select value={newStatus} onValueChange={(value: any) => setNewStatus(value)}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="Occupied">Occupied</SelectItem>
+                <SelectItem value="Reserved">Reserved</SelectItem>
+                <SelectItem value="Housekeeping">Housekeeping</SelectItem>
+                <SelectItem value="Maintenance">Maintenance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStatusModalOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button onClick={handleChangeStatus} className="bg-[#00247D] hover:bg-[#003399] text-white" disabled={isLoading}>
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</> : 'Update Status'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Room Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#00247D]">Room Details</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Room Number</p>
+                <p className="text-gray-900">{selectedRoom?.roomNo}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Category</p>
+                <p className="text-gray-900">{selectedRoom?.category}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Status</p>
+                <p className="text-gray-900">{selectedRoom?.status}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Floor</p>
+                <p className="text-gray-900">{selectedRoom?.floor}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Capacity</p>
+                <p className="text-gray-900">{selectedRoom?.capacity} {selectedRoom?.capacity === 1 ? 'Person' : 'Persons'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Current Guest</p>
+                <p className="text-gray-900">{selectedRoom?.guest}</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

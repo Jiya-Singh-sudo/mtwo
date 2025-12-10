@@ -1,4 +1,4 @@
-import { Download, FileText, Calendar, TrendingUp } from 'lucide-react';
+import { Download, FileText, TrendingUp } from 'lucide-react';
 
 export function Reports() {
   const reports = [

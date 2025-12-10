@@ -1,0 +1,49 @@
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: white;
+  width: 420px;
+  padding: 24px;
+  border-radius: 8px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  margin-top: 4px;
+  border-radius: 4px;
+}
+
+.saveBtn {
+  background: #00247D;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 4px;
+}
+
+.icon-btn {
+  padding: 6px;
+  border-radius: 6px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}

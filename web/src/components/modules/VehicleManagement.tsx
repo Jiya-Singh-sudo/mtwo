@@ -1,4 +1,4 @@
-import { Car, User, Clock, MapPin } from 'lucide-react';
+import { Car, User, MapPin } from 'lucide-react';
 
 export function VehicleManagement() {
   const vehicles = [
@@ -91,31 +91,28 @@ export function VehicleManagement() {
               <div key={vehicle.id} className="border border-gray-200 rounded-sm p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${
-                      vehicle.status === 'Available' ? 'bg-green-100' :
-                      vehicle.status === 'On Duty' ? 'bg-blue-100' :
-                      'bg-yellow-100'
-                    } rounded-sm flex items-center justify-center`}>
-                      <Car className={`w-6 h-6 ${
-                        vehicle.status === 'Available' ? 'text-green-600' :
-                        vehicle.status === 'On Duty' ? 'text-blue-600' :
-                        'text-yellow-600'
-                      }`} />
+                    <div className={`w-12 h-12 ${vehicle.status === 'Available' ? 'bg-green-100' :
+                        vehicle.status === 'On Duty' ? 'bg-blue-100' :
+                          'bg-yellow-100'
+                      } rounded-sm flex items-center justify-center`}>
+                      <Car className={`w-6 h-6 ${vehicle.status === 'Available' ? 'text-green-600' :
+                          vehicle.status === 'On Duty' ? 'text-blue-600' :
+                            'text-yellow-600'
+                        }`} />
                     </div>
                     <div>
                       <p className="text-gray-900">{vehicle.number}</p>
                       <p className="text-sm text-gray-600">{vehicle.type}</p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 text-xs rounded-full ${
-                    vehicle.status === 'Available' ? 'bg-green-100 text-green-700' :
-                    vehicle.status === 'On Duty' ? 'bg-blue-100 text-blue-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
+                  <span className={`px-3 py-1 text-xs rounded-full ${vehicle.status === 'Available' ? 'bg-green-100 text-green-700' :
+                      vehicle.status === 'On Duty' ? 'bg-blue-100 text-blue-700' :
+                        'bg-yellow-100 text-yellow-700'
+                    }`}>
                     {vehicle.status}
                   </span>
                 </div>
-                
+
                 <div className="space-y-2 text-sm">
                   {vehicle.driver && (
                     <div className="flex items-center gap-2 text-gray-700">
@@ -149,31 +146,28 @@ export function VehicleManagement() {
               <div key={index} className="border border-gray-200 rounded-sm p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${
-                      driver.status === 'Free' ? 'bg-green-100' :
-                      driver.status === 'On Duty' ? 'bg-blue-100' :
-                      'bg-purple-100'
-                    } rounded-sm flex items-center justify-center`}>
-                      <User className={`w-6 h-6 ${
-                        driver.status === 'Free' ? 'text-green-600' :
-                        driver.status === 'On Duty' ? 'text-blue-600' :
-                        'text-purple-600'
-                      }`} />
+                    <div className={`w-12 h-12 ${driver.status === 'Free' ? 'bg-green-100' :
+                        driver.status === 'On Duty' ? 'bg-blue-100' :
+                          'bg-purple-100'
+                      } rounded-sm flex items-center justify-center`}>
+                      <User className={`w-6 h-6 ${driver.status === 'Free' ? 'text-green-600' :
+                          driver.status === 'On Duty' ? 'text-blue-600' :
+                            'text-purple-600'
+                        }`} />
                     </div>
                     <div>
                       <p className="text-gray-900">{driver.name}</p>
                       <p className="text-sm text-gray-600">{driver.shift} Shift</p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 text-xs rounded-full ${
-                    driver.status === 'Free' ? 'bg-green-100 text-green-700' :
-                    driver.status === 'On Duty' ? 'bg-blue-100 text-blue-700' :
-                    'bg-purple-100 text-purple-700'
-                  }`}>
+                  <span className={`px-3 py-1 text-xs rounded-full ${driver.status === 'Free' ? 'bg-green-100 text-green-700' :
+                      driver.status === 'On Duty' ? 'bg-blue-100 text-blue-700' :
+                        'bg-purple-100 text-purple-700'
+                    }`}>
                     {driver.status}
                   </span>
                 </div>
-                
+
                 {driver.vehicle && (
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Car className="w-4 h-4" />

@@ -1,157 +1,287 @@
-import { UserPlus, Shield, Clock, ToggleLeft } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+[{
+	"resource": "/c:/Users/ayij3/Desktop/JiyaProjects/MTWO/web/src/components/modules/RoomManagement.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'isLoading'.",
+	"source": "ts",
+	"startLineNumber": 195,
+	"startColumn": 93,
+	"endLineNumber": 195,
+	"endColumn": 102,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/ayij3/Desktop/JiyaProjects/MTWO/web/src/components/modules/RoomManagement.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'isLoading'.",
+	"source": "ts",
+	"startLineNumber": 196,
+	"startColumn": 115,
+	"endLineNumber": 196,
+	"endColumn": 124,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/ayij3/Desktop/JiyaProjects/MTWO/web/src/components/modules/RoomManagement.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'isLoading'.",
+	"source": "ts",
+	"startLineNumber": 197,
+	"startColumn": 16,
+	"endLineNumber": 197,
+	"endColumn": 25,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/ayij3/Desktop/JiyaProjects/MTWO/web/src/components/modules/RoomManagement.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'Loader2'.",
+	"source": "ts",
+	"startLineNumber": 197,
+	"startColumn": 31,
+	"endLineNumber": 197,
+	"endColumn": 38,
+	"origin": "extHost1"
+}]
+interface User {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'Dept Head' | 'Officer' | 'Staff';
+  department: string;
+}
 
 export function UserManagement() {
-  const users = [
+  // --- 1. STATE MANAGEMENT ---
+  const [users, setUsers] = useState<User[]>([
     {
-      id: 'U001',
-      name: 'Admin User',
-      email: 'admin@guesthouse.gov.in',
+      id: '1',
+      userId: 'USR001',
+      name: 'Ramesh Sharma',
+      email: 'ramesh.sharma@rajbhavan.gov.in',
       role: 'Admin',
-      department: 'Administration',
-      status: 'Active',
-      lastLogin: '2025-12-06 08:00 AM',
-      permissions: ['All Modules']
+      department: 'Administration'
     },
     {
-      id: 'U002',
-      name: 'Ramesh Kumar',
-      email: 'ramesh.kumar@guesthouse.gov.in',
-      role: 'Department Head',
-      department: 'Housekeeping',
-      status: 'Active',
-      lastLogin: '2025-12-06 07:30 AM',
-      permissions: ['Guest Management', 'Room Management', 'Duty Roster']
-    },
-    {
-      id: 'U003',
-      name: 'Priya Sharma',
-      email: 'priya.sharma@guesthouse.gov.in',
-      role: 'Officer',
-      department: 'Front Desk',
-      status: 'Active',
-      lastLogin: '2025-12-05 06:00 PM',
-      permissions: ['Guest Management', 'Room Management']
-    },
-    {
-      id: 'U004',
-      name: 'Vijay Singh',
-      email: 'vijay.singh@guesthouse.gov.in',
+      id: '2',
+      userId: 'USR002',
+      name: 'Priya Kulkarni',
+      email: 'priya.kulkarni@rajbhavan.gov.in',
+      role: 'Dept Head',
+      department: 'Guest Services'
+    }
+  ]);
+
+  // Modal visibility states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Selection and Loading states
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Form Data State
+  const [formData, setFormData] = useState({
+    userId: '',
+    name: '',
+    email: '',
+    role: 'Staff' as User['role'],
+    department: ''
+  });
+
+  // --- 2. HELPER FUNCTIONS ---
+  const resetForm = () => {
+    setFormData({
+      userId: '',
+      name: '',
+      email: '',
       role: 'Staff',
-      department: 'Security',
-      status: 'Inactive',
-      lastLogin: '2025-12-03 10:00 PM',
-      permissions: ['View Only']
-    },
-  ];
+      department: ''
+    });
+  };
 
-  const roles = [
-    { name: 'Admin', count: 2, color: 'bg-red-100 text-red-700' },
-    { name: 'Department Head', count: 5, color: 'bg-orange-100 text-orange-700' },
-    { name: 'Officer', count: 12, color: 'bg-blue-100 text-blue-700' },
-    { name: 'Staff', count: 27, color: 'bg-gray-100 text-gray-700' },
-  ];
+  const validateForm = () => {
+    if (!formData.userId || !formData.name || !formData.email || !formData.department) {
+      alert("Please fill in all required fields.");
+      return false;
+    }
+    return true;
+  };
 
+  // --- 3. ACTION HANDLERS (LOGIC) ---
+
+  // Handle Adding a New User
+  const handleAddUser = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setIsLoading(true);
+      // Simulate API call delay (1 second)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const newUser: User = {
+        id: Date.now().toString(),
+        ...formData
+      };
+
+      setUsers([...users, newUser]); // Update list
+      setIsAddModalOpen(false);      // Close modal
+      resetForm();                   // Clear form
+    } catch (error) {
+      console.error("Error adding user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Editing an Existing User
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!validateForm()) return;
+
+    try {
+      setIsLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setUsers(users.map(u => u.id === selectedUser.id ? { ...selectedUser, ...formData } : u));
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+      resetForm();
+    } catch (error) {
+      console.error("Error editing user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Deleting a User
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setIsLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setUsers(users.filter(u => u.id !== selectedUser.id));
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Open Edit Modal and Pre-fill Data
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setFormData({
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Open Delete Dialog
+  const openDeleteDialog = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'Admin': return 'bg-purple-100 text-purple-800';
+      case 'Dept Head': return 'bg-blue-100 text-blue-800';
+      case 'Officer': return 'bg-green-100 text-green-800';
+      case 'Staff': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // --- 4. RENDER (JSX) ---
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[#00247D]">User & Role Management</h2>
-          <p className="text-sm text-gray-600">उपयोगकर्ता प्रबंधन - Manage users, roles, and permissions</p>
+          <h2 className="text-[#00247D]">User Management</h2>
+          <p className="text-gray-600 text-sm mt-1">Manage system users and roles | उपयोगकर्ता प्रबंधन</p>
         </div>
-        <button className="px-6 py-3 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center gap-2">
-          <UserPlus className="w-5 h-5" />
+        <Button
+          onClick={() => { resetForm(); setIsAddModalOpen(true); }}
+          className="bg-[#00247D] hover:bg-[#003399] text-white"
+        >
+          <Plus className="w-4 h-4 mr-2" />
           Add New User
-        </button>
+        </Button>
       </div>
 
-      {/* Role Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {roles.map((role) => (
-          <div key={role.name} className="bg-white border border-gray-200 rounded-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <Shield className="w-8 h-8 text-[#00247D]" />
-              <span className={`px-3 py-1 text-sm rounded-full ${role.color}`}>
-                {role.count}
-              </span>
-            </div>
-            <p className="text-gray-900">{role.name}</p>
-            <p className="text-sm text-gray-600 mt-1">Active users</p>
-          </div>
-        ))}
-      </div>
-
-      {/* User List */}
-      <div className="bg-white border border-gray-200 rounded-sm">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-[#00247D]">User List</h3>
-          <div className="flex gap-2">
-            <select className="px-4 py-2 border border-gray-300 rounded-sm text-sm focus:outline-none focus:border-[#00247D]">
-              <option>All Roles</option>
-              <option>Admin</option>
-              <option>Department Head</option>
-              <option>Officer</option>
-              <option>Staff</option>
-            </select>
-            <select className="px-4 py-2 border border-gray-300 rounded-sm text-sm focus:outline-none focus:border-[#00247D]">
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-          </div>
-        </div>
+      {/* User List Table */}
+      <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">User ID</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Name & Email</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Role</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Department</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Status</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Last Login</th>
-                <th className="px-6 py-3 text-left text-sm text-gray-700">Actions</th>
+            <thead>
+              <tr className="bg-[#F5A623] text-white">
+                <th className="px-4 py-3 text-left text-sm">User ID</th>
+                <th className="px-4 py-3 text-left text-sm">Name & Email</th>
+                <th className="px-4 py-3 text-left text-sm">Role</th>
+                <th className="px-4 py-3 text-left text-sm">Department</th>
+                <th className="px-4 py-3 text-left text-sm">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">{user.id}</td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm text-gray-900">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
+            <tbody>
+              {users.map((user, index) => (
+                <tr key={user.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
+                    {user.userId}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 text-xs rounded-full ${
-                      user.role === 'Admin' ? 'bg-red-100 text-red-700' :
-                      user.role === 'Department Head' ? 'bg-orange-100 text-orange-700' :
-                      user.role === 'Officer' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+                  <td className="px-4 py-3 border-t border-gray-200">
+                    <div>
+                      <p className="text-sm text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-t border-gray-200">
+                    <span className={`inline-block px-2 py-1 rounded-sm text-xs ${getRoleColor(user.role)}`}>
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{user.department}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 text-xs rounded-full ${
-                      user.status === 'Active' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {user.status}
-                    </span>
+                  <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
+                    {user.department}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
+                  <td className="px-4 py-3 border-t border-gray-200">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      {user.lastLogin}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
-                      <button className="text-orange-600 hover:text-orange-800 text-sm">Permissions</button>
-                      <button className="text-red-600 hover:text-red-800 text-sm">Disable</button>
+                      <button
+                        onClick={() => openEditModal(user)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => openDeleteDialog(user)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -161,105 +291,159 @@ export function UserManagement() {
         </div>
       </div>
 
-      {/* Permission Management */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-sm">
-          <div className="border-b border-gray-200 px-6 py-4">
-            <h3 className="text-[#00247D]">Role Permissions</h3>
-          </div>
-          <div className="p-6">
-            <div className="mb-4">
-              <label className="block text-sm text-gray-700 mb-2">Select Role</label>
-              <select className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D]">
-                <option>Admin</option>
-                <option>Department Head</option>
-                <option>Officer</option>
-                <option>Staff</option>
-              </select>
+      {/* Add User Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#00247D]">Add New User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="userId">User ID *</Label>
+              <Input
+                id="userId"
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                placeholder="USR001"
+              />
             </div>
-
-            <div className="space-y-3">
-              <p className="text-sm text-gray-700">Module Access:</p>
-              {[
-                'Guest Management',
-                'Room Management',
-                'Vehicle Management',
-                'Duty Roster',
-                'Info Package Generator',
-                'Notifications',
-                'Reports & Analytics',
-                'User Management',
-                'System Settings'
-              ].map((module, index) => (
-                <label key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-sm hover:bg-gray-50">
-                  <span className="text-sm text-gray-700">{module}</span>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      View
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      Edit
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
-                      <input type="checkbox" className="rounded" />
-                      Delete
-                    </label>
-                  </div>
-                </label>
-              ))}
+            <div>
+              <Label htmlFor="name">Full Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter full name"
+              />
             </div>
-
-            <button className="w-full mt-4 px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors">
-              Save Permissions
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {/* Login History */}
-          <div className="bg-white border border-gray-200 rounded-sm">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-[#00247D]">Recent Login Activity</h3>
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="email@rajbhavan.gov.in"
+              />
             </div>
-            <div className="p-6 space-y-3">
-              {[
-                { user: 'Admin User', time: '2025-12-06 08:00 AM', ip: '10.0.0.1' },
-                { user: 'Ramesh Kumar', time: '2025-12-06 07:30 AM', ip: '10.0.0.5' },
-                { user: 'Priya Sharma', time: '2025-12-05 06:00 PM', ip: '10.0.0.12' },
-              ].map((login, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-sm">
-                  <div>
-                    <p className="text-sm text-gray-900">{login.user}</p>
-                    <p className="text-xs text-gray-500">{login.time}</p>
-                  </div>
-                  <p className="text-xs text-gray-600">IP: {login.ip}</p>
-                </div>
-              ))}
-              <button className="w-full py-2 text-sm text-[#00247D] border border-[#00247D] rounded-sm hover:bg-blue-50 transition-colors">
-                View Full History
-              </button>
+            <div>
+              <Label htmlFor="role">Role *</Label>
+              <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Dept Head">Dept Head</SelectItem>
+                  <SelectItem value="Officer">Officer</SelectItem>
+                  <SelectItem value="Staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="department">Department *</Label>
+              <Input
+                id="department"
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                placeholder="Enter department"
+              />
             </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsAddModalOpen(false); resetForm(); }} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddUser} className="bg-[#00247D] hover:bg-[#003399] text-white" disabled={isLoading}>
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding...</> : 'Add User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Quick Actions */}
-          <div className="bg-white border border-gray-200 rounded-sm p-6">
-            <h3 className="text-[#00247D] mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors text-sm">
-                Bulk User Import
-              </button>
-              <button className="w-full px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors text-sm">
-                Export User List
-              </button>
-              <button className="w-full px-4 py-2 bg-orange-600 text-white rounded-sm hover:bg-orange-700 transition-colors text-sm">
-                Reset Passwords
-              </button>
+      {/* Edit User Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#00247D]">Edit User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-userId">User ID *</Label>
+              <Input
+                id="edit-userId"
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Full Name *</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email *</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-role">Role *</Label>
+              <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Dept Head">Dept Head</SelectItem>
+                  <SelectItem value="Officer">Officer</SelectItem>
+                  <SelectItem value="Staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-department">Department *</Label>
+              <Input
+                id="edit-department"
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              />
             </div>
           </div>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsEditModalOpen(false); resetForm(); }} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditUser} className="bg-[#00247D] hover:bg-[#003399] text-white" disabled={isLoading}>
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete user <strong>{selectedUser?.name}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e: any) => { e.preventDefault(); handleDeleteUser(); }} className="bg-red-600 hover:bg-red-700" disabled={isLoading}>
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</> : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
