@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import { Search, Plus, Eye, Edit, FileText, BedDouble, Car, Trash2 } from "lucide-react";
-import { createGuest, getActiveGuestsWithInOut } from "@/api/guest.api";
+import { Search, Plus, Eye, Edit, FileText, BedDouble, Car } from "lucide-react";
+import { getActiveGuests } from "@/api/guest.api";
 import { createGuestRoom } from "@/api/guestRoom.api";
-import { softDeleteGuestInout, createGuestInOut } from "@/api/guestInOut.api";
 import "./GuestManagementModals.css"; // <-- you will create this CSS (I'll give it below)
 
 /* ----------------- TYPES ----------------- */
 export interface Guest {
   id: string;
-  inout_id: string;
   name: string;
   designation: string;
   department: string;
@@ -23,16 +21,7 @@ export function GuestManagement() {
   const [guests, setGuests] = useState<Guest[]>([]);
 
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
-  const [guestForm, setGuestForm] = useState({
-    guest_name: "",
-    guest_name_local_language: "",
-    guest_mobile: "",
-    guest_alternate_mobile: "",
-    guest_address: "",
-    id_proof_type: "" as "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter-ID" | "Other",
-    id_proof_no: "",
-    email: "",
-  });
+
   /* ----- MODAL STATES ----- */
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -40,7 +29,6 @@ export function GuestManagement() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   /* ----- ROOM DATA ----- */
   const [roomData, setRoomData] = useState({
@@ -48,44 +36,6 @@ export function GuestManagement() {
     action_type: "Room-Allocated",
     action_description: "",
   });
-
-  function updateGuestForm(field: string, value: string) {
-    setGuestForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function submitNewGuest() {
-  if (!guestForm.guest_name.trim() || !guestForm.guest_mobile.trim()) {
-    alert("Name and mobile number are required.");
-    return;
-  }
-  try {
-    const now = new Date();
-    const entry_date = now.toISOString().split("T")[0];
-    const entry_time = now.toTimeString().slice(0, 5);
-
-    // 1. Create Guest
-    const guest = await createGuest(guestForm);
-
-    // 2. Create Guest IN/OUT entry
-    await createGuestInOut({
-      guest_id: guest.guest_id,   // returned from backend
-      entry_date,
-      entry_time,
-      status: "Entered",
-      guest_inout: true,
-      remarks: "",
-      purpose: "Visit",
-    });
-
-    setShowAddGuestModal(false);
-    loadGuests();
-
-  } catch (err) {
-    console.error("Guest creation failed:", err);
-  }
-}
-
-
 
   /* ----------------------------------------
      LOADING GUESTS FROM BACKEND
@@ -96,10 +46,9 @@ export function GuestManagement() {
 
   async function loadGuests() {
     try {
-      const data = await getActiveGuestsWithInOut();
+      const data = await getActiveGuests();
       const mapped = data.map((g: any) => ({
         id: g.guest_id,
-        inout_id: g.inout_id,
         name: g.guest_name,
         designation: g.designation || "N/A",
         department: g.department || "N/A",
@@ -146,18 +95,12 @@ export function GuestManagement() {
   async function assignRoom() {
     if (!selectedGuest) return;
 
-    const now = new Date();
-    const action_date = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const action_time = now.toTimeString().slice(0, 5);  // HH:mm
-
     try {
       await createGuestRoom({
         guest_id: selectedGuest.id,
         room_id: roomData.room_id,
         action_type: "Room-Allocated",
         action_description: roomData.action_description,
-        action_date,
-        action_time,
       });
 
       setShowRoomModal(false);
@@ -166,19 +109,6 @@ export function GuestManagement() {
       console.error("Room assignment failed:", err);
     }
   }
-
-  async function handleDeleteGuest() {
-    if (!selectedGuest) return;
-    try {
-      await softDeleteGuestInout(selectedGuest.inout_id);
-      setIsDeleteDialogOpen(false);
-      loadGuests();
-    } catch (err) {
-      console.error("Delete failed", err);
-    }
-  }
-
-
 
   /* =====================================================================
      MAIN RENDER
@@ -293,9 +223,6 @@ export function GuestManagement() {
                       <button onClick={() => openEditModal(g)} className="icon-btn text-green-600">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { setSelectedGuest(g); setIsDeleteDialogOpen(true); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                       <button onClick={() => openInfoModal(g)} className="icon-btn text-purple-600">
                         <FileText className="w-4 h-4" />
                       </button>
@@ -351,36 +278,6 @@ export function GuestManagement() {
           </div>
         </div>
       )}
-
-      {/* DELETE GUEST */}
-      {isDeleteDialogOpen && selectedGuest && (
-        <div className="modalOverlay">
-          <div className="modal">
-            <h3>Confirm Deletion</h3>
-
-            <p>
-              Are you sure you want to delete guest <strong>{selectedGuest.name}</strong>?  
-              This action cannot be undone.
-            </p>
-
-            <div className="modalActions">
-              <button onClick={() => setIsDeleteDialogOpen(false)}>
-                Cancel
-              </button>
-
-              <button
-                className="saveBtn"
-                style={{ backgroundColor: "red" }}
-                onClick={handleDeleteGuest}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
 
       {/* INFO PACKAGE */}
       {showInfoModal && selectedGuest && (
@@ -451,81 +348,34 @@ export function GuestManagement() {
 
       {/* ADD GUEST MODAL */}
       {showAddGuestModal && (
-      <div className="modalOverlay">
-        <div className="modal">
-          <h3>Add New Guest</h3>
+        <div className="modalOverlay">
+          <div className="modal">
+            <h3>Add New Guest</h3>
 
-          <label>Full Name *</label>
-          <input
-            className="modalInput"
-            value={guestForm.guest_name}
-            onChange={(e) => updateGuestForm("guest_name", e.target.value)}
-          />
+            <label>Full Name</label>
+            <input className="modalInput" />
 
-          <label>Name (Local Language)</label>
-          <input
-            className="modalInput"
-            value={guestForm.guest_name_local_language}
-            onChange={(e) => updateGuestForm("guest_name_local_language", e.target.value)}
-          />
+            <label>Designation</label>
+            <input className="modalInput" />
 
-          <label>Mobile Number *</label>
-          <input
-            className="modalInput"
-            value={guestForm.guest_mobile}
-            onChange={(e) => updateGuestForm("guest_mobile", e.target.value)}
-          />
+            <label>Department</label>
+            <input className="modalInput" />
 
-          <label>Alternate Mobile</label>
-          <input
-            className="modalInput"
-            value={guestForm.guest_alternate_mobile}
-            onChange={(e) => updateGuestForm("guest_alternate_mobile", e.target.value)}
-          />
+            <label>Category</label>
+            <select className="modalInput">
+              <option>VVIP</option>
+              <option>VIP</option>
+              <option>Official</option>
+            </select>
 
-          <label>Address</label>
-          <textarea
-            className="modalInput"
-            value={guestForm.guest_address}
-            onChange={(e) => updateGuestForm("guest_address", e.target.value)}
-          />
-
-          <label>ID Proof Type</label>
-          <select
-            className="modalInput"
-            value={guestForm.id_proof_type}
-            onChange={(e) => updateGuestForm("id_proof_type", e.target.value as "Aadhaar" | "PAN" | "Voter-ID" | "Driving License" | "Passport" | "Other")}
-          >
-            <option value="">Select</option>
-            <option value="Aadhaar">Aadhar</option>
-            <option value="PAN">PAN</option>
-            <option value="Voter-ID">Voter ID</option>
-            <option value="Driving License">Driving License</option>
-            <option value="Passport">Passport</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <label>ID Proof Number</label>
-          <input
-            className="modalInput"
-            value={guestForm.id_proof_no}
-            onChange={(e) => updateGuestForm("id_proof_no", e.target.value)}
-          />
-
-          <label>Email</label>
-          <input
-            className="modalInput"
-            value={guestForm.email}
-            onChange={(e) => updateGuestForm("email", e.target.value)}
-          />
-
-          <div className="modalActions">
-            <button onClick={() => setShowAddGuestModal(false)}>Cancel</button>
-            <button className="saveBtn" onClick={submitNewGuest}>Add Guest</button>
+            <div className="modalActions">
+              <button onClick={() => setShowAddGuestModal(false)}>Cancel</button>
+              <button className="saveBtn">Add Guest</button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
+
     </div>
   );
 }

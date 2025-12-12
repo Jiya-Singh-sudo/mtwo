@@ -1,11 +1,10 @@
 // src/api/guest.api.ts
-import api from "./apiClient";
+import api, { safeGet } from "./apiClient";
 import type { GuestCreateDto, GuestUpdateDto } from "../types/guests";
 
-export async function getActiveGuestsWithInOut() {
+export async function getActiveGuests() {
   // GET /guests (controller returns active only by default)
-  const res = await api.get("/guests/guestsWithInOut");
-  return res.data;
+  return safeGet<any[]>("/guests");
 }
 
 export async function createGuest(data: GuestCreateDto, user = "system") {
