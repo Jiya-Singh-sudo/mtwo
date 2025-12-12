@@ -1,16 +1,11 @@
-export class CreateGuestInoutDto {
-  guest_id: string;
-  room_id?: string;
-
-  guest_inout?: boolean;
-
-  entry_date: string; // YYYY-MM-DD
-  entry_time: string; // HH:mm
-
+export class CreateGuestInOutDto {
+  guest_id!: number | string;
+  entry_date!: string;  // 'YYYY-MM-DD'
+  room_id?: number | string;
+  entry_time!: string;  // 'HH:MM:SS' or 'HH:MM'
   exit_date?: string;
   exit_time?: string;
-
-  status?: "Entered" | "Inside" | "Exited";
+  status?: 'Entered' | 'Inside' | 'Exited';
   purpose?: string;
   remarks?: string;
 }

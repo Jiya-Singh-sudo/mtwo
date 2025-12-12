@@ -1,173 +1,246 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
 
 @Injectable()
 export class GuestsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
-  // Generate ID like G001, G002 ...
-  private async generateGuestId(): Promise<string> {
-    const sql = `SELECT guest_id FROM m_guest ORDER BY guest_id DESC LIMIT 1`;
-    const result = await this.db.query(sql);
+  // create guest (transactional)
+  async createFullGuest(payload: {
+    guest: CreateGuestDto;
+    designation?: {
+      designation_id: string;
+      designation_name?: string;
+      department?: string;
+      organization?: string;
+      office_location?: string;
+    };
+    inout?: {
+      entry_date?: string;
+      entry_time?: string;
+      exit_date?: string;
+      exit_time?: string;
+      status?: 'Entered' | 'Inside' | 'Exited';
+      purpose?: string;
+      remarks?: string;
+    };
+  }, user = 'system', ip = '0.0.0.0') {
+    // transaction start
+    await this.db.query('BEGIN');
+    try {
+      const g = payload.guest;
+      const insertGuestSql = `
+        INSERT INTO m_guest
+          (guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, id_proof_type, id_proof_no, email, inserted_by, inserted_ip)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        RETURNING *;
+      `;
+      const guestRes = await this.db.query(insertGuestSql, [
+        g.guest_name, g.guest_name_local_language || null,
+        g.guest_mobile || null, g.guest_alternate_mobile || null,
+        g.guest_address || null, g.id_proof_type, g.id_proof_no || null,
+        g.email || null, user, ip
+      ]);
+      const guestRow = guestRes.rows[0];
 
-    if (result.rows.length === 0) {
-      return 'G001';
+      // upsert m_designation if designation_name provided
+      let finalDesignationId = payload.designation?.designation_id;
+      if (payload.designation?.designation_name) {
+        // try to insert or update m_designation
+        const upsertSql = `
+          INSERT INTO m_designation (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
+          VALUES ($1, $2, NULL, $3, $4)
+          ON CONFLICT (designation_id) DO UPDATE
+            SET designation_name = EXCLUDED.designation_name,
+                updated_at = NOW(),
+                updated_by = EXCLUDED.inserted_by,
+                updated_ip = EXCLUDED.inserted_ip
+          RETURNING *;
+        `;
+        const desRes = await this.db.query(upsertSql, [
+          payload.designation.designation_id,
+          payload.designation.designation_name,
+          user, ip
+        ]);
+        finalDesignationId = desRes.rows[0].designation_id;
+      } else {
+        // If only designation_id provided, ensure it exists (optional)
+        if (finalDesignationId) {
+          const check = await this.db.query('SELECT designation_id FROM m_designation WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
+          if (check.rowCount === 0) {
+            // insert with only id and null name to avoid FK fail (you may want to require name)
+            await this.db.query(
+              `INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
+              [finalDesignationId, null, user, ip]
+            );
+          }
+        }
+      }
+
+      // create t_guest_designation
+      let gd_id: string | null = null;
+      if (finalDesignationId) {
+        gd_id = `GD${Date.now()}`; // simple unique id generator
+        const insertGdSql = `
+          INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
+          VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
+          RETURNING *;
+        `;
+        await this.db.query(insertGdSql, [
+          gd_id,
+          guestRow.guest_id,
+          finalDesignationId,
+          payload.designation?.department || null,
+          payload.designation?.organization || null,
+          payload.designation?.office_location || null,
+          user, ip
+        ]);
+      }
+
+      // create t_guest_inout
+      const inout_id = `IN${Date.now()}`;
+      const now = new Date();
+      const entry_date = payload.inout?.entry_date || now.toISOString().split('T')[0];
+      const entry_time = payload.inout?.entry_time || now.toTimeString().slice(0, 8);
+      const insertIoSql = `
+        INSERT INTO t_guest_inout
+          (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, is_active, inserted_by, inserted_ip)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, TRUE, $11, $12)
+        RETURNING *;
+      `;
+      const ioRes = await this.db.query(insertIoSql, [
+        inout_id,
+        guestRow.guest_id,
+        true,
+        entry_date,
+        entry_time,
+        payload.inout?.exit_date || null,
+        payload.inout?.exit_time || null,
+        payload.inout?.status || 'Entered',
+        payload.inout?.purpose || null,
+        payload.inout?.remarks || null,
+        user,
+        ip
+      ]);
+
+      await this.db.query('COMMIT');
+      return {
+        guest: guestRow,
+        inout: ioRes.rows[0],
+        gd_id
+      };
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
     }
-
-    const last = result.rows[0].guest_id.replace('G', '');
-
-    // 👇 Prevent NaN
-    const lastNum = Number(last);
-    const nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
-
-    return 'G' + nextNum.toString().padStart(3, '0');
   }
 
-
-  async findAll(activeOnly = true) {
-    const sql = activeOnly
-      ? `SELECT * FROM m_guest WHERE is_active = $1 ORDER BY guest_name`
-      : `SELECT * FROM m_guest ORDER BY guest_name`;
-
-    const result = await this.db.query(sql, activeOnly ? [true] : []);
-    return result.rows;
+  // generic update - but map keys only from allowed set
+  async update(guestId: number, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
+    const allowed = new Set([
+      'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
+      'guest_address', 'id_proof_type', 'id_proof_no', 'email'
+    ]);
+    const fields: string[] = [];
+    const vals: any[] = [];
+    let idx = 1;
+    for (const [k, v] of Object.entries(dto)) {
+      if (!allowed.has(k)) continue;
+      fields.push(`${k} = $${idx}`);
+      vals.push(v);
+      idx++;
+    }
+    if (fields.length === 0) return this.findOne(guestId);
+    fields.push(`updated_at = NOW()`); // not parameterized
+    fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
+    fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
+    const sql = `UPDATE m_guest SET ${fields.join(', ')} WHERE guest_id = $${idx} RETURNING *;`;
+    vals.push(guestId);
+    const r = await this.db.query(sql, vals);
+    return r.rows[0];
   }
 
-  async findOneByName(name: string) {
-    const sql = `SELECT * FROM m_guest WHERE guest_name = $1`;
-    const result = await this.db.query(sql, [name]);
-    return result.rows[0];
+  async findOne(guestId: number) {
+    const sql = `SELECT * FROM m_guest WHERE guest_id = $1 LIMIT 1`;
+    const r = await this.db.query(sql, [guestId]);
+    return r.rows[0];
   }
 
-  async findOneById(id: string) {
-    const sql = `SELECT * FROM m_guest WHERE guest_id = $1`;
-    const result = await this.db.query(sql, [id]);
-    return result.rows[0];
-  }
-
-  async create(dto: CreateGuestDto, user: string, ip: string) {
-    const guest_id = await this.generateGuestId();
-
-    const now = new Date()
-      .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      .replace(',', '');
-
+  async softDeleteGuest(guestId: number, user = 'system', ip = '0.0.0.0') {
     const sql = `
-      INSERT INTO m_guest (
-        guest_id,
-        guest_name,
-        guest_name_local_language,
-        guest_mobile,
-        guest_alternate_mobile,
-        guest_address,
-        id_proof_type,
-        id_proof_no,
-        email,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,
-        NULL,NULL,NULL
-      )
+      UPDATE m_guest
+      SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
+      WHERE guest_id = $1
       RETURNING *;
     `;
-
-    const params = [
-      guest_id,
-      dto.guest_name,
-      dto.guest_name_local_language,
-      dto.guest_mobile,
-      dto.guest_alternate_mobile,
-      dto.guest_address,
-      dto.id_proof_type,
-      dto.id_proof_no,
-      dto.email,
-      true,
-      now,
-      user,
-      ip,
-    ];
-
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
+    const r = await this.db.query(sql, [guestId, user, ip]);
+    return r.rows[0];
   }
 
-  async update(name: string, dto: UpdateGuestDto, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) {
-      throw new Error(`Guest '${name}' not found`);
-    }
-
-    const guest_id = existing.guest_id;
-
-    const now = new Date()
-      .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      .replace(',', '');
-
+  // existing: list active guests by joining active inout rows
+  async findActiveGuestsWithInOut() {
     const sql = `
-      UPDATE m_guest SET
-        guest_name = $1,
-        guest_name_local_language = $2,
-        guest_mobile = $3,
-        guest_alternate_mobile = $4,
-        guest_address = $5,
-        id_proof_type = $6,
-        id_proof_no = $7,
-        email = $8,
-        is_active = $9,
-        updated_at = $10,
-        updated_by = $11,
-        updated_ip = $12
-      WHERE guest_id = $13
-      RETURNING *;
+      SELECT
+        g.guest_id,
+        g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+        g.guest_alternate_mobile,
+        g.guest_address,
+        g.email,
+        g.id_proof_type,
+        g.id_proof_no,
+
+        d.gd_id,
+        d.designation_id,
+        md.designation_name,
+        d.department,
+        d.organization,
+        d.office_location,
+        d.is_current AS designation_is_current,
+
+        io.inout_id,
+        io.entry_date,
+        io.entry_time,
+        io.exit_date,
+        io.exit_time,
+        io.status AS inout_status,
+        io.room_id
+
+      FROM t_guest_inout io
+      JOIN m_guest g ON g.guest_id = io.guest_id
+      LEFT JOIN t_guest_designation d
+        ON d.guest_id = g.guest_id AND d.is_current = TRUE AND d.is_active = TRUE
+      LEFT JOIN m_designation md
+        ON md.designation_id = d.designation_id
+      WHERE io.is_active = TRUE
+        AND g.is_active = TRUE
+      ORDER BY io.entry_date DESC, io.entry_time DESC;
     `;
-
-    const params = [
-      dto.guest_name ?? existing.guest_name,
-      dto.guest_name_local_language ?? existing.guest_name_local_language,
-      dto.guest_mobile ?? existing.guest_mobile,
-      dto.guest_alternate_mobile ?? existing.guest_alternate_mobile,
-      dto.guest_address ?? existing.guest_address,
-      dto.id_proof_type ?? existing.id_proof_type,
-      dto.id_proof_no ?? existing.id_proof_no,
-      dto.email ?? existing.email,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      guest_id,
-    ];
-
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
+    const res = await this.db.query(sql);
+    return res.rows;
   }
 
-  async softDelete(name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) {
-      throw new Error(`Guest '${name}' not found`);
-    }
-
-    const guest_id = existing.guest_id;
-    const now = new Date().toISOString();
-
+  // helper to soft-delete inout row
+  async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
-      UPDATE m_guest SET
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_id = $4
+      UPDATE t_guest_inout
+      SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
+      WHERE inout_id = $1
       RETURNING *;
     `;
+    const r = await this.db.query(sql, [inoutId, user, ip]);
+    return r.rows[0];
+  }
 
-    const result = await this.db.query(sql, [now, user, ip, guest_id]);
-    return result.rows[0];
+  async softDeleteAllGuestInOuts(guestId: number, user = 'system', ip = '0.0.0.0') {
+    const sql = `
+      UPDATE t_guest_inout
+      SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `;
+    await this.db.query(sql, [guestId, user, ip]);
   }
 }

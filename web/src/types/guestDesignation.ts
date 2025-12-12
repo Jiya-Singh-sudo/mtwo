@@ -3,6 +3,7 @@ export interface GuestDesignation {
 
   guest_id: string;
   designation_id: string;
+  designation_name: string;
 
   department?: string | null;
   organization?: string | null;
@@ -23,6 +24,7 @@ export interface GuestDesignation {
 export interface GuestDesignationCreateDto {
   guest_id: string;
   designation_id: string;
+  designation_name: string;
 
   department?: string;
   organization?: string;
@@ -31,6 +33,7 @@ export interface GuestDesignationCreateDto {
 
 export interface GuestDesignationUpdateDto {
   designation_id?: string;
+  designation_name?: string;
 
   department?: string;
   organization?: string;

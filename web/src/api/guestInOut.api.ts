@@ -1,53 +1,13 @@
-import api, { safeGet } from "./apiClient";
-import type {
-  GuestInOut,
-  GuestInOutCreateDto,
-  GuestInOutUpdateDto
-} from "../types/guestInOut";
+import { safePost, safePatch } from './httpHelpers';
 
-// GET active only
-export async function getActiveGuestInOut() {
-  return safeGet<GuestInOut[]>("/guest-inout");
+export async function createGuestInOut(payload: any) {
+  return safePost('/guest-inout', payload);
 }
 
-// GET all (active + inactive)
-export async function getAllGuestInOut() {
-  return safeGet<GuestInOut[]>("/guest-inout/all");
+export async function updateGuestInOut(inoutId: string, payload: any) {
+  return safePatch(`/guest-inout/${inoutId}`, payload);
 }
 
-// CREATE
-export async function createGuestInOut(
-  data: GuestInOutCreateDto,
-  user = "system"
-) {
-  const res = await api.post("/guest-inout", data, {
-    headers: { "x-user": user }
-  });
-  return res.data;
-}
-
-// UPDATE
-export async function updateGuestInOut(
-  id: string,
-  data: GuestInOutUpdateDto,
-  user = "system"
-) {
-  const res = await api.put(
-    `/guest-inout/${encodeURIComponent(id)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
-}
-
-// SOFT DELETE
-export async function softDeleteGuestInOut(
-  id: string,
-  user = "system"
-) {
-  const res = await api.delete(
-    `/guest-inout/${encodeURIComponent(id)}`,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
+export async function softDeleteGuestInOut(inoutId: string) {
+  return safePatch(`/guest-inout/${inoutId}/soft-delete`, {});
 }
