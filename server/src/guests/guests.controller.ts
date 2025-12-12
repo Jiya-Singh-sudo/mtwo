@@ -40,19 +40,24 @@ export class GuestsController {
 
   @Get()
   findAllActive() {
-    return this.service.findAll(true);
+    return this.service.findAllWithInOut();
+  }
+  @Get('guestsWithInOut')
+  findAllWithInOut() {
+    return this.service.findAllWithInOut();
   }
 
-  @Get('all')
-  findAllIncludingInactive() {
-    return this.service.findAll(false);
-  }
+  // @Get('all')
+  // findAllIncludingInactive() {
+  //   return this.service.findAl(false);
+  // }
 
   @Post()
-  create(@Body() dto: CreateGuestDto, @Req() req: any) {
+  async create(@Body() dto: CreateGuestDto, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
     const ip = this.extractIp(req);
-    return this.service.create(dto, user, ip);
+    const guest = await this.service.create(dto, user, ip)
+    return guest;
   }
 
   // Updating by guest_name (frontend sends name)

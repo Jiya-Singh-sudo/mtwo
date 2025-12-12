@@ -34,55 +34,56 @@ export class GuestInoutService {
     return res.rows[0];
   }
 
-  async create(dto: CreateGuestInoutDto, user: string, ip: string) {
-    const id = await this.generateId();
-    const now = new Date().toISOString();
+async create(dto: CreateGuestInoutDto, user: string, ip: string) {
+  const id = await this.generateId();
+  const now = new Date().toISOString();
 
-    const sql = `
-      INSERT INTO t_guest_inout(
-        inout_id,
-        guest_id, room_id, guest_inout,
-        entry_date, entry_time,
-        exit_date, exit_time,
-        status, purpose, remarks,
-        is_active,
-        inserted_at, inserted_by, inserted_ip
-      )
-      VALUES (
-        $1,$2,$3,$4,
-        $5,$6,
-        $7,$8,
-        $9,$10,$11,
-        true,
-        $12,$13,$14
-      ) RETURNING *;
-    `;
+  const sql = `
+    INSERT INTO t_guest_inout(
+      inout_id,
+      guest_id, room_id, guest_inout,
+      entry_date, entry_time,
+      exit_date, exit_time,
+      status, purpose, remarks,
+      is_active,
+      inserted_at, inserted_by, inserted_ip
+    )
+    VALUES (
+      $1,$2,$3,$4,
+      $5,$6,
+      $7,$8,
+      $9,$10,$11,
+      true,
+      $12,$13,$14
+    ) RETURNING *;
+  `;
 
-    const params = [
-      id,
+  const params = [
+    id,
 
-      dto.guest_id,
-      dto.room_id ?? null,
+    dto.guest_id,
+    dto.room_id ?? null,
 
-      dto.guest_inout ?? null,
-      dto.entry_date,
-      dto.entry_time,
+    dto.guest_inout ?? null,
+    dto.entry_date,
+    dto.entry_time,
 
-      dto.exit_date ?? null,
-      dto.exit_time ?? null,
+    dto.exit_date ?? null,
+    dto.exit_time ?? null,
 
-      dto.status ?? "Inside",
-      dto.purpose ?? null,
-      dto.remarks ?? null,
+    dto.status ?? "Inside",
+    dto.purpose ?? null,
+    dto.remarks ?? null,
 
-      now,
-      user,
-      ip
-    ];
+    now,
+    user,
+    ip
+  ];
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
+  const res = await this.db.query(sql, params);
+  return res.rows[0];
+}
+
 
   async update(id: string, dto: UpdateGuestInoutDto, user: string, ip: string) {
     const existing = await this.findOne(id);
@@ -130,20 +131,18 @@ export class GuestInoutService {
     return res.rows[0];
   }
 
-  async softDelete(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
-
+  async softDeleteActiveInout(guestInOutId: string, updatedBy = 'system') {
     const sql = `
-      UPDATE t_guest_inout SET 
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE inout_id = $4
+      UPDATE t_guest_inout
+      SET is_active = false,
+          updated_at = NOW(),
+          updated_by = $2
+      WHERE inout_id = $1
+        AND is_active = true
       RETURNING *;
     `;
-
-    const res = await this.db.query(sql, [now, user, ip, id]);
-    return res.rows[0];
+    const res = await this.db.query(sql, [guestInOutId, updatedBy]);
+    return res.rows;
   }
 }
+

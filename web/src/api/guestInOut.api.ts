@@ -4,6 +4,7 @@ import type {
   GuestInOutCreateDto,
   GuestInOutUpdateDto
 } from "../types/guestInOut";
+import axios from "axios";
 
 // GET active only
 export async function getActiveGuestInOut() {
@@ -41,13 +42,18 @@ export async function updateGuestInOut(
 }
 
 // SOFT DELETE
-export async function softDeleteGuestInOut(
-  id: string,
-  user = "system"
-) {
-  const res = await api.delete(
-    `/guest-inout/${encodeURIComponent(id)}`,
-    { headers: { "x-user": user } }
-  );
+export async function softDeleteGuestInout(inout_Id: string) {
+  // const res = await fetch(`/api/guest-inout/${inout_Id}/soft-delete`, {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  // });
+  // if (!res.ok) {
+  //   const text = await res.text();
+  //   throw new Error(`Failed to soft-delete: ${res.status} ${text}`);
+  // }
+
+  const res = await api.post(`/guest-inout/${encodeURIComponent(inout_Id)}/soft-delete`);
   return res.data;
+
+  
 }

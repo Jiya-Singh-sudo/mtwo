@@ -10,17 +10,21 @@ export class GuestsService {
 
   // Generate ID like G001, G002 ...
   private async generateGuestId(): Promise<string> {
-    const sql = `SELECT guest_id FROM m_guest ORDER BY guest_id DESC LIMIT 1`;
-    const result = await this.db.query(sql);
+    const sql = `
+      SELECT MAX(CAST(NULLIF(SUBSTRING(guest_id, 2), '') AS INTEGER)) AS max_id
+      FROM m_guest
+      WHERE guest_id ~ '^G[0-9]+$'
+    `;
 
-    if (result.rows.length === 0) {
-      return 'G001';
-    }
+    const res = await this.db.query(sql);
 
-    const last = result.rows[0].guest_id;
-    const num = parseInt(last.replace('G', '')) + 1;
-    return 'G' + num.toString().padStart(3, '0');
+    const last = res.rows[0]?.max_id ?? 0;
+    const next = last + 1;
+
+    return "G" + next.toString().padStart(3, "0");
   }
+
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -30,6 +34,46 @@ export class GuestsService {
     const result = await this.db.query(sql, activeOnly ? [true] : []);
     return result.rows;
   }
+
+  async findAllWithInOut() {
+    const sql = `
+      SELECT 
+        g.guest_id,
+        g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+        g.guest_alternate_mobile,
+        g.guest_address,
+        g.id_proof_type,
+        g.id_proof_no,
+        g.email,
+
+        gi.inout_id,
+        gi.status,
+        gi.entry_date,
+        gi.entry_time,
+        gi.exit_date,
+        gi.exit_time,
+        gi.room_id
+
+      FROM m_guest g
+      INNER JOIN t_guest_inout gi
+        ON gi.inout_id = (
+          SELECT inout_id
+          FROM t_guest_inout
+          WHERE guest_id = g.guest_id AND is_active = TRUE
+          ORDER BY entry_date DESC, entry_time DESC
+          LIMIT 1
+        )
+
+      WHERE g.is_active = TRUE
+      ORDER BY g.guest_id ASC;
+    `;
+
+    const result = await this.db.query(sql);
+    return result.rows;
+  }
+
 
   async findOneByName(name: string) {
     const sql = `SELECT * FROM m_guest WHERE guest_name = $1`;
@@ -143,10 +187,10 @@ export class GuestsService {
     return result.rows[0];
   }
 
-  async softDelete(name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
+  async softDelete(id:string, ip:string, user:string) {
+    const existing = await this.findOneByName(id);
     if (!existing) {
-      throw new Error(`Guest '${name}' not found`);
+      throw new Error(`Guest '${id}' not found`);
     }
 
     const guest_id = existing.guest_id;

@@ -42,9 +42,10 @@ export class GuestInoutController {
     return this.service.update(id, dto, this.extractIp(req), user);
   }
 
-  @Delete(":id")
-  softDelete(@Param("id") id: string, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.softDelete(id, user, this.extractIp(req));
+  @Post(':id/soft-delete')
+  async softDelete(@Param('id') id: string, @Req() req: any) {
+    const user = req.user?.username ?? 'system';
+    const rows = await this.service.softDeleteActiveInout(id, user);
+    return { success: true, count: rows.length, rows };
   }
 }
