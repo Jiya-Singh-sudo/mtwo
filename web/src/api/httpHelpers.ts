@@ -1,4 +1,7 @@
-const BASE = ''; // or '/api' if you proxy
+// web/src/api/httpHelpers.ts
+
+// Use environment variable or fallback
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 async function request(path: string, opts: RequestInit = {}) {
   const res = await fetch(BASE + path, {
@@ -9,11 +12,16 @@ async function request(path: string, opts: RequestInit = {}) {
     credentials: 'include',
     ...opts
   });
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`${res.status} ${res.statusText} - ${text}`);
   }
-  return res.json();
+
+  // FIX: Read text first to check if body exists
+  const text = await res.text();
+  // If text is empty, return empty object, otherwise parse JSON
+  return text ? JSON.parse(text) : {};
 }
 
 export const safeGet = (path: string) => request(path);

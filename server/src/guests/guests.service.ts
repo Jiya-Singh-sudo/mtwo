@@ -31,24 +31,36 @@ export class GuestsService {
     await this.db.query('BEGIN');
     try {
       const g = payload.guest;
+      
+      // 1. Generate ID (seconds timestamp to fit integer)
+      const guest_id = Math.floor(Date.now() / 1000); 
+
+      // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
         INSERT INTO m_guest
-          (guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, id_proof_type, id_proof_no, email, inserted_by, inserted_ip)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, id_proof_type, id_proof_no, email, inserted_by, inserted_ip)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *;
       `;
+      
       const guestRes = await this.db.query(insertGuestSql, [
-        g.guest_name, g.guest_name_local_language || null,
-        g.guest_mobile || null, g.guest_alternate_mobile || null,
-        g.guest_address || null, g.id_proof_type, g.id_proof_no || null,
-        g.email || null, user, ip
+        guest_id, // $1
+        g.guest_name, 
+        g.guest_name_local_language || null, 
+        g.guest_mobile || null, 
+        g.guest_alternate_mobile || null, 
+        g.guest_address || null, 
+        g.id_proof_type, 
+        g.id_proof_no || null, 
+        g.email || null, 
+        user, 
+        ip 
       ]);
       const guestRow = guestRes.rows[0];
 
-      // upsert m_designation if designation_name provided
+      // 3. Upsert m_designation
       let finalDesignationId = payload.designation?.designation_id;
       if (payload.designation?.designation_name) {
-        // try to insert or update m_designation
         const upsertSql = `
           INSERT INTO m_designation (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
           VALUES ($1, $2, NULL, $3, $4)
@@ -56,7 +68,7 @@ export class GuestsService {
             SET designation_name = EXCLUDED.designation_name,
                 updated_at = NOW(),
                 updated_by = EXCLUDED.inserted_by,
-                updated_ip = EXCLUDED.inserted_ip
+                updated_ip = EXCLUDED.inserted_ip::inet
           RETURNING *;
         `;
         const desRes = await this.db.query(upsertSql, [
@@ -66,11 +78,9 @@ export class GuestsService {
         ]);
         finalDesignationId = desRes.rows[0].designation_id;
       } else {
-        // If only designation_id provided, ensure it exists (optional)
         if (finalDesignationId) {
           const check = await this.db.query('SELECT designation_id FROM m_designation WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
           if (check.rowCount === 0) {
-            // insert with only id and null name to avoid FK fail (you may want to require name)
             await this.db.query(
               `INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
               [finalDesignationId, null, user, ip]
@@ -79,10 +89,10 @@ export class GuestsService {
         }
       }
 
-      // create t_guest_designation
+      // 4. Create t_guest_designation
       let gd_id: string | null = null;
       if (finalDesignationId) {
-        gd_id = `GD${Date.now()}`; // simple unique id generator
+        gd_id = `GD${Date.now()}`; 
         const insertGdSql = `
           INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
           VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
@@ -99,17 +109,19 @@ export class GuestsService {
         ]);
       }
 
-      // create t_guest_inout
+      // 5. Create t_guest_inout
       const inout_id = `IN${Date.now()}`;
       const now = new Date();
       const entry_date = payload.inout?.entry_date || now.toISOString().split('T')[0];
       const entry_time = payload.inout?.entry_time || now.toTimeString().slice(0, 8);
+      
       const insertIoSql = `
         INSERT INTO t_guest_inout
           (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, is_active, inserted_by, inserted_ip)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, TRUE, $11, $12)
         RETURNING *;
       `;
+      
       const ioRes = await this.db.query(insertIoSql, [
         inout_id,
         guestRow.guest_id,
@@ -137,7 +149,7 @@ export class GuestsService {
     }
   }
 
-  // generic update - but map keys only from allowed set
+  // Generic update
   async update(guestId: number, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
@@ -153,7 +165,7 @@ export class GuestsService {
       idx++;
     }
     if (fields.length === 0) return this.findOne(guestId);
-    fields.push(`updated_at = NOW()`); // not parameterized
+    fields.push(`updated_at = NOW()`);
     fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
     fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
     const sql = `UPDATE m_guest SET ${fields.join(', ')} WHERE guest_id = $${idx} RETURNING *;`;
@@ -179,7 +191,6 @@ export class GuestsService {
     return r.rows[0];
   }
 
-  // existing: list active guests by joining active inout rows
   async findActiveGuestsWithInOut() {
     const sql = `
       SELECT
@@ -223,7 +234,6 @@ export class GuestsService {
     return res.rows;
   }
 
-  // helper to soft-delete inout row
   async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
       UPDATE t_guest_inout

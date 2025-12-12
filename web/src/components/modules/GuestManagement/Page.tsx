@@ -3,7 +3,7 @@ import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
 
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
-import { createGuestInOut, updateGuestInOut, softDeleteGuestInOut } from "@/api/guestInOut.api";
+import { updateGuestInOut, softDeleteGuestInOut } from "@/api/guestInOut.api";
 
 import type { ActiveGuestRow } from "../../../types/guests";
 
@@ -67,49 +67,59 @@ export function GuestManagement() {
 
 
   // CREATE flow: create guest -> create designation (if needed) -> create inout
+// In web/src/components/modules/GuestManagement/Page.tsx
+
   async function handleAddGuest() {
     try {
-      // basic validation
+      // 1. Basic validation
       if (!guestForm.guest_name || !guestForm.mobile) {
         alert('Name and mobile required');
         return;
       }
-      // 1) create guest
-      const guest = await createGuest({
-        guest_name: guestForm.guest_name,
-        guest_name_local_language: guestForm.guest_name_local_language,
-        guest_mobile: guestForm.mobile,
-        guest_alternate_mobile: guestForm.alternate_mobile,
-        guest_address: guestForm.guest_address,
-        id_proof_type: guestForm.id_proof_type,
-        id_proof_no: guestForm.id_proof_no,
-        email: guestForm.email
-      });
 
-      const guestId = guest.guest_id;
+      // 2. Designation Validation: If Name is present, ID must be present
+      if (guestForm.designation_name && !guestForm.designation_id) {
+        alert('Designation ID is required if Designation Name is provided.');
+        return;
+      }
 
-      // 2) create guest-designation (this endpoint will insert into m_designation if not exist)
-      await createGuestDesignation({
-        guest_id: guestId,
-        designation_id: guestForm.designation_id,
-        designation_name: guestForm.designation_name,
-        department: guestForm.department,
-        organization: guestForm.organization,
-        office_location: guestForm.office_location
-      });
+      // 2. Construct the FULL payload matching your backend DTO
+      // We send guest, designation, and inout all at once.
+      const fullPayload = {
+        guest: {
+          guest_name: guestForm.guest_name,
+          guest_name_local_language: guestForm.guest_name_local_language,
+          guest_mobile: guestForm.mobile,
+          guest_alternate_mobile: guestForm.alternate_mobile,
+          guest_address: guestForm.guest_address,
+          id_proof_type: guestForm.id_proof_type,
+          id_proof_no: guestForm.id_proof_no,
+          email: guestForm.email
+        },
+        designation: {
+          designation_id: guestForm.designation_id,
+          designation_name: guestForm.designation_name,
+          department: guestForm.department,
+          organization: guestForm.organization,
+          office_location: guestForm.office_location
+        },
+        inout: {
+          entry_date: guestForm.entry_date || new Date().toISOString().split('T')[0],
+          entry_time: guestForm.entry_time || new Date().toTimeString().slice(0, 8),
+          status: 'Entered',
+          purpose: 'Visit'
+        }
+      };
 
-      // 3) create inout
-      await createGuestInOut({
-        guest_id: guestId,
-        entry_date: guestForm.entry_date || new Date().toISOString().split('T')[0],
-        entry_time: guestForm.entry_time || new Date().toTimeString().slice(0, 8),
-        status: 'Entered',
-        purpose: 'Visit'
-      });
+      // 3. Call the API once
+      // This maps to POST /guests -> GuestsController.createFull -> GuestsService.createFullGuest
+      await createGuest(fullPayload);
 
+      // 4. Success! Reset and reload
       setShowAdd(false);
       setGuestForm(initialGuestForm);
       await loadGuests();
+
     } catch (err) {
       console.error('add failed', err);
       alert('Failed to add guest');
@@ -138,8 +148,11 @@ export function GuestManagement() {
       department: g.department || "",
       organization: g.organization || "",
       office_location: g.office_location || "",
-      entry_date: g.entry_date || "",
-      exit_date: g.exit_date || "",
+      
+      // FIX: Split ISO string to get YYYY-MM-DD
+      entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
+      exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
+      
       status: g.inout_status || "Entered"
     });
 
@@ -148,7 +161,6 @@ export function GuestManagement() {
 
     setShowEdit(true);
   }
-
 
 
   async function submitEdit() {
@@ -604,14 +616,14 @@ export function GuestManagement() {
                       className="nicInput"
                       value={guestForm.id_proof_type}
                       onChange={(e) =>
-                        setGuestForm(s => ({ ...s, id_proof_type: e.target.value as "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter-ID" | "Other" }))
+                        setGuestForm(s => ({ ...s, id_proof_type: e.target.value as "Aadhaar" | "PAN" | "Passport" | "Driving-License" | "Voter-ID" | "Other" }))
                       }
                     >
                       <option value="">Select</option>
                       <option value="Aadhaar">Aadhaar</option>
                       <option value="PAN">PAN</option>
                       <option value="Passport">Passport</option>
-                      <option value="Driving License">Driving License</option>
+                      <option value="Driving-License">Driving License</option>
                       <option value="Voter-ID">Voter ID</option>
                       <option value="Other">Other</option>
                     </select>
