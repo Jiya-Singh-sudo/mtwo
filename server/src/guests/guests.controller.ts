@@ -38,6 +38,12 @@ export class GuestsController {
     return ip;
   }
 
+  @Get("id/:guest_id")
+  findOneById(@Param("guest_id") id: string) {
+    return this.service.findOneById(id);
+  }
+
+
   @Get()
   findAllActive() {
     return this.service.findAll(true);

@@ -149,3 +149,18 @@ label {
   border-radius: 6px;
   border: none;
 }
+.largeModal {
+  width: 650px;
+  max-width: 95%;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section h3 {
+  font-size: 16px;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+

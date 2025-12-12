@@ -2,6 +2,10 @@
 import api, { safeGet } from "./apiClient";
 import type { GuestCreateDto, GuestUpdateDto } from "../types/guests";
 
+export async function getGuestById(id: string) {
+  return safeGet<any>(`/guests/id/${id}`);
+}
+
 export async function getActiveGuests() {
   // GET /guests (controller returns active only by default)
   return safeGet<any[]>("/guests");

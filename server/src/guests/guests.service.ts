@@ -17,10 +17,15 @@ export class GuestsService {
       return 'G001';
     }
 
-    const last = result.rows[0].guest_id;
-    const num = parseInt(last.replace('G', '')) + 1;
-    return 'G' + num.toString().padStart(3, '0');
+    const last = result.rows[0].guest_id.replace('G', '');
+
+    // 👇 Prevent NaN
+    const lastNum = Number(last);
+    const nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
+
+    return 'G' + nextNum.toString().padStart(3, '0');
   }
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
