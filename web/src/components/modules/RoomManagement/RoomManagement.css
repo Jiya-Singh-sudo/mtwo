@@ -168,4 +168,8 @@ table thead th {
 /* FIX accidental hidden header */
 thead, th {
   display: table-cell !important;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 49cbb8495ca58e28bc51af63682092bda2072d50
