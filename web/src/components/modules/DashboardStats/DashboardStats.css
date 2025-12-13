@@ -1,0 +1,117 @@
+/* ===============================
+   DASHBOARD STATS – NIC STYLE
+================================ */
+
+/* Headings */
+h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Cards (Stats + Resources) */
+.dashboard-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 20px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Numbers */
+.dashboard-value {
+  font-size: 30px;
+  font-weight: 600;
+  color: #00247d;
+}
+
+/* Labels */
+.dashboard-label {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+/* Subtext */
+.dashboard-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Search bar */
+.nicInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.nicInput:focus {
+  outline: none;
+  border-color: #00247d;
+  box-shadow: 0 0 0 1px #00247d;
+}
+
+/* Select (Language switch) */
+.nicSelect {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.nicSelect:focus {
+  outline: none;
+  border-color: #00247d;
+}
+
+/* Resource rows */
+.resource-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  color: #374151;
+}
+
+/* Percentage badge */
+.resource-percent {
+  font-size: 16px;
+  font-weight: 600;
+  color: #00247d;
+}
+
+/* Alert box */
+.alert-box {
+  background: #fff7ed;
+  border-left: 4px solid #ff9933;
+  padding: 12px 16px;
+  border-radius: 4px;
+}
+
+.alert-box h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #9a3412;
+}
+
+.alert-box svg {
+  margin-top: 2px;
+}
+
+/* Hover cursor fix for icons */
+svg {
+  flex-shrink: 0;
+}
