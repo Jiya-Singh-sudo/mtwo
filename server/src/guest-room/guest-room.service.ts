@@ -189,6 +189,7 @@ export class GuestRoomService {
         dto.room_id,
         dto.check_in_date,
         dto.check_out_date,
+        dto.action_description,
         dto.remarks,
         user,
         ip

@@ -23,6 +23,7 @@ import { GuestNetworkModule } from './guest-network/guest-network.module';
 import { GuestHousekeepingModule } from './guest-housekeeping/guest-housekeeping.module';
 import { GuestDesignationModule } from './guest-designation/guest-designation.module';
 import { AuthModule } from './auth/auth.module';
+import { GuestVehicleModule } from './guest_vehicle/guest_vehicle.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AuthModule } from './auth/auth.module';
     GuestHousekeepingModule,
     GuestDesignationModule,
     AuthModule,
+    GuestVehicleModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

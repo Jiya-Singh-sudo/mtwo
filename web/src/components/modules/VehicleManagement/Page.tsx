@@ -1,94 +1,89 @@
 // src/components/modules/VehicleManagement/Page.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Car, User, MapPin, X } from "lucide-react";
+import {
+  getVehicleFleet,
+  getAssignableVehicles,
+  getGuestsWithoutVehicle,
+  assignVehicleToGuest
+} from "../../../api/guestVehicle.api";
 import "./VehicleManagement.css";
 
-interface Vehicle {
-  id: string;
-  number: string;
-  type: string;
-  status: "Available" | "On Duty" | "In Service";
-  driver: string | null;
-  assignedTo: string | null;
-  location: string;
-}
 
-export default function VehicleManagement() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    {
-      id: "V001",
-      number: "DL-01-AB-1234",
-      type: "Toyota Innova",
-      status: "On Duty",
-      driver: "Ram Singh",
-      assignedTo: "Shri Rajesh Kumar",
-      location: "Guest House",
-    },
-    {
-      id: "V002",
-      number: "DL-01-CD-5678",
-      type: "Honda City",
-      status: "On Duty",
-      driver: "Mohan Kumar",
-      assignedTo: "Shri Amit Verma",
-      location: "Ministry",
-    },
-    {
-      id: "V003",
-      number: "DL-01-EF-9012",
-      type: "Toyota Fortuner",
-      status: "Available",
-      driver: "Suresh Yadav",
-      assignedTo: null,
-      location: "Parking",
-    },
-    {
-      id: "V004",
-      number: "DL-01-GH-3456",
-      type: "Maruti Ertiga",
-      status: "In Service",
-      driver: null,
-      assignedTo: null,
-      location: "Service Center",
-    },
-  ]);
+export function VehicleManagement() {
+
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const available = vehicles.filter(v => v.status === "AVAILABLE").length;
+  const onDuty = vehicles.filter(v => v.status === "ON_DUTY").length;
+  const inService = vehicles.filter(v => v.status === "IN_SERVICE").length;
+
+
+  useEffect(() => {
+    loadFleet();
+  }, []);
+
+  async function loadFleet() {
+    setLoading(true);
+    const data = await getVehicleFleet();
+    setVehicles(data);
+    setLoading(false);
+  }
+
 
   /* ---------------- MODAL STATE ---------------- */
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignForm, setAssignForm] = useState({
-    vehicleId: "",
-    guestName: "",
+    vehicle_no: "",
+    guest_id: "",
     location: "Guest House",
   });
+  const [assignableVehicles, setAssignableVehicles] = useState<any[]>([]);
+  const [assignableGuests, setAssignableGuests] = useState<any[]>([]);
+
+
+  async function openAssignVehicleModal() {
+    const [vehicles, guests] = await Promise.all([
+      getAssignableVehicles(),
+      getGuestsWithoutVehicle(),
+    ]);
+
+    setAssignableVehicles(vehicles);
+    setAssignableGuests(guests);
+    setIsAssignModalOpen(true);
+  }
+
+
 
   /* ---------------- ACTIONS ---------------- */
-  function submitAssignVehicle() {
-    if (!assignForm.vehicleId || !assignForm.guestName.trim()) {
-      alert("Vehicle and Guest Name are required");
+  async function submitAssignVehicle() {
+    if (!assignForm.vehicle_no || !assignForm.guest_id) {
+      alert("Vehicle and Guest are required");
       return;
     }
 
-    setVehicles((prev) =>
-      prev.map((v) =>
-        v.id === assignForm.vehicleId
-          ? {
-              ...v,
-              status: "On Duty",
-              assignedTo: assignForm.guestName,
-              location: assignForm.location,
-            }
-          : v
-      )
-    );
+    await assignVehicleToGuest({
+      vehicle_no: assignForm.vehicle_no,
+      guest_id: Number(assignForm.guest_id),
+      location: assignForm.location,
+    });
 
     setIsAssignModalOpen(false);
-    setAssignForm({ vehicleId: "", guestName: "", location: "Guest House" });
+    setAssignForm({
+      vehicle_no: "",
+      guest_id: "",
+      location: "Guest House",
+    });
+
+    await loadFleet(); // refresh truth
   }
 
-  /* ---------------- STATS ---------------- */
-  const available = vehicles.filter((v) => v.status === "Available").length;
-  const onDuty = vehicles.filter((v) => v.status === "On Duty").length;
-  const inService = vehicles.filter((v) => v.status === "In Service").length;
+
+
+  // /* ---------------- STATS ---------------- */
+  // const available = vehicles.filter((v) => v.status === "AVAILABLE").length;
+  // const onDuty = vehicles.filter((v) => v.status === "ON_DUTY").length;
+  // const inService = vehicles.filter((v) => v.status === "IN_SERVICE").length;
 
   return (
     <div className="space-y-6">
@@ -102,11 +97,18 @@ export default function VehicleManagement() {
         </div>
         <button
           className="nicPrimaryBtn"
-          onClick={() => setIsAssignModalOpen(true)}
+          onClick={() => openAssignVehicleModal()}
         >
           Assign Vehicle to Guest
         </button>
       </div>
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span className="animate-spin">⏳</span>
+          Loading vehicles...
+        </div>
+      )}
+
 
       {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -143,8 +145,8 @@ export default function VehicleManagement() {
                     <Car />
                   </div>
                   <div>
-                    <p>{v.number}</p>
-                    <p className="subText">{v.type}</p>
+                    <p>{v.vehicle_no}</p>
+                    <p className="subText">{v.vehicle_name}</p>
                   </div>
                 </div>
                 <span className={`statusPill ${v.status.replace(" ", "")}`}>
@@ -153,14 +155,14 @@ export default function VehicleManagement() {
               </div>
 
               <div className="details">
-                {v.driver && (
+                {v.driver_name && (
                   <div>
-                    <User /> Driver: {v.driver}
+                    <User /> Driver: {v.driver_name}
                   </div>
                 )}
-                {v.assignedTo && (
+                {v.guest_name && (
                   <div>
-                    <User /> Assigned to: {v.assignedTo}
+                    <User /> Assigned to: {v.guest_name}
                   </div>
                 )}
                 <div>
@@ -188,37 +190,40 @@ export default function VehicleManagement() {
                 <label>Vehicle *</label>
                 <select
                   className="nicInput"
-                  value={assignForm.vehicleId}
+                  value={assignForm.vehicle_no}
                   onChange={(e) =>
                     setAssignForm({
                       ...assignForm,
-                      vehicleId: e.target.value,
+                      vehicle_no: e.target.value,
                     })
                   }
                 >
                   <option value="">Select Vehicle</option>
-                  {vehicles
-                    .filter((v) => v.status === "Available")
-                    .map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.number} – {v.type}
-                      </option>
-                    ))}
+                  {assignableVehicles.map((v) => (
+                    <option key={v.vehicle_no} value={v.vehicle_no}>
+                      {v.vehicle_no} – {v.vehicle_name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label>Guest Name *</label>
-                <input
+                <select
                   className="nicInput"
-                  value={assignForm.guestName}
+                  value={assignForm.guest_id}
                   onChange={(e) =>
-                    setAssignForm({
-                      ...assignForm,
-                      guestName: e.target.value,
-                    })
+                    setAssignForm({ ...assignForm, guest_id: e.target.value })
                   }
-                />
+                >
+                  <option value="">Select Guest</option>
+                  {assignableGuests.map((g) => (
+                    <option key={g.guest_id} value={g.guest_id}>
+                      {g.guest_name}
+                    </option>
+                  ))}
+                </select>
+
               </div>
 
               <div>
@@ -253,3 +258,4 @@ export default function VehicleManagement() {
     </div>
   );
 }
+export default VehicleManagement;
