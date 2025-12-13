@@ -1,395 +1,240 @@
 import { useEffect, useState } from "react";
-import { Search, Plus, Eye, Edit, FileText, Trash2 } from "lucide-react";
-import { createGuest, getActiveGuests } from "@/api/guest.api";
-import { getActiveGuestDesignations } from "@/api/guestDesignation.api";
-import { createGuestDesignation } from "@/api/guestDesignation.api";
-import { createGuestInOut } from "@/api/guestInOut.api";
-import { updateGuest } from "@/api/guest.api";
-import { updateGuestDesignation } from "@/api/guestDesignation.api";
-import { updateGuestInOut } from "@/api/guestInOut.api";
-import { softDeleteGuestInOut } from "@/api/guestInOut.api";
-import { getAllGuestInOut } from "@/api/guestInOut.api";
-import { getGuestById } from "@/api/guest.api";
-import "./GuestManagementModals.css"; // <-- you will create this CSS (I'll give it below)
+import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
 
-/* ----------------- TYPES ----------------- */
-export interface Guest {
-  id: string;
-  inout_id: string;
-  name: string;
-  designation: string;
-  status: string;
-  arrival: string;
-  departure: string;
-  guest_mobile: string;
-  guest_alternate_mobile: string;
-  email: string;
-  guest_address: string;
-  id_proof_type: "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter-ID" | "Other";
-  id_proof_no: string;
-}
+import { getActiveGuests, createGuest, updateGuest, softDeleteGuest } from "@/api/guest.api";
+import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
+import { updateGuestInOut, softDeleteGuestInOut } from "@/api/guestInOut.api";
+
+import type { ActiveGuestRow } from "../../../types/guests";
+
+import "./GuestManagementModals.css";
 
 export function GuestManagement() {
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const initialGuestFormState = {
-    guest_name: "",
-    guest_name_local_language: "",
-    guest_designation: "",
-    guest_mobile: "",
-    guest_alternate_mobile: "",
-    guest_address: "",
-    id_proof_type: "" as
-      | "Aadhaar"
-      | "PAN"
-      | "Passport"
-      | "Driving License"
-      | "Voter-ID"
-      | "Other",
-    id_proof_no: "",
-    email: "",
-    checkin_date: "",
-    checkout_date: ""
+  const [guests, setGuests] = useState<ActiveGuestRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [showView, setShowView] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const [selectedGuest, setSelectedGuest] = useState<ActiveGuestRow | null>(null);
+
+  const initialGuestForm = {
+    guest_name: '',
+    guest_name_local_language: '',
+    mobile: '',
+    alternate_mobile: '',
+    guest_address: '',
+    id_proof_type: 'Aadhaar' as any,
+    id_proof_no: '',
+    email: '',
+    // designation part
+    designation_id: '',
+    designation_name: '',
+    department: '',
+    organization: '',
+    office_location: '',
+    // inout part
+    entry_date: '',
+    entry_time: '',
+    exit_date:'',
+    exit_time:''
   };
 
-  const initialDesignationState = {
-    designation_id: "",
-    department: "",
-    organization: "",
-    office_location: ""
-  };
+  const [guestForm, setGuestForm] = useState(initialGuestForm);
+  const [editGuestForm, setEditGuestForm] = useState<any>(initialGuestForm);
+  const [editGdId, setEditGdId] = useState<string>('');
+  const [editInoutId, setEditInoutId] = useState<string>('');
 
-
-  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
-  const [guestForm, setGuestForm] = useState(initialGuestFormState);
-  const [designationForm, setDesignationForm] = useState(initialDesignationState);
-
-  const [editGuestForm, setEditGuestForm] = useState({
-    guest_name: "",
-    guest_mobile: "",
-    guest_alternate_mobile: "",
-    guest_address: "",
-    email: "",
-    id_proof_type: "" as
-      | "Aadhaar"
-      | "PAN"
-      | "Passport"
-      | "Driving License"
-      | "Voter-ID"
-      | "Other",
-    id_proof_no: ""
-  });
-
-  const [editDesignationForm, setEditDesignationForm] = useState({
-    gd_id: "",
-    designation_id: "",
-    department: "",
-    organization: "",
-    office_location: ""
-  });
-
-  const [editInOutForm, setEditInOutForm] = useState({
-    inout_id: "",
-    entry_date: "",
-    exit_date: "",
-    status: "Entered" as "Entered" | "Inside" | "Exited"
-  });
-  const [selectedGuestFullInfo, setSelectedGuestFullInfo] = useState<any>(null);
-  /* ----- MODAL STATES ----- */
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showAddGuestModal, setShowAddGuestModal] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
-  function updateGuestForm(field: string, value: string) {
-    setGuestForm((prev) => ({ ...prev, [field]: value }));
-  }
-  function updateDesignationForm(field: string, value: string) {
-    setDesignationForm(prev => ({ ...prev, [field]: value }));
-  }
-
-  async function submitNewGuest() {
-    if (!guestForm.guest_name.trim() || !guestForm.guest_mobile.trim()) {
-      alert("Name and mobile number are required.");
-      return;
-    }
-    if (!guestForm.guest_mobile.trim() ||guestForm.guest_mobile.length < 10 || guestForm.guest_mobile.length > 10) {
-      alert("Mobile number is required and must be at least 10 digits.");
-      return;
-    }
-    if (!guestForm.checkin_date.trim() || !guestForm.checkout_date.trim()) {
-      alert("Check-in and check-out dates are required.");
-      return;
-    }
-    if (!guestForm.id_proof_type.trim() || !guestForm.id_proof_no.trim()) {
-      alert("ID proof type and number are required.");
-      return;
-    }
-    if (!guestForm.email.trim() || !guestForm.email.includes("@")) {
-      alert("Email is required and must be valid.");
-      return;
-    }
-    if (!designationForm.designation_id.trim() || !designationForm.department.trim() || !designationForm.organization.trim() || !designationForm.office_location.trim()) {
-      alert("Designation ID, department, organization, and office location are required.");
-      return;
-    }
-    try {
-      // 1️⃣ Create guest (m_guest)
-      const guest = await createGuest({
-        guest_name: guestForm.guest_name,
-        guest_name_local_language: guestForm.guest_name_local_language,
-        guest_mobile: guestForm.guest_mobile,
-        guest_alternate_mobile: guestForm.guest_alternate_mobile,
-        guest_address: guestForm.guest_address,
-        id_proof_type: guestForm.id_proof_type,
-        id_proof_no: guestForm.id_proof_no,
-        email: guestForm.email
-      });
-
-      const guestId = guest.guest_id;
-
-      // 2️⃣ Create designation (t_guest_designation)
-      await createGuestDesignation({
-        guest_id: guestId,
-        designation_id: designationForm.designation_id,
-        department: designationForm.department,
-        organization: designationForm.organization,
-        office_location: designationForm.office_location
-      });
-
-      // 3️⃣ Create guest in/out entry (t_guest_inout)
-      const now = new Date();
-      const entry_date = now.toISOString().split("T")[0];
-      const entry_time = now.toTimeString().slice(0, 5);
-
-      await createGuestInOut({
-        guest_id: guestId,
-        entry_date,
-        entry_time,
-        status: "Entered",
-        guest_inout: true,
-        remarks: "",
-        purpose: "Visit"
-      });
-
-      setShowAddGuestModal(false);
-      setGuestForm(initialGuestFormState);
-      setDesignationForm(initialDesignationState);
-      loadGuests();
-
-    } catch (err) {
-      console.error("Guest creation failed:", err);
-    }
-  }
-
-  /* ----------------------------------------
-     LOADING GUESTS FROM BACKEND
-  ---------------------------------------- */
+  // Loading Guests
   useEffect(() => {
     loadGuests();
   }, []);
 
   async function loadGuests() {
+    setLoading(true);
     try {
-      // 1️⃣ Load guest master
-      const guestData = await getActiveGuests();
+      const data = await getActiveGuests();  
 
-      // 2️⃣ Load designation table
-      const designationData = await getActiveGuestDesignations();
-
-      // 3️⃣ Load in/out table
-      const inOutData = await getAllGuestInOut();
-
-      // 4️⃣ Merge data
-      const mapped = guestData.map((g: any) => {
-        const designation = designationData.find((d: any) => d.guest_id === g.guest_id);
-        const inout = inOutData.find((io: any) => io.guest_id === g.guest_id);
-
-        return {
-          id: g.guest_id,
-          inout_id: inout?.inout_id || "",
-          name: g.guest_name,
-
-          // designation table
-          designation: designation?.designation_id || "N/A",
-
-          // status from in/out (NOT is_active)
-          status: inout?.status || "Unknown",
-
-          // dates from in/out
-          arrival: inout?.entry_date || "-",
-          departure: inout?.exit_date || "-",
-
-          // table still expects these ↓
-          guest_mobile: g.guest_mobile || "",
-          guest_alternate_mobile: g.guest_alternate_mobile || "",
-          email: g.email || "",
-          guest_address: g.guest_address || "",
-          id_proof_type: g.id_proof_type || "",
-          id_proof_no: g.id_proof_no || "",
-        };
-      });
-
-      setGuests(mapped);
+      setGuests(data);   // No mapping needed, backend already returns correct shape
     } catch (err) {
-      console.error("Failed to load guests", err);
+      console.error("Failed loading guests", err);
+    } finally {
+      setLoading(false);
     }
   }
 
 
-  /* ----------------- BUTTON HANDLERS ----------------- */
-  async function openViewModal(g: Guest) {
-    setSelectedGuest(g);
+  // CREATE flow: create guest -> create designation (if needed) -> create inout
+// In web/src/components/modules/GuestManagement/Page.tsx
 
-    // 1️⃣ Fetch all designations and find the one for this guest
-    const allDesignations = await getActiveGuestDesignations();
-    const d = allDesignations.find((x: any) => x.guest_id === g.id);
-
-    // 2️⃣ Fetch all GuestInOut entries and find the one for this guest
-    const allInOut = await getAllGuestInOut();
-    const io = allInOut.find((x: any) => x.guest_id === g.id);
-
-    // 3️⃣ Build a unified readable object
-    setSelectedGuestFullInfo({
-      basic: {
-        id: g.id,
-        name: g.name,
-        mobile: g.guest_mobile,
-        alt_mobile: g.guest_alternate_mobile,
-        email: g.email,
-        address: g.guest_address,
-        id_proof_type: g.id_proof_type,
-        id_proof_no: g.id_proof_no
-      },
-
-      designation: {
-        designation_id: d?.designation_id || "N/A",
-        department: d?.department || "N/A",
-        organization: d?.organization || "N/A",
-        office_location: d?.office_location || "N/A",
-        is_current: d?.is_current
-      },
-
-      visit: {
-        status: io?.status || "N/A",
-        arrival: io?.entry_date || "-",
-        departure: io?.exit_date || "-",
-        room: io?.room_id || "N/A"
+  async function handleAddGuest() {
+    try {
+      // 1. Basic validation
+      if (!guestForm.guest_name || !guestForm.mobile) {
+        alert('Name and mobile required');
+        return;
       }
-    });
 
-    setShowViewModal(true);
+      // 2. Designation Validation: If Name is present, ID must be present
+      if (guestForm.designation_name && !guestForm.designation_id) {
+        alert('Designation ID is required if Designation Name is provided.');
+        return;
+      }
+
+      // 2. Construct the FULL payload matching your backend DTO
+      // We send guest, designation, and inout all at once.
+      const fullPayload = {
+        guest: {
+          guest_name: guestForm.guest_name,
+          guest_name_local_language: guestForm.guest_name_local_language,
+          guest_mobile: guestForm.mobile,
+          guest_alternate_mobile: guestForm.alternate_mobile,
+          guest_address: guestForm.guest_address,
+          id_proof_type: guestForm.id_proof_type,
+          id_proof_no: guestForm.id_proof_no,
+          email: guestForm.email
+        },
+        designation: {
+          designation_id: guestForm.designation_id,
+          designation_name: guestForm.designation_name,
+          department: guestForm.department,
+          organization: guestForm.organization,
+          office_location: guestForm.office_location
+        },
+        inout: {
+          entry_date: guestForm.entry_date || new Date().toISOString().split('T')[0],
+          entry_time: guestForm.entry_time || new Date().toTimeString().slice(0, 8),
+          status: 'Entered',
+          purpose: 'Visit'
+        }
+      };
+
+      // 3. Call the API once
+      // This maps to POST /guests -> GuestsController.createFull -> GuestsService.createFullGuest
+      await createGuest(fullPayload);
+
+      // 4. Success! Reset and reload
+      setShowAdd(false);
+      setGuestForm(initialGuestForm);
+      await loadGuests();
+
+    } catch (err) {
+      console.error('add failed', err);
+      alert('Failed to add guest');
+    }
   }
 
-  async function openEditModal(g: Guest) {
+  function openView(g: ActiveGuestRow) {
     setSelectedGuest(g);
+    setShowView(true);
+  }
 
-    // 1️⃣ Load full guest info (m_guest)
-    const fullGuest = await getGuestById(g.id);
-
+  function openEdit(g: ActiveGuestRow) {
+    setSelectedGuest(g);
+    
     setEditGuestForm({
-      guest_name: fullGuest.guest_name,
-      guest_mobile: fullGuest.guest_mobile,
-      guest_alternate_mobile: fullGuest.guest_alternate_mobile,
-      guest_address: fullGuest.guest_address,
-      email: fullGuest.email,
-      id_proof_type: fullGuest.id_proof_type,
-      id_proof_no: fullGuest.id_proof_no
+      guest_name: g.guest_name || "",
+      guest_name_local_language: g.guest_name_local_language || "",
+      mobile: g.guest_mobile || "",
+      alternate_mobile: g.guest_alternate_mobile || "",
+      guest_address: g.guest_address || "",
+      id_proof_type: g.id_proof_type || "Aadhaar",
+      id_proof_no: g.id_proof_no || "",
+      email: g.email || "",
+      designation_id: g.designation_id || "",
+      designation_name: g.designation_name || "",
+      department: g.department || "",
+      organization: g.organization || "",
+      office_location: g.office_location || "",
+      
+      // FIX: Split ISO string to get YYYY-MM-DD
+      entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
+      exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
+      
+      status: g.inout_status || "Entered"
     });
 
-    // 2️⃣ Load full designation info
-    const allDesignations = await getActiveGuestDesignations();
-    const d = allDesignations.find((x: any) => x.guest_id === g.id);
+    setEditGdId(g.gd_id || "");
+    setEditInoutId(g.inout_id || "");
 
-    setEditDesignationForm({
-      gd_id: d?.gd_id || "",
-      designation_id: d?.designation_id || "",
-      department: d?.department || "",
-      organization: d?.organization || "",
-      office_location: d?.office_location || ""
-    });
-
-    // 3️⃣ Load in/out info
-    const allInOut = await getAllGuestInOut();
-    const io = allInOut.find((x: any) => x.guest_id === g.id);
-
-    setEditInOutForm({
-      inout_id: io?.inout_id || "",
-      entry_date: io?.entry_date || "",
-      exit_date: io?.exit_date || "",
-      status:
-        io?.status === "Entered" || io?.status === "Inside" || io?.status === "Exited"
-          ? io.status
-          : "Entered"
-    });
-
-    setShowEditModal(true);
+    setShowEdit(true);
   }
 
 
-  async function submitGuestEdit() {
+  async function submitEdit() {
     try {
-      // 1️⃣ Update Guest (m_guest)
-      await updateGuest(selectedGuest!.name, {
-        guest_name: editGuestForm.guest_name,
-        guest_mobile: editGuestForm.guest_mobile,
-        guest_alternate_mobile: editGuestForm.guest_alternate_mobile,
-        guest_address: editGuestForm.guest_address,
-        email: editGuestForm.email,
-        id_proof_type: editGuestForm.id_proof_type,
-        id_proof_no: editGuestForm.id_proof_no
-      });
+      if (!selectedGuest) return;
+      // update m_guest
+    await updateGuest(selectedGuest.guest_id, {
+      guest_name: editGuestForm.guest_name,
+      guest_name_local_language: editGuestForm.guest_name_local_language,
+      guest_mobile: editGuestForm.mobile,
+      guest_alternate_mobile: editGuestForm.alternate_mobile,
+      guest_address: editGuestForm.guest_address,
+      id_proof_type: editGuestForm.id_proof_type,
+      id_proof_no: editGuestForm.id_proof_no,
+      email: editGuestForm.email
+    });
 
-      // 2️⃣ Update Designation (t_guest_designation)
-      await updateGuestDesignation(editDesignationForm.gd_id, {
-        designation_id: editDesignationForm.designation_id,
-        department: editDesignationForm.department,
-        organization: editDesignationForm.organization,
-        office_location: editDesignationForm.office_location,
-        is_current: true
-      });
 
-      // 3️⃣ Update IN/OUT (t_guest_inout)
-      await updateGuestInOut(editInOutForm.inout_id, {
-        entry_date: editInOutForm.entry_date,
-        exit_date: editInOutForm.exit_date,
-        status: editInOutForm.status
-      });
+      // update designation mapping (and m_designation name if changed)
+      if (editGdId) {
+        await updateGuestDesignation(editGdId, {
+          designation_id: editGuestForm.designation_id,
+          designation_name: editGuestForm.designation_name,
+          department: editGuestForm.department,
+          organization: editGuestForm.organization,
+          office_location: editGuestForm.office_location
+        });
+      } else {
+        // no gd row exists — create one
+        await createGuestDesignation({
+          guest_id: selectedGuest.guest_id,
+          designation_id: editGuestForm.designation_id,
+          designation_name: editGuestForm.designation_name,
+          department: editGuestForm.department,
+          organization: editGuestForm.organization,
+          office_location: editGuestForm.office_location
+        });
+      }
 
-      setShowEditModal(false);
-      loadGuests(); // refresh table
+      // update inout
+      if (editInoutId) {
+        await updateGuestInOut(editInoutId, {
+          entry_date: editGuestForm.entry_date,
+          entry_time: editGuestForm.entry_time,
+          exit_date: editGuestForm.exit_date,
+          exit_time: editGuestForm.exit_time,
+          status: editGuestForm.status || 'Entered'
+        });
+      }
 
+      setShowEdit(false);
+      await loadGuests();
     } catch (err) {
-      console.error("Edit failed:", err);
-      alert("Failed to update guest");
+      console.error('edit failed', err);
+      alert('Failed to update guest');
     }
   }
 
-  async function handleDeleteGuest() {
+  async function handleDelete() {
     if (!selectedGuest) return;
-
     try {
-      // delete ONLY the guestInOut record
-      await softDeleteGuestInOut(selectedGuest.inout_id);
-
-      setIsDeleteDialogOpen(false);
-      loadGuests(); // refresh table
-
+      // 1) soft delete guest_inout if exists
+      if (selectedGuest.inout_id) {
+        await softDeleteGuestInOut(selectedGuest.inout_id);
+      }
+      // 2) soft delete guest row
+      await softDeleteGuest(selectedGuest.guest_id);
+      setShowDeleteConfirm(false);
+      await loadGuests();
     } catch (err) {
-      console.error("Failed to delete guest in/out entry:", err);
-      alert("Failed to delete entry");
+      console.error('delete failed', err);
+      alert('Failed to delete entry');
     }
   }
-
-
-
-  function openInfoModal(g: Guest) {
-    setSelectedGuest(g);
-    setShowInfoModal(true);
-  }
-
-
-
 
   /* =====================================================================
      MAIN RENDER
@@ -405,7 +250,7 @@ export function GuestManagement() {
 
         <button
           className="px-6 py-3 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center gap-2"
-          onClick={() => { setShowAddGuestModal(true), setGuestForm(initialGuestFormState), setDesignationForm(initialDesignationState) }}
+          onClick={() => { setShowAdd(true) }}
         >
           <Plus className="w-5 h-5" />
           Add New Guest
@@ -439,6 +284,15 @@ export function GuestManagement() {
         </div>
       </div>
 
+
+      {loading && (
+        <div className="flex justify-center space-x-2 py-6">
+          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-150"></div>
+          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-300"></div>
+        </div>
+      )}
+      
       {/* TABLE */}
       <div className="bg-white border rounded-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -447,50 +301,44 @@ export function GuestManagement() {
               <tr>
                 <th className="px-6 py-3 text-left">Name</th>
                 <th className="px-6 py-3 text-left">Deisgnation</th>
-                <th className="px-6 py-3 text-left">Status</th>
+                <th className="px-6 py-3 text-left">Mobile</th>
                 <th className="px-6 py-3 text-left">Stay Period</th>
-                <th className="px-6 py-3 text-left">Room</th>
-                <th className="px-6 py-3 text-left">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {guests.map((g) => (
-                <tr key={g.id} className="border-b hover:bg-gray-50">
+                <tr key={g.guest_id} className="border-b hover:bg-gray-50">
 
                   <td className="px-6 py-4">
-                    <p className="font-medium">{g.name}</p>
-                    <p className="text-xs text-gray-500">{g.designation}</p>
+                    <p className="font-medium">{g.guest_name}</p>
+                    <p className="text-xs text-gray-500">{g.designation_name}</p>
                   </td>
 
-                  <td className="px-6 py-4">{g.status}</td>
+                  <td className="px-6 py-4">{g.guest_mobile}</td>
 
                   <td className="px-6 py-4">
-                    <p>{g.arrival}</p>
-                    <p className="text-xs text-gray-500">to {g.departure}</p>
+                    <p>{g.entry_date}</p>
+                    <p className="text-xs text-gray-500">to {g.exit_date}</p>
                   </td>
 
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
-                      <button onClick={() => openViewModal(g)} className="icon-btn text-blue-600">
+                      <button onClick={() => openView(g)} className="icon-btn text-blue-600">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button onClick={() => openEditModal(g)} className="icon-btn text-green-600">
+                      <button onClick={() => openEdit(g)} className="icon-btn text-green-600">
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => {
                           setSelectedGuest(g);
-                          setIsDeleteDialogOpen(true);
+                          setShowDeleteConfirm(true);
                         }}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => openInfoModal(g)} className="icon-btn text-purple-600">
-                        <FileText className="w-4 h-4" />
-                      </button>
-
                     </div>
                   </td>
                 </tr>
@@ -503,7 +351,7 @@ export function GuestManagement() {
       {/* ------------------------- MODALS BEGIN ------------------------ */}
 
       {/* VIEW GUEST */}
-      {showViewModal && selectedGuestFullInfo && (
+      {showView && selectedGuest && (
         <div className="modalOverlay">
           <div className="modal largeModal">
 
@@ -512,34 +360,33 @@ export function GuestManagement() {
             {/* BASIC INFO */}
             <div className="section">
               <h3>Basic Information</h3>
-              <p><strong>Name:</strong> {selectedGuestFullInfo.basic.name}</p>
-              <p><strong>Mobile:</strong> {selectedGuestFullInfo.basic.mobile || "N/A"}</p>
-              <p><strong>Alternate Mobile:</strong> {selectedGuestFullInfo.basic.alt_mobile || "N/A"}</p>
-              <p><strong>Email:</strong> {selectedGuestFullInfo.basic.email || "N/A"}</p>
-              <p><strong>Address:</strong> {selectedGuestFullInfo.basic.address || "N/A"}</p>
-              <p><strong>ID Proof:</strong> {selectedGuestFullInfo.basic.id_proof_type} - {selectedGuestFullInfo.basic.id_proof_no}</p>
+              <p><strong>Name:</strong> {selectedGuest.guest_name}</p>
+              <p><strong>Mobile:</strong> {selectedGuest.guest_mobile || "N/A"}</p>
+              <p><strong>Alternate Mobile:</strong> {selectedGuest.guest_alternate_mobile || "N/A"}</p>
+              <p><strong>Email:</strong> {selectedGuest.email || "N/A"}</p>
+              <p><strong>Address:</strong> {selectedGuest.guest_address || "N/A"}</p>
+              <p><strong>ID Proof:</strong> {selectedGuest.id_proof_type} - {selectedGuest.id_proof_no}</p>
             </div>
 
             {/* DESIGNATION */}
             <div className="section">
               <h3>Designation Details</h3>
-              <p><strong>Designation ID:</strong> {selectedGuestFullInfo.designation.designation_id}</p>
-              <p><strong>Department:</strong> {selectedGuestFullInfo.designation.department}</p>
-              <p><strong>Organization:</strong> {selectedGuestFullInfo.designation.organization}</p>
-              <p><strong>Office Location:</strong> {selectedGuestFullInfo.designation.office_location}</p>
+              <p><strong>Designation ID:</strong> {selectedGuest.designation_id}</p>
+              <p><strong>Department:</strong> {selectedGuest.department}</p>
+              <p><strong>Organization:</strong> {selectedGuest.organization}</p>
+              <p><strong>Office Location:</strong> {selectedGuest.office_location}</p>
             </div>
 
             {/* VISIT / IN-OUT */}
             <div className="section">
               <h3>Visit Information</h3>
-              <p><strong>Status:</strong> {selectedGuestFullInfo.visit.status}</p>
-              <p><strong>Arrival:</strong> {selectedGuestFullInfo.visit.arrival}</p>
-              <p><strong>Departure:</strong> {selectedGuestFullInfo.visit.departure}</p>
-              <p><strong>Room:</strong> {selectedGuestFullInfo.visit.room}</p>
+              <p><strong>Status:</strong> {selectedGuest.inout_status}</p>
+              <p><strong>Arrival:</strong> {selectedGuest.entry_date}</p>
+              <p><strong>Departure:</strong> {selectedGuest.exit_date}</p>
             </div>
 
             <div className="modalActions">
-              <button onClick={() => setShowViewModal(false)}>Close</button>
+              <button onClick={() => setShowView(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -548,7 +395,7 @@ export function GuestManagement() {
 
 
       {/* EDIT GUEST */}
-      {showEditModal && selectedGuest && (
+      {showEdit && selectedGuest && (
         <div className="modalOverlay">
           <div className="modal largeModal">
             <h3>Edit Guest</h3>
@@ -568,9 +415,9 @@ export function GuestManagement() {
             <label>Mobile</label>
             <input
               className="modalInput"
-              value={editGuestForm.guest_mobile}
+              value={editGuestForm.mobile}
               onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, guest_mobile: e.target.value })
+                setEditGuestForm({ ...editGuestForm, mobile: e.target.value })
               }
             />
 
@@ -580,36 +427,36 @@ export function GuestManagement() {
             <label>Designation ID</label>
             <input
               className="modalInput"
-              value={editDesignationForm.designation_id}
+              value={editGuestForm.designation_id}
               onChange={(e) =>
-                setEditDesignationForm({ ...editDesignationForm, designation_id: e.target.value })
+                setEditGuestForm({ ...editGuestForm, designation_id: e.target.value })
               }
             />
 
-            <label>Department</label>
+            <label>Designation Name</label>
             <input
               className="modalInput"
-              value={editDesignationForm.department}
+              value={editGuestForm.designation_name}
               onChange={(e) =>
-                setEditDesignationForm({ ...editDesignationForm, department: e.target.value })
+                setEditGuestForm({ ...editGuestForm, designation_name: e.target.value })
               }
             />
 
             <label>Organization</label>
             <input
               className="modalInput"
-              value={editDesignationForm.organization}
+              value={editGuestForm.organization}
               onChange={(e) =>
-                setEditDesignationForm({ ...editDesignationForm, organization: e.target.value })
+                setEditGuestForm({ ...editGuestForm, organization: e.target.value })
               }
             />
 
             <label>Office Location</label>
             <input
               className="modalInput"
-              value={editDesignationForm.office_location}
+              value={editGuestForm.office_location}
               onChange={(e) =>
-                setEditDesignationForm({ ...editDesignationForm, office_location: e.target.value })
+                setEditGuestForm({ ...editGuestForm, office_location: e.target.value })
               }
             />
 
@@ -620,9 +467,9 @@ export function GuestManagement() {
             <input
               type="date"
               className="modalInput"
-              value={editInOutForm.entry_date}
+              value={editGuestForm.entry_date}
               onChange={(e) =>
-                setEditInOutForm({ ...editInOutForm, entry_date: e.target.value })
+                setEditGuestForm({ ...editGuestForm, entry_date: e.target.value })
               }
             />
 
@@ -630,18 +477,18 @@ export function GuestManagement() {
             <input
               type="date"
               className="modalInput"
-              value={editInOutForm.exit_date}
+              value={editGuestForm.exit_date}
               onChange={(e) =>
-                setEditInOutForm({ ...editInOutForm, exit_date: e.target.value })
+                setEditGuestForm({ ...editGuestForm, exit_date: e.target.value })
               }
             />
 
             <label>Status</label>
             <select
               className="modalInput"
-              value={editInOutForm.status}
+              value={editGuestForm.status}
               onChange={(e) =>
-                setEditInOutForm({ ...editInOutForm, status: e.target.value as "Entered" | "Inside" | "Exited" })
+                setEditGuestForm({ ...editGuestForm, status: e.target.value as "Entered" | "Inside" | "Exited" })
               }
             >
               <option value="Entered">Entered</option>
@@ -651,8 +498,8 @@ export function GuestManagement() {
 
             {/* ACTIONS */}
             <div className="modalActions">
-              <button onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="saveBtn" onClick={submitGuestEdit}>
+              <button onClick={() => setShowEdit(false)}>Cancel</button>
+              <button className="saveBtn" onClick={submitEdit}>
                 Save Changes
               </button>
             </div>
@@ -662,20 +509,20 @@ export function GuestManagement() {
 
 
       {/* DELETE GUEST */}
-      {isDeleteDialogOpen && selectedGuest && (
+      {showDeleteConfirm && selectedGuest && (
         <div className="modalOverlay">
           <div className="modal">
             <h3>Confirm Deletion</h3>
 
             <p>
-              Are you sure you want to delete guest <strong>{selectedGuest.name}</strong>? This
+              Are you sure you want to delete guest <strong>{selectedGuest.guest_name}</strong>? This
               action cannot be undone.
             </p>
 
             <div className="modalActions">
-              <button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</button>
+              <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
 
-              <button className="saveBtn" style={{ backgroundColor: "red" }} onClick={handleDeleteGuest}>
+              <button className="saveBtn" style={{ backgroundColor: "red" }} onClick={handleDelete}>
                 Delete
               </button>
             </div>
@@ -684,150 +531,125 @@ export function GuestManagement() {
       )}
 
 
-
-      {/* INFO PACKAGE */}
-      {showInfoModal && selectedGuest && (
+      {/* ADD GUEST MODAL */}
+      {showAdd && (
         <div className="modalOverlay">
           <div className="modal">
-            <h3>Guest Info Package</h3>
-            <p>PDF or printable info will appear here.</p>
-
-            <div className="modalActions">
-              <button onClick={() => setShowInfoModal(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ADD GUEST MODAL */}
-      {showAddGuestModal && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            {/* HEADER */}
-            <div className="nicModalHeader">
-              <h2>Add New Guest</h2>
-              <button className="closeBtn" onClick={() => setShowAddGuestModal(false)}>
-                ✕
-              </button>
-            </div>
-
-            {/* 2-COLUMN FORM GRID */}
-            <div className="nicFormGrid">
+            <h3>Add Guest</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label>Full Name *</label>
-                <input className="nicInput" value={guestForm.guest_name} onChange={(e) => updateGuestForm("guest_name", e.target.value)} />
+
+                {/* 2-COLUMN FORM GRID */}
+                <div className="nicFormGrid">
+                  <div>
+                    <label>Full Name *</label>
+                    <input className="nicInput" value={guestForm.guest_name} onChange={(e) => setGuestForm(s => ({ ...s, guest_name: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Name (Local Language)</label>
+                    <input className="nicInput" value={guestForm.guest_name_local_language} onChange={(e) => setGuestForm(s => ({ ...s, guest_name_local_language: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Designation Id</label>
+                    <input className="nicInput" value={guestForm.designation_id} onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Designation Name</label>
+                    <input className="nicInput" value={guestForm.designation_name} onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Organization</label>
+                    <input className="nicInput" value={guestForm.organization} onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Office Location</label>
+                    <input className="nicInput" value={guestForm.office_location} onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Mobile Number *</label>
+                    <input className="nicInput" value={guestForm.mobile} onChange={(e) => setGuestForm(s => ({ ...s, mobile: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <label>Alternate Mobile</label>
+                    <input className="nicInput" value={guestForm.alternate_mobile} onChange={(e) => setGuestForm(s => ({ ...s, alternate_mobile: e.target.value }))} />
+                  </div>
+
+                  {/* Full width field */}
+                  <div className="fullWidth">
+                    <label>Address</label>
+                    <textarea className="nicInput" value={guestForm.guest_address} onChange={(e) => setGuestForm(s => ({ ...s, guest_address: e.target.value }))} />
+                  </div>
+
+                  {/* Check-in Date */}
+                  <div>
+                    <label>Check-in Date</label>
+                    <input
+                      type="date"
+                      className="nicInput"
+                      value={guestForm.entry_date}
+                      onChange={(e) => setGuestForm(s => ({ ...s, entry_date: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Check-out Date */}
+                  <div>
+                    <label>Check-out Date</label>
+                    <input
+                      type="date"
+                      className="nicInput"
+                      value={guestForm.exit_date}
+                      onChange={(e) => setGuestForm(s => ({ ...s, exit_date: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* ID PROOF */}
+                  <div>
+                    <label>ID Proof Type</label>
+                    <select
+                      className="nicInput"
+                      value={guestForm.id_proof_type}
+                      onChange={(e) =>
+                        setGuestForm(s => ({ ...s, id_proof_type: e.target.value as "Aadhaar" | "PAN" | "Passport" | "Driving-License" | "Voter-ID" | "Other" }))
+                      }
+                    >
+                      <option value="">Select</option>
+                      <option value="Aadhaar">Aadhaar</option>
+                      <option value="PAN">PAN</option>
+                      <option value="Passport">Passport</option>
+                      <option value="Driving-License">Driving License</option>
+                      <option value="Voter-ID">Voter ID</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label>ID Proof Number</label>
+                    <input className="nicInput" value={guestForm.id_proof_no} onChange={(e) => setGuestForm(s => ({ ...s, id_proof_no: e.target.value }))} />
+                  </div>
+
+                  <div className="fullWidth">
+                    <label>Email</label>
+                    <input className="nicInput" value={guestForm.email} onChange={(e) => setGuestForm(s => ({ ...s, email: e.target.value }))} />
+                  </div>
+                </div>
+
+                {/* ACTION BUTTONS */}
+                <div className="nicModalActions">
+                  <button className="cancelBtn" onClick={() => setShowAdd(false)}>
+                    Cancel
+                  </button>
+                  <button className="saveBtn" onClick={handleAddGuest}>
+                    Add Guest
+                  </button>
+                </div>
               </div>
-
-              <div>
-                <label>Name (Local Language)</label>
-                <input className="nicInput" value={guestForm.guest_name_local_language} onChange={(e) => updateGuestForm("guest_name_local_language", e.target.value)} />
-              </div>
-
-              <div>
-                <label>Designation</label>
-                <input className="nicInput" value={designationForm.designation_id} onChange={(e) => updateDesignationForm("designation_id", e.target.value)} />
-              </div>
-
-              <div>
-              <label>Department</label>
-              <input className="nicInput" value={designationForm.department} onChange={(e) => updateDesignationForm("department", e.target.value)} />
-              </div>
-
-              <div>
-              <label>Organization</label>
-              <input className="nicInput" value={designationForm.organization} onChange={(e) => updateDesignationForm("organization", e.target.value)} />
-              </div>
-
-              <div>
-              <label>Office Location</label>
-              <input className="nicInput" value={designationForm.office_location} onChange={(e) => updateDesignationForm("office_location", e.target.value)} />
-              </div>
-
-              <div>
-                <label>Mobile Number *</label>
-                <input className="nicInput" value={guestForm.guest_mobile} onChange={(e) => updateGuestForm("guest_mobile", e.target.value)} />
-              </div>
-
-              <div>
-                <label>Alternate Mobile</label>
-                <input className="nicInput" value={guestForm.guest_alternate_mobile} onChange={(e) => updateGuestForm("guest_alternate_mobile", e.target.value)} />
-              </div>
-
-              <div>
-                <label>Category</label>
-                {/* placeholder category field to keep layout parity with screenshot 1 (if you need a select here replace accordingly) */}
-                <input className="nicInput" />
-              </div> 
-
-              {/* Full width field */}
-              <div className="fullWidth">
-                <label>Address</label>
-                <textarea className="nicInput" value={guestForm.guest_address} onChange={(e) => updateGuestForm("guest_address", e.target.value)} />
-              </div>
-
-              {/* Check-in Date */}
-              <div>
-                <label>Check-in Date</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={guestForm.checkin_date}
-                  onChange={(e) => updateGuestForm("checkin_date", e.target.value)}
-                />
-              </div>
-
-              {/* Check-out Date */}
-              <div>
-                <label>Check-out Date</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={guestForm.checkout_date}
-                  onChange={(e) => updateGuestForm("checkout_date", e.target.value)}
-                />
-              </div>
-
-              {/* ID PROOF */}
-              <div>
-                <label>ID Proof Type</label>
-                <select
-                  className="nicInput"
-                  value={guestForm.id_proof_type}
-                  onChange={(e) =>
-                    updateGuestForm(
-                      "id_proof_type",
-                      e.target.value as "Aadhaar" | "PAN" | "Passport" | "Driving License" | "Voter-ID" | "Other"
-                    )
-                  }
-                >
-                  <option value="">Select</option>
-                  <option value="Aadhaar">Aadhaar</option>
-                  <option value="PAN">PAN</option>
-                  <option value="Passport">Passport</option>
-                  <option value="Driving License">Driving License</option>
-                  <option value="Voter-ID">Voter ID</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label>ID Proof Number</label>
-                <input className="nicInput" value={guestForm.id_proof_no} onChange={(e) => updateGuestForm("id_proof_no", e.target.value)} />
-              </div>
-
-              <div className="fullWidth">
-                <label>Email</label>
-                <input className="nicInput" value={guestForm.email} onChange={(e) => updateGuestForm("email", e.target.value)} />
-              </div>
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="nicModalActions">
-              <button className="cancelBtn" onClick={() => setShowAddGuestModal(false)}>
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitNewGuest}>
-                Add Guest
-              </button>
             </div>
           </div>
         </div>
@@ -835,3 +657,4 @@ export function GuestManagement() {
     </div>
   );
 }
+export default GuestManagement;

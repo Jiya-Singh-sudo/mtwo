@@ -85,3 +85,21 @@ export interface GuestRoomUpdateDto {
 
   is_active?: boolean;
 }
+
+export type RoomOverview = {
+  roomId: number;
+  roomNo: string;
+  roomName?: string;
+  residenceType?: string;
+  capacity?: number;
+  status: 'Available' | 'Occupied' | string;
+
+  guestRoomId?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+
+  guest?: {
+    guestId: number;
+    guestName: string;
+  } | null;
+};

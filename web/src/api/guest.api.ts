@@ -1,34 +1,17 @@
-// src/api/guest.api.ts
-import api, { safeGet } from "./apiClient";
-import type { GuestCreateDto, GuestUpdateDto } from "../types/guests";
-
-export async function getGuestById(id: string) {
-  return safeGet<any>(`/guests/id/${id}`);
-}
+import { safeGet, safePost, safePatch, safeDelete } from './httpHelpers';
 
 export async function getActiveGuests() {
-  // GET /guests (controller returns active only by default)
-  return safeGet<any[]>("/guests");
+  return safeGet('/guests/active');
 }
 
-export async function createGuest(data: GuestCreateDto, user = "system") {
-  // backend will attach IP+timestamp; we pass user in header as controller expects x-user
-  const res = await api.post("/guests", data, {
-    headers: { "x-user": user }
-  });
-  return res.data;
+export async function createGuest(payload: { guest: any; designation?: any; inout?: any }) {
+  return safePost('/guests', payload);
 }
 
-export async function updateGuest(guestName: string, data: GuestUpdateDto, user = "system") {
-  const res = await api.put(`/guests/${encodeURIComponent(guestName)}`, data, {
-    headers: { "x-user": user }
-  });
-  return res.data;
+export async function updateGuest(id: number | string, payload: any) {
+  return safePatch(`/guests/${id}`, payload);
 }
 
-export async function softDeleteGuest(guestName: string, user = "system") {
-  const res = await api.delete(`/guests/${encodeURIComponent(guestName)}`, {
-    headers: { "x-user": user }
-  });
-  return res.data;
+export async function softDeleteGuest(id: number | string) {
+  return safeDelete(`/guests/${id}`);
 }

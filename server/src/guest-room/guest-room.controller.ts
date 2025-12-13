@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Patch } from "@nestjs/common";
 import { GuestRoomService } from "./guest-room.service";
 import { CreateGuestRoomDto } from "./dto/create-guest-room.dto";
 import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
+
+
 
 @Controller("guest-room")
 export class GuestRoomController {
@@ -19,6 +21,27 @@ export class GuestRoomController {
     if (ip === "::1") ip = "127.0.0.1";
     return ip;
   }
+  //Room Management page - table view
+  @Get('overview')
+  getOverview() {
+    return this.service.getRoomOverview();
+  }
+
+  //Room Management page - active guests dropdown
+  @Get('active-guests')
+  getActiveGuests() {
+    return this.service.activeGuestsDropDown();
+  }
+
+  //Room Management page - vacate
+  @Patch(':id/vacate')
+  vacateRoom(@Param('id') id: string, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
+    return this.service.vacate(id, user, ip);
+  }
+
+
 
   @Get()
   getActive() {

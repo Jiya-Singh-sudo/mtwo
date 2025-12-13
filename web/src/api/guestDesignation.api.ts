@@ -1,41 +1,8 @@
-import api, { safeGet } from "./apiClient";
-import type {
-  GuestDesignation,
-  GuestDesignationCreateDto,
-  GuestDesignationUpdateDto
-} from "../types/guestDesignation";
+import { safePost, safePatch } from './httpHelpers';
 
-// GET active only
-export async function getActiveGuestDesignations() {
-  return safeGet<GuestDesignation[]>("/guest-designation");
+export async function createGuestDesignation(payload: any) {
+  return safePost('/guest-designation', payload);
 }
-
-// GET all (active & inactive)
-export async function getAllGuestDesignations() {
-  return safeGet<GuestDesignation[]>("/guest-designation/all");
-}
-
-// CREATE
-export async function createGuestDesignation(
-  data: GuestDesignationCreateDto,
-  user = "system"
-) {
-  const res = await api.post("/guest-designation", data, {
-    headers: { "x-user": user }
-  });
-  return res.data;
-}
-
-// UPDATE
-export async function updateGuestDesignation(
-  id: string,
-  data: GuestDesignationUpdateDto,
-  user = "system"
-) {
-  const res = await api.put(
-    `/guest-designation/${encodeURIComponent(id)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
+export async function updateGuestDesignation(gd_id: string, payload: any) {
+  return safePatch(`/guest-designation/${gd_id}`, payload);
 }

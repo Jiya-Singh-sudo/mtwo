@@ -1,7 +1,7 @@
-// src/types/guest.ts
+export type InoutStatus = 'Entered' | 'Inside' | 'Exited';
 
-export type Guest = {
-  guest_id: string;
+export interface ActiveGuestRow {
+  guest_id: number;
   guest_name: string;
   guest_name_local_language?: string | null;
   guest_mobile?: string | null;
@@ -10,14 +10,20 @@ export type Guest = {
   id_proof_type?: string | null;
   id_proof_no?: string | null;
   email?: string | null;
-  is_active?: boolean;
-  inserted_at?: string | null;
-  inserted_by?: string | null;
-  inserted_ip?: string | null;
-  updated_at?: string | null;
-  updated_by?: string | null;
-  updated_ip?: string | null;
-};
 
-export type GuestCreateDto = Partial<Guest> & { guest_name: string };
-export type GuestUpdateDto = Partial<Guest>;
+  gd_id?: string | null;
+  designation_id?: string | null;
+  designation_name?: string | null;
+  department?: string | null;
+  organization?: string | null;
+  office_location?: string | null;
+  designation_is_current?: boolean | null;
+
+  inout_id: string;
+  entry_date?: string | null;
+  entry_time?: string | null;
+  exit_date?: string | null;
+  exit_time?: string | null;
+  inout_status?: InoutStatus | string | null;
+  room_id?: string | null;
+}
