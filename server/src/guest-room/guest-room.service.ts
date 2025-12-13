@@ -155,7 +155,7 @@ export class GuestRoomService {
         WHERE room_id = $1 AND is_active = TRUE
       `, [dto.room_id]);
 
-      if (!roomCheck.rowCount || roomCheck.rows[0].status !== 'Available') {
+      if (!roomCheck.rowCount || roomCheck.rows[0].status !== 'Room-Allocated') {
         throw new Error('Room is not available');
       }
 
@@ -180,7 +180,7 @@ export class GuestRoomService {
           inserted_ip
         ) VALUES (
           $1,$2,$3,$4, CURRENT_TIME, $5,
-          'ASSIGN','Room Assigned',$6,
+          'Room-Allocated','Room Allocated',$6,
           TRUE, NOW(), $7, $8
         )
       `, [
@@ -205,6 +205,7 @@ export class GuestRoomService {
 
     } catch (err) {
       await this.db.query('ROLLBACK');
+      console.error("GuestRoom Create Error:", err);
       throw err;
     }
   }

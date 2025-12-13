@@ -17,6 +17,7 @@ export function RoomManagement() {
 
     useEffect(() => {
         loadRooms();
+        loadActiveGuests();
     }, []);
 
     async function loadRooms() {
@@ -88,6 +89,7 @@ export function RoomManagement() {
     /* ---------------- ACTIVE GUESTS ---------------- */ 
     async function loadActiveGuests() {
     const res = await api.get("/guest-inout/active");
+    console.log("ACTIVE GUEST API RAW:", res.data);
     setActiveGuests(
         res.data.map((g: any) => ({
         guestId: g.guest_id,
@@ -164,7 +166,7 @@ export function RoomManagement() {
         try {
             await api.post("/guest-room", {
                 room_id: selectedRoom.roomId,
-                guest_id: Number(assignForm.guestId), // this should be guest_id, not name
+                guest_id: assignForm.guestId, // this should be guest_id, not name
                 check_in_date: assignForm.checkIn,
                 check_out_date: assignForm.checkOut || null,
                 remarks: assignForm.remarks || null,
@@ -250,7 +252,9 @@ export function RoomManagement() {
                                         <button onClick={() => openStatusModal(room)} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
                                             <Edit className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => openAssignRoomModal(room)} className="p-1.5 text-orange-600 hover:bg-orange-50 rounded" disabled={activeGuests.length === 0}>
+                                        <button onClick={() => openAssignRoomModal(room)} className="p-1.5 text-orange-600 hover:bg-orange-50 rounded" 
+                                        // disabled={activeGuests.length === 0}
+                                        >
                                             <BedDouble className="w-4 h-4" />
                                         </button>
                                         {room.status === "Occupied" && room.guestRoomId && (

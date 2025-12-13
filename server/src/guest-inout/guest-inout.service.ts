@@ -74,7 +74,20 @@ export class GuestInoutService {
   }
 
   async findAllActive() {
-    const r = await this.db.query(`SELECT * FROM t_guest_inout WHERE is_active = TRUE`);
-    return r.rows;
+      const sql = `
+    SELECT
+      io.inout_id,
+      io.guest_id,
+      g.guest_name
+    FROM t_guest_inout io
+    JOIN m_guest g
+      ON g.guest_id = io.guest_id
+    WHERE io.is_active = TRUE
+      AND g.is_active = TRUE
+    ORDER BY g.guest_name;
+  `;
+
+  const r = await this.db.query(sql);
+  return r.rows;
   }
 }
