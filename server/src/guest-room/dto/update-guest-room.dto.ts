@@ -17,6 +17,8 @@ export class UpdateGuestRoomDto {
     | "Room-Released"
     | "Other";
 
+  status?: 'Available' | 'Occupied';
+
   action_description?: string;
 
   action_date?: string;

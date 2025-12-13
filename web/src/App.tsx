@@ -4,7 +4,7 @@ import { DashboardStats } from './components/DashboardStats';
 import { QuickActions } from './components/QuickActions';
 import { RecentActivity } from './components/RecentActivity';
 import { GuestManagement } from './components/modules/GuestManagement/Page';
-import { RoomManagement } from './components/modules/RoomManagement';
+import { RoomManagement } from './components/modules/RoomManagement/page';
 import { VehicleManagement } from './components/modules/VehicleManagement';
 import { DutyRoster } from './components/modules/DutyRoster';
 import { InfoPackage } from './components/modules/InfoPackage';
