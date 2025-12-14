@@ -35,6 +35,8 @@ async function loadData() {
   try {
     const dashboard = await getFoodDashboard();
     const rawSchedule = await getTodayMealSchedule();
+    console.log("RAW schedule response:", rawSchedule);
+
 
     setStats(dashboard);
 
@@ -48,6 +50,7 @@ async function loadData() {
     } else if (Array.isArray(rawSchedule?.schedule)) {
       normalizedSchedule = rawSchedule.schedule;
     } else {
+
       console.error("❌ Unexpected schedule shape:", rawSchedule);
     }
 

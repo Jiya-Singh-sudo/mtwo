@@ -1,33 +1,23 @@
-import api, { safeGet } from "./apiClient";
-import type {
-  GuestFood,
-  GuestFoodCreateDto,
-  GuestFoodUpdateDto
-} from "@/types/guestFood";
-import axios from "axios";
+import apiClient from "./apiClient";
 
-// GET active orders
-export async function getActiveGuestFood() {
-  return safeGet<GuestFood[]>("/guest-food");
-}
+/* =======================
+   READ APIs
+   ======================= */
 
-// Dashboard cards
 export const getFoodDashboard = async () => {
-  const res = await axios.get("/guest-food/dashboard");
+  const res = await apiClient.get("/guest-food/dashboard");
   return res.data;
 };
 
-// Today meal schedule
 export const getTodayMealSchedule = async () => {
-  const res = await axios.get("/guest-food/schedule/today");
-  return res.data.data;
+  const res = await apiClient.get("/guest-food/schedule/today");
+  return res.data;
 };
 
 /* =======================
    WRITE APIs
    ======================= */
 
-// Update food order status
 export const updateFoodStatus = async (
   guestFoodId: string,
   payload: {
@@ -36,48 +26,9 @@ export const updateFoodStatus = async (
     remarks?: string;
   }
 ) => {
-  const res = await axios.put(`/guest-food/${guestFoodId}`, payload);
+  const res = await apiClient.put(
+    `/guest-food/${guestFoodId}`,
+    payload
+  );
   return res.data;
 };
-
-// GET all orders
-export async function getAllGuestFood() {
-  return safeGet<GuestFood[]>("/guest-food/all");
-}
-
-// CREATE
-export async function createGuestFood(
-  data: GuestFoodCreateDto,
-  user = "system"
-) {
-  const res = await api.post("/guest-food", data, {
-    headers: { "x-user": user }
-  });
-  return res.data;
-}
-
-// UPDATE
-export async function updateGuestFood(
-  id: string,
-  data: GuestFoodUpdateDto,
-  user = "system"
-) {
-  const res = await api.put(
-    `/guest-food/${encodeURIComponent(id)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
-}
-
-// SOFT DELETE
-export async function softDeleteGuestFood(
-  id: string,
-  user = "system"
-) {
-  const res = await api.delete(
-    `/guest-food/${encodeURIComponent(id)}`,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
-}
