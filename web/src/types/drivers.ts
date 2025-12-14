@@ -33,3 +33,15 @@ export interface UpdateDriverDto {
   address?: string;
   is_active?: boolean;
 }
+export interface DriverDashboardRow {
+  driver_id: string;
+  driver_name: string;
+  driver_contact: string;
+  driver_license: string | null;
+
+  duty_status: "AVAILABLE" | "ON_DUTY";
+
+  vehicle_no: string | null;
+  vehicle_name: string | null;
+  guest_name: string | null;
+}

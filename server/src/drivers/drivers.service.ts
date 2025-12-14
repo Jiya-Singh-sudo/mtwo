@@ -21,6 +21,93 @@ export class DriversService {
     return 'D' + number.toString().padStart(3, '0');
   }
 
+  async getDriverDashboard() {
+  const sql = `
+    SELECT
+      d.driver_id,
+      d.driver_name,
+      d.driver_contact,
+      d.driver_license,
+
+      CASE
+        WHEN gv.is_active = TRUE THEN 'ON_DUTY'
+        ELSE 'AVAILABLE'
+      END AS duty_status,
+
+      v.vehicle_no,
+      v.vehicle_name,
+      g.guest_name
+
+    FROM m_driver d
+    LEFT JOIN t_guest_vehicle gv
+      ON gv.driver_id = d.driver_id
+     AND gv.is_active = TRUE
+    LEFT JOIN m_vehicle v
+      ON v.vehicle_no = gv.vehicle_no
+    LEFT JOIN m_guest g
+      ON g.guest_id = gv.guest_id
+
+    WHERE d.is_active = TRUE
+    ORDER BY d.driver_name;
+  `;
+
+  const res = await this.db.query(sql);
+  return res.rows;
+}
+async create(dto: CreateDriverDto, user: string, ip: string) {
+  const sql = `
+    INSERT INTO m_driver
+      (driver_id, driver_name, driver_contact, driver_license,
+       is_active, inserted_by, inserted_ip)
+    VALUES
+      ($1,$2,$3,$4, TRUE,$5,$6)
+    RETURNING driver_id, driver_name;
+  `;
+
+  const driverId = Math.floor(Date.now() / 1000);
+
+  const res = await this.db.query(sql, [
+    driverId,
+    dto.driver_name,
+    dto.driver_contact,
+    dto.driver_license_number || null,
+    user,
+    ip
+  ]);
+
+  return res.rows[0];
+}
+
+async assignDriver(
+  payload: { guest_vehicle_id: string; driver_id: number },
+  user: string,
+  ip: string
+) {
+  const sql = `
+    UPDATE t_guest_vehicle
+    SET
+      driver_id = $2,
+      updated_at = NOW(),
+      updated_by = $3,
+      updated_ip = $4
+    WHERE guest_vehicle_id = $1
+      AND is_active = TRUE
+    RETURNING *;
+  `;
+
+  const res = await this.db.query(sql, [
+    payload.guest_vehicle_id,
+    payload.driver_id,
+    user,
+    ip
+  ]);
+
+  return res.rows[0];
+}
+
+
+
+
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM m_driver WHERE is_active = $1 ORDER BY driver_name`
@@ -42,49 +129,7 @@ export class DriversService {
     return result.rows[0];
   }
 
-  async create(dto: CreateDriverDto, user: string, ip: string) {
-    const driver_id = await this.generateDriverId();
-
-    const now = new Date().toLocaleString('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      hour12: false,
-    }).replace(',', '');
-
-    const sql = `
-      INSERT INTO m_driver (
-        driver_id,
-        driver_name,
-        driver_name_local,
-        driver_contact,
-        driver_alternate_mobile,
-        driver_license,
-        address,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NULL, NULL, NULL)
-      RETURNING *;
-    `;
-
-    const params = [
-      driver_id,
-      dto.driver_name,
-      dto.driver_name_ll,
-      dto.driver_contact,
-      dto.driver_alternate_contact,
-      dto.driver_license_number,
-      dto.address,
-      true,
-      now,
-      user,
-      ip,
-    ];
-
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
-  }
-
+  
   async update(driver_name: string, dto: UpdateDriverDto, user: string, ip: string) {
     const existing = await this.findOneByName(driver_name);
     if (!existing) {

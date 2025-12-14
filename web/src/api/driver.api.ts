@@ -1,44 +1,48 @@
 // src/api/driver.api.ts
-import api, { safeGet } from "./apiClient";
-import type { CreateDriverDto, UpdateDriverDto } from "../types/drivers";
+import api from "./apiClient";
+// import type { CreateDriverDto, UpdateDriverDto } from "../types/drivers";
 
-// GET /drivers → only active drivers
-export async function getActiveDrivers() {
-  return safeGet<any[]>("/drivers");
-}
-
-// GET /drivers/all → active + inactive
-export async function getAllDrivers() {
-  return safeGet<any[]>("/drivers/all");
-}
-
-// POST /drivers
-export async function createDriver(data: CreateDriverDto, user = "system") {
-  const res = await api.post("/drivers", data, {
-    headers: { "x-user": user },
-  });
+/* READ: Driver dashboard (read model, NOT m_driver) */
+export async function getDriverDashboard() {
+  const res = await api.get("/drivers/dashboard");
   return res.data;
 }
 
-// PUT /drivers/:driver_name
+/* WRITE: Add new driver */
+export async function createDriver(payload: {
+  driver_name: string;
+  driver_contact: string;
+  driver_license?: string;
+}) {
+  const res = await api.post("/drivers", payload);
+  return res.data;
+}
+
+/* WRITE: Edit driver details */
 export async function updateDriver(
-  driverName: string,
-  data: UpdateDriverDto,
-  user = "system"
+  driver_id: string,
+  payload: {
+    driver_name: string;
+    driver_contact: string;
+    driver_license?: string;
+    is_active?: boolean;
+  }
 ) {
-  const res = await api.put(
-    `/drivers/${encodeURIComponent(driverName)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
+  const res = await api.patch(`/drivers/${driver_id}`, payload);
   return res.data;
 }
 
-// DELETE /drivers/:driver_name
-export async function softDeleteDriver(driverName: string, user = "system") {
-  const res = await api.delete(
-    `/drivers/${encodeURIComponent(driverName)}`,
-    { headers: { "x-user": user } }
-  );
+/* READ: Guests with vehicle but no driver */
+export async function getAssignableGuestVehicles() {
+  const res = await api.get("/guest-vehicle/without-driver");
+  return res.data;
+}
+
+/* WRITE: Assign driver */
+export async function assignDriverToGuestVehicle(payload: {
+  guest_vehicle_id: string;
+  driver_id: string;
+}) {
+  const res = await api.post("/drivers/assign", payload);
   return res.data;
 }

@@ -36,6 +36,11 @@ export class VehiclesController {
             }
             return ip;
   }
+  @Get('with-assignment-status')
+  getFleetOverview() {
+    return this.service.getFleetOverview();
+  }
+  
   @Get()
   findAll() {
     return this.service.findAll(true);  // only active roles

@@ -7,6 +7,41 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 export class VehiclesService {
     constructor(private readonly db: DatabaseService) {}
 
+    // This is NOT a master-table API.
+// This is a READ MODEL for the Vehicle Management page.
+async getFleetOverview() {
+  const sql = `
+    SELECT
+      v.vehicle_no,
+      v.vehicle_name,
+
+      CASE
+        WHEN gv.is_active = TRUE THEN 'ON_DUTY'
+        ELSE 'AVAILABLE'
+      END AS status,
+
+      gv.location,
+      g.guest_name,
+      d.driver_name
+
+    FROM m_vehicle v
+    LEFT JOIN t_guest_vehicle gv
+      ON gv.vehicle_no = v.vehicle_no
+     AND gv.is_active = TRUE
+    LEFT JOIN m_guest g
+      ON g.guest_id = gv.guest_id
+    LEFT JOIN m_driver d
+      ON d.driver_id = gv.driver_id
+
+    WHERE v.is_active = TRUE
+    ORDER BY v.vehicle_name;
+  `;
+
+  const res = await this.db.query(sql);
+  return res.rows;
+}
+
+
     async findAll(activeOnly = true) {
         const sql = activeOnly
         ? `SELECT * FROM m_vehicle WHERE is_active = $1 ORDER BY vehicle_name`

@@ -138,7 +138,7 @@ export function VehicleManagement() {
 
         <div className="p-6 space-y-4">
           {vehicles.map((v) => (
-            <div key={v.id} className="vehicleCard">
+            <div key={v.vehicle_no} className="vehicleCard">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex gap-3">
                   <div className={`iconBox ${v.status.replace(" ", "")}`}>

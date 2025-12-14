@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Req,
+  Patch,
 } from '@nestjs/common';
 
 import { DriversService } from './drivers.service';
@@ -38,6 +39,39 @@ export class DriversController {
     return ip;
   }
 
+  @Get('dashboard')
+getDashboard() {
+  return this.service.getDriverDashboard();
+}
+
+@Post()
+create(@Body() dto: CreateDriverDto, @Req() req: any) {
+  const user = req.user?.username || 'system';
+  const ip = req.ip || '0.0.0.0';
+  return this.service.create(dto, user, ip);
+}
+@Patch(':id')
+update(
+  @Param('id') id: string,
+  @Body() dto: UpdateDriverDto,
+  @Req() req: any
+) {
+  const user = req.user?.username || 'system';
+  const ip = req.ip || '0.0.0.0';
+  return this.service.update(id, dto, user, ip);
+}
+
+
+@Post('assign')
+assignDriver(
+  @Body() body: { guest_vehicle_id: string; driver_id: number },
+  @Req() req: any
+) {
+  const user = req.user?.username || 'system';
+  const ip = req.ip || '0.0.0.0';
+  return this.service.assignDriver(body, user, ip);
+}
+
   // GET only active drivers
   @Get()
   findAllActive() {
@@ -48,26 +82,6 @@ export class DriversController {
   @Get('all')
   findAll() {
     return this.service.findAll(false);
-  }
-
-  // CREATE
-  @Post()
-  create(@Body() dto: CreateDriverDto, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    const ip = this.extractIp(req);
-    return this.service.create(dto, user, ip);
-  }
-
-  // UPDATE
-  @Put(':driver_name')
-  update(
-    @Param('driver_name') driverName: string,
-    @Body() dto: UpdateDriverDto,
-    @Req() req: any,
-  ) {
-    const user = req.headers['x-user'] || 'system';
-    const ip = this.extractIp(req);
-    return this.service.update(driverName, dto, user, ip);
   }
 
   // SOFT DELETE
