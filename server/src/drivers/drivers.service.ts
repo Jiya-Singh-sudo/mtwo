@@ -24,31 +24,27 @@ export class DriversService {
   async getDriverDashboard() {
   const sql = `
     SELECT
-      d.driver_id,
+      d.driver_id,     
       d.driver_name,
       d.driver_contact,
       d.driver_license,
 
       CASE
-        WHEN gv.is_active = TRUE THEN 'ON_DUTY'
-        ELSE 'AVAILABLE'
+        WHEN gv.driver_id IS NULL THEN 'AVAILABLE'
+        ELSE 'ON_DUTY'
       END AS duty_status,
 
-      v.vehicle_no,
-      v.vehicle_name,
+      gv.vehicle_no,
       g.guest_name
-
     FROM m_driver d
     LEFT JOIN t_guest_vehicle gv
       ON gv.driver_id = d.driver_id
-     AND gv.is_active = TRUE
-    LEFT JOIN m_vehicle v
-      ON v.vehicle_no = gv.vehicle_no
+      AND gv.is_active = TRUE
     LEFT JOIN m_guest g
       ON g.guest_id = gv.guest_id
-
     WHERE d.is_active = TRUE
     ORDER BY d.driver_name;
+
   `;
 
   const res = await this.db.query(sql);
@@ -64,7 +60,8 @@ async create(dto: CreateDriverDto, user: string, ip: string) {
     RETURNING driver_id, driver_name;
   `;
 
-  const driverId = Math.floor(Date.now() / 1000);
+ const driverId = await this.generateDriverId();
+
 
   const res = await this.db.query(sql, [
     driverId,
@@ -79,7 +76,7 @@ async create(dto: CreateDriverDto, user: string, ip: string) {
 }
 
 async assignDriver(
-  payload: { guest_vehicle_id: string; driver_id: number },
+  payload: { guest_vehicle_id: string; driver_id: string },
   user: string,
   ip: string
 ) {
@@ -130,13 +127,11 @@ async assignDriver(
   }
 
   
-  async update(driver_name: string, dto: UpdateDriverDto, user: string, ip: string) {
-    const existing = await this.findOneByName(driver_name);
+  async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
+    const existing = await this.findOneById(driver_id);
     if (!existing) {
-      throw new Error(`Driver '${driver_name}' not found`);
+      throw new Error(`Driver '${driver_id}' not found`);
     }
-
-    const driver_id = existing.driver_id;
 
     const now = new Date().toLocaleString('en-GB', {
       timeZone: 'Asia/Kolkata',
@@ -146,7 +141,7 @@ async assignDriver(
     const sql = `
       UPDATE m_driver SET
         driver_name = $1,
-        driver_name_local = $2,
+        driver_name_local_language = $2,
         driver_contact = $3,
         driver_alternate_mobile = $4,
         driver_license = $5,
@@ -200,4 +195,6 @@ async assignDriver(
     const result = await this.db.query(sql, [now, user, ip, driver_id]);
     return result.rows[0];
   }
+ 
+
 }

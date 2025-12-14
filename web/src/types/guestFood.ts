@@ -1,3 +1,5 @@
+
+type FoodType = "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg";
 export interface GuestFood {
   guest_food_id: string;
 
@@ -56,3 +58,26 @@ export interface GuestFoodUpdateDto {
 
   is_active?: boolean;
 }
+
+
+export interface FoodDashboard {
+  totalGuests: number;
+  mealsServed: number;
+  specialRequests: number;
+  menuItems: number;
+}
+
+export interface MealScheduleRow {
+  food_type: FoodType;
+  expected_guests: number;
+  menu: string[];
+  status: string;
+  guest_food_id: string;
+}
+
+export interface MealSchedule {
+  meal: string;
+  window: string;
+  data: MealScheduleRow[];
+}
+

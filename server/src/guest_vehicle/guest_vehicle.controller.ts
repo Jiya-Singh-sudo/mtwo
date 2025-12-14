@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Req } from '@nestjs/common';
 import { GuestVehicleService } from './guest_vehicle.service';
 import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
 
-@Controller()
+@Controller('guest-vehicle')
 export class GuestVehicleController {
   constructor(private readonly service: GuestVehicleService) {}
 
@@ -33,5 +33,9 @@ export class GuestVehicleController {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';
     return this.service.releaseVehicle(id, user, ip);
+  }
+  @Get('without-driver')
+  getGuestVehiclesWithoutDriver() {
+    return this.service.getWithoutDriver();
   }
 }

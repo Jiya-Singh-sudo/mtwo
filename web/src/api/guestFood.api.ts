@@ -4,11 +4,41 @@ import type {
   GuestFoodCreateDto,
   GuestFoodUpdateDto
 } from "@/types/guestFood";
+import axios from "axios";
 
 // GET active orders
 export async function getActiveGuestFood() {
   return safeGet<GuestFood[]>("/guest-food");
 }
+
+// Dashboard cards
+export const getFoodDashboard = async () => {
+  const res = await axios.get("/guest-food/dashboard");
+  return res.data;
+};
+
+// Today meal schedule
+export const getTodayMealSchedule = async () => {
+  const res = await axios.get("/guest-food/schedule/today");
+  return res.data.data;
+};
+
+/* =======================
+   WRITE APIs
+   ======================= */
+
+// Update food order status
+export const updateFoodStatus = async (
+  guestFoodId: string,
+  payload: {
+    delivery_status?: string;
+    delivered_datetime?: string;
+    remarks?: string;
+  }
+) => {
+  const res = await axios.put(`/guest-food/${guestFoodId}`, payload);
+  return res.data;
+};
 
 // GET all orders
 export async function getAllGuestFood() {

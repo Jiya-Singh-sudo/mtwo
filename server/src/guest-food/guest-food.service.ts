@@ -5,7 +5,7 @@ import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
 
 @Injectable()
 export class GuestFoodService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   private async generateId(): Promise<string> {
     const sql = `SELECT guest_food_id FROM t_guest_food ORDER BY guest_food_id DESC LIMIT 1`;
@@ -18,6 +18,92 @@ export class GuestFoodService {
 
     return "GF" + next;
   }
+  async getDashboardStats() {
+    const today = new Date().toISOString().split("T")[0];
+
+    const totalGuestsSql = `
+      SELECT COUNT(DISTINCT guest_id) AS count
+      FROM t_guest_inout
+      WHERE is_active = TRUE;
+    `;
+
+    const mealsServedSql = `
+      SELECT COUNT(*) AS count
+      FROM t_guest_food
+      WHERE delivery_status = 'Delivered'
+        AND DATE(order_datetime) = $1;
+    `;
+
+    const specialRequestsSql = `
+      SELECT COUNT(*) AS count
+      FROM t_guest_food
+      WHERE request_type != 'Room-Service'
+        AND is_active = TRUE;
+    `;
+
+    const menuItemsSql = `
+      SELECT COUNT(*) AS count
+      FROM m_food_items
+      WHERE is_active = TRUE;
+    `;
+
+    const [
+      totalGuests,
+      mealsServed,
+      specialRequests,
+      menuItems
+    ] = await Promise.all([
+      this.db.query(totalGuestsSql),
+      this.db.query(mealsServedSql, [today]),
+      this.db.query(specialRequestsSql),
+      this.db.query(menuItemsSql)
+    ]);
+
+    return {
+      totalGuests: Number(totalGuests.rows[0].count),
+      mealsServed: Number(mealsServed.rows[0].count),
+      specialRequests: Number(specialRequests.rows[0].count),
+      menuItems: Number(menuItems.rows[0].count),
+    };
+  }
+
+  async getTodaySchedule() {
+    const meals = [
+      { name: "Breakfast", start: "07:00", end: "10:00" },
+      { name: "Lunch", start: "12:30", end: "15:00" },
+      { name: "Dinner", start: "19:00", end: "22:00" }
+    ];
+
+    const result: { meal: string; window: string; data: any[] }[] = [];
+
+    for (const meal of meals) {
+      const sql = `
+        SELECT
+          COUNT(DISTINCT gf.guest_id) AS expected_guests,
+          ARRAY_AGG(DISTINCT mi.food_name) AS menu,
+          MAX(gf.delivery_status) AS status,
+          mi.food_type
+        FROM t_guest_food gf
+        JOIN m_food_items mi ON mi.food_id = gf.food_id
+        WHERE DATE(gf.order_datetime) = CURRENT_DATE
+          AND gf.order_datetime::time BETWEEN $1 AND $2
+          AND gf.is_active = TRUE
+        GROUP BY mi.food_type;
+      `;
+
+      const res = await this.db.query(sql, [meal.start, meal.end]);
+
+      result.push({
+        meal: meal.name,
+        window: `${meal.start} - ${meal.end}`,
+        data: res.rows
+      });
+    }
+
+    return result;
+  }
+
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly

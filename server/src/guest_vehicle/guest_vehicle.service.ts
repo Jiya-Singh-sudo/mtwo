@@ -172,4 +172,19 @@ export class GuestVehicleService {
     const res = await this.db.query(sql, [guestVehicleId, user, ip]);
     return res.rows[0];
   }
+   async getWithoutDriver() {
+  const sql = `
+    SELECT
+      gv.guest_vehicle_id,
+      gv.vehicle_no,
+      g.guest_name
+    FROM t_guest_vehicle gv
+    JOIN m_guest g ON g.guest_id = gv.guest_id
+    WHERE gv.driver_id IS NULL
+      AND gv.is_active = TRUE;
+  `;
+
+  const res = await this.db.query(sql);
+  return res.rows;
+}
 }

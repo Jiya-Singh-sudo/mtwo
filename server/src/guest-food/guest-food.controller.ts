@@ -18,6 +18,16 @@ export class GuestFoodController {
       ""
     ).replace("::ffff:", "").split(",")[0];
   }
+  @Get("dashboard")
+  getDashboard() {
+    return this.service.getDashboardStats();
+  }
+  @Get("schedule/today")
+  getTodaySchedule() {
+    return this.service.getTodaySchedule();
+  }
+
+
 
   @Get()
   getActive() {

@@ -62,9 +62,10 @@ update(
 }
 
 
+
 @Post('assign')
 assignDriver(
-  @Body() body: { guest_vehicle_id: string; driver_id: number },
+  @Body() body: { guest_vehicle_id: string; driver_id: string },
   @Req() req: any
 ) {
   const user = req.user?.username || 'system';
