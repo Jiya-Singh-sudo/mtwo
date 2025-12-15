@@ -31,9 +31,9 @@ export class DashboardService {
         WHERE status = 'Exited' AND exit_date = CURRENT_DATE
       `),
       this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_rooms),0)),0) AS percent FROM t_guest_room WHERE is_active = TRUE`),
-      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_vehicle),0)),0) AS percent FROM t_vehicle_assignment WHERE is_active = TRUE`),
-      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_duty_roster),0)),0) AS percent FROM t_duty_roster WHERE is_active = TRUE`),
-      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_notifications),0)),0) AS percent FROM t_notifications WHERE is_read = FALSE`),
+      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_vehicle),0)),0) AS percent FROM t_guest_vehicle WHERE is_active = TRUE`),
+      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_guest_housekeeping),0)),0) AS percent FROM t_guest_housekeeping WHERE is_active = TRUE`),
+      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_notifications),0)),0) AS percent FROM m_notifications WHERE is_read = FALSE`),
       this.db.query(`
         SELECT message, inserted_at AS timestamp
         FROM t_activity_log

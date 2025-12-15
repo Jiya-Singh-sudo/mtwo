@@ -37,4 +37,17 @@ export class GuestsController {
     await this.service.softDeleteAllGuestInOuts(Number(id), user, ip);
     return this.service.softDeleteGuest(Number(id), user, ip);
   }
+    @Get('checked-in-without-vehicle')
+  async getCheckedInWithoutVehicle() {
+    return this.service.findCheckedInWithoutVehicle();
+  }
+
+  /**
+   * Active guests with designation + inout
+   * Used by Guest Management page
+   */
+  @Get('active')
+  async getActiveGuests() {
+    return this.service.findActiveGuestsWithInOut();
+  }
 }

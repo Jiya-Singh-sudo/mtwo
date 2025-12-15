@@ -21,7 +21,7 @@ export class GuestVehicleController {
     return this.service.findVehiclesByGuest(Number(guestId));
   }
 
-  @Post('guest-vehicle/assign')
+  @Post('assign')
   assignVehicle(@Body() dto: CreateGuestVehicleDto, @Req() req: any) {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';

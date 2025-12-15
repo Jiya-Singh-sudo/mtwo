@@ -155,4 +155,25 @@ async getFleetOverview() {
         const result = await this.db.query(sql, [now, user, ip, vehicle_no]);
         return result.rows[0];
     }
+      async findAssignable() {
+    const sql = `
+      SELECT
+        v.vehicle_no,
+        v.vehicle_name,
+        v.model,
+        v.capacity
+      FROM m_vehicle v
+      WHERE v.is_active = TRUE
+        AND NOT EXISTS (
+          SELECT 1
+          FROM t_guest_vehicle gv
+          WHERE gv.vehicle_no = v.vehicle_no
+            AND gv.is_active = TRUE
+        )
+      ORDER BY v.vehicle_name;
+    `;
+
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
 }

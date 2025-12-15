@@ -253,4 +253,42 @@ export class GuestsService {
     `;
     await this.db.query(sql, [guestId, user, ip]);
   }
+ async findCheckedInWithoutVehicle() {
+  const sql = `
+    SELECT
+      g.guest_id,
+      g.guest_name,
+      g.guest_name_local_language,
+      g.guest_mobile,
+      g.guest_alternate_mobile,
+      g.email,
+      g.guest_address,
+
+      io.inout_id,
+      io.entry_date,
+      io.entry_time,
+      io.status
+
+    FROM t_guest_inout io
+    JOIN m_guest g
+      ON g.guest_id = io.guest_id
+
+    WHERE io.is_active = TRUE
+      AND io.status IN ('Entered', 'Inside')
+      AND g.is_active = TRUE
+
+      AND NOT EXISTS (
+        SELECT 1
+        FROM t_guest_vehicle gv
+        WHERE gv.guest_id = g.guest_id
+          AND gv.is_active = TRUE
+      )
+
+    ORDER BY io.entry_date DESC, io.entry_time DESC;
+  `;
+
+  const res = await this.db.query(sql);
+  return res.rows;
+}
+
 }

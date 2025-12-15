@@ -75,5 +75,9 @@ export class VehiclesController {
       const ip = this.extractIp(req);
       return this.service.softDelete(id, user, ip);
     }
+    @Get('assignable')
+    async getAssingableVehicles(){
+      return this.service.findAssignable();
+    }
 }
 
