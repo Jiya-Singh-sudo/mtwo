@@ -10,15 +10,27 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
+import { getDashboardOverview } from '../../../api/dashboard.api';
+import { DashboardOverview } from '../../../types/dashboard';
+import { useEffect, useState } from 'react';
 
 export function DashboardStats() {
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const data = await getDashboardOverview();
+      setOverview(data);
+    }
+    load();
+  }, []);
 
   const stats = [
     {
       title: 'Total Guests',
       titleHi: 'कुल अतिथि',
-      value: '45',
-      change: '+3 today',
+      value: overview?.guests.total ?? 0,
+      change: '',
       icon: Users,
       color: 'bg-blue-50 text-blue-600',
       border: 'border-blue-200',
@@ -27,7 +39,7 @@ export function DashboardStats() {
     {
       title: 'Checked In',
       titleHi: 'चेक-इन',
-      value: '28',
+      value: overview?.guests.checkedIn ?? 0,
       change: 'Active',
       icon: UserCheck,
       color: 'bg-green-50 text-green-600',
@@ -37,7 +49,7 @@ export function DashboardStats() {
     {
       title: 'Upcoming Arrivals',
       titleHi: 'आगामी आगमन',
-      value: '12',
+      value: overview?.guests.upcomingArrivals ?? 0,
       change: 'Next 24hrs',
       icon: Clock,
       color: 'bg-orange-50 text-orange-600',
@@ -47,7 +59,7 @@ export function DashboardStats() {
     {
       title: 'Checked Out',
       titleHi: 'चेक-आउट',
-      value: '5',
+      value: overview?.guests.checkedOutToday ?? 0,
       change: 'Today',
       icon: UserX,
       color: 'bg-gray-50 text-gray-600',
@@ -132,7 +144,20 @@ export function DashboardStats() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {resourceStats.map((r) => {
           const Icon = r.icon;
-          const percent = Math.round((r.occupied / r.total) * 100);
+          let percent = 0;
+
+          if (r.title === 'Room Occupancy') {
+            percent = overview?.occupancy.roomPercent ?? 0;
+          }
+          if (r.title === 'Vehicle Fleet') {
+            percent = overview?.occupancy.vehiclePercent ?? 0;
+          }
+          if (r.title === 'Duty Roster') {
+            percent = overview?.occupancy.dutyRosterPercent ?? 0;
+          }
+          if (r.title === 'Notifications') {
+            percent = overview?.occupancy.notificationPercent ?? 0;
+          }
 
           return (
             <div key={r.title} className="bg-white border rounded-sm p-6">
@@ -165,22 +190,23 @@ export function DashboardStats() {
         <h3 className="text-[#00247D] mb-4">Recent Activity</h3>
 
         <div className="space-y-3">
-          <div className="flex gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 mt-1" />
-            <div>
-              <p className="text-sm">Room 201 assigned to Shri Rajesh Kumar</p>
-              <p className="text-xs text-gray-500">15 minutes ago</p>
+          {overview?.recentActivity.map((a, idx) => (
+            <div key={idx} className="flex gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 mt-1" />
+              <div>
+                <p className="text-sm">{a.message}</p>
+                <p className="text-xs text-gray-500">
+                  {new Date(a.timestamp).toLocaleString()}
+                </p>
+              </div>
             </div>
-          </div>
+          ))}
 
-          <div className="flex gap-3">
-            <Bell className="w-5 h-5 text-orange-600 mt-1" />
-            <div>
-              <p className="text-sm">WhatsApp welcome message sent</p>
-              <p className="text-xs text-gray-500">30 minutes ago</p>
-            </div>
-          </div>
+          {!overview?.recentActivity.length && (
+            <p className="text-sm text-gray-500">No recent activity</p>
+          )}
         </div>
+
 
         {/* ✅ WORKING BUTTON */}
         <a

@@ -312,14 +312,14 @@ export function GuestManagement() {
 
                   <td className="px-6 py-4">
                     <p className="font-medium">{g.guest_name}</p>
-                    <p className="text-xs text-gray-500">{g.designation_name}</p>
+                    <p className="text-xs text-gray-500">{g.guest_name_local_language}</p>
                   </td>
 
-                  <td className="px-6 py-4">{g.guest_mobile}</td>
+                  <td className="px-6 py-4">{g.designation_name}</td>
 
                   <td className="px-6 py-4">
-                    <p>{g.entry_date}</p>
-                    <p className="text-xs text-gray-500">to {g.exit_date}</p>
+                    <p>{g.guest_mobile}</p>
+                    <p className="text-xs text-gray-500">{g.guest_alternate_mobile}</p>
                   </td>
 
                   <td className="px-6 py-4">
