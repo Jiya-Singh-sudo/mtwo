@@ -10,4 +10,8 @@ export default defineConfig({
         },
         dedupe: ["react", "react-dom"],
     },
+      server: {
+    host: '127.0.0.1',
+    strictPort: false,
+  },
 });
