@@ -10,14 +10,4 @@ export default defineConfig({
         },
         dedupe: ["react", "react-dom"],
     },
-    server: {
-      host: '127.0.0.1',
-      port: 8081,
-      proxy: {
-        '/guests': {
-          target: 'http://localhost:3000',
-          changeOrigin: true
-        }
-      }
-    }
 });
