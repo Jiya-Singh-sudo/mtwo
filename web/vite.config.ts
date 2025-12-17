@@ -13,6 +13,12 @@ export default defineConfig({
   },
     server: {
     host: '127.0.0.1',
-    strictPort: false,
-  },
+    port: 8081,
+    proxy: {
+      '/guests': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
+    }
+  }
 })

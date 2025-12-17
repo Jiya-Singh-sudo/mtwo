@@ -8,9 +8,14 @@ async function bootstrap() {
 
   // 2. Configure CORS explicitly here
   app.enableCors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"], // Allow your frontend origin
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", // Added PATCH (crucial for your Edit form)
-    credentials: true, // Allow cookies/headers
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:8081", // <--- ADD THIS
+      "http://127.0.0.1:8081"  // <--- ADD THIS (Matches your error log)
+    ], 
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", 
+    credentials: true, 
   });
 
   await app.listen(process.env.PORT ?? 3000);
