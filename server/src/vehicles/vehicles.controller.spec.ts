@@ -4,6 +4,7 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../gaurds/jwt/jwt.guard';
 import { PermissionsGuard } from '../gaurds/permissions/permissions.guard';
 import { Permissions } from '../decorators/permissions/permissions.decorator';
+import { Controller } from '@nestjs/common';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Permissions('vehicle.view')
