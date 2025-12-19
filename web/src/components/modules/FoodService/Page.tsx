@@ -37,7 +37,6 @@ type EnumValue = {
 
 export function FoodService() {
   /* ---------------- STATE ---------------- */
-
   const [stats, setStats] = useState<FoodDashboard | null>(null);
   const [schedule, setSchedule] = useState<MealSchedule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,13 +73,15 @@ export function FoodService() {
 
       if (Array.isArray(rawSchedule)) {
         normalizedSchedule = rawSchedule;
-      } else if (Array.isArray(rawSchedule?.data)) {
-        normalizedSchedule = rawSchedule.data;
-      } else if (Array.isArray(rawSchedule?.schedule)) {
-        normalizedSchedule = rawSchedule.schedule;
+      } else if (Array.isArray((rawSchedule as any)?.data)) {
+        normalizedSchedule = (rawSchedule as any).data;
+      } else if (Array.isArray((rawSchedule as any)?.schedule)) {
+        normalizedSchedule = (rawSchedule as any).schedule;
       }
 
       setSchedule(normalizedSchedule);
+    } catch (err) {
+      console.error("Failed to load food schedule", err);
     } finally {
       setLoading(false);
     }
@@ -105,8 +106,10 @@ export function FoodService() {
   /* ---------------- ACTIONS ---------------- */
 
   async function markDelivered(guestFoodId: string) {
+    if (!guestFoodId) return;
+
     await updateFoodStatus(guestFoodId, {
-      delivery_status: "Delivered",
+      delivery_status: "DELIVERED", // ✅ backend enum directly
       delivered_datetime: new Date().toISOString(),
     });
     loadData();
@@ -165,7 +168,6 @@ export function FoodService() {
   }
 
   /* ---------------- RENDER ---------------- */
-
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -401,3 +403,5 @@ export function FoodService() {
     </div>
   );
 }
+
+export default FoodService;

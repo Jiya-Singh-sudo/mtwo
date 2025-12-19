@@ -33,7 +33,7 @@ export class DashboardService {
       this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_rooms),0)),0) AS percent FROM t_guest_room WHERE is_active = TRUE`),
       this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_vehicle),0)),0) AS percent FROM t_guest_vehicle WHERE is_active = TRUE`),
       this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_guest_housekeeping),0)),0) AS percent FROM t_guest_housekeeping WHERE is_active = TRUE`),
-      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_notifications),0)),0) AS percent FROM m_notifications WHERE is_read = FALSE`),
+      this.db.query(`SELECT COALESCE(ROUND(100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM m_notifications),0)),0) AS percent FROM m_notifications WHERE status = 'Unread'`),
       this.db.query(`
         SELECT message, inserted_at AS timestamp
         FROM t_activity_log

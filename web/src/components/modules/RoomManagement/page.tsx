@@ -2,9 +2,9 @@
 import { useState, useEffect } from "react";
 import {
   Search,
-  Eye,
-  Edit,
-  BedDouble,
+//   Eye,
+//   Edit,
+//   BedDouble,
   Loader2,
   UserPlus,
 } from "lucide-react";

@@ -10,23 +10,42 @@ import {
 } from "@/api/driver.api";
 
 import type { DriverDashboardRow } from "../../../types/drivers";
-
 import "./DriverManagement.css";
+
+
+/* ================= ENUM MAPPING (DO NOT CHANGE UI TEXT) ================= */
+type DutyStatusUI = "Available" | "Unavailable";
+
+const ENUM_TO_UI: Record<DutyStatusUI, string> = {
+  Available: "Available",
+  Unavailable: "Unavailable",
+};
+
+function normalizeStatus(raw?: string): DutyStatusUI {
+  if (!raw) return "Unavailable";
+  const r = raw.toUpperCase();
+  if (r === "AVAILABLE" || raw === "Available") return "Available";
+  return "Unavailable";
+}
 
 export default function DriverManagement() {
   const [drivers, setDrivers] = useState<DriverDashboardRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const available = drivers.filter((d) => d.duty_status === "AVAILABLE").length;
-  const onDuty = drivers.filter((d) => d.duty_status === "ON_DUTY").length;
+  const available = drivers.filter(
+    (d) => normalizeStatus(d.duty_status) === "Available"
+  ).length;
+  const onDuty = drivers.filter(
+    (d) => normalizeStatus(d.duty_status) === "Unavailable"
+  ).length;
 
   useEffect(() => {
     loadDrivers();
   }, []);
 
   async function loadDrivers() {
+    setLoading(true);
     try {
-      setLoading(true);
       const data = await getDriverDashboard();
       setDrivers(data);
     } catch (err) {
@@ -66,6 +85,7 @@ export default function DriverManagement() {
   async function saveDriver() {
     if (!driverForm.name.trim() || !driverForm.phone.trim()) return;
 
+    setLoading(true);
     try {
       if (mode === "add") {
         await createDriver({
@@ -73,9 +93,7 @@ export default function DriverManagement() {
           driver_contact: driverForm.phone,
           driver_license: driverForm.license || undefined,
         });
-      }
-
-      if (mode === "edit" && editingId) {
+      } else if (mode === "edit" && editingId) {
         await updateDriver(editingId, {
           driver_name: driverForm.name,
           driver_contact: driverForm.phone,
@@ -87,6 +105,8 @@ export default function DriverManagement() {
       await loadDrivers();
     } catch (err) {
       console.error("Failed to save driver", err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -149,94 +169,92 @@ export default function DriverManagement() {
               </div>
 
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {drivers.map((driver) => (
-                  <div key={driver.driver_id} className="vehicleCard">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex gap-3">
-                        <div
-                          className={`iconBox ${
-                            driver.duty_status === "AVAILABLE"
-                              ? "Available"
-                              : "OnDuty"
+                {drivers.map((driver) => {
+                  const uiStatus = normalizeStatus(driver.duty_status);
+                  return (
+                    <div key={driver.driver_id} className="vehicleCard">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex gap-3">
+                          <div
+                            className={`iconBox ${
+                              uiStatus === "Available" ? "Available" : "Unavailable"
+                            }`}
+                          >
+                            <User />
+                          </div>
+                          <div>
+                            <p>{driver.driver_name}</p>
+                            <p className="subText">{driver.driver_id}</p>
+                          </div>
+                        </div>
+                        <span
+                          className={`statusPill ${
+                            uiStatus === "Available" ? "Available" : "Unavailable"
                           }`}
                         >
-                          <User />
+                          {ENUM_TO_UI[uiStatus]}
+                        </span>
+                      </div>
+
+                      <div className="details">
+                        <div>
+                          <Shield /> {driver.driver_license || "—"}
                         </div>
                         <div>
-                          <p>{driver.driver_name}</p>
-                          <p className="subText">{driver.driver_id}</p>
+                          <Phone /> {driver.driver_contact}
                         </div>
+                        {driver.vehicle_no && <div>Vehicle: {driver.vehicle_no}</div>}
+                        {driver.guest_name && <div>Assigned: {driver.guest_name}</div>}
                       </div>
-                      <span
-                        className={`statusPill ${
-                          driver.duty_status === "AVAILABLE"
-                            ? "Available"
-                            : "OnDuty"
-                        }`}
-                      >
-                        {driver.duty_status}
-                      </span>
-                    </div>
 
-                    <div className="details">
-                      <div>
-                        <Shield /> {driver.driver_license || "—"}
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          className="editBtn"
+                          onClick={() => {
+                            setMode("edit");
+                            setEditingId(driver.driver_id);
+                            setDriverForm({
+                              name: driver.driver_name,
+                              phone: driver.driver_contact,
+                              license: driver.driver_license ?? "",
+                              status: driver.duty_status,
+                            });
+                            setIsDriverModalOpen(true);
+                          }}
+                        >
+                          Edit Details
+                        </button>
+
+                        <button
+                          className="viewBtn"
+                          onClick={() => {
+                            setSelectedDriver(driver);
+                            setIsViewModalOpen(true);
+                          }}
+                        >
+                          View
+                        </button>
+
+                        <button
+                          className="assignBtn"
+                          onClick={async () => {
+                            setSelectedDriver(driver);
+                            setAssignForm({ guest_vehicle_id: "" });
+                            try {
+                              const data = await getAssignableGuestVehicles();
+                              setAssignableGuestVehicles(data);
+                              setIsAssignModalOpen(true);
+                            } catch (err) {
+                              console.error("Failed to load guest vehicles", err);
+                            }
+                          }}
+                        >
+                          Assign Vehicle
+                        </button>
                       </div>
-                      <div>
-                        <Phone /> {driver.driver_contact}
-                      </div>
-                      {driver.vehicle_no && (
-                        <div>Vehicle: {driver.vehicle_no}</div>
-                      )}
-                      {driver.guest_name && (
-                        <div>Assigned: {driver.guest_name}</div>
-                      )}
                     </div>
-
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        className="viewBtn"
-                        onClick={() => {
-                          setSelectedDriver(driver);
-                          setIsViewModalOpen(true);
-                        }}
-                      >
-                        View
-                      </button>
-
-                      <button
-                        className="editBtn"
-                        onClick={() => {
-                          setMode("edit");
-                          setEditingId(driver.driver_id);
-                          setDriverForm({
-                            name: driver.driver_name,
-                            phone: driver.driver_contact,
-                            license: driver.driver_license ?? "",
-                            status: driver.duty_status,
-                          });
-                          setIsDriverModalOpen(true);
-                        }}
-                      >
-                        Edit Details
-                      </button>
-
-                      <button
-                        className="assignBtn"
-                        onClick={async () => {
-                          setSelectedDriver(driver);
-                          setAssignForm({ guest_vehicle_id: "" });
-                          const data =
-                            await getAssignableGuestVehicles();
-                          setAssignableGuestVehicles(data);
-                          setIsAssignModalOpen(true);
-                        }}
-                      >
-                        Assign Vehicle
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>
@@ -248,9 +266,7 @@ export default function DriverManagement() {
         <div className="modalOverlay">
           <div className="nicModal">
             <div className="nicModalHeader">
-              <h2>
-                {mode === "add" ? "Add New Driver" : "Edit Driver Details"}
-              </h2>
+              <h2>{mode === "add" ? "Add New Driver" : "Edit Driver Details"}</h2>
               <button onClick={() => setIsDriverModalOpen(false)}>
                 <X />
               </button>
@@ -261,25 +277,19 @@ export default function DriverManagement() {
                 className="nicInput"
                 placeholder="Full Name"
                 value={driverForm.name}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, name: e.target.value })
-                }
+                onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
               />
               <input
                 className="nicInput"
                 placeholder="Contact Number"
                 value={driverForm.phone}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, phone: e.target.value })
-                }
+                onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
               />
               <input
                 className="nicInput"
                 placeholder="License Number"
                 value={driverForm.license}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, license: e.target.value })
-                }
+                onChange={(e) => setDriverForm({ ...driverForm, license: e.target.value })}
               />
 
               {/* Status is backend-controlled (read-only) */}
@@ -290,10 +300,7 @@ export default function DriverManagement() {
             </div>
 
             <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setIsDriverModalOpen(false)}
-              >
+              <button className="cancelBtn" onClick={() => setIsDriverModalOpen(false)}>
                 Cancel
               </button>
               <button className="saveBtn" onClick={saveDriver}>
@@ -351,10 +358,7 @@ export default function DriverManagement() {
             </div>
 
             <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setIsViewModalOpen(false)}
-              >
+              <button className="cancelBtn" onClick={() => setIsViewModalOpen(false)}>
                 Close
               </button>
             </div>
@@ -377,16 +381,11 @@ export default function DriverManagement() {
               <select
                 className="nicInput"
                 value={assignForm.guest_vehicle_id}
-                onChange={(e) =>
-                  setAssignForm({ guest_vehicle_id: e.target.value })
-                }
+                onChange={(e) => setAssignForm({ guest_vehicle_id: e.target.value })}
               >
                 <option value="">Select Guest</option>
                 {assignableGuestVehicles.map((gv) => (
-                  <option
-                    key={gv.guest_vehicle_id}
-                    value={gv.guest_vehicle_id}
-                  >
+                  <option key={gv.guest_vehicle_id} value={gv.guest_vehicle_id}>
                     {gv.vehicle_no} — {gv.guest_name}
                   </option>
                 ))}
@@ -394,24 +393,24 @@ export default function DriverManagement() {
             </div>
 
             <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setIsAssignModalOpen(false)}
-              >
+              <button className="cancelBtn" onClick={() => setIsAssignModalOpen(false)}>
                 Cancel
               </button>
               <button
                 className="saveBtn"
                 onClick={async () => {
-                  if (!assignForm.guest_vehicle_id) return;
+                  if (!assignForm.guest_vehicle_id || !selectedDriver) return;
 
-                  await assignDriverToGuestVehicle({
-                    guest_vehicle_id: assignForm.guest_vehicle_id,
-                    driver_id: selectedDriver.driver_id,
-                  });
-
-                  setIsAssignModalOpen(false);
-                  await loadDrivers();
+                  try {
+                    await assignDriverToGuestVehicle({
+                      guest_vehicle_id: assignForm.guest_vehicle_id,
+                      driver_id: selectedDriver.driver_id,
+                    });
+                    setIsAssignModalOpen(false);
+                    await loadDrivers();
+                  } catch (err) {
+                    console.error("Failed to assign vehicle", err);
+                  }
                 }}
               >
                 Assign

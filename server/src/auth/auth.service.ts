@@ -126,7 +126,7 @@ export class AuthService {
   private async loadPermissions(roleId: string) {
     const sql = `
       SELECT p.permission_name
-      FROM role_permissions rp
+      FROM t_role_permissions rp
       JOIN m_permissions p ON p.permission_id = rp.permission_id
       WHERE rp.role_id = $1 AND p.is_active = TRUE
     `;
@@ -165,7 +165,7 @@ export class AuthService {
     const payload = {
       sub: user.user_id,
       username: user.username,
-      role: role?.role_name ?? null,
+      role: role?.role_id ?? null,
       permissions,
     };
 
