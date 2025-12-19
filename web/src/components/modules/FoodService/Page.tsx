@@ -5,6 +5,7 @@ import {
   Users,
   CheckCircle,
   AlertCircle,
+  UserPlus,
 } from "lucide-react";
 
 import "./FoodService.css";
@@ -21,6 +22,19 @@ import {
   MealScheduleRow,
 } from "../../../types/guestFood";
 
+import api from "@/api/apiClient";
+
+/* ---------------- TYPES ---------------- */
+
+type Butler = {
+  id: number;
+  name: string;
+};
+
+type EnumValue = {
+  enum_value: string;
+};
+
 export function FoodService() {
   /* ---------------- STATE ---------------- */
 
@@ -28,42 +42,65 @@ export function FoodService() {
   const [schedule, setSchedule] = useState<MealSchedule[]>([]);
   const [loading, setLoading] = useState(false);
 
+  /* -------- Butler Assignment -------- */
+  const [isButlerModalOpen, setIsButlerModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] =
+    useState<MealScheduleRow | null>(null);
+
+  const [butlers, setButlers] = useState<Butler[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
+  const [butlerForm, setButlerForm] = useState({
+    butlerId: "",
+    serviceType: "",
+    description: "",
+    serviceDate: "",
+    serviceTime: "",
+    remarks: "",
+  });
 
   /* ---------------- LOAD DATA ---------------- */
-async function loadData() {
-  setLoading(true);
-  try {
-    const dashboard = await getFoodDashboard();
-    const rawSchedule = await getTodayMealSchedule();
-    console.log("RAW schedule response:", rawSchedule);
 
+  async function loadData() {
+    setLoading(true);
+    try {
+      const dashboard = await getFoodDashboard();
+      const rawSchedule = await getTodayMealSchedule();
 
-    setStats(dashboard);
+      setStats(dashboard);
 
-    // 🔒 HARD NORMALIZATION
-    let normalizedSchedule: MealSchedule[] = [];
+      let normalizedSchedule: MealSchedule[] = [];
 
-    if (Array.isArray(rawSchedule)) {
-      normalizedSchedule = rawSchedule;
-    } else if (Array.isArray(rawSchedule?.data)) {
-      normalizedSchedule = rawSchedule.data;
-    } else if (Array.isArray(rawSchedule?.schedule)) {
-      normalizedSchedule = rawSchedule.schedule;
-    } else {
+      if (Array.isArray(rawSchedule)) {
+        normalizedSchedule = rawSchedule;
+      } else if (Array.isArray(rawSchedule?.data)) {
+        normalizedSchedule = rawSchedule.data;
+      } else if (Array.isArray(rawSchedule?.schedule)) {
+        normalizedSchedule = rawSchedule.schedule;
+      }
 
-      console.error("❌ Unexpected schedule shape:", rawSchedule);
+      setSchedule(normalizedSchedule);
+    } finally {
+      setLoading(false);
     }
-
-    setSchedule(normalizedSchedule);
-  } finally {
-    setLoading(false);
   }
-}
-
 
   useEffect(() => {
     loadData();
   }, []);
+
+  /* ---------------- BUTLER LOADERS ---------------- */
+
+  async function loadButlersAndServices() {
+    const [butlerRes, serviceRes] = await Promise.all([
+      api.get("/butlers"),
+      api.get("/enums/butler_service_enum"),
+    ]);
+
+    setButlers(butlerRes.data);
+    setServiceTypes(serviceRes.data.map((e: EnumValue) => e.enum_value));
+  }
 
   /* ---------------- ACTIONS ---------------- */
 
@@ -72,9 +109,59 @@ async function loadData() {
       delivery_status: "Delivered",
       delivered_datetime: new Date().toISOString(),
     });
-
-    // refresh data after update
     loadData();
+  }
+
+  function openAssignButler(row: MealScheduleRow) {
+    setSelectedRow(row);
+    setButlerForm({
+      butlerId: "",
+      serviceType: "",
+      description: "",
+      serviceDate: "",
+      serviceTime: "",
+      remarks: "",
+    });
+    loadButlersAndServices();
+    setIsButlerModalOpen(true);
+  }
+
+  async function submitButlerAssignment() {
+    if (!selectedRow) return;
+
+    const {
+      butlerId,
+      serviceType,
+      serviceDate,
+      serviceTime,
+    } = butlerForm;
+
+    if (!butlerId || !serviceType || !serviceDate || !serviceTime) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    setAssigning(true);
+
+    try {
+      await api.post("/butler-services", {
+        guest_food_id: selectedRow.guest_food_id,
+        butler_id: butlerId,
+        service_type: serviceType,
+        description: butlerForm.description || null,
+        service_date: serviceDate,
+        service_time: serviceTime,
+        remarks: butlerForm.remarks || null,
+      });
+
+      setIsButlerModalOpen(false);
+      alert("Butler assigned successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to assign butler.");
+    } finally {
+      setAssigning(false);
+    }
   }
 
   /* ---------------- RENDER ---------------- */
@@ -135,11 +222,8 @@ async function loadData() {
 
           {!loading &&
             schedule.map((block) =>
-              block.data.map((row: MealScheduleRow, idx: number) => (
-                <div
-                  key={`${block.meal}-${idx}`}
-                  className="mealCard"
-                >
+              block.data.map((row, idx) => (
+                <div key={`${block.meal}-${idx}`} className="mealCard">
                   <div className="mealHeader">
                     <div className="mealLeft">
                       <UtensilsCrossed />
@@ -151,34 +235,29 @@ async function loadData() {
                       </div>
                     </div>
 
-                    <span
-                      className={`status ${row.status.replace(
-                        " ",
-                        ""
-                      )}`}
-                    >
+                    <span className={`status ${row.status.replace(" ", "")}`}>
                       {row.status}
                     </span>
                   </div>
 
                   <div className="mealInfo">
-                    <div>
-                      Expected Guests: {row.expected_guests}
-                    </div>
+                    <div>Expected Guests: {row.expected_guests}</div>
                     <div>Food Type: {row.food_type}</div>
-                    <div>
-                      Menu: {row.menu.join(", ")}
-                    </div>
-                    <div>Status: {row.status}</div>
+                    <div>Menu: {row.menu.join(", ")}</div>
                   </div>
 
                   <div className="mealActions">
+                    <button
+                      className="nicPrimaryBtn"
+                      onClick={() => openAssignButler(row)}
+                    >
+                      <UserPlus size={16} /> Assign Butler
+                    </button>
+
                     {row.status !== "Delivered" ? (
                       <button
                         className="nicPrimaryBtn"
-                        onClick={() =>
-                          markDelivered(row.guest_food_id)
-                        }
+                        onClick={() => markDelivered(row.guest_food_id)}
                       >
                         Mark Delivered
                       </button>
@@ -191,6 +270,134 @@ async function loadData() {
             )}
         </div>
       </div>
+
+      {/* ---------------- ASSIGN BUTLER MODAL ---------------- */}
+
+      {isButlerModalOpen && selectedRow && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+            <div className="nicModalHeader">
+              <h2>Assign Butler</h2>
+              <button onClick={() => setIsButlerModalOpen(false)}>✕</button>
+            </div>
+
+            <div className="nicFormGrid">
+              <div>
+                <label>Butler *</label>
+                <select
+                  className="nicInput"
+                  value={butlerForm.butlerId}
+                  onChange={(e) =>
+                    setButlerForm({ ...butlerForm, butlerId: e.target.value })
+                  }
+                >
+                  <option value="">Select</option>
+                  {butlers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label>Service Type *</label>
+                <select
+                  className="nicInput"
+                  value={butlerForm.serviceType}
+                  onChange={(e) =>
+                    setButlerForm({
+                      ...butlerForm,
+                      serviceType: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Select</option>
+                  {serviceTypes.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label>Service Date *</label>
+                <input
+                  type="date"
+                  className="nicInput"
+                  value={butlerForm.serviceDate}
+                  onChange={(e) =>
+                    setButlerForm({
+                      ...butlerForm,
+                      serviceDate: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Service Time *</label>
+                <input
+                  type="time"
+                  className="nicInput"
+                  value={butlerForm.serviceTime}
+                  onChange={(e) =>
+                    setButlerForm({
+                      ...butlerForm,
+                      serviceTime: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="fullWidth">
+                <label>Description</label>
+                <textarea
+                  className="nicInput"
+                  rows={2}
+                  value={butlerForm.description}
+                  onChange={(e) =>
+                    setButlerForm({
+                      ...butlerForm,
+                      description: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="fullWidth">
+                <label>Remarks</label>
+                <textarea
+                  className="nicInput"
+                  rows={2}
+                  value={butlerForm.remarks}
+                  onChange={(e) =>
+                    setButlerForm({
+                      ...butlerForm,
+                      remarks: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setIsButlerModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="saveBtn"
+                onClick={submitButlerAssignment}
+                disabled={assigning}
+              >
+                {assigning ? "Assigning..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
