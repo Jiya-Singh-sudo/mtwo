@@ -10,22 +10,28 @@ import {
 } from "@/api/driver.api";
 
 import type { DriverDashboardRow } from "../../../types/drivers";
-
 import "./DriverManagement.css";
+
+
+/* ================= ENUM MAPPING (DO NOT CHANGE UI TEXT) ================= */
+type DutyStatusEnum = "Available" | "Unavailable";
+
+const ENUM_TO_UI: Record<DutyStatusEnum, string> = {
+  Available: "Available",
+  Unavailable: "Unavailable",
+};
 
 export default function DriverManagement() {
   const [drivers, setDrivers] = useState<DriverDashboardRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const available = drivers.filter(
-    (d) => d.duty_status === "AVAILABLE"
+    (d) => d.duty_status === "Available"
   ).length;
 
   const onDuty = drivers.filter(
-    (d) => d.duty_status === "ON_DUTY"
+    (d) => d.duty_status === "Unavailable"
   ).length;
-
-
 
   useEffect(() => {
     loadDrivers();
@@ -34,15 +40,9 @@ export default function DriverManagement() {
   async function loadDrivers() {
     setLoading(true);
     const data = await getDriverDashboard();
-    console.log(
-      "DRIVER IDS FROM DASHBOARD:",
-      data.map((d: any) => d.driver_id)
-    );
-
     setDrivers(data);
     setLoading(false);
   }
-
 
   /* ---------------- ADD / EDIT MODAL ---------------- */
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
@@ -53,43 +53,43 @@ export default function DriverManagement() {
     name: "",
     phone: "",
     license: "",
-    status: "Available",
   });
 
   /* ---------------- ASSIGN VEHICLE MODAL ---------------- */
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState<DriverDashboardRow | null>(null);
-  const [assignableGuestVehicles, setAssignableGuestVehicles] = useState<any[]>([]);
+  const [selectedDriver, setSelectedDriver] =
+    useState<DriverDashboardRow | null>(null);
+  const [assignableGuestVehicles, setAssignableGuestVehicles] = useState<any[]>(
+    []
+  );
   const [assignForm, setAssignForm] = useState({
     guest_vehicle_id: "",
   });
 
-
   /* ---------------- SAVE DRIVER ---------------- */
-async function saveDriver() {
-  if (!driverForm.name || !driverForm.phone) return;
+  async function saveDriver() {
+    if (!driverForm.name || !driverForm.phone) return;
 
-  if (mode === "add") {
-    await createDriver({
-      driver_name: driverForm.name,
-      driver_contact: driverForm.phone,
-      driver_license: driverForm.license || undefined,
-    });
+
+    if (mode === "add") {
+      await createDriver({
+        driver_name: driverForm.name,
+        driver_contact: driverForm.phone,
+        driver_license: driverForm.license || undefined,
+      });
+    }
+
+    if (mode === "edit" && editingId) {
+      await updateDriver(editingId, {
+        driver_name: driverForm.name,
+        driver_contact: driverForm.phone,
+        driver_license: driverForm.license || undefined,
+      });
+    }
+
+    setIsDriverModalOpen(false);
+    await loadDrivers();
   }
-
-  if (mode === "edit" && editingId) {
-    await updateDriver(editingId, {
-      driver_name: driverForm.name,
-      driver_contact: driverForm.phone,
-      driver_license: driverForm.license || undefined,
-    });
-  }
-
-  setIsDriverModalOpen(false);
-  await loadDrivers();
-}
-
-
 
   return (
     <>
@@ -112,7 +112,6 @@ async function saveDriver() {
                 name: "",
                 phone: "",
                 license: "",
-                status: "Available",
               });
               setIsDriverModalOpen(true);
             }}
@@ -120,12 +119,11 @@ async function saveDriver() {
             Add New Driver
           </button>
         </div>
-        {loading ? (
+
+        {loading && (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="animate-spin" />
           </div>
-        ) : (
-          <></>
         )}
 
         {/* STATS */}
@@ -156,11 +154,10 @@ async function saveDriver() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex gap-3">
                     <div
-                      className={`iconBox ${
-                        driver.duty_status === "AVAILABLE"
-                          ? "Available"
-                          : "OnDuty"
-                      }`}
+                      className={`iconBox ${driver.duty_status === "Available"
+                        ? "Available"
+                        : "Unavailable"
+                        }`}
                     >
                       <User />
                     </div>
@@ -170,13 +167,12 @@ async function saveDriver() {
                     </div>
                   </div>
                   <span
-                    className={`statusPill ${
-                      driver.duty_status === "AVAILABLE"
-                        ? "Available"
-                        : "OnDuty"
-                    }`}
+                    className={`statusPill ${driver.duty_status === "Available"
+                      ? "Available"
+                      : "Unavailable"
+                      }`}
                   >
-                    {driver.duty_status}
+                    {ENUM_TO_UI[driver.duty_status]}
                   </span>
                 </div>
 
@@ -187,10 +183,9 @@ async function saveDriver() {
                   <div>
                     <Phone /> {driver.driver_contact}
                   </div>
-                  {/* <div>
-                    <Clock /> {driver.shift}
-                  </div> */}
-                  {driver.vehicle_no && <div>Vehicle: {driver.vehicle_no}</div>}
+                  {driver.vehicle_no && (
+                    <div>Vehicle: {driver.vehicle_no}</div>
+                  )}
                   {driver.guest_name && (
                     <div>Assigned: {driver.guest_name}</div>
                   )}
@@ -206,7 +201,6 @@ async function saveDriver() {
                         name: driver.driver_name,
                         phone: driver.driver_contact,
                         license: driver.driver_license ?? "",
-                        status: driver.duty_status,
                       });
                       setIsDriverModalOpen(true);
                     }}
@@ -268,16 +262,7 @@ async function saveDriver() {
                   setDriverForm({ ...driverForm, license: e.target.value })
                 }
               />
-              <select
-                className="nicInput"
-                value={driverForm.status}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, status: e.target.value })
-                }
-              >
-                <option>Available</option>
-                <option>On Duty</option>
-              </select>
+
             </div>
 
             <div className="nicModalActions">
@@ -316,12 +301,14 @@ async function saveDriver() {
               >
                 <option value="">Select Guest</option>
                 {assignableGuestVehicles.map((gv) => (
-                  <option key={gv.guest_vehicle_id} value={gv.guest_vehicle_id}>
+                  <option
+                    key={gv.guest_vehicle_id}
+                    value={gv.guest_vehicle_id}
+                  >
                     {gv.vehicle_no} — {gv.guest_name}
                   </option>
                 ))}
               </select>
-
             </div>
 
             <div className="nicModalActions">

@@ -23,62 +23,54 @@ import {
 
 export function FoodService() {
   /* ---------------- STATE ---------------- */
-
   const [stats, setStats] = useState<FoodDashboard | null>(null);
   const [schedule, setSchedule] = useState<MealSchedule[]>([]);
   const [loading, setLoading] = useState(false);
 
-
   /* ---------------- LOAD DATA ---------------- */
-async function loadData() {
-  setLoading(true);
-  try {
-    const dashboard = await getFoodDashboard();
-    const rawSchedule = await getTodayMealSchedule();
-    console.log("RAW schedule response:", rawSchedule);
+  async function loadData() {
+    setLoading(true);
+    try {
+      const dashboard = await getFoodDashboard();
+      const rawSchedule = await getTodayMealSchedule();
 
+      setStats(dashboard);
 
-    setStats(dashboard);
+      let normalizedSchedule: MealSchedule[] = [];
 
-    // 🔒 HARD NORMALIZATION
-    let normalizedSchedule: MealSchedule[] = [];
+      if (Array.isArray(rawSchedule)) {
+        normalizedSchedule = rawSchedule;
+      } else if (Array.isArray((rawSchedule as any)?.data)) {
+        normalizedSchedule = (rawSchedule as any).data;
+      } else if (Array.isArray((rawSchedule as any)?.schedule)) {
+        normalizedSchedule = (rawSchedule as any).schedule;
+      } else {
+        console.error("Unexpected schedule shape:", rawSchedule);
+      }
 
-    if (Array.isArray(rawSchedule)) {
-      normalizedSchedule = rawSchedule;
-    } else if (Array.isArray(rawSchedule?.data)) {
-      normalizedSchedule = rawSchedule.data;
-    } else if (Array.isArray(rawSchedule?.schedule)) {
-      normalizedSchedule = rawSchedule.schedule;
-    } else {
-
-      console.error("❌ Unexpected schedule shape:", rawSchedule);
+      setSchedule(normalizedSchedule);
+    } finally {
+      setLoading(false);
     }
-
-    setSchedule(normalizedSchedule);
-  } finally {
-    setLoading(false);
   }
-}
-
 
   useEffect(() => {
     loadData();
   }, []);
 
-  /* ---------------- ACTIONS ---------------- */
-
+  /* ---------------- ACTION ---------------- */
   async function markDelivered(guestFoodId: string) {
+    if (!guestFoodId) return;
+
     await updateFoodStatus(guestFoodId, {
-      delivery_status: "Delivered",
+      delivery_status: "DELIVERED", // ✅ backend enum directly
       delivered_datetime: new Date().toISOString(),
     });
 
-    // refresh data after update
     loadData();
   }
 
   /* ---------------- RENDER ---------------- */
-
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -151,12 +143,8 @@ async function loadData() {
                       </div>
                     </div>
 
-                    <span
-                      className={`status ${row.status.replace(
-                        " ",
-                        ""
-                      )}`}
-                    >
+                    {/* ✅ DIRECT ENUM DISPLAY */}
+                    <span className={`status ${row.status}`}>
                       {row.status}
                     </span>
                   </div>
@@ -173,7 +161,7 @@ async function loadData() {
                   </div>
 
                   <div className="mealActions">
-                    {row.status !== "Delivered" ? (
+                    {row.status !== "DELIVERED" ? (
                       <button
                         className="nicPrimaryBtn"
                         onClick={() =>
@@ -194,3 +182,5 @@ async function loadData() {
     </div>
   );
 }
+
+export default FoodService;

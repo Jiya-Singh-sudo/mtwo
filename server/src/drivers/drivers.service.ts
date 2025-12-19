@@ -30,8 +30,8 @@ export class DriversService {
       d.driver_license,
 
       CASE
-        WHEN gv.driver_id IS NULL THEN 'AVAILABLE'
-        ELSE 'ON_DUTY'
+        WHEN gv.driver_id IS NULL THEN 'Available'
+        ELSE 'Unavailable'
       END AS duty_status,
 
       gv.vehicle_no,
