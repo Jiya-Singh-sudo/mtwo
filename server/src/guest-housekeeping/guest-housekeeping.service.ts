@@ -8,7 +8,7 @@ export class GuestHousekeepingService {
   constructor(private readonly db: DatabaseService) {}
 
   private async generateId(): Promise<string> {
-    const sql = `SELECT guest_hk_id FROM t_guest_housekeeping ORDER BY guest_hk_id DESC LIMIT 1`;
+    const sql = `SELECT guest_hk_id FROM t_room_housekeeping ORDER BY guest_hk_id DESC LIMIT 1`;
     const res = await this.db.query(sql);
 
     if (res.rows.length === 0) return "GHK001";
@@ -21,15 +21,15 @@ export class GuestHousekeepingService {
 
   async findAll(activeOnly = true) {
   const sql = activeOnly
-    ? `SELECT * FROM t_guest_housekeeping WHERE status != 'Cancelled' ORDER BY task_date DESC`
-    : `SELECT * FROM t_guest_housekeeping ORDER BY task_date DESC`;
+    ? `SELECT * FROM t_room_housekeeping WHERE status != 'Cancelled' ORDER BY task_date DESC`
+    : `SELECT * FROM t_room_housekeeping ORDER BY task_date DESC`;
 
   const res = await this.db.query(sql);
   return res.rows;
   }
 
   async findOne(id: string) {
-    const sql = `SELECT * FROM t_guest_housekeeping WHERE guest_hk_id = $1`;
+    const sql = `SELECT * FROM t_room_housekeeping WHERE guest_hk_id = $1`;
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
   }
@@ -39,7 +39,7 @@ export class GuestHousekeepingService {
     const now = new Date().toISOString();
 
     const sql = `
-      INSERT INTO t_guest_housekeeping (
+      INSERT INTO t_room_housekeeping (
         guest_hk_id, hk_id, guest_id,
         task_date, task_shift,
         service_type, admin_instructions,
@@ -75,7 +75,7 @@ export class GuestHousekeepingService {
     const now = new Date().toISOString();
 
     const sql = `
-      UPDATE t_guest_housekeeping SET
+      UPDATE t_room_housekeeping SET
         hk_id = $1,
         guest_id = $2,
         task_date = $3,
@@ -106,7 +106,7 @@ export class GuestHousekeepingService {
 
   async cancel(id: string) {
     const sql = `
-      UPDATE t_guest_housekeeping
+      UPDATE t_room_housekeeping
       SET status = 'Cancelled'
       WHERE guest_hk_id = $1
       RETURNING *;

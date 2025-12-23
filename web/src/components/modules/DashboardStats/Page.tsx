@@ -217,27 +217,7 @@ export function DashboardStats() {
         </a>
       </div>
 
-      {/* ================= TODAY SCHEDULE ================= */}
-      <div className="bg-white border rounded-sm p-6">
-        <h3 className="text-[#00247D] mb-4">Today's Schedule</h3>
-
-        <div className="flex justify-between mb-4">
-          <div>
-            <p className="text-sm font-medium">Duty Shift Change</p>
-            <p className="text-xs text-gray-500">Evening shift reporting</p>
-          </div>
-          <span className="text-sm text-gray-600">18:00</span>
-        </div>
-
-        {/* ✅ WORKING BUTTON */}
-        <a
-          href="/calendar"
-          className="inline-block bg-[#00247D] text-white px-4 py-2 rounded-sm hover:bg-[#001a5c]"
-        >
-          View Full Calendar
-        </a>
-      </div>
-
+     
       {/* ================= ALERTS ================= */}
       <div className="bg-orange-50 border-l-4 border-[#FF9933] p-4 rounded-sm">
         <div className="flex gap-3">
@@ -254,7 +234,8 @@ export function DashboardStats() {
           </div>
         </div>
       </div>
-
     </div>
+
+
   );
 }

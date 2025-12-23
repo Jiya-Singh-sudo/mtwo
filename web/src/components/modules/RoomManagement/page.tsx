@@ -1,19 +1,22 @@
 'use client';
+
 import { useState, useEffect } from "react";
-import {
-  Search,
-//   Eye,
-//   Edit,
-//   BedDouble,
-  Loader2,
-  UserPlus,
-} from "lucide-react";
-import { getRoomOverview } from "../../../api/guestRoom.api";
-import { RoomOverview } from "@/types/guestRoom";
+import { Search, Loader2 } from "lucide-react";
 import api from "../../../api/apiClient";
 import "./RoomManagement.css";
 
-/* ================= TYPES ================= */
+/* ================= BACKEND-MATCHING TYPES ================= */
+/* Matches DB / API response (snake_case, flat structure) */
+
+type RoomOverviewBackend = {
+  room_id: number;
+  room_no: string;
+  room_name: string;
+  residence_type?: string | null;
+  status: string;
+  guest_name?: string | null;
+};
+
 type RoomBoy = {
   id: number;
   name: string;
@@ -26,17 +29,17 @@ type EnumValue = {
 export function RoomManagement() {
   /* ================= STATE ================= */
 
-  const [rooms, setRooms] = useState<RoomOverview[]>([]);
-  const [loading, setLoading] = useState(false);
-
+  const [rooms, setRooms] = useState<RoomOverviewBackend[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRoom, setSelectedRoom] = useState<RoomOverview | null>(null);
 
-  /* ---------------- ROOM BOY ASSIGNMENT ---------------- */
+  /* ---------------- ASSIGN ROOM BOY ---------------- */
   const [isRoomBoyModalOpen, setIsRoomBoyModalOpen] = useState(false);
   const [roomBoys, setRoomBoys] = useState<RoomBoy[]>([]);
   const [hkShifts, setHkShifts] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
+
+  const [activeRoom, setActiveRoom] =
+    useState<RoomOverviewBackend | null>(null);
 
   const [roomBoyForm, setRoomBoyForm] = useState({
     roomBoyId: "",
@@ -45,17 +48,19 @@ export function RoomManagement() {
     remarks: "",
   });
 
-  /* ================= LOADERS ================= */
+  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     loadRooms();
   }, []);
 
   async function loadRooms() {
-    setLoading(true);
-    const data = await getRoomOverview();
-    setRooms(data);
-    setLoading(false);
+    try {
+      const res = await api.get("/rooms/overview"); // backend endpoint
+      setRooms(res.data);
+    } catch (err) {
+      console.error("Failed to load rooms", err);
+    }
   }
 
   async function loadRoomBoysAndShifts() {
@@ -71,16 +76,16 @@ export function RoomManagement() {
   /* ================= FILTER ================= */
 
   const filteredRooms = rooms.filter((room) =>
-    room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.residenceType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.guest?.guestName || "").toLowerCase().includes(searchQuery.toLowerCase())
+    room.room_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.room_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.residence_type || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.guest_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  /* ================= OPEN ROOM BOY MODAL ================= */
+  /* ================= OPEN ASSIGN MODAL ================= */
 
-  async function openAssignRoomBoyModal(room: RoomOverview) {
-    setSelectedRoom(room);
+  async function openAssignRoomBoyModal(room: RoomOverviewBackend) {
+    setActiveRoom(room);
     setRoomBoyForm({
       roomBoyId: "",
       shift: "",
@@ -94,7 +99,7 @@ export function RoomManagement() {
   /* ================= SUBMIT ================= */
 
   async function submitRoomBoyAssignment() {
-    if (!selectedRoom) return;
+    if (!activeRoom) return;
 
     const { roomBoyId, shift, taskDate } = roomBoyForm;
 
@@ -107,18 +112,18 @@ export function RoomManagement() {
 
     try {
       await api.post("/room-boy-assignments", {
-        room_id: selectedRoom.roomId,
+        room_id: activeRoom.room_id,
         room_boy_id: roomBoyId,
         shift,
         task_date: taskDate,
         remarks: roomBoyForm.remarks || null,
       });
 
+      alert("Room boy assigned successfully");
       setIsRoomBoyModalOpen(false);
-      alert("Room boy assigned successfully.");
     } catch (err) {
       console.error(err);
-      alert("Failed to assign room boy.");
+      alert("Failed to assign room boy");
     } finally {
       setAssigning(false);
     }
@@ -129,7 +134,7 @@ export function RoomManagement() {
   return (
     <div className="space-y-6">
 
-      {/* PAGE HEADER */}
+      {/* HEADER */}
       <div>
         <h2 className="text-[#00247D] font-semibold text-xl">
           Room Management
@@ -152,13 +157,6 @@ export function RoomManagement() {
         </div>
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Loader2 className="animate-spin w-4 h-4" />
-          Loading rooms...
-        </div>
-      )}
-
       {/* TABLE */}
       <div className="bg-white border rounded-sm overflow-hidden">
         <table className="w-full">
@@ -173,36 +171,55 @@ export function RoomManagement() {
           </thead>
 
           <tbody>
-            {filteredRooms.map((room, idx) => (
-              <tr key={room.roomId} className={idx % 2 ? "bg-gray-50" : "bg-white"}>
-                <td className="px-4 py-3 border-t">{room.roomNo}</td>
-                <td className="px-4 py-3 border-t">{room.roomName}</td>
-                <td className="px-4 py-3 border-t">{room.status}</td>
-                <td className="px-4 py-3 border-t">
-                  {room.guest?.guestName || "—"}
-                </td>
-                <td className="px-4 py-3 border-t">
-                  <button
-                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"
-                    title="Assign Room Boy"
-                    onClick={() => openAssignRoomBoyModal(room)}
-                  >
-                    <UserPlus className="w-4 h-4" />
-                  </button>
+            {filteredRooms.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-4 py-6 text-center text-gray-500"
+                >
+                  No rooms found
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredRooms.map((room, idx) => (
+                <tr
+                  key={room.room_id}
+                  className={idx % 2 ? "bg-gray-50" : "bg-white"}
+                >
+                  <td className="px-4 py-3 border-t">
+                    {room.room_no}
+                  </td>
+                  <td className="px-4 py-3 border-t">
+                    {room.room_name || "—"}
+                  </td>
+                  <td className="px-4 py-3 border-t">
+                    {room.status}
+                  </td>
+                  <td className="px-4 py-3 border-t">
+                    {room.guest_name || "—"}
+                  </td>
+                  <td className="px-4 py-3 border-t">
+                    <button
+                      className="text-indigo-600 hover:underline"
+                      onClick={() => openAssignRoomBoyModal(room)}
+                    >
+                      Assign Room Boy
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* ================= ASSIGN ROOM BOY MODAL ================= */}
-      {isRoomBoyModalOpen && selectedRoom && (
+      {isRoomBoyModalOpen && activeRoom && (
         <div className="modalOverlay">
           <div className="nicModal">
 
             <div className="nicModalHeader">
-              <h2>Assign Room Boy (Housekeeping)</h2>
+              <h2>Assign Room Boy</h2>
               <button onClick={() => setIsRoomBoyModalOpen(false)}>✕</button>
             </div>
 
@@ -212,7 +229,7 @@ export function RoomManagement() {
                 <label>Room No</label>
                 <input
                   className="nicInput"
-                  value={selectedRoom.roomNo}
+                  value={activeRoom.room_no}
                   readOnly
                 />
               </div>
@@ -252,7 +269,9 @@ export function RoomManagement() {
                 >
                   <option value="">Select</option>
                   {hkShifts.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -316,5 +335,4 @@ export function RoomManagement() {
     </div>
   );
 }
-
 export default RoomManagement;

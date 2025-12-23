@@ -38,8 +38,8 @@ export function GuestManagement() {
     // inout part
     entry_date: '',
     entry_time: '',
-    exit_date:'',
-    exit_time:''
+    exit_date: '',
+    exit_time: ''
   };
 
   const [guestForm, setGuestForm] = useState(initialGuestForm);
@@ -55,7 +55,7 @@ export function GuestManagement() {
   async function loadGuests() {
     setLoading(true);
     try {
-      const data = await getActiveGuests();  
+      const data = await getActiveGuests();
 
       setGuests(data);   // No mapping needed, backend already returns correct shape
     } catch (err) {
@@ -67,7 +67,7 @@ export function GuestManagement() {
 
 
   // CREATE flow: create guest -> create designation (if needed) -> create inout
-// In web/src/components/modules/GuestManagement/Page.tsx
+  // In web/src/components/modules/GuestManagement/Page.tsx
 
   async function handleAddGuest() {
     try {
@@ -133,7 +133,7 @@ export function GuestManagement() {
 
   function openEdit(g: ActiveGuestRow) {
     setSelectedGuest(g);
-    
+
     setEditGuestForm({
       guest_name: g.guest_name || "",
       guest_name_local_language: g.guest_name_local_language || "",
@@ -148,11 +148,11 @@ export function GuestManagement() {
       department: g.department || "",
       organization: g.organization || "",
       office_location: g.office_location || "",
-      
+
       // FIX: Split ISO string to get YYYY-MM-DD
       entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
       exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
-      
+
       status: g.inout_status || "Entered"
     });
 
@@ -167,16 +167,16 @@ export function GuestManagement() {
     try {
       if (!selectedGuest) return;
       // update m_guest
-    await updateGuest(selectedGuest.guest_id, {
-      guest_name: editGuestForm.guest_name,
-      guest_name_local_language: editGuestForm.guest_name_local_language,
-      guest_mobile: editGuestForm.mobile,
-      guest_alternate_mobile: editGuestForm.alternate_mobile,
-      guest_address: editGuestForm.guest_address,
-      id_proof_type: editGuestForm.id_proof_type,
-      id_proof_no: editGuestForm.id_proof_no,
-      email: editGuestForm.email
-    });
+      await updateGuest(selectedGuest.guest_id, {
+        guest_name: editGuestForm.guest_name,
+        guest_name_local_language: editGuestForm.guest_name_local_language,
+        guest_mobile: editGuestForm.mobile,
+        guest_alternate_mobile: editGuestForm.alternate_mobile,
+        guest_address: editGuestForm.guest_address,
+        id_proof_type: editGuestForm.id_proof_type,
+        id_proof_no: editGuestForm.id_proof_no,
+        email: editGuestForm.email
+      });
 
 
       // update designation mapping (and m_designation name if changed)
@@ -292,7 +292,7 @@ export function GuestManagement() {
           <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-300"></div>
         </div>
       )}
-      
+
       {/* TABLE */}
       <div className="bg-white border rounded-sm overflow-hidden">
         <div className="overflow-x-auto">

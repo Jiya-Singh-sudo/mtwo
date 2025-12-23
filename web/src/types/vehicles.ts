@@ -9,12 +9,13 @@ export interface Vehicle {
   is_active: boolean;
 
   inserted_at: string;
-  inserted_by: string | null;
+  inserted_by: string | null; 
   inserted_ip: string | null;
 
   updated_at?: string | null;
   updated_by?: string | null;
   updated_ip?: string | null;
+  
 }
 
 export interface VehicleCreateDto {

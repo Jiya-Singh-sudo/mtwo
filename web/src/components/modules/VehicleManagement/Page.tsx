@@ -1,261 +1,352 @@
-// src/components/modules/VehicleManagement/Page.tsx
-import { useState, useEffect } from "react";
-import { Car, User, MapPin, X } from "lucide-react";
-import {
-  getVehicleFleet,
-  getAssignableVehicles,
-  getGuestsWithoutVehicle,
-  assignVehicleToGuest
-} from "../../../api/guestVehicle.api";
+import { useState } from "react";
+import { User, Phone, Shield, Clock, X, Eye, Car } from "lucide-react";
 import "./VehicleManagement.css";
 
+/* ---------------- TYPES ---------------- */
+interface Vehicle {
+  number: string;
+  name: string;
+  type: string;
+  modelYear: string;
+  capacity: number;
+}
 
-export function VehicleManagement() {
+interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  license: string;
+  shift: string;
+  status: "Available" | "On Duty";
+  vehicle: Vehicle | null;
+  assignedTo: string | null;
+  pickupLocation: string | null;
+  dropLocation: string | null;
+  guestRoomNo: string | null;
+  assignedAt: string | null;
+  releasedAt: string | null;
+  experience: string;
+  rating: string;
+}
 
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const available = vehicles.filter(v => v.status === "AVAILABLE").length;
-  const onDuty = vehicles.filter(v => v.status === "ON_DUTY").length;
-  const inService = vehicles.filter(v => v.status === "IN_SERVICE").length;
+/* ---------------- MASTER DATA ---------------- */
+const vehicles: Vehicle[] = [
+  {
+    number: "DL-01-AB-1234",
+    name: "Toyota Innova",
+    type: "SUV",
+    modelYear: "2022",
+    capacity: 7,
+  },
+  {
+    number: "DL-01-CD-5678",
+    name: "Maruti Dzire",
+    type: "Sedan",
+    modelYear: "2021",
+    capacity: 5,
+  },
+];
 
+const guests = [
+  "Shri Rajesh Kumar",
+  "Smt. Anjali Verma",
+  "Shri Amit Sharma",
+];
 
-  useEffect(() => {
-    loadFleet();
-  }, []);
+const locations = [
+  "Guest House",
+  "Airport",
+  "Secretariat",
+  "Collector Office",
+];
 
-  async function loadFleet() {
-    setLoading(true);
-    const data = await getVehicleFleet();
-    setVehicles(data);
-    setLoading(false);
-  }
+export default function VehicleManagement() {
+  /* ---------------- STATE ---------------- */
+  const [drivers, setDrivers] = useState<Driver[]>([
+    {
+      id: "D001",
+      name: "Ram Singh",
+      phone: "+91-9876543210",
+      license: "DL-1420110012345",
+      shift: "Day Shift",
+      status: "On Duty",
+      vehicle: vehicles[0],
+      assignedTo: "Shri Rajesh Kumar",
+      pickupLocation: "Guest House",
+      dropLocation: "Secretariat",
+      guestRoomNo: "101",
+      assignedAt: "2025-02-01T09:00",
+      releasedAt: "2025-02-05T18:00",
+      experience: "15 years",
+      rating: "4.8/5",
+    },
+    {
+      id: "D002",
+      name: "Mohan Kumar",
+      phone: "+91-9876512345",
+      license: "DL-1420110054321",
+      shift: "Day Shift",
+      status: "Available",
+      vehicle: null,
+      assignedTo: null,
+      pickupLocation: null,
+      dropLocation: null,
+      guestRoomNo: null,
+      assignedAt: null,
+      releasedAt: null,
+      experience: "12 years",
+      rating: "4.6/5",
+    },
+  ]);
 
-
-  /* ---------------- MODAL STATE ---------------- */
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+
   const [assignForm, setAssignForm] = useState({
-    vehicle_no: "",
-    guest_id: "",
-    location: "Guest House",
+    vehicleNumber: "",
+    guestName: "",
+    pickupLocation: "",
+    dropLocation: "",
+    guestRoomNo: "",
+    assignedAt: "",
+    releasedAt: "",
   });
-  const [assignableVehicles, setAssignableVehicles] = useState<any[]>([]);
-  const [assignableGuests, setAssignableGuests] = useState<any[]>([]);
 
+  /* ---------------- DERIVED ---------------- */
+  const assignedVehicleNumbers = drivers
+    .map((d) => d.vehicle?.number)
+    .filter(Boolean) as string[];
 
-  async function openAssignVehicleModal() {
-    const [vehicles, guests] = await Promise.all([
-      getAssignableVehicles(),
-      getGuestsWithoutVehicle(),
-    ]);
+  const availableVehicles = vehicles.filter(
+    (v) => !assignedVehicleNumbers.includes(v.number)
+  );
 
-    setAssignableVehicles(vehicles);
-    setAssignableGuests(guests);
-    setIsAssignModalOpen(true);
-  }
+  /* ---------------- ASSIGN VEHICLE ---------------- */
+  function assignVehicle() {
+    if (!selectedDriver) return;
 
+    const vehicle = vehicles.find(
+      (v) => v.number === assignForm.vehicleNumber
+    );
+    if (!vehicle) return alert("Select vehicle");
 
-
-  /* ---------------- ACTIONS ---------------- */
-  async function submitAssignVehicle() {
-    if (!assignForm.vehicle_no || !assignForm.guest_id) {
-      alert("Vehicle and Guest are required");
-      return;
-    }
-
-    await assignVehicleToGuest({
-      vehicle_no: assignForm.vehicle_no,
-      guest_id: Number(assignForm.guest_id),
-      location: assignForm.location,
-    });
+    setDrivers((prev) =>
+      prev.map((d) =>
+        d.id === selectedDriver.id
+          ? {
+              ...d,
+              vehicle,
+              assignedTo: assignForm.guestName,
+              pickupLocation: assignForm.pickupLocation,
+              dropLocation: assignForm.dropLocation,
+              guestRoomNo: assignForm.guestRoomNo,
+              assignedAt: assignForm.assignedAt,
+              releasedAt: assignForm.releasedAt,
+              status: "On Duty",
+            }
+          : d
+      )
+    );
 
     setIsAssignModalOpen(false);
-    setAssignForm({
-      vehicle_no: "",
-      guest_id: "",
-      location: "Guest House",
-    });
-
-    await loadFleet(); // refresh truth
+    setSelectedDriver(null);
   }
 
-
-
-  // /* ---------------- STATS ---------------- */
-  // const available = vehicles.filter((v) => v.status === "AVAILABLE").length;
-  // const onDuty = vehicles.filter((v) => v.status === "ON_DUTY").length;
-  // const inService = vehicles.filter((v) => v.status === "IN_SERVICE").length;
-
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[#00247D]">Vehicle & Driver Management</h2>
-          <p className="text-sm text-gray-600">
-            वाहन और चालक प्रबंधन – Manage fleet and assignments
-          </p>
-        </div>
-        <button
-          className="nicPrimaryBtn"
-          onClick={() => openAssignVehicleModal()}
-        >
-          Assign Vehicle to Guest
-        </button>
-      </div>
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="animate-spin">⏳</span>
-          Loading vehicles...
-        </div>
-      )}
+    <>
+      <div className="space-y-6">
+        <h2 className="text-[#00247D]">Driver Management Dashboard</h2>
 
-
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="statCard green">
-          <p>Available Vehicles</p>
-          <h3>{available}</h3>
-        </div>
-        <div className="statCard blue">
-          <p>On Duty</p>
-          <h3>{onDuty}</h3>
-        </div>
-        <div className="statCard yellow">
-          <p>In Service</p>
-          <h3>{inService}</h3>
-        </div>
-        <div className="statCard gray">
-          <p>Total Fleet</p>
-          <h3>{vehicles.length}</h3>
-        </div>
-      </div>
-
-      {/* VEHICLE LIST */}
-      <div className="bg-white border rounded-sm">
-        <div className="border-b px-6 py-4">
-          <h3 className="text-[#00247D]">Vehicle Fleet</h3>
-        </div>
-
-        <div className="p-6 space-y-4">
-          {vehicles.map((v) => (
-            <div key={v.vehicle_no} className="vehicleCard">
-              <div className="flex justify-between items-start mb-3">
+        <div className="bg-white border rounded-sm p-6">
+          {drivers.map((driver) => (
+            <div key={driver.id} className="vehicleCard">
+              {/* HEADER */}
+              <div className="flex justify-between mb-3">
                 <div className="flex gap-3">
-                  <div className={`iconBox ${v.status.replace(" ", "")}`}>
-                    <Car />
-                  </div>
+                  <User />
                   <div>
-                    <p>{v.vehicle_no}</p>
-                    <p className="subText">{v.vehicle_name}</p>
+                    <p>{driver.name}</p>
+                    <p className="subText">{driver.id}</p>
                   </div>
                 </div>
-                <span className={`statusPill ${v.status.replace(" ", "")}`}>
-                  {v.status}
-                </span>
+                <span className="statusPill">{driver.status}</span>
               </div>
 
+              {/* DETAILS */}
               <div className="details">
-                {v.driver_name && (
-                  <div>
-                    <User /> Driver: {v.driver_name}
+                <div><Shield /> {driver.license}</div>
+                <div><Phone /> {driver.phone}</div>
+                <div><Clock /> {driver.shift}</div>
+
+                {/* FIRST DETAIL — CAR ICON + NUMBER + NAME */}
+                {driver.vehicle && (
+                  <div className="flex gap-2 items-center mt-2">
+                    <Car size={16} />
+                    <strong>
+                      {driver.vehicle.number} – {driver.vehicle.name}
+                    </strong>
                   </div>
                 )}
-                {v.guest_name && (
-                  <div>
-                    <User /> Assigned to: {v.guest_name}
-                  </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-2 mt-3">
+                <button
+                  className="assignBtn"
+                  onClick={() => {
+                    setSelectedDriver(driver);
+                    setIsAssignModalOpen(true);
+                  }}
+                >
+                  Assign Vehicle
+                </button>
+
+                {driver.vehicle && (
+                  <button
+                    className="assignBtn"
+                    onClick={() => {
+                      setSelectedDriver(driver);
+                      setIsViewModalOpen(true);
+                    }}
+                  >
+                    <Eye size={16} className="mr-1" />
+                    View Details
+                  </button>
                 )}
-                <div>
-                  <MapPin /> Location: {v.location}
-                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ASSIGN VEHICLE MODAL */}
-      {isAssignModalOpen && (
+      {/* ---------------- VIEW DETAILS MODAL ---------------- */}
+      {isViewModalOpen && selectedDriver && selectedDriver.vehicle && (
         <div className="modalOverlay">
           <div className="nicModal">
             <div className="nicModalHeader">
-              <h2>Assign Vehicle to Guest</h2>
+              <h2>Vehicle Details</h2>
+              <button onClick={() => setIsViewModalOpen(false)}>
+                <X />
+              </button>
+            </div>
+
+            <div className="nicForm">
+              <p><strong>Vehicle No:</strong> {selectedDriver.vehicle.number}</p>
+              <p><strong>Vehicle Name:</strong> {selectedDriver.vehicle.name}</p>
+              <p><strong>Type:</strong> {selectedDriver.vehicle.type}</p>
+              <p><strong>Model:</strong> {selectedDriver.vehicle.modelYear}</p>
+              <p><strong>Capacity:</strong> {selectedDriver.vehicle.capacity} Seater</p>
+
+              <hr />
+
+              <p><strong>Assigned To:</strong> {selectedDriver.assignedTo}</p>
+              <p><strong>Pickup:</strong> {selectedDriver.pickupLocation}</p>
+              <p><strong>Drop:</strong> {selectedDriver.dropLocation}</p>
+              <p><strong>Guest Room:</strong> {selectedDriver.guestRoomNo}</p>
+              <p><strong>Check-in:</strong> {selectedDriver.assignedAt}</p>
+              <p><strong>Check-out:</strong> {selectedDriver.releasedAt}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- ASSIGN MODAL ---------------- */}
+      {isAssignModalOpen && selectedDriver && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+            <div className="nicModalHeader">
+              <h2>Assign Vehicle</h2>
               <button onClick={() => setIsAssignModalOpen(false)}>
                 <X />
               </button>
             </div>
 
             <div className="nicForm">
-              <div>
-                <label>Vehicle *</label>
-                <select
-                  className="nicInput"
-                  value={assignForm.vehicle_no}
-                  onChange={(e) =>
-                    setAssignForm({
-                      ...assignForm,
-                      vehicle_no: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">Select Vehicle</option>
-                  {assignableVehicles.map((v) => (
-                    <option key={v.vehicle_no} value={v.vehicle_no}>
-                      {v.vehicle_no} – {v.vehicle_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, vehicleNumber: e.target.value })
+                }
+              >
+                <option value="">Select Vehicle</option>
+                {availableVehicles.map((v) => (
+                  <option key={v.number} value={v.number}>
+                    {v.number} – {v.name}
+                  </option>
+                ))}
+              </select>
 
-              <div>
-                <label>Guest Name *</label>
-                <select
-                  className="nicInput"
-                  value={assignForm.guest_id}
-                  onChange={(e) =>
-                    setAssignForm({ ...assignForm, guest_id: e.target.value })
-                  }
-                >
-                  <option value="">Select Guest</option>
-                  {assignableGuests.map((g) => (
-                    <option key={g.guest_id} value={g.guest_id}>
-                      {g.guest_name}
-                    </option>
-                  ))}
-                </select>
+              <select
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, guestName: e.target.value })
+                }
+              >
+                <option value="">Select Guest</option>
+                {guests.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
 
-              </div>
+              <select
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, pickupLocation: e.target.value })
+                }
+              >
+                <option value="">Pickup Location</option>
+                {locations.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
 
-              <div>
-                <label>Location</label>
-                <input
-                  className="nicInput"
-                  value={assignForm.location}
-                  onChange={(e) =>
-                    setAssignForm({
-                      ...assignForm,
-                      location: e.target.value,
-                    })
-                  }
-                />
-              </div>
+              <select
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, dropLocation: e.target.value })
+                }
+              >
+                <option value="">Drop Location</option>
+                {locations.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+
+              <input
+                className="nicInput"
+                placeholder="Guest Room No"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, guestRoomNo: e.target.value })
+                }
+              />
+
+              <input
+                type="datetime-local"
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, assignedAt: e.target.value })
+                }
+              />
+
+              <input
+                type="datetime-local"
+                className="nicInput"
+                onChange={(e) =>
+                  setAssignForm({ ...assignForm, releasedAt: e.target.value })
+                }
+              />
             </div>
 
             <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setIsAssignModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitAssignVehicle}>
+              <button onClick={() => setIsAssignModalOpen(false)}>Cancel</button>
+              <button className="saveBtn" onClick={assignVehicle}>
                 Assign Vehicle
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
-export default VehicleManagement;

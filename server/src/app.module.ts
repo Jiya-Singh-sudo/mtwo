@@ -25,6 +25,7 @@ import { GuestDesignationModule } from './guest-designation/guest-designation.mo
 import { AuthModule } from './auth/auth.module';
 import { GuestVehicleModule } from './guest_vehicle/guest_vehicle.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AuthModule,
     GuestVehicleModule,
     DashboardModule,
+    DocumentsModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

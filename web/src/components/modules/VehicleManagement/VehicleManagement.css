@@ -119,3 +119,14 @@
   color: white;
   border-radius: 4px;
 }
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nicLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
