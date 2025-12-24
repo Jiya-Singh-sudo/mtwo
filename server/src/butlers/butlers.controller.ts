@@ -38,9 +38,9 @@ export class ButlersController {
     return this.service.create(dto, user, this.extractIp(req));
   }
 
-  @Put(':butler_name')
+  @Put(':butler_id')
   update(
-    @Param('butler_name') name: string,
+    @Param('butler_id') name: string,
     @Body() dto: UpdateButlerDto,
     @Req() req: any
   ) {
@@ -48,8 +48,8 @@ export class ButlersController {
     return this.service.update(name, dto, user, this.extractIp(req));
   }
 
-  @Delete(':butler_name')
-  softDelete(@Param('butler_name') name: string, @Req() req: any) {
+  @Delete(':butler_id')
+  softDelete(@Param('butler_id') name: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
     return this.service.softDelete(name, user, this.extractIp(req));
   }

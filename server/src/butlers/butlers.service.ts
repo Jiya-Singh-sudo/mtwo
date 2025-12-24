@@ -6,6 +6,27 @@ import { UpdateButlerDto } from './dto/update-butler.dto';
 @Injectable()
 export class ButlersService {
   constructor(private readonly db: DatabaseService) {}
+  private async generateButlerId(): Promise<string> {
+    const sql = `
+      SELECT butler_id
+      FROM m_butler
+      ORDER BY CAST(SUBSTRING(butler_id FROM 3) AS INTEGER) DESC
+      LIMIT 1
+    `;
+
+    const result = await this.db.query(sql);
+
+    if (result.rows.length === 0) {
+      return 'B_001';
+    }
+
+    const lastId = result.rows[0].butler_id; // e.g. B_007
+    const lastNumber = parseInt(lastId.replace('B_', ''), 10);
+    const nextNumber = lastNumber + 1;
+
+    return `B_${nextNumber.toString().padStart(3, '0')}`;
+  }
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -16,19 +37,21 @@ export class ButlersService {
     return result.rows;
   }
 
-  async findOneByName(name: string) {
-    const sql = `SELECT * FROM m_butler WHERE butler_name = $1`;
-    const result = await this.db.query(sql, [name]);
+  async findOneById(id: string) {
+    const sql = `SELECT * FROM m_butler WHERE butler_id = $1`;
+    const result = await this.db.query(sql, [id]);
     return result.rows[0];
   }
 
   async create(dto: CreateButlerDto, user: string, ip: string) {
+    const butlerId = await this.generateButlerId();
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
 
     const sql = `
       INSERT INTO m_butler (
+        butler_id,
         butler_name,
         butler_name_local_language,
         butler_mobile,
@@ -37,33 +60,53 @@ export class ButlersService {
         remarks,
         shift,
         is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
+        inserted_at,
+        inserted_by,
+        inserted_ip,
+        updated_at,
+        updated_by,
+        updated_ip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9,NULL,NULL,NULL)
-      RETURNING *;
-    `;
+      VALUES (
+        $1,  -- butler_id
+        $2,  -- butler_name
+        $3,  -- butler_name_local_language
+        $4,  -- butler_mobile
+        $5,  -- butler_alternate_mobile
+        $6,  -- address
+        $7,  -- remarks
+        $8,  -- shift
+        true,
+        $9,  -- inserted_at
+        $10, -- inserted_by
+        $11, -- inserted_ip
+        NULL,
+        NULL,
+        NULL
+      )
+      RETURNING *`;
 
-    const params = [
-      dto.butler_name,
-      dto.butler_name_local_language ?? null,
-      dto.butler_mobile,
-      dto.butler_alternate_mobile ?? null,
-      dto.address ?? null,
-      dto.remarks ?? null,
-      dto.shift,
-      now,
-      user,
-      ip,
-    ];
+  const params = [
+    butlerId,                        // $1
+    dto.butler_name,                // $2
+    dto.butler_name_local_language ?? null, // $3
+    dto.butler_mobile,              // $4
+    dto.butler_alternate_mobile ?? null, // $5
+    dto.address ?? null,            // $6
+    dto.remarks ?? null,            // $7
+    dto.shift,                      // $8  ← THIS was missing
+    now,                            // $9
+    user,                           // $10
+    ip                              // $11
+  ];
 
     const res = await this.db.query(sql, params);
     return res.rows[0];
   }
 
-  async update(name: string, dto: UpdateButlerDto, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Butler '${name}' not found`);
+  async update(id: string, dto: UpdateButlerDto, user: string, ip: string) {
+    const existing = await this.findOneById(id);
+    if (!existing) throw new Error(`Butler '${id}' not found`);
 
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
@@ -105,9 +148,9 @@ export class ButlersService {
     return res.rows[0];
   }
 
-  async softDelete(name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Butler '${name}' not found`);
+  async softDelete(id: string, user: string, ip: string) {
+    const existing = await this.findOneById(id);
+    if (!existing) throw new Error(`Butler '${id}' not found`);
 
     const now = new Date().toISOString();
 

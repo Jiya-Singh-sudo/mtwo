@@ -26,6 +26,7 @@ import { AuthModule } from './auth/auth.module';
 import { GuestVehicleModule } from './guest_vehicle/guest_vehicle.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DocumentsModule } from './documents/documents.module';
+import { DriverDutyRoasterModule } from './driver-duty-roaster/driver-duty-roaster.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { DocumentsModule } from './documents/documents.module';
     GuestVehicleModule,
     DashboardModule,
     DocumentsModule,
+    DriverDutyRoasterModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
