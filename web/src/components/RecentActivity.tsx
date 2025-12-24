@@ -5,7 +5,6 @@ import {
   Bell, 
   CheckCircle, 
   AlertCircle,
-  Clock 
 } from 'lucide-react';
 
 export function RecentActivity() {
@@ -60,29 +59,7 @@ export function RecentActivity() {
     },
   ];
 
-  const upcomingEvents = [
-    {
-      time: '14:00',
-      title: 'VIP Arrival',
-      description: 'Secretary, Ministry of Finance',
-      category: 'VVIP',
-      icon: Clock
-    },
-    {
-      time: '16:30',
-      title: 'Guest Departure',
-      description: 'Joint Secretary, MoHA',
-      category: 'VIP',
-      icon: Clock
-    },
-    {
-      time: '18:00',
-      title: 'Duty Shift Change',
-      description: 'Evening shift officers reporting',
-      category: 'Duty',
-      icon: Clock
-    },
-  ];
+  
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -118,48 +95,7 @@ export function RecentActivity() {
         </div>
       </div>
 
-      {/* Upcoming Events */}
-      <div className="bg-white border border-gray-200 rounded-sm">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h3 className="text-[#00247D]">Today's Schedule</h3>
-          <p className="text-sm text-gray-600">आज का कार्यक्रम</p>
-        </div>
-        
-        <div className="p-6">
-          <div className="space-y-4">
-            {upcomingEvents.map((event, index) => {
-              const Icon = event.icon;
-              return (
-                <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0">
-                  <div className="text-center flex-shrink-0">
-                    <div className="w-12 h-12 bg-[#00247D] bg-opacity-10 rounded-sm flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-[#00247D]" />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-1">{event.time}</p>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-gray-900">{event.title}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        event.category === 'VVIP' ? 'bg-red-100 text-red-700' :
-                        event.category === 'VIP' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {event.category}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <button className="w-full mt-4 py-2 text-sm text-white bg-[#00247D] rounded-sm hover:bg-blue-900 transition-colors">
-            View Full Calendar
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -30,7 +30,7 @@ interface GuestAssignment {
 
 /* ================= COMPONENT ================= */
 
-export default function Page() {
+export function Page() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [guests, setGuests] = useState<GuestAssignment[]>([]);
@@ -235,10 +235,7 @@ export default function Page() {
                   <button
                     className="flex items-center gap-1 text-blue-600"
                     onClick={() => {
-                      setGuestForm({
-                        ...guestForm,
-                        driverId: d.driverId,
-                      });
+                      setGuestForm({ ...guestForm, driverId: d.driverId });
                       setShowGuestModal(true);
                     }}
                   >
@@ -423,3 +420,4 @@ export default function Page() {
     </div>
   );
 }
+export default Page;

@@ -25,6 +25,7 @@ export function Sidebar({ activeModule, onNavigate }: SidebarProps) {
     { id: 'room-management' as ModuleType, label: 'Room Management', labelHi: 'कक्ष प्रबंधन', icon: Building2 },
     { id: 'vehicle-management' as ModuleType, label: 'Vehicle & Driver', labelHi: 'वाहन और चालक', icon: Car },
     { id: 'driver-management' as ModuleType, label: 'Driver Management', labelHi: 'चालक प्रबंधन', icon: UserCog },
+    { id: 'driver-duty-roaster' as ModuleType, label:'Driver Duty Roaster', labelHi:'ड्राइवर ड्यूटी रोस्टर',icon: Calendar},
     { id: 'food-service' as ModuleType, label: 'Food Service', labelHi: 'खाद्य सेवा', icon: UtensilsCrossed },
     { id: 'duty-roster' as ModuleType, label: 'Duty Roster', labelHi: 'ड्यूटी रोस्टर', icon: Calendar },
     { id: 'info-package' as ModuleType, label: 'Info Package', labelHi: 'सूचना पैकेज', icon: FileText },

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+// import { Route, Routes, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { DashboardStats } from './components/modules/DashboardStats/Page';
 import { QuickActions } from './components/QuickActions';
@@ -7,6 +8,7 @@ import { GuestManagement } from './components/modules/GuestManagement/Page';
 import RoomManagement from "./components/modules/RoomManagement/page";
 import VehicleManagement from "./components/modules/VehicleManagement/Page";
 import { DutyRoster } from './components/modules/DutyRoaster/Page';
+import DriverDutyRoaster from './components/modules/DriverDutyRoaster/Page';
 import InfoPackage from './components/modules/InfoPackage/Page';
 import { Notifications } from './components/modules/Notification/Page';
 import { Reports } from './components/modules/Report/Page';
@@ -25,6 +27,7 @@ export type ModuleType =
   | 'room-management'
   | 'vehicle-management'
   | 'duty-roster'
+  | 'driver-duty-roaster'
   | 'info-package'
   | 'notifications'
   | 'reports'
@@ -55,6 +58,8 @@ export default function App() {
         return <VehicleManagement />;
       case 'duty-roster':
         return <DutyRoster />;
+      case 'driver-duty-roaster':
+        return <DriverDutyRoaster />;
       case 'info-package':
         return <InfoPackage />;
       case 'notifications':
