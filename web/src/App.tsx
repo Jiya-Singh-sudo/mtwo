@@ -1,5 +1,5 @@
 import { useState } from 'react';
-// import { Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { DashboardStats } from './components/modules/DashboardStats/Page';
 import { QuickActions } from './components/QuickActions';
@@ -37,8 +37,11 @@ export type ModuleType =
   | 'food-service';
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<ModuleType>('dashboard');
+
+  const location = useLocation();
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
+  const activeModule = location.pathname.replace('/', '') as ModuleType || 'dashboard';
+
 
   const renderModule = () => {
     switch (activeModule) {
@@ -46,7 +49,7 @@ export default function App() {
         return (
           <div className="space-y-6">
             <DashboardStats />
-            <QuickActions onNavigate={setActiveModule} />
+            <QuickActions />
             <RecentActivity />
           </div>
         );
@@ -81,7 +84,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeModule={activeModule} onNavigate={setActiveModule} />
+      <Sidebar activeModule={activeModule} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
@@ -168,7 +171,10 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
           <div className="px-8 py-6">
-            {renderModule()}
+            {<Routes>
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+              <Route path="/*" element={renderModule()} />
+            </Routes>}
           </div>
         </main>
 

@@ -12,13 +12,13 @@ import {
   UtensilsCrossed
 } from 'lucide-react';
 import type { ModuleType } from '../App';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   activeModule: ModuleType;
-  onNavigate: (module: ModuleType) => void;
 }
 
-export function Sidebar({ activeModule, onNavigate }: SidebarProps) {
+export function Sidebar({ activeModule }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard' as ModuleType, label: 'Dashboard', labelHi: 'डैशबोर्ड', icon: Home },
     { id: 'guest-management' as ModuleType, label: 'Guest Management', labelHi: 'अतिथि प्रबंधन', icon: Users },
@@ -34,6 +34,8 @@ export function Sidebar({ activeModule, onNavigate }: SidebarProps) {
     { id: 'user-management' as ModuleType, label: 'User Management', labelHi: 'उपयोगकर्ता', icon: UserCog },
     { id: 'settings' as ModuleType, label: 'System Settings', labelHi: 'सेटिंग्स', icon: Settings },
   ];
+  const navigate = useNavigate();
+
 
   return (
     <aside className="w-64 bg-[#00247D] text-white flex flex-col">
@@ -59,7 +61,7 @@ export function Sidebar({ activeModule, onNavigate }: SidebarProps) {
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => navigate(`/${item.id}`)}
               className={`w-full px-6 py-3 flex items-center gap-3 transition-colors ${
                 isActive 
                   ? 'bg-gradient-to-r from-[#F5A623] to-[#E09612] text-[#00247D] border-l-4 border-[#F5A623]' 

@@ -10,13 +10,12 @@ import {
   UserCog,
   UtensilsCrossed
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { ModuleType } from '../App';
 
-interface QuickActionsProps {
-  onNavigate: (module: ModuleType) => void;
-}
 
-export function QuickActions({ onNavigate }: QuickActionsProps) {
+export function QuickActions() {
+  const navigate = useNavigate();
   const actions = [
     {
       title: 'Add New Guest',
@@ -90,6 +89,7 @@ export function QuickActions({ onNavigate }: QuickActionsProps) {
     },
   ];
 
+
   return (
     <div className="space-y-4">
       <div>
@@ -103,7 +103,7 @@ export function QuickActions({ onNavigate }: QuickActionsProps) {
           return (
             <button
               key={action.title}
-              onClick={() => onNavigate(action.module)}
+              onClick={() => navigate(`/${action.module}`)}
               className={`${action.color} text-white p-4 rounded-sm transition-all hover:shadow-lg flex flex-col items-center justify-center gap-2 min-h-[120px]`}
             >
               <Icon className="w-8 h-8" />
