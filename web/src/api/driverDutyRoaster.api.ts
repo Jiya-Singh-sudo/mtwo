@@ -1,22 +1,29 @@
-import axios from "axios";
 import {
   DriverDutyRoaster,
+  DriverDutyRoasterRow,
   DriverDutyRoasterCreateDto,
   DriverDutyRoasterUpdateDto
 } from "@/types/driverDutyRoaster";
+import api from "./apiClient";
+
 
 /* -------------------------------------------------
    BASE CONFIG
 ------------------------------------------------- */
 
-const API_BASE = "/api/driver-duty-roaster";
+// const API_BASE_ = "/driver-duty-roaster";
+export async function getDriverRoasterWithDrivers(): Promise<DriverDutyRoasterRow[]> {
+  const res = await api.get('/driver-duty-roaster/driver-duties');
+  return res.data;
+}
+
 
 /* -------------------------------------------------
    GET – Active roasters only
 ------------------------------------------------- */
 
 export async function getActiveDriverDutyRoasters(): Promise<DriverDutyRoaster[]> {
-  const res = await axios.get(API_BASE);
+  const res = await api.get("/driver-duty-roaster");
   return res.data;
 }
 
@@ -25,7 +32,7 @@ export async function getActiveDriverDutyRoasters(): Promise<DriverDutyRoaster[]
 ------------------------------------------------- */
 
 export async function getAllDriverDutyRoasters(): Promise<DriverDutyRoaster[]> {
-  const res = await axios.get(`${API_BASE}/all`);
+  const res = await api.get("/driver-duty-roaster/all");
   return res.data;
 }
 
@@ -36,7 +43,7 @@ export async function getAllDriverDutyRoasters(): Promise<DriverDutyRoaster[]> {
 export async function getDriverDutyRoasterById(
   roaster_id: string
 ): Promise<DriverDutyRoaster> {
-  const res = await axios.get(`${API_BASE}/${roaster_id}`);
+  const res = await api.get(`/driver-duty-roaster/${roaster_id}`);
   return res.data;
 }
 
@@ -47,7 +54,7 @@ export async function getDriverDutyRoasterById(
 export async function createDriverDutyRoaster(
   payload: DriverDutyRoasterCreateDto
 ): Promise<DriverDutyRoaster> {
-  const res = await axios.post(API_BASE, payload);
+  const res = await api.post("/driver-duty-roaster", payload);
   return res.data;
 }
 
@@ -59,7 +66,7 @@ export async function updateDriverDutyRoaster(
   roaster_id: string,
   payload: DriverDutyRoasterUpdateDto
 ): Promise<DriverDutyRoaster> {
-  const res = await axios.put(`${API_BASE}/${roaster_id}`, payload);
+  const res = await api.put(`/driver-duty-roaster/${roaster_id}`, payload);
   return res.data;
 }
 
@@ -70,6 +77,6 @@ export async function updateDriverDutyRoaster(
 export async function softDeleteDriverDutyRoaster(
   roaster_id: string
 ): Promise<{ success: boolean }> {
-  const res = await axios.post(`${API_BASE}/${roaster_id}/soft-delete`);
+  const res = await api.post(`/driver-duty-roaster/${roaster_id}/soft-delete`);
   return res.data;
 }

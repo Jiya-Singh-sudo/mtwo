@@ -130,3 +130,54 @@ export interface DriverDutyRoasterUpdateDto {
 
   is_active?: boolean;
 }
+
+
+export type ShiftType = "morning" | "afternoon" | "night";
+
+export interface DriverDutyRoasterRow {
+  /* ---------- DRIVER (m_driver) ---------- */
+  driver_id: string;
+  driver_name: string;
+  driver_mobile: string;
+  driver_license_no?: string | null;
+  department?: string | null;
+  is_driver_active: boolean;
+
+  /* ---------- ROASTER (t_driver_duty_roaster) ---------- */
+  roaster_id?: string | null;
+  shift?: ShiftType | null;
+
+
+  monday_in_time?: string | null;
+  monday_out_time?: string | null;
+  monday_week_off?: boolean | null;
+
+  tuesday_in_time?: string | null;
+  tuesday_out_time?: string | null;
+  tuesday_week_off?: boolean | null;
+
+  wednesday_in_time?: string | null;
+  wednesday_out_time?: string | null;
+  wednesday_week_off?: boolean | null;
+
+  thursday_in_time?: string | null;
+  thursday_out_time?: string | null;
+  thursday_week_off?: boolean | null;
+
+  friday_in_time?: string | null;
+  friday_out_time?: string | null;
+  friday_week_off?: boolean | null;
+
+  saturday_in_time?: string | null;
+  saturday_out_time?: string | null;
+  saturday_week_off?: boolean | null;
+
+  sunday_in_time?: string | null;
+  sunday_out_time?: string | null;
+  sunday_week_off?: boolean | null;
+
+  is_roaster_active?: boolean | null;
+
+  inserted_at?: string | null;
+  updated_at?: string | null;
+}
