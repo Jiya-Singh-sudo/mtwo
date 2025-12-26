@@ -1,0 +1,220 @@
+/* ===============================
+   Root Wrapper
+================================ */
+.driver-management {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ===============================
+   Headings
+================================ */
+.driver-management h2,
+.driver-management h3,
+.driver-management h4 {
+  font-weight: 600;
+}
+
+/* ===============================
+   Primary Button
+================================ */
+.driver-management .primary-btn {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.driver-management .primary-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* ===============================
+   Stats Cards
+================================ */
+.driver-management .stats-card {
+  background: #ffffff;
+  border-radius: 4px;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.driver-management .stats-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ===============================
+   Driver Cards
+================================ */
+.driver-management .driver-card {
+  background: #ffffff;
+  border-radius: 4px;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.driver-management .driver-card:hover {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ===============================
+   Avatar / Icon Box
+================================ */
+.driver-management .avatar-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Status Colors */
+.avatar-available {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.avatar-duty {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.avatar-night {
+  background-color: #ede9fe;
+  color: #7c3aed;
+}
+
+/* ===============================
+   Status Badges
+================================ */
+.driver-management .badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-available {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.badge-duty {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-night {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
+/* ===============================
+   Info Rows
+================================ */
+.driver-management .info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+}
+
+/* ===============================
+   Experience / Rating Row
+================================ */
+.driver-management .meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7280;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+/* ===============================
+   Action Buttons
+================================ */
+.driver-management .action-btn {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 0;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.driver-management .action-edit {
+  border: 1px solid #2563eb;
+  color: #2563eb;
+}
+
+.driver-management .action-edit:hover {
+  background-color: #eff6ff;
+}
+
+.driver-management .action-assign {
+  border: 1px solid #16a34a;
+  color: #16a34a;
+}
+
+.driver-management .action-assign:hover {
+  background-color: #ecfdf5;
+}
+
+/* ===============================
+   Tables
+================================ */
+.driver-management table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.driver-management thead th {
+  font-size: 14px;
+  font-weight: 600;
+  color: #00247d;
+}
+
+.driver-management tbody td {
+  font-size: 14px;
+  color: #374151;
+}
+
+.driver-management tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.driver-management tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* ===============================
+   Shift Status Badges
+================================ */
+.shift-active {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.shift-night {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
+/* ===============================
+   Responsive Tweaks
+================================ */
+@media (max-width: 768px) {
+  .driver-management h2 {
+    font-size: 1.25rem;
+  }
+
+  .driver-management h3 {
+    font-size: 1.1rem;
+  }
+
+  .driver-management table {
+    font-size: 13px;
+  }
+}
