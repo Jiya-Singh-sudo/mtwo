@@ -56,7 +56,7 @@ export function RoomManagement() {
 
   async function loadRooms() {
     try {
-      const res = await api.get("/rooms/overview"); // backend endpoint
+      const res = await api.get("/rooms"); // backend endpoint
       setRooms(res.data);
     } catch (err) {
       console.error("Failed to load rooms", err);
