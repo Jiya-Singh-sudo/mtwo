@@ -1,0 +1,39 @@
+.primaryBtn {
+  padding: 8px 14px;
+  background: #00247d;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  background: #001b5e;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: #00247d;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+.activeBadge {
+  color: green;
+  font-weight: 600;
+}
+
+.inactiveBadge {
+  color: #a00;
+  font-weight: 600;
+}
+
+.empty {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}

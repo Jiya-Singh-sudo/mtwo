@@ -14,12 +14,12 @@ import { Notifications } from './components/modules/Notification/Page';
 import { Reports } from './components/modules/Report/Page';
 import UserManagement from './components/modules/UserManagement/Page';
 import { SystemSettings } from './components/modules/SystemSettings/Page';
-import { DriverManagement } from './components/modules/DriverManagement/Page';
+import DriverManagement from './components/modules/DriverManagement/Page';
 import { FoodService } from "./components/modules/FoodService/Page";
 import { Search, Globe } from 'lucide-react';
-// import ashokaEmblem from './/ashoka_emblem.png';
-// import maharashtraSeal from './assets/maharashtra_seal.png';
-// import indianFlag from './assets/indian_flag.png';
+// import ashokaEmblem from './ashoka_emblem.png';
+// import maharashtraSeal from './maharashtra_seal.png';
+// import indianFlag from './indian_flag.png';
 
 export type ModuleType =
   | 'dashboard'

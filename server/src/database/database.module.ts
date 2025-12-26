@@ -12,7 +12,7 @@ import { DatabaseService } from './database.service';
           host: 'localhost',
           database: 'RajbhavanDB',
           password: 'admin',
-          port: 5428,
+          port: 5432,
         });
         return pool;
       },

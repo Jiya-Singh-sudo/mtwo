@@ -37,11 +37,17 @@ export interface DriverDashboardRow {
   driver_id: string;
   driver_name: string;
   driver_contact: string;
-  driver_license: string | null;
+  driver_license: string;
 
   duty_status: "Available" | "Unavailable";
 
   vehicle_no: string | null;
   vehicle_name: string | null;
   guest_name: string | null;
+}
+
+export interface AssignableGuestVehicle {
+  guest_vehicle_id: string;
+  vehicle_no: string;
+  guest_name: string;
 }

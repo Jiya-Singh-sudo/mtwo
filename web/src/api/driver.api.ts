@@ -11,8 +11,11 @@ export async function fetchDrivers() {
 /* WRITE: Add new driver */
 export async function createDriver(payload: {
   driver_name: string;
+  driver_name_local?: string;
   driver_contact: string;
+  driver_alternate_mobile?: string;
   driver_license?: string;
+  address?: string;
 }) {
   const res = await api.post("/drivers", payload);
   return res.data;
@@ -23,8 +26,11 @@ export async function updateDriver(
   driver_id: string,
   payload: {
     driver_name: string;
+    driver_name_local?: string;
     driver_contact: string;
+    driver_alternate_mobile?: string;
     driver_license?: string;
+    address?: string;
     is_active?: boolean;
   }
 ) {
