@@ -116,8 +116,8 @@ export class ButlersService {
       UPDATE m_butler SET
         butler_name = $1,
         butler_name_local_language = $2,
-        mobile = $3,
-        alternate_mobile = $4,
+        butler_mobile = $3,
+        butler_alternate_mobile = $4,
         address = $5,
         remarks = $6,
         shift = $7,

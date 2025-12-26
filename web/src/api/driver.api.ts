@@ -3,7 +3,7 @@ import api from "./apiClient";
 // import type { CreateDriverDto, UpdateDriverDto } from "../types/drivers";
 
 /* READ: Driver dashboard (read model, NOT m_driver) */
-export async function getDriverDashboard() {
+export async function fetchDrivers() {
   const res = await api.get("/drivers/dashboard");
   return res.data;
 }
@@ -46,3 +46,7 @@ export async function assignDriverToGuestVehicle(payload: {
   const res = await api.post("/drivers/assign", payload);
   return res.data;
 }
+export async function softDeleteDriver(driver_id: string) {
+  const res = await api.delete(`/drivers/${driver_id}`);
+  return res.data;
+} 

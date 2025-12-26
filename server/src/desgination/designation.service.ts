@@ -21,8 +21,8 @@ export class DesignationService {
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
-      ? `SELECT * FROM m_designation WHERE is_active = $1 ORDER BY designation_name`
-      : `SELECT * FROM m_designation ORDER BY designation_name`;
+      ? `SELECT * FROM m_designation_guest WHERE is_active = $1 ORDER BY designation_name`
+      : `SELECT * FROM m_designation_guest ORDER BY designation_name`;
 
     const result = await this.db.query(sql, activeOnly ? [true] : []);
     return result.rows;
@@ -40,7 +40,7 @@ export class DesignationService {
     const now = new Date().toISOString();
 
     const sql = `
-      INSERT INTO m_designation (
+      INSERT INTO m_designation_guest (
         designation_id,
         designation_name,
         designation_name_local_language,
@@ -76,7 +76,7 @@ export class DesignationService {
     const now = new Date().toISOString();
 
     const sql = `
-      UPDATE m_designation SET
+      UPDATE m_designation_guest SET
         designation_name = $1,
         designation_name_local_language = $2,
         is_active = $3,
@@ -108,7 +108,7 @@ export class DesignationService {
     const now = new Date().toISOString();
 
     const sql = `
-      UPDATE m_designation SET
+      UPDATE m_designation_guest SET
         is_active = false,
         updated_at = $1,
         updated_by = $2,

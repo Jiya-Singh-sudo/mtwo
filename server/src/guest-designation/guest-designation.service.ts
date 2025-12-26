@@ -10,7 +10,7 @@ export class GuestDesignationService {
     // upsert m_designation if designation_name provided
     if (dto.designation_name) {
       await this.db.query(`
-        INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip)
+        INSERT INTO m_designation_guest (designation_id, designation_name, inserted_by, inserted_ip)
         VALUES ($1,$2,$3,$4)
         ON CONFLICT (designation_id) DO UPDATE
           SET designation_name = EXCLUDED.designation_name,
@@ -20,9 +20,9 @@ export class GuestDesignationService {
       `, [dto.designation_id, dto.designation_name, user, ip]);
     } else {
       // ensure existence or insert placeholder row (so FK doesn't fail)
-      const check = await this.db.query('SELECT 1 FROM m_designation WHERE designation_id = $1', [dto.designation_id]);
+      const check = await this.db.query('SELECT 1 FROM m_designation_guest WHERE designation_id = $1', [dto.designation_id]);
       if (check.rowCount === 0) {
-        await this.db.query('INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)', [dto.designation_id, null, user, ip]);
+        await this.db.query('INSERT INTO m_designation_guest (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)', [dto.designation_id, null, user, ip]);
       }
     }
 
@@ -41,7 +41,7 @@ export class GuestDesignationService {
     // allow updating department/org/location and designation_id (and upsert m_designation if name provided)
     if (dto.designation_name && dto.designation_id) {
       await this.db.query(`
-        INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip)
+        INSERT INTO m_designation_guest (designation_id, designation_name, inserted_by, inserted_ip)
         VALUES ($1,$2,$3,$4)
         ON CONFLICT (designation_id) DO UPDATE SET designation_name = EXCLUDED.designation_name, updated_at = NOW()
       `, [dto.designation_id, dto.designation_name, user, ip]);

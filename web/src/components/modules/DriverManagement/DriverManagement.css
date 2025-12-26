@@ -295,3 +295,16 @@
 .nicPrimaryBtn:hover {
   background: #001a5e;
 }
+.driver-management-page {
+  padding: 16px 24px;
+}
+
+.driver-management-page h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.driver-management-page h3 {
+  font-size: 16px;
+  margin: 24px 0 12px;
+}

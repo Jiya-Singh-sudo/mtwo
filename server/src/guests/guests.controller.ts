@@ -25,7 +25,7 @@ export class GuestsController {
   async update(@Param('id') id: string, @Body() dto: UpdateGuestDto, @Req() req: any) {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';
-    return this.service.update(Number(id), dto, user, ip);
+    return this.service.update(Number(id), dto, user, ip);  
   }
 
   // soft delete guest + optionally soft delete inout
@@ -42,12 +42,5 @@ export class GuestsController {
     return this.service.findCheckedInWithoutVehicle();
   }
 
-  /**
-   * Active guests with designation + inout
-   * Used by Guest Management page
-   */
-  @Get('active')
-  async getActiveGuests() {
-    return this.service.findActiveGuestsWithInOut();
-  }
+
 }

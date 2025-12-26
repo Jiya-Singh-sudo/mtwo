@@ -62,7 +62,7 @@ export class GuestsService {
       let finalDesignationId = payload.designation?.designation_id;
       if (payload.designation?.designation_name) {
         const upsertSql = `
-          INSERT INTO m_designation (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
+          INSERT INTO m_designation_guest (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
           VALUES ($1, $2, NULL, $3, $4)
           ON CONFLICT (designation_id) DO UPDATE
             SET designation_name = EXCLUDED.designation_name,
@@ -79,10 +79,10 @@ export class GuestsService {
         finalDesignationId = desRes.rows[0].designation_id;
       } else {
         if (finalDesignationId) {
-          const check = await this.db.query('SELECT designation_id FROM m_designation WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
+          const check = await this.db.query('SELECT designation_id FROM m_designation_guest WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
           if (check.rowCount === 0) {
             await this.db.query(
-              `INSERT INTO m_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
+              `INSERT INTO m_designation_guest (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
               [finalDesignationId, null, user, ip]
             );
           }
@@ -224,7 +224,7 @@ export class GuestsService {
       JOIN m_guest g ON g.guest_id = io.guest_id
       LEFT JOIN t_guest_designation d
         ON d.guest_id = g.guest_id AND d.is_current = TRUE AND d.is_active = TRUE
-      LEFT JOIN m_designation md
+      LEFT JOIN m_designation_guest md
         ON md.designation_id = d.designation_id
       WHERE io.is_active = TRUE
         AND g.is_active = TRUE
