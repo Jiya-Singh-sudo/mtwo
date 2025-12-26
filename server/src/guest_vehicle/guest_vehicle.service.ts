@@ -49,7 +49,7 @@ export class GuestVehicleService {
         ON d.guest_id = g.guest_id
        AND d.is_current = TRUE
        AND d.is_active = TRUE
-      LEFT JOIN m_designation_guest md
+      LEFT JOIN m_guest_designation md
         ON md.designation_id = d.designation_id
       LEFT JOIN t_guest_vehicle gv
         ON gv.guest_id = g.guest_id
