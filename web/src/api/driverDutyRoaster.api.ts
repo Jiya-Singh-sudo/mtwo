@@ -15,38 +15,12 @@ import api from "./apiClient";
 export async function getDriverRoasterWithDrivers(): Promise<DriverDutyRoasterRow[]> {
   const res = await api.get("/driver-duty-roaster/driver-duties");
 
-  return res.data.map((r: any) => ({
-    ...r,
-
-    // Monday
-    monday_in_time: r.monday_duty_in_time,
-    monday_out_time: r.monday_duty_out_time,
-
-    // Tuesday
-    tuesday_in_time: r.tuesday_duty_in_time,
-    tuesday_out_time: r.tuesday_duty_out_time,
-
-    // Wednesday
-    wednesday_in_time: r.wednesday_duty_in_time,
-    wednesday_out_time: r.wednesday_duty_out_time,
-
-    // Thursday
-    thursday_in_time: r.thursday_duty_in_time,
-    thursday_out_time: r.thursday_duty_out_time,
-
-    // Friday
-    friday_in_time: r.friday_duty_in_time,
-    friday_out_time: r.friday_duty_out_time,
-
-    // Saturday
-    saturday_in_time: r.saturday_duty_in_time,
-    saturday_out_time: r.saturday_duty_out_time,
-
-    // Sunday
-    sunday_in_time: r.sunday_duty_in_time,
-    sunday_out_time: r.sunday_duty_out_time,
+  return res.data.map((row: any) => ({
+    ...row,
+    roaster_id: row.duty_roaster_id, // ← THIS LINE IS CRITICAL
   }));
 }
+
 
 
 
@@ -95,14 +69,11 @@ export async function createDriverDutyRoaster(
 ------------------------------------------------- */
 
 export async function updateDriverDutyRoaster(
-  roaster_id: string,
+  id: string,
   payload: DriverDutyRoasterUpdateDto
-): Promise<DriverDutyRoaster> {
-  const res = await api.put(`/driver-duty-roaster/${roaster_id}`, payload);
-  return res.data.map((r: any) => ({
-    ...r,
-    roaster_id: r.duty_roaster_id, 
-  }));
+): Promise<DriverDutyRoasterRow> {
+  const res = await api.put(`/driver-duty-roaster/${id}`, payload);
+  return res.data;
 }
 
 /* -------------------------------------------------

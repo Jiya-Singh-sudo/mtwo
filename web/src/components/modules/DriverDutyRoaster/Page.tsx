@@ -18,8 +18,8 @@ export default function DriverDutyRoasterPage() {
 
     const [viewItem, setViewItem] = useState<DriverDutyRoasterRow | null>(null);
     const [editItem, setEditItem] = useState<DriverDutyRoasterRow | null>(null);
-
     const [editForm, setEditForm] = useState<DriverDutyRoasterRow | null>(null);
+
     const [saving, setSaving] = useState(false);
 
     /* ================= LOAD DATA ================= */
@@ -54,17 +54,30 @@ export default function DriverDutyRoasterPage() {
     const renderDay = (
         inTime?: string | null,
         outTime?: string | null,
-        weekOff?: boolean
+        weekOff?: boolean | null
     ) => {
-        if (weekOff) return <span className="weekOff">Week Off</span>;
-        if (!inTime || !outTime) return <span className="subText">—</span>;
+        if (weekOff) {
+            return <span className="weekOff">Week Off</span>;
+        }
+
+        // 👇 THIS is where your "Pending" goes
+        if (!inTime && !outTime) {
+            return <span className="subText italic text-gray-400">Pending</span>;
+        }
+
+        // Partial data safety
+        if (!inTime || !outTime) {
+            return <span className="subText italic text-gray-400">Incomplete</span>;
+        }
 
         return (
             <span className="time flex items-center gap-1">
-                <Clock size={14} /> {inTime} - {outTime}
+                <Clock size={14} />
+                {inTime} – {outTime}
             </span>
         );
     };
+
 
     const renderEditDay = (
         label: string,
@@ -74,7 +87,7 @@ export default function DriverDutyRoasterPage() {
     ) => {
         if (!editForm) return null;
 
-        const isOff = editForm[offKey] as boolean | null | undefined;
+        const isOff = Boolean(editForm[offKey]);
 
         return (
             <div className="dayRow">
@@ -83,17 +96,16 @@ export default function DriverDutyRoasterPage() {
                 <label className="weekOffToggle">
                     <input
                         type="checkbox"
-                        checked={isOff ?? false}
+                        checked={isOff}
                         onChange={(e) =>
                             setEditForm({
                                 ...editForm,
                                 [offKey]: e.target.checked,
                                 ...(e.target.checked
-                                ? { [inKey]: null, [outKey]: null }
-                                : {}),
+                                    ? { [inKey]: null, [outKey]: null }
+                                    : {}),
                             })
                         }
-
                     />
                     Week Off
                 </label>
@@ -129,37 +141,63 @@ export default function DriverDutyRoasterPage() {
     /* ================= UPDATE HANDLER ================= */
 
     const handleUpdate = async () => {
-    if (!editForm) return;
+        if (!editForm || !editForm.duty_roaster_id) {
+            console.error("Missing duty_roaster_id", editForm);
+            alert("Invalid duty roaster. Cannot update.");
+            return;
+        }
 
-    if (!editForm.roaster_id) {
-        console.error("Missing roaster_id in editForm", editForm);
-        alert("Invalid roaster. Cannot update.");
-        return;
-    }
+        try {
+            setSaving(true);
 
-    try {
-        setSaving(true);
+            await updateDriverDutyRoaster(editForm.duty_roaster_id, {
+                monday_duty_in_time: editForm.monday_in_time ?? undefined,
+                monday_duty_out_time: editForm.monday_out_time ?? undefined,
+                monday_week_off: editForm.monday_week_off ?? undefined,
 
-        await updateDriverDutyRoaster(editForm.roaster_id, {
-        monday_duty_in_time: editForm.monday_in_time ?? undefined,
-        monday_duty_out_time: editForm.monday_out_time ?? undefined,
-        monday_week_off: editForm.monday_week_off ?? undefined,
-        // ... rest unchanged
-        });
+                tuesday_duty_in_time: editForm.tuesday_in_time ?? undefined,
+                tuesday_duty_out_time: editForm.tuesday_out_time ?? undefined,
+                tuesday_week_off: editForm.tuesday_week_off ?? undefined,
 
-        setRosters((prev) =>
-        prev.map((r) =>
-            r.roaster_id === editForm.roaster_id ? editForm : r
-        )
-        );
+                wednesday_duty_in_time: editForm.wednesday_in_time ?? undefined,
+                wednesday_duty_out_time: editForm.wednesday_out_time ?? undefined,
+                wednesday_week_off: editForm.wednesday_week_off ?? undefined,
 
-        setEditItem(null);
-        setEditForm(null);
-    } finally {
-        setSaving(false);
-    }
+                thursday_duty_in_time: editForm.thursday_in_time ?? undefined,
+                thursday_duty_out_time: editForm.thursday_out_time ?? undefined,
+                thursday_week_off: editForm.thursday_week_off ?? undefined,
+
+                friday_duty_in_time: editForm.friday_in_time ?? undefined,
+                friday_duty_out_time: editForm.friday_out_time ?? undefined,
+                friday_week_off: editForm.friday_week_off ?? undefined,
+
+                saturday_duty_in_time: editForm.saturday_in_time ?? undefined,
+                saturday_duty_out_time: editForm.saturday_out_time ?? undefined,
+                saturday_week_off: editForm.saturday_week_off ?? undefined,
+
+                sunday_duty_in_time: editForm.sunday_in_time ?? undefined,
+                sunday_duty_out_time: editForm.sunday_out_time ?? undefined,
+                sunday_week_off: editForm.sunday_week_off ?? undefined,
+
+                shift: editForm.shift ?? undefined,
+                is_active: editForm.is_roaster_active ?? undefined,
+            });
+
+            setRosters((prev) =>
+                prev.map((r) =>
+                    r.duty_roaster_id === editForm.duty_roaster_id ? editForm : r
+                )
+            );
+
+            setEditItem(null);
+            setEditForm(null);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to update duty roaster");
+        } finally {
+            setSaving(false);
+        }
     };
-
 
     /* ================= UI STATES ================= */
 
@@ -192,44 +230,44 @@ export default function DriverDutyRoasterPage() {
                     </thead>
 
                     <tbody>
-                        {rosters.length === 0 && (
+                        {rosters.length === 0 ? (
                             <tr key="no-data">
-                                <td colSpan={11} className="text-center p-4 text-gray-500">
+                                <td colSpan={10} className="text-center p-4 text-gray-500">
                                     No duty roaster records found
                                 </td>
                             </tr>
+                        ) : (
+                            rosters.map((item) => (
+                                <tr key={item.duty_roaster_id ?? `driver-${item.driver_id}`}>
+                                    <td>{item.driver_id}</td>
+                                    <td>{item.driver_name}</td>
+
+                                    <td>{renderDay(item.monday_in_time, item.monday_out_time, item.monday_week_off)}</td>
+                                    <td>{renderDay(item.tuesday_in_time, item.tuesday_out_time, item.tuesday_week_off)}</td>
+                                    <td>{renderDay(item.wednesday_in_time, item.wednesday_out_time, item.wednesday_week_off)}</td>
+                                    <td>{renderDay(item.thursday_in_time, item.thursday_out_time, item.thursday_week_off)}</td>
+                                    <td>{renderDay(item.friday_in_time, item.friday_out_time, item.friday_week_off)}</td>
+                                    <td>{renderDay(item.saturday_in_time, item.saturday_out_time, item.saturday_week_off)}</td>
+                                    <td>{renderDay(item.sunday_in_time, item.sunday_out_time, item.sunday_week_off)}</td>
+
+                                    <td>
+                                        <div className="actionBtns">
+                                            <button onClick={() => setViewItem(item)}>
+                                                <Eye size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditItem(item);
+                                                    setEditForm({ ...item });
+                                                }}
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
                         )}
-
-                        {rosters.map((item) => (
-                            <tr key={item.roaster_id}>
-                                <td>{item.driver_id}</td>
-                                <td>{item.driver_name}</td>
-
-                                <td>{renderDay(item.monday_in_time, item.monday_out_time, item.monday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.tuesday_in_time, item.tuesday_out_time, item.tuesday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.wednesday_in_time, item.wednesday_out_time, item.wednesday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.thursday_in_time, item.thursday_out_time, item.thursday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.friday_in_time, item.friday_out_time, item.friday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.saturday_in_time, item.saturday_out_time, item.saturday_week_off ?? undefined)}</td>
-                                <td>{renderDay(item.sunday_in_time, item.sunday_out_time, item.sunday_week_off ?? undefined)}</td>
-
-                                <td>
-                                    <div className="actionBtns">
-                                        <button onClick={() => setViewItem(item)}>
-                                            <Eye size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setEditItem(item);
-                                                setEditForm({ ...item });
-                                            }}
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
                     </tbody>
                 </table>
             </div>
@@ -245,7 +283,8 @@ export default function DriverDutyRoasterPage() {
                             </button>
                         </div>
 
-                        <p><b>Driver:</b> {viewItem.driver_id}</p>
+                        <p><b>Driver:</b> {viewItem.driver_name}</p>
+                        <p><b>ID:</b> {viewItem.driver_id}</p>
                     </div>
                 </div>
             )}
@@ -281,7 +320,7 @@ export default function DriverDutyRoasterPage() {
                             <label className="editCheckbox">
                                 <input
                                     type="checkbox"
-                                    checked={editForm.is_roaster_active ?? false}
+                                    checked={Boolean(editForm.is_roaster_active)}
                                     onChange={(e) =>
                                         setEditForm({
                                             ...editForm,

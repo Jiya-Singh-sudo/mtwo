@@ -144,7 +144,7 @@ export interface DriverDutyRoasterRow {
   is_driver_active: boolean;
 
   /* ---------- ROASTER (t_driver_duty_roaster) ---------- */
-  roaster_id?: string | null;
+  duty_roaster_id?: string | null;
   shift?: ShiftType | null;
 
 

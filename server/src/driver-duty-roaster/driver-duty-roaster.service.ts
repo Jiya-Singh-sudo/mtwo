@@ -97,23 +97,23 @@ export class DriverDutyRoasterService {
         duty_roaster_id,
         driver_id,
 
-        sunday_duty_in_time, sunday_duty_out_time, sunday_week_off, sunday_week_off,
-        monday_duty_in_time, monday_duty_out_time, monday_week_off, monday_week_off,
-        tuesday_duty_in_time, tuesday_duty_out_time, tuesday_week_off, tuesday_week_off,
-        wednesday_duty_in_time, wednesday_duty_out_time, wednesday_week_off, wednesday_week_off,
-        thursday_duty_in_time, thursday_duty_out_time, thursday_week_off, thursday_week_off,
-        friday_duty_in_time, friday_duty_out_time, friday_week_off, friday_week_off,
-        saturday_duty_in_time, saturday_duty_out_time, saturday_week_off, saturday_week_off
+        sunday_duty_in_time, sunday_duty_out_time, sunday_week_off,
+        monday_duty_in_time, monday_duty_out_time, monday_week_off,
+        tuesday_duty_in_time, tuesday_duty_out_time, tuesday_week_off,
+        wednesday_duty_in_time, wednesday_duty_out_time, wednesday_week_off,
+        thursday_duty_in_time, thursday_duty_out_time, thursday_week_off,
+        friday_duty_in_time, friday_duty_out_time, friday_week_off,
+        saturday_duty_in_time, saturday_duty_out_time, saturday_week_off
       )
       VALUES (
         $1,$2,
-        $3,$4,$5,$6,
-        $7,$8,$9,$10,
-        $11,$12,$13,$14,
-        $15,$16,$17,$18,
-        $19,$20,$21,$22,
-        $23,$24,$25,$26,
-        $27,$28,$29,$30
+        $3,$4,$5,
+        $6,$7,$8,
+        $9,$10,$11,
+        $12,$13,$14,
+        $15,$16,$17,
+        $18,$19,$20,
+        $21,$22,$23
       )
       RETURNING *;
     `;
@@ -122,13 +122,13 @@ export class DriverDutyRoasterService {
       roasterId,
       dto.driver_id,
 
-      dto.sunday_duty_in_time, dto.sunday_duty_out_time, dto.sunday_week_off, dto.sunday_week_off,
-      dto.monday_duty_in_time, dto.monday_duty_out_time, dto.monday_week_off, dto.monday_week_off,
-      dto.tuesday_duty_in_time, dto.tuesday_duty_out_time, dto.tuesday_week_off, dto.tuesday_week_off,
-      dto.wednesday_duty_in_time, dto.wednesday_duty_out_time, dto.wednesday_week_off, dto.wednesday_week_off,
-      dto.thursday_duty_in_time, dto.thursday_duty_out_time, dto.thursday_week_off, dto.thursday_week_off,
-      dto.friday_duty_in_time, dto.friday_duty_out_time, dto.friday_week_off, dto.friday_week_off,
-      dto.saturday_duty_in_time, dto.saturday_duty_out_time, dto.saturday_week_off, dto.saturday_week_off,
+      dto.sunday_duty_in_time, dto.sunday_duty_out_time, dto.sunday_week_off,
+      dto.monday_duty_in_time, dto.monday_duty_out_time, dto.monday_week_off,
+      dto.tuesday_duty_in_time, dto.tuesday_duty_out_time, dto.tuesday_week_off,
+      dto.wednesday_duty_in_time, dto.wednesday_duty_out_time, dto.wednesday_week_off,
+      dto.thursday_duty_in_time, dto.thursday_duty_out_time, dto.thursday_week_off,
+      dto.friday_duty_in_time, dto.friday_duty_out_time, dto.friday_week_off,
+      dto.saturday_duty_in_time, dto.saturday_duty_out_time, dto.saturday_week_off,
     ];
 
     const res = await this.db.query(sql, params);
@@ -140,82 +140,68 @@ export class DriverDutyRoasterService {
 
     const sql = `
       UPDATE t_driver_duty_roaster
-      SET
-        sunday_duty_in_time = $1,
-        sunday_duty_out_time = $2,
-        sunday_week_off = $3,
-        sunday_week_off = $4,
+  SET
+    sunday_duty_in_time = $1,
+    sunday_duty_out_time = $2,
+    sunday_week_off = $3,
 
-        monday_duty_in_time = $5,
-        monday_duty_out_time = $6,
-        monday_week_off = $7,
-        monday_week_off = $8,
+    monday_duty_in_time = $4,
+    monday_duty_out_time = $5,
+    monday_week_off = $6,
 
-        tuesday_duty_in_time = $9,
-        tuesday_duty_out_time = $10,
-        tuesday_week_off = $11,
-        tuesday_week_off = $12,
+    tuesday_duty_in_time = $7,
+    tuesday_duty_out_time = $8,
+    tuesday_week_off = $9,
 
-        wednesday_duty_in_time = $13,
-        wednesday_duty_out_time = $14,
-        wednesday_week_off = $15,
-        wednesday_week_off = $16,
+    wednesday_duty_in_time = $10,
+    wednesday_duty_out_time = $11,
+    wednesday_week_off = $12,
 
-        thursday_duty_in_time = $17,
-        thursday_duty_out_time = $18,
-        thursday_week_off = $19,
-        thursday_week_off = $20,
+    thursday_duty_in_time = $13,
+    thursday_duty_out_time = $14,
+    thursday_week_off = $15,
 
-        friday_duty_in_time = $21,
-        friday_duty_out_time = $22,
-        friday_week_off = $23,
-        friday_week_off = $24,
+    friday_duty_in_time = $16,
+    friday_duty_out_time = $17,
+    friday_week_off = $18,
 
-        saturday_duty_in_time = $25,
-        saturday_duty_out_time = $26,
-        saturday_week_off = $27,
-        saturday_week_off = $28
-      WHERE duty_roaster_id = $29
-      RETURNING *;
+    saturday_duty_in_time = $19,
+    saturday_duty_out_time = $20,
+    saturday_week_off = $21
+  WHERE duty_roaster_id = $22
+  RETURNING *;
     `;
 
     const res = await this.db.query(sql, [
-      dto.sunday_duty_in_time ?? existing.sunday_duty_in_time,
-      dto.sunday_duty_out_time ?? existing.sunday_duty_out_time,
-      dto.sunday_week_off ?? existing.sunday_week_off,
-      dto.sunday_week_off ?? existing.sunday_week_off,
+dto.sunday_duty_in_time ?? existing.sunday_duty_in_time,
+  dto.sunday_duty_out_time ?? existing.sunday_duty_out_time,
+  dto.sunday_week_off ?? existing.sunday_week_off,
 
-      dto.monday_duty_in_time ?? existing.monday_duty_in_time,
-      dto.monday_duty_out_time ?? existing.monday_duty_out_time,
-      dto.monday_week_off ?? existing.monday_week_off,
-      dto.monday_week_off ?? existing.monday_week_off,
+  dto.monday_duty_in_time ?? existing.monday_duty_in_time,
+  dto.monday_duty_out_time ?? existing.monday_duty_out_time,
+  dto.monday_week_off ?? existing.monday_week_off,
 
-      dto.tuesday_duty_in_time ?? existing.tuesday_duty_in_time,
-      dto.tuesday_duty_out_time ?? existing.tuesday_duty_out_time,
-      dto.tuesday_week_off ?? existing.tuesday_week_off,
-      dto.tuesday_week_off ?? existing.tuesday_week_off,
+  dto.tuesday_duty_in_time ?? existing.tuesday_duty_in_time,
+  dto.tuesday_duty_out_time ?? existing.tuesday_duty_out_time,
+  dto.tuesday_week_off ?? existing.tuesday_week_off,
 
-      dto.wednesday_duty_in_time ?? existing.wednesday_duty_in_time,
-      dto.wednesday_duty_out_time ?? existing.wednesday_duty_out_time,
-      dto.wednesday_week_off ?? existing.wednesday_week_off,
-      dto.wednesday_week_off ?? existing.wednesday_week_off,
+  dto.wednesday_duty_in_time ?? existing.wednesday_duty_in_time,
+  dto.wednesday_duty_out_time ?? existing.wednesday_duty_out_time,
+  dto.wednesday_week_off ?? existing.wednesday_week_off,
 
-      dto.thursday_duty_in_time ?? existing.thursday_duty_in_time,
-      dto.thursday_duty_out_time ?? existing.thursday_duty_out_time,
-      dto.thursday_week_off ?? existing.thursday_week_off,
-      dto.thursday_week_off ?? existing.thursday_week_off,
+  dto.thursday_duty_in_time ?? existing.thursday_duty_in_time,
+  dto.thursday_duty_out_time ?? existing.thursday_duty_out_time,
+  dto.thursday_week_off ?? existing.thursday_week_off,
 
-      dto.friday_duty_in_time ?? existing.friday_duty_in_time,
-      dto.friday_duty_out_time ?? existing.friday_duty_out_time,
-      dto.friday_week_off ?? existing.friday_week_off,
-      dto.friday_week_off ?? existing.friday_week_off,
+  dto.friday_duty_in_time ?? existing.friday_duty_in_time,
+  dto.friday_duty_out_time ?? existing.friday_duty_out_time,
+  dto.friday_week_off ?? existing.friday_week_off,
 
-      dto.saturday_duty_in_time ?? existing.saturday_duty_in_time,
-      dto.saturday_duty_out_time ?? existing.saturday_duty_out_time,
-      dto.saturday_week_off ?? existing.saturday_week_off,
-      dto.saturday_week_off ?? existing.saturday_week_off,
+  dto.saturday_duty_in_time ?? existing.saturday_duty_in_time,
+  dto.saturday_duty_out_time ?? existing.saturday_duty_out_time,
+  dto.saturday_week_off ?? existing.saturday_week_off,
 
-      id,
+  id,
     ]);
 
     return res.rows[0];
