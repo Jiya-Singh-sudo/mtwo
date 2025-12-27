@@ -21,40 +21,58 @@ export class DriversService {
     return 'D' + number.toString().padStart(3, '0');
   }
 
-  async getDriverDashboard() {
+async getDriverDashboard() {
   const sql = `
-SELECT
-  d.driver_id,
-  d.driver_name,
-  d.driver_contact,
-  d.driver_license,
+    SELECT
+      d.driver_id,
+      d.driver_name,
+      d.driver_contact,
+      d.driver_license,
 
-  CASE
-    WHEN gv.driver_id IS NULL THEN 'Available'
-    ELSE 'On Duty'
-  END AS duty_status,
+      EXISTS (
+        SELECT 1
+        FROM t_guest_vehicle gv
+        WHERE gv.driver_id = d.driver_id
+          AND gv.is_active = TRUE
+      ) AS is_assigned,
 
-  CASE
-    WHEN gv.driver_id IS NULL THEN false
-    ELSE true
-  END AS is_assigned,
+      CASE
+        WHEN EXISTS (
+          SELECT 1
+          FROM t_guest_vehicle gv
+          WHERE gv.driver_id = d.driver_id
+            AND gv.is_active = TRUE
+        )
+        THEN 'On Duty'
+        ELSE 'Available'
+      END AS duty_status,
 
-  gv.vehicle_no,
-  g.guest_name
-FROM m_driver d
-LEFT JOIN t_guest_vehicle gv
-  ON gv.driver_id = d.driver_id
- AND gv.is_active = TRUE
-LEFT JOIN m_guest g
-  ON g.guest_id = gv.guest_id
-WHERE d.is_active = TRUE
-ORDER BY d.driver_name;
+      (
+        SELECT gv.vehicle_no
+        FROM t_guest_vehicle gv
+        WHERE gv.driver_id = d.driver_id
+          AND gv.is_active = TRUE
+        LIMIT 1
+      ) AS vehicle_no,
 
+      (
+        SELECT g.guest_name
+        FROM t_guest_vehicle gv
+        JOIN m_guest g ON g.guest_id = gv.guest_id
+        WHERE gv.driver_id = d.driver_id
+          AND gv.is_active = TRUE
+        LIMIT 1
+      ) AS guest_name
+
+    FROM m_driver d
+    WHERE d.is_active = TRUE
+    ORDER BY d.driver_name;
   `;
 
   const res = await this.db.query(sql);
   return res.rows;
 }
+
 async create(dto: CreateDriverDto, user: string, ip: string) {
   const sql = `
     INSERT INTO m_driver

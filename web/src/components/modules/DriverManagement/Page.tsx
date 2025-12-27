@@ -46,23 +46,15 @@ function DriverManagement() {
     address: "",
   });
 
-
   /* ---------------- FILTER ---------------- */
   type DriverFilter = "ALL" | "AVAILABLE" | "ON_DUTY";
   const [filter, setFilter] = useState<DriverFilter>("ALL");
 
   const filteredDrivers = drivers.filter((driver) => {
-  if (filter === "AVAILABLE") {
-    return driver.is_assigned === false;
-  }
-
-  if (filter === "ON_DUTY") {
-    return driver.is_assigned === true;
-  }
-
-  return true; // ALL
-});
-
+    if (filter === "AVAILABLE") return driver.is_assigned === false;
+    if (filter === "ON_DUTY") return driver.is_assigned === true;
+    return true;
+  });
 
   /* ---------------- LOAD DRIVERS ---------------- */
   async function loadDrivers() {
@@ -105,9 +97,8 @@ function DriverManagement() {
   }
 
   /* ---------------- STATS ---------------- */
-const available = drivers.filter((d) => d.is_assigned === false).length;
-const onDuty = drivers.filter((d) => d.is_assigned === true).length;
-
+  const available = drivers.filter((d) => d.is_assigned === false).length;
+  const onDuty = drivers.filter((d) => d.is_assigned === true).length;
 
   return (
     <>
