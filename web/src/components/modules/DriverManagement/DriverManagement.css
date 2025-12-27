@@ -40,6 +40,14 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
+.statCard {
+  cursor: pointer;
+}
+
+.statCard.active {
+  outline: 2px solid #00247D;
+}
+
 
 /* ===============================
    Driver Cards
@@ -48,6 +56,11 @@
   background: #ffffff;
   border-radius: 4px;
   transition: box-shadow 0.25s ease, transform 0.25s ease;
+    padding: 16px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .driver-management .driver-card:hover {

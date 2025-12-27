@@ -216,7 +216,6 @@ export default function DriverDutyRoasterPage() {
                 <table className="rosterTable">
                     <thead>
                         <tr>
-                            <th>Driver ID</th>
                             <th>Driver Name</th>
                             <th>Mon</th>
                             <th>Tue</th>
@@ -239,7 +238,6 @@ export default function DriverDutyRoasterPage() {
                         ) : (
                             rosters.map((item) => (
                                 <tr key={item.duty_roaster_id ?? `driver-${item.driver_id}`}>
-                                    <td>{item.driver_id}</td>
                                     <td>{item.driver_name}</td>
 
                                     <td>{renderDay(item.monday_in_time, item.monday_out_time, item.monday_week_off)}</td>

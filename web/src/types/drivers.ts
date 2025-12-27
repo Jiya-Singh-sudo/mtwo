@@ -40,6 +40,7 @@ export interface DriverDashboardRow {
   driver_license: string;
 
   duty_status: "Available" | "Unavailable";
+  is_assigned: boolean;
 
   vehicle_no: string | null;
   vehicle_name: string | null;

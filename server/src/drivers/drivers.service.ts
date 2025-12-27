@@ -23,27 +23,32 @@ export class DriversService {
 
   async getDriverDashboard() {
   const sql = `
-    SELECT
-      d.driver_id,     
-      d.driver_name,
-      d.driver_contact,
-      d.driver_license,
+SELECT
+  d.driver_id,
+  d.driver_name,
+  d.driver_contact,
+  d.driver_license,
 
-      CASE
-        WHEN gv.driver_id IS NULL THEN 'Available'
-        ELSE 'Unavailable'
-      END AS duty_status,
+  CASE
+    WHEN gv.driver_id IS NULL THEN 'Available'
+    ELSE 'On Duty'
+  END AS duty_status,
 
-      gv.vehicle_no,
-      g.guest_name
-    FROM m_driver d
-    LEFT JOIN t_guest_vehicle gv
-      ON gv.driver_id = d.driver_id
-      AND gv.is_active = TRUE
-    LEFT JOIN m_guest g
-      ON g.guest_id = gv.guest_id
-    WHERE d.is_active = TRUE
-    ORDER BY d.driver_name;
+  CASE
+    WHEN gv.driver_id IS NULL THEN false
+    ELSE true
+  END AS is_assigned,
+
+  gv.vehicle_no,
+  g.guest_name
+FROM m_driver d
+LEFT JOIN t_guest_vehicle gv
+  ON gv.driver_id = d.driver_id
+ AND gv.is_active = TRUE
+LEFT JOIN m_guest g
+  ON g.guest_id = gv.guest_id
+WHERE d.is_active = TRUE
+ORDER BY d.driver_name;
 
   `;
 

@@ -1,4 +1,3 @@
-// src/components/modules/DriverManagement/Page.tsx
 import { useEffect, useState } from "react";
 import { User, Phone, Shield, X } from "lucide-react";
 import "./DriverManagement.css";
@@ -12,6 +11,7 @@ import {
 } from "../../../api/driver.api";
 
 import { DriverDashboardRow } from "../../../types/drivers";
+
 type AssignableGuestVehicle = Awaited<
   ReturnType<typeof getAssignableGuestVehicles>
 >[number];
@@ -24,20 +24,10 @@ function DriverManagement() {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeVehicles, setActiveVehicles] = useState<AssignableGuestVehicle[]>([]);
 
-
-  const [driverForm, setDriverForm] = useState({
-    name: "",
-    driver_name_local: "",
-    phone: "",
-    driver_alternate_mobile: "",
-    license: "",
-    address: "",
-    status: "Available",
-  });
-
-  /* ---------------- ASSIGN VEHICLE MODAL ---------------- */
+  /* ---------------- ASSIGN VEHICLE ---------------- */
+  const [activeVehicles, setActiveVehicles] =
+    useState<AssignableGuestVehicle[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] =
     useState<DriverDashboardRow | null>(null);
@@ -46,10 +36,38 @@ function DriverManagement() {
     vehicle: "",
   });
 
+  /* ---------------- DRIVER FORM ---------------- */
+  const [driverForm, setDriverForm] = useState({
+    name: "",
+    driver_name_local: "",
+    phone: "",
+    driver_alternate_mobile: "",
+    license: "",
+    address: "",
+  });
+
+
+  /* ---------------- FILTER ---------------- */
+  type DriverFilter = "ALL" | "AVAILABLE" | "ON_DUTY";
+  const [filter, setFilter] = useState<DriverFilter>("ALL");
+
+  const filteredDrivers = drivers.filter((driver) => {
+  if (filter === "AVAILABLE") {
+    return driver.is_assigned === false;
+  }
+
+  if (filter === "ON_DUTY") {
+    return driver.is_assigned === true;
+  }
+
+  return true; // ALL
+});
+
+
   /* ---------------- LOAD DRIVERS ---------------- */
   async function loadDrivers() {
     const data = await fetchDrivers();
-    setDrivers(data); // already DriverDashboardRow[]
+    setDrivers(data);
   }
 
   useEffect(() => {
@@ -68,7 +86,6 @@ function DriverManagement() {
         driver_alternate_mobile: driverForm.driver_alternate_mobile,
         driver_license: driverForm.license,
         address: driverForm.address,
-
       });
     }
 
@@ -80,7 +97,6 @@ function DriverManagement() {
         driver_alternate_mobile: driverForm.driver_alternate_mobile,
         driver_license: driverForm.license,
         address: driverForm.address,
-        is_active: driverForm.status === "Available",
       });
     }
 
@@ -89,17 +105,13 @@ function DriverManagement() {
   }
 
   /* ---------------- STATS ---------------- */
-  const available = drivers.filter(
-    (d) => d.duty_status === "Available"
-  ).length;
+const available = drivers.filter((d) => d.is_assigned === false).length;
+const onDuty = drivers.filter((d) => d.is_assigned === true).length;
 
-  const onDuty = drivers.filter(
-    (d) => d.duty_status === "Unavailable"
-  ).length;
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="driver-management space-y-6">
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
@@ -120,7 +132,6 @@ function DriverManagement() {
                 driver_alternate_mobile: "",
                 license: "",
                 address: "",
-                status: "Available",
               });
               setIsDriverModalOpen(true);
             }}
@@ -131,15 +142,30 @@ function DriverManagement() {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="statCard green">
+          <div
+            className={`statCard green ${
+              filter === "AVAILABLE" ? "active" : ""
+            }`}
+            onClick={() => setFilter("AVAILABLE")}
+          >
             <p>Available Drivers</p>
             <h3>{available}</h3>
           </div>
-          <div className="statCard blue">
+
+          <div
+            className={`statCard blue ${
+              filter === "ON_DUTY" ? "active" : ""
+            }`}
+            onClick={() => setFilter("ON_DUTY")}
+          >
             <p>On Duty</p>
             <h3>{onDuty}</h3>
           </div>
-          <div className="statCard gray">
+
+          <div
+            className={`statCard gray ${filter === "ALL" ? "active" : ""}`}
+            onClick={() => setFilter("ALL")}
+          >
             <p>Total Drivers</p>
             <h3>{drivers.length}</h3>
           </div>
@@ -152,82 +178,81 @@ function DriverManagement() {
           </div>
 
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {drivers.map((driver) => (
-              <div key={driver.driver_id} className="vehicleCard">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex gap-3">
-                    <div
-                      className={`iconBox ${driver.duty_status === "Available"
-                        ? "Available"
-                        : "OnDuty"
+            {filteredDrivers.map((driver) => {
+              const assigned = driver.is_assigned;
+
+              return (
+                <div key={driver.driver_id} className="driver-card">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex gap-3">
+                      <div
+                        className={`avatar-box ${
+                          assigned ? "avatar-duty" : "avatar-available"
                         }`}
-                    >
-                      <User />
+                      >
+                        <User />
+                      </div>
+                      <div>
+                        <p>{driver.driver_name}</p>
+                        <p className="subText">{driver.driver_id}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p>{driver.driver_name}</p>
-                      <p className="subText">{driver.driver_id}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`statusPill ${driver.duty_status === "Available"
-                      ? "Available"
-                      : "OnDuty"
+
+                    <span
+                      className={`badge ${
+                        assigned ? "badge-duty" : "badge-available"
                       }`}
-                  >
-                    {driver.duty_status}
-                  </span>
-                </div>
-
-                <div className="details">
-                  <div>
-                    <Shield /> {driver.driver_license}
+                    >
+                      {assigned ? "On Duty" : "Available"}
+                    </span>
                   </div>
-                  <div>
-                    <Phone /> {driver.driver_contact}
+
+                  <div className="details">
+                    <div className="info-row">
+                      <Shield size={16} /> {driver.driver_license}
+                    </div>
+                    <div className="info-row">
+                      <Phone size={16} /> {driver.driver_contact}
+                    </div>
                   </div>
-                  {driver.vehicle_no && <div>Vehicle: {driver.vehicle_no}</div>}
-                  {driver.guest_name && (
-                    <div>Assigned: {driver.guest_name}</div>
-                  )}
-                </div>
 
-                <div className="flex gap-2 mt-4">
-                  <button
-                    className="editBtn"
-                    onClick={() => {
-                      setMode("edit");
-                      setEditingId(driver.driver_id);
-                      setDriverForm({
-                        name: driver.driver_name || "",
-                        driver_name_local: "",
-                        phone: driver.driver_contact || "",
-                        driver_alternate_mobile: "",
-                        license: driver.driver_license || "",
-                        address: "",
-                        status: driver.duty_status || "Available",
-                      });
-                      setIsDriverModalOpen(true);
-                    }}
-                  >
-                    Edit Details
-                  </button>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      className="action-btn action-edit"
+                      onClick={() => {
+                        setMode("edit");
+                        setEditingId(driver.driver_id);
+                        setDriverForm({
+                          name: driver.driver_name || "",
+                          driver_name_local: "",
+                          phone: driver.driver_contact || "",
+                          driver_alternate_mobile: "",
+                          license: driver.driver_license || "",
+                          address: "",
+                        });
+                        setIsDriverModalOpen(true);
+                      }}
+                    >
+                      Edit Details
+                    </button>
 
-                  <button
-                    className="assignBtn"
-                    onClick={async () => {
-                      setSelectedDriver(driver);
-                      const vehicles = await getAssignableGuestVehicles();
-                      setActiveVehicles(vehicles);
-                      setAssignForm({ vehicle: "" });
-                      setIsAssignModalOpen(true);
-                    }}
-                  >
-                    Assign Vehicle
-                  </button>
+                    <button
+                      className="action-btn action-assign"
+                      disabled={assigned}
+                      onClick={async () => {
+                        setSelectedDriver(driver);
+                        const vehicles = await getAssignableGuestVehicles();
+                        setActiveVehicles(vehicles);
+                        setAssignForm({ vehicle: "" });
+                        setIsAssignModalOpen(true);
+                      }}
+                    >
+                      Assign Vehicle
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -268,16 +293,6 @@ function DriverManagement() {
                   setDriverForm({ ...driverForm, license: e.target.value })
                 }
               />
-              <select
-                className="nicInput"
-                value={driverForm.status}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, status: e.target.value })
-                }
-              >
-                <option>Available</option>
-                <option>On Duty</option>
-              </select>
             </div>
 
             <div className="nicModalActions">
@@ -321,7 +336,6 @@ function DriverManagement() {
                   </option>
                 ))}
               </select>
-
             </div>
 
             <div className="nicModalActions">
