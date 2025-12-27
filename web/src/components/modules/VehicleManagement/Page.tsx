@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, Edit, Trash2, Car as CarIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '../../ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../../ui/alert-dialog';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -365,7 +372,7 @@ export function VehicleManagement() {
                   </thead>
                   <tbody>
                     {filteredVehicles.map((vehicle, index) => (
-                      <tr key={vehicle.vehicle_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <tr key={`${vehicle.vehicle_no ?? vehicle.vehicle_name}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
                           {vehicle.vehicle_no}
                         </td>
@@ -465,8 +472,10 @@ export function VehicleManagement() {
                   </thead>
                   <tbody>
                     {filteredDrivers.map((driver, index) => (
-                      <tr key={driver.driver_id ?? driver.driver_contact}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <tr
+                        key={`${driver.driver_id ?? 'tmp'}-${driver.driver_contact}-${index}`}
+                        className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                      >
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
                           {driver.driver_name}
                         </td>
@@ -518,6 +527,9 @@ export function VehicleManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-[#00247D]">Add New Vehicle</DialogTitle>
+            <DialogDescription>
+              Enter details to register a new vehicle.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -559,6 +571,7 @@ export function VehicleManagement() {
             <div>
               <Label htmlFor="vehicleCapacity">Capacity *</Label>
               <Input
+              id='vehicleCapacity'
                 type="number"
                 value={vehicleFormData.capacity ?? ''}
                 onChange={(e) =>
@@ -595,6 +608,9 @@ export function VehicleManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-[#00247D]">Edit Vehicle</DialogTitle>
+            <DialogDescription>
+              Update the selected vehicle information.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -606,9 +622,9 @@ export function VehicleManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="edit-vehicleType">Vehicle Name *</Label>
+              <Label htmlFor="edit-vehicleName">Vehicle Name *</Label>
               <Input
-                id="edit-vehicleType"
+                id="edit-vehicleName"
                 value={vehicleFormData.vehicle_name}
                 onChange={(e) => setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })}
               />
@@ -632,8 +648,8 @@ export function VehicleManagement() {
             <div>
               <Label htmlFor="edit-vehicleCapacity">Vehicle Capacity *</Label>
               <Input
+              id='edit-vehicleCapacity'
                 type="number"
-                id="edit-vehicleCapacity"
                 value={vehicleFormData.capacity ?? ''}
                 onChange={(e) => setVehicleFormData({ ...vehicleFormData, capacity: e.target.value ? Number(e.target.value) : undefined })}
               />
@@ -691,6 +707,9 @@ export function VehicleManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-[#00247D]">Add New Driver</DialogTitle>
+            <DialogDescription>
+              Provide driver details for registration.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -703,9 +722,9 @@ export function VehicleManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="driverName">Full Name *</Label>
+              <Label htmlFor="driverNameLocal">Full Name (Local)</Label>
               <Input
-                id="driverName"
+                id="driverNameLocal"
                 value={driverFormData.driver_name_local ?? ''}
                 onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_local: e.target.value || undefined })}
                 placeholder="Enter full name"
@@ -764,6 +783,9 @@ export function VehicleManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-[#00247D]">Edit Driver</DialogTitle>
+            <DialogDescription>
+              Modify driver information.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
