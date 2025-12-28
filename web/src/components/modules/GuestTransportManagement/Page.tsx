@@ -412,7 +412,7 @@ function GuestTransportManagement() {
               <input
                 type="date"
                 className="nicInput"
-                value={driverForm.trip_date}
+                value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, trip_date: e.target.value })
                 }
@@ -487,7 +487,7 @@ function GuestTransportManagement() {
                 className="nicInput"
                 type="datetime-local"
                 placeholder="Assigned At"
-                value={vehicleForm.assigned_at}
+                value={vehicleForm.assigned_at ? vehicleForm.assigned_at.split('T')[0] : ""}
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
                 }
@@ -496,7 +496,7 @@ function GuestTransportManagement() {
                 className="nicInput"
                 type="datetime-local"
                 placeholder="Released At"
-                value={vehicleForm.released_at}
+                value={vehicleForm.released_at ? vehicleForm.released_at.split('T')[0] : ""}
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, released_at: e.target.value })
                 }
@@ -548,7 +548,7 @@ function GuestTransportManagement() {
             <input
               type="date"
               className="nicInput"
-              value={driverForm.trip_date}
+              value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
               onChange={(e) =>
                 setDriverForm({ ...driverForm, trip_date: e.target.value })
               }
@@ -606,6 +606,24 @@ function GuestTransportManagement() {
             value={vehicleForm.location}
             onChange={(e) =>
               setVehicleForm({ ...vehicleForm, location: e.target.value })
+            }
+          />
+          <input
+            className="nicInput"
+            type="datetime-local"
+            placeholder="Assigned At"
+            value={vehicleForm.assigned_at ? vehicleForm.assigned_at.split('T')[0] : ""}
+            onChange={(e) =>
+              setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
+            }
+          />
+          <input
+            className="nicInput"
+            type="datetime-local"
+            placeholder="Released At"
+            value={vehicleForm.released_at ? vehicleForm.released_at.split('T')[0] : ""}
+            onChange={(e) =>
+              setVehicleForm({ ...vehicleForm, released_at: e.target.value })
             }
           />
         </div>
