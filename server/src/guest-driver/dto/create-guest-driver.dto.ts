@@ -1,7 +1,7 @@
 export class CreateGuestDriverDto {
   guest_id: string;
-
   driver_id: string;
+
   vehicle_no?: string;
   room_id?: string;
 
@@ -11,8 +11,8 @@ export class CreateGuestDriverDto {
   pickup_location: string;
   drop_location?: string;
 
-  trip_date: string;   // YYYY-MM-DD
-  start_time: string;  // HH:mm
+  trip_date: string;     // YYYY-MM-DD
+  start_time: string;    // HH:mm
   end_time?: string;
 
   drop_date?: string;

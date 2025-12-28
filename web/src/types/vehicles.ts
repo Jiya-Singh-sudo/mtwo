@@ -35,3 +35,9 @@ export interface VehicleUpdateDto {
   color?: string;
   is_active?: boolean;
 }
+export interface AssignableVehicle {
+  vehicle_no: string;
+  vehicle_name: string;
+  model?: string | null;
+  capacity?: number | null;
+}

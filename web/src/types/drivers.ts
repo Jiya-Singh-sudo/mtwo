@@ -14,6 +14,11 @@ export interface Driver {
   updated_by?: string;
   updated_ip?: string;
 }
+export interface AssignableDriver {
+  driver_id: string;
+  driver_name: string;
+  driver_contact: string;
+}
 
 export interface CreateDriverDto {
   driver_name: string;

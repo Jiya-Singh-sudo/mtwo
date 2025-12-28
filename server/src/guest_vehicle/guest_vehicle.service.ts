@@ -4,7 +4,7 @@ import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
 
 @Injectable()
 export class GuestVehicleService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   private async generateGuestVehicleId(): Promise<string> {
     const sql = `
@@ -17,14 +17,14 @@ export class GuestVehicleService {
     const res = await this.db.query(sql);
 
     if (res.rowCount === 0) {
-        return 'GV001';
+      return 'GV001';
     }
 
     const lastId: string = res.rows[0].guest_vehicle_id; // e.g. GV023
     const num = parseInt(lastId.replace('GV', ''), 10) + 1;
 
     return `GV${num.toString().padStart(3, '0')}`;
-    }
+  }
 
 
   // READ #1 — Guests checked-in but without vehicle
@@ -94,7 +94,7 @@ export class GuestVehicleService {
   }
 
   // READ #3 — Vehicles assigned to a specific guest
-  async findVehiclesByGuest(guestId: number) {
+  async findVehiclesByGuest(guestId: string) {
     const sql = `
       SELECT
         gv.guest_vehicle_id,
@@ -120,16 +120,16 @@ export class GuestVehicleService {
   }
 
   // WRITE — Assign vehicle to guest
-    async assignVehicle(
+  async assignVehicle(
     dto: CreateGuestVehicleDto,
     user = 'system',
     ip = '0.0.0.0'
-    ) {
+  ) {
     await this.db.query('BEGIN');
     try {
-        const guestVehicleId = await this.generateGuestVehicleId();
+      const guestVehicleId = await this.generateGuestVehicleId();
 
-        await this.db.query(`
+      await this.db.query(`
         INSERT INTO t_guest_vehicle
             (guest_vehicle_id, guest_id, vehicle_no, location,
             is_active, inserted_by, inserted_ip)
@@ -142,15 +142,15 @@ export class GuestVehicleService {
         dto.location || null,
         user,
         ip
-        ]);
+      ]);
 
-        await this.db.query('COMMIT');
-        return { guest_vehicle_id: guestVehicleId };
+      await this.db.query('COMMIT');
+      return { guest_vehicle_id: guestVehicleId };
     } catch (err) {
-        await this.db.query('ROLLBACK');
-        throw err;
+      await this.db.query('ROLLBACK');
+      throw err;
     }
-    }
+  }
 
   // WRITE (future) — Release vehicle
   async releaseVehicle(
@@ -172,8 +172,8 @@ export class GuestVehicleService {
     const res = await this.db.query(sql, [guestVehicleId, user, ip]);
     return res.rows[0];
   }
-   async getWithoutDriver() {
-  const sql = `
+  async getWithoutDriver() {
+    const sql = `
     SELECT
       gv.guest_vehicle_id,
       gv.vehicle_no,
@@ -184,7 +184,7 @@ export class GuestVehicleService {
       AND gv.is_active = TRUE;
   `;
 
-  const res = await this.db.query(sql);
-  return res.rows;
-}
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
 }

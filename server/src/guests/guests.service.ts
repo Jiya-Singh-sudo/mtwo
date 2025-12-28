@@ -150,7 +150,7 @@ export class GuestsService {
   }
 
   // Generic update
-  async update(guestId: number, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
+  async update(guestId:string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
       'guest_address', 'id_proof_type', 'id_proof_no', 'email'
@@ -174,13 +174,13 @@ export class GuestsService {
     return r.rows[0];
   }
 
-  async findOne(guestId: number) {
+  async findOne(guestId: string) {
     const sql = `SELECT * FROM m_guest WHERE guest_id = $1 LIMIT 1`;
     const r = await this.db.query(sql, [guestId]);
     return r.rows[0];
   }
 
-  async softDeleteGuest(guestId: number, user = 'system', ip = '0.0.0.0') {
+  async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
       UPDATE m_guest
       SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
@@ -245,7 +245,7 @@ export class GuestsService {
     return r.rows[0];
   }
 
-  async softDeleteAllGuestInOuts(guestId: number, user = 'system', ip = '0.0.0.0') {
+  async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
       UPDATE t_guest_inout
       SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3

@@ -14,7 +14,7 @@ import { Notifications } from './components/modules/Notification/Page';
 import { Reports } from './components/modules/Report/Page';
 import UserManagement from './components/modules/UserManagement/Page';
 import { SystemSettings } from './components/modules/SystemSettings/Page';
-import DriverManagement from './components/modules/DriverManagement/Page';
+import GuestTransportManagement from './components/modules/GuestTransportManagement/Page';
 import { FoodService } from "./components/modules/FoodService/Page";
 import { Search, Globe } from 'lucide-react';
 // import ashokaEmblem from './ashoka_emblem.png';
@@ -33,7 +33,7 @@ export type ModuleType =
   | 'reports'
   | 'user-management'
   | 'settings'
-  | 'driver-management'
+  | 'guest-transport-management'
   | 'food-service';
 
 export default function App() {
@@ -73,8 +73,8 @@ export default function App() {
         return <UserManagement />;
       case 'settings':
         return <SystemSettings />;
-      case 'driver-management':
-        return <DriverManagement />;
+      case 'guest-transport-management':
+        return <GuestTransportManagement />;
       case 'food-service':
         return <FoodService />;
       default:

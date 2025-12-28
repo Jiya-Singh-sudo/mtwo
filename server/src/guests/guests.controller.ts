@@ -25,7 +25,7 @@ export class GuestsController {
   async update(@Param('id') id: string, @Body() dto: UpdateGuestDto, @Req() req: any) {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';
-    return this.service.update(Number(id), dto, user, ip);  
+    return this.service.update(String(id), dto, user, ip);  
   }
 
   // soft delete guest + optionally soft delete inout
@@ -34,8 +34,8 @@ export class GuestsController {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';
     // soft delete all active inout rows for this guest
-    await this.service.softDeleteAllGuestInOuts(Number(id), user, ip);
-    return this.service.softDeleteGuest(Number(id), user, ip);
+    await this.service.softDeleteAllGuestInOuts(String(id), user, ip);
+    return this.service.softDeleteGuest(String(id), user, ip);
   }
     @Get('checked-in-without-vehicle')
   async getCheckedInWithoutVehicle() {

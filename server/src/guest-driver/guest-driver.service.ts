@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
-import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
 import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
+import { AssignGuestDriverDto } from "./dto/assign-guest-driver.dto";
 // import { NotificationsService } from '../notifications/notifications.service';
-                                                    
+import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
 
 @Injectable()
 export class GuestDriverService {
@@ -24,19 +24,112 @@ export class GuestDriverService {
     return "GD" + next;
   }
 
-  async assignDriverToGuest(guestId: string, driverId: string) {
-    // 1. fetch guest
-    const guestRes = await this.db.query(`SELECT * FROM m_guest WHERE guest_id = $1`, [guestId]);
-    const guest = guestRes.rows[0];
-
-    // 2. fetch driver
-    const driverRes = await this.db.query(`SELECT * FROM m_driver WHERE driver_id = $1`, [driverId]);
-    const driver = driverRes.rows[0];
-
-
+    // ---------- ASSIGN DRIVER ----------
+  async assignDriver(
+    dto: AssignGuestDriverDto,
+    user = "system",
+    ip = "0.0.0.0"
+  ) {
+    const now = new Date();
+    return this.createTrip(
+      {
+        guest_id: dto.guest_id,
+        driver_id: dto.driver_id,
+        pickup_location: "Guest Location",
+        trip_date: now.toISOString().split("T")[0],
+        start_time: now.toTimeString().slice(0, 8),
+        trip_status: "Scheduled"
+      },
+      user,
+      ip
+    );
   }
 
+  // ---------- CREATE TRIP ----------
+  async createTrip(
+    dto: CreateGuestDriverDto,
+    user: string,
+    ip: string
+  ) {
+    const id = await this.generateId();
+    const now = new Date().toISOString();
 
+    const sql = `
+      INSERT INTO t_guest_driver(
+        guest_driver_id, guest_id, driver_id, vehicle_no, room_id,
+        from_location, to_location, pickup_location, drop_location,
+        trip_date, start_time, end_time,
+        drop_date, drop_time,
+        pickup_status, drop_status, trip_status,
+        remarks,
+        is_active,
+        inserted_at, inserted_by, inserted_ip
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,
+        $6,$7,$8,$9,
+        $10,$11,$12,
+        $13,$14,
+        $15,$16,$17,
+        $18,
+        TRUE,
+        $19,$20,$21
+      )
+      RETURNING *;
+    `;
+
+    const params = [
+      id,
+      dto.guest_id,
+      dto.driver_id,
+      dto.vehicle_no ?? null,
+      dto.room_id ?? null,
+      dto.from_location ?? null,
+      dto.to_location ?? null,
+      dto.pickup_location,
+      dto.drop_location ?? null,
+      dto.trip_date,
+      dto.start_time,
+      dto.end_time ?? null,
+      dto.drop_date ?? null,
+      dto.drop_time ?? null,
+      dto.pickup_status ?? "Waiting",
+      dto.drop_status ?? "Waiting",
+      dto.trip_status ?? "Scheduled",
+      dto.remarks ?? null,
+      now,
+      user,
+      ip
+    ];
+
+    const res = await this.db.query(sql, params);
+    return res.rows[0];
+  }
+
+  async findActiveByGuest(guestId: string) {
+    const sql = `
+    SELECT
+      gd.guest_driver_id,
+      gd.guest_id,
+      gd.driver_id,
+      d.driver_name,
+      d.driver_contact,
+      gd.trip_date,
+      gd.start_time,
+      gd.trip_status
+    FROM t_guest_driver gd
+    JOIN m_driver d
+      ON d.driver_id = gd.driver_id
+    WHERE gd.guest_id = $1
+      AND gd.is_active = TRUE
+    ORDER BY gd.trip_date DESC, gd.start_time DESC
+    LIMIT 1;
+  `;
+
+    const res = await this.db.query(sql, [guestId]);
+    return res.rows[0] || null;
+  }
+  
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_driver WHERE is_active = $1 ORDER BY trip_date DESC`

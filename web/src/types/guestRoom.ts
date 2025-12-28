@@ -99,7 +99,7 @@ export type RoomOverview = {
   checkOutDate?: string | null;
 
   guest?: {
-    guestId: number;
+    guestId: string;
     guestName: string;
   } | null;
 };

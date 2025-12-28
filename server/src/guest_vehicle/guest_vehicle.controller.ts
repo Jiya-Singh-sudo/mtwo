@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Req } from '@nestjs/common';
 import { GuestVehicleService } from './guest_vehicle.service';
 import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
+import { StringDecoder } from 'node:string_decoder';
 
 @Controller('guest-vehicle')
 export class GuestVehicleController {
@@ -18,7 +19,7 @@ export class GuestVehicleController {
 
   @Get('guests/:guestId/vehicles')
   findVehiclesByGuest(@Param('guestId') guestId: string) {
-    return this.service.findVehiclesByGuest(Number(guestId));
+    return this.service.findVehiclesByGuest(String(guestId));
   }
 
   @Post('assign')

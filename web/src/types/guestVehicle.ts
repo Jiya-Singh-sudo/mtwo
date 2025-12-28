@@ -14,3 +14,31 @@ export interface Vehicle {
   assignedAt: string | null;   // ISO datetime
   releasedAt: string | null;   // ISO datetime
 }
+/* ======================
+   READ — Active vehicle
+   ====================== */
+
+export interface ActiveGuestVehicle {
+  guest_vehicle_id: string;
+  guest_id: string;
+
+  vehicle_no: string;
+  vehicle_name: string;
+  model?: string | null;
+
+  assigned_at: string;   // ISO datetime
+  released_at?: string | null;
+
+  location?: string | null;
+  assignment_active: boolean;
+}
+
+/* ======================
+   WRITE — Assign vehicle
+   ====================== */
+
+export interface AssignGuestVehiclePayload {
+  guest_id: string;
+  vehicle_no: string;
+  location?: string;
+}
