@@ -200,4 +200,37 @@ export class GuestVehicleService {
     const res = await this.db.query(sql);
     return res.rows;
   }
+  async updateVehicleAssignment(
+  guestVehicleId: string,
+  payload: {
+    location?: string;
+    released_at?: string;
+  },
+  user: string,
+  ip: string
+) {
+  const sql = `
+    UPDATE t_guest_vehicle
+    SET
+      location = COALESCE($2, location),
+      released_at = COALESCE($3, released_at),
+      updated_at = NOW(),
+      updated_by = $4,
+      updated_ip = $5
+    WHERE guest_vehicle_id = $1
+      AND is_active = TRUE
+    RETURNING *;
+  `;
+
+  const res = await this.db.query(sql, [
+    guestVehicleId,
+    payload.location,
+    payload.released_at,
+    user,
+    ip,
+  ]);
+
+  return res.rows[0];
+}
+
 }

@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete,
+  Controller, Get, Post, Put, Delete, Patch,
   Body, Param, Req
 } from "@nestjs/common";
 import { GuestDriverService } from "./guest-driver.service";
@@ -37,6 +37,17 @@ export class GuestDriverController {
   active(@Param("guestId") guestId: string) {
     return this.service.findActiveByGuest(guestId);
   }
+  @Patch('editTripStatus/:id')
+updateTrip(
+  @Param('id') id: string,
+  @Body() dto: UpdateGuestDriverDto,
+  @Req() req: any
+) {
+  const user = req.user?.username || 'system';
+  const ip = req.ip || '0.0.0.0';
+  return this.service.updateTrip(id, dto, user, ip);
+}
+
 
   @Get()
   getActive() {

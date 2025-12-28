@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Req } from '@nestjs/common';
 import { GuestVehicleService } from './guest_vehicle.service';
 import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
+import { UpdateGuestVehicleDto } from './dto/update-guest-vehicle.dto';
 
 @Controller('guest-vehicle')
 export class GuestVehicleController {
@@ -12,9 +13,20 @@ export class GuestVehicleController {
   }
 
   @Get("by-guest/:guestId")
-getByGuest(@Param("guestId") guestId: string) {
-  return this.service.findActiveByGuest(guestId);
-}
+  getByGuest(@Param("guestId") guestId: string) {
+    return this.service.findActiveByGuest(guestId);
+  }
+
+  @Patch('editVehicleAssignment/:id')
+  updateAssignment(
+    @Param('id') id: string,
+    @Body() dto: UpdateGuestVehicleDto,
+    @Req() req: any
+  ) {
+    const user = req.user?.username || 'system';
+    const ip = req.ip || '0.0.0.0';
+    return this.service.updateVehicleAssignment(id, dto, user, ip);
+  }
 
   @Get('vehicles/assignable')
   findAssignableVehicles() {

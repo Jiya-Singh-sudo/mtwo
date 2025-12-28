@@ -4,7 +4,7 @@ import { ActiveGuestVehicle } from "./guestVehicle";
 
 export interface GuestTransportRow {
   guest: ActiveGuestRow;
-
   driver: ActiveGuestDriver | null;
   vehicle: ActiveGuestVehicle | null;
 }
+

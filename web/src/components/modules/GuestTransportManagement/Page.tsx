@@ -11,7 +11,9 @@ import {
   unassignDriver,
   unassignVehicle,
   getAssignableDrivers,
-  getAssignableVehicles
+  getAssignableVehicles,
+  updateDriverTrip,
+  updateVehicleAssignment
 } from "../../../api/guestTravellingAssign.api";
 
 import { GuestTransportRow } from "../../../types/guestTransport";
@@ -57,6 +59,20 @@ function GuestTransportManagement() {
     vehicle_no: "",
     location: ""
   });
+
+  /* =======================
+     EDIT DRIVER MODAL
+     ======================= */
+
+  const [editDriverModalOpen, setEditDriverModalOpen] = useState(false);
+  const [editingGuestDriverId, setEditingGuestDriverId] = useState<string | null>(null);
+
+  /* =======================
+     EDIT VEHICLE MODAL
+     ======================= */
+  const [editVehicleModalOpen, setEditVehicleModalOpen] = useState(false);
+  const [editingGuestVehicleId, setEditingGuestVehicleId] = useState<string | null>(null);
+
 
   /* =======================
      LOAD GUEST TRANSPORT
@@ -117,36 +133,31 @@ function GuestTransportManagement() {
   }
 
   async function submitAssignDriver() {
-  if (!driverForm.driver_id) {
-    alert("Please select a driver first!");
-    return;
-  }
+    if (!driverForm.driver_id) {
+      alert("Please select a driver first!");
+      return;
+    }
 
-  if (!driverForm.trip_date || !driverForm.start_time) {
-    alert("Trip date and start time are required");
-    return;
-  }
+    if (!driverForm.trip_date || !driverForm.start_time) {
+      alert("Trip date and start time are required");
+      return;
+    }
 
-  await assignDriverToGuest({
-    guest_id: driverForm.guest_id,
-    driver_id: driverForm.driver_id,
-    pickup_location: driverForm.pickup_location,
-    drop_location: driverForm.drop_location,
-    trip_date: driverForm.trip_date,
-    start_time: driverForm.start_time,
-    end_time: driverForm.end_time,
-    trip_status: driverForm.trip_status,
-  });
-  let driver = null;
-  try {
-    driver = await getActiveDriverByGuest(String(driverForm.guest_id));
-  } catch {
-    driver = null;
-  }
+    await assignDriverToGuest({
+      guest_id: driverForm.guest_id,
+      driver_id: driverForm.driver_id,
+      pickup_location: driverForm.pickup_location,
+      drop_location: driverForm.drop_location,
+      trip_date: driverForm.trip_date,
+      start_time: driverForm.start_time,
+      end_time: driverForm.end_time,
+      trip_status: driverForm.trip_status,
+    });
 
-  setDriverModalOpen(false);
-  await loadGuests();
-}
+
+    setDriverModalOpen(false);
+    await loadGuests();
+  }
 
 
   /* =======================
@@ -171,6 +182,42 @@ function GuestTransportManagement() {
   }
 
   /* =======================
+     EDIT DRIVER ACTIONS
+     ======================= */
+
+  async function submitEditDriver() {
+    if (!editingGuestDriverId) return;
+
+    await updateDriverTrip(editingGuestDriverId, {
+      pickup_location: driverForm.pickup_location,
+      drop_location: driverForm.drop_location,
+      trip_date: driverForm.trip_date,
+      start_time: driverForm.start_time,
+      end_time: driverForm.end_time,
+      trip_status: driverForm.trip_status,
+    });
+
+    setEditDriverModalOpen(false);
+    setEditingGuestDriverId(null);
+    await loadGuests();
+  }
+
+  /* =======================
+   EDIT VEHICLE ACTIONS
+   ======================= */
+  async function submitEditVehicle() {
+    if (!editingGuestVehicleId) return;
+
+    await updateVehicleAssignment(editingGuestVehicleId, {
+      location: vehicleForm.location,
+    });
+
+    setEditVehicleModalOpen(false);
+    setEditingGuestVehicleId(null);
+    await loadGuests();
+  }
+
+  /* =======================
      RENDER
      ======================= */
 
@@ -190,7 +237,7 @@ function GuestTransportManagement() {
           <div key={guest.guest_id} className="transport-card">
             <div className="flex justify-between mb-2">
               <div>
-                <p className="font-bold">{guest.guest_name ?? "-" } | {guest.designation_name ?? "-"}</p>
+                <p className="font-bold">{guest.guest_name ?? "-"} | {guest.designation_name ?? "-"}</p>
                 <p className="subText">
                   Guest Name in Local Language: {guest.guest_name_local_language ?? "-"}
                 </p>
@@ -215,21 +262,44 @@ function GuestTransportManagement() {
 
               {driver ? (
                 <>
+
                   <p>{driver.driver_name} </p>
                   <p>{driver.driver_contact}</p>
                   <p>{driver.trip_date}</p>
                   <p>{driver.start_time ?? "-"} | {driver.end_time}</p>
                   <p>{driver.pickup_location ?? "-"} | {driver.drop_location}</p>
                   <p>{driver.trip_status}</p>
-                  <button
-                    className="dangerBtn"
-                    onClick={async () => {
-                      await unassignDriver(driver.guest_driver_id);
-                      await loadGuests();
-                    }}
-                  >
-                    Unassign Driver
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      className="secondaryBtn"
+                      onClick={() => {
+                        setEditingGuestDriverId(driver.guest_driver_id);
+                        setDriverForm({
+                          guest_id: String(guest.guest_id),
+                          driver_id: driver.driver_id,
+                          pickup_location: driver.pickup_location ?? "",
+                          drop_location: driver.drop_location ?? "",
+                          trip_date: driver.trip_date,
+                          start_time: driver.start_time,
+                          end_time: driver.end_time ?? "",
+                          trip_status: driver.trip_status,
+                        });
+                        setEditDriverModalOpen(true);
+                      }}
+                    >
+                      Edit Driver Trip
+                    </button>
+
+                    <button
+                      className="dangerBtn"
+                      onClick={async () => {
+                        await unassignDriver(driver.guest_driver_id);
+                        await loadGuests();
+                      }}
+                    >
+                      Unassign Driver
+                    </button>
+                  </div>
                 </>
               ) : (
                 <button
@@ -251,15 +321,35 @@ function GuestTransportManagement() {
                   <p>{vehicle.model}</p>
                   <p>{vehicle.assigned_at ?? "-"} | {vehicle.released_at}</p>
                   <p>{vehicle.location}</p>
-                  <button
-                    className="dangerBtn"
-                    onClick={async () => {
-                      await unassignVehicle(vehicle.guest_vehicle_id);
-                      await loadGuests();
-                    }}
-                  >
-                    Unassign Vehicle
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      className="secondaryBtn"
+                      onClick={() => {
+                        setEditingGuestVehicleId(vehicle.guest_vehicle_id);
+                        setVehicleForm({
+                          guest_id: String(guest.guest_id),
+                          vehicle_no: vehicle.vehicle_no,
+                          location: vehicle.location ?? "",
+                          assigned_at: vehicle.assigned_at ?? undefined,
+                          released_at: vehicle.released_at ?? undefined,
+                        });
+                        setEditVehicleModalOpen(true);
+                      }}
+                    >
+                      Edit Vehicle Assignment
+                    </button>
+
+
+                    <button
+                      className="dangerBtn"
+                      onClick={async () => {
+                        await unassignVehicle(vehicle.guest_vehicle_id);
+                        await loadGuests();
+                      }}
+                    >
+                      Unassign Vehicle
+                    </button>
+                  </div>
                 </>
               ) : (
                 <button
@@ -315,7 +405,7 @@ function GuestTransportManagement() {
                 placeholder="Drop Location"
                 value={driverForm.drop_location}
                 onChange={(e) =>
-                  setDriverForm({ ...driverForm, pickup_location: e.target.value })
+                  setDriverForm({ ...driverForm, drop_location: e.target.value })
                 }
               />
 
@@ -339,7 +429,7 @@ function GuestTransportManagement() {
               <input
                 type="time"
                 className="nicInput"
-                value={driverForm.end_time}
+                value={driverForm.end_time ?? ""}
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, end_time: e.target.value })
                 }
@@ -395,6 +485,7 @@ function GuestTransportManagement() {
               />
               <input
                 className="nicInput"
+                type="datetime-local"
                 placeholder="Assigned At"
                 value={vehicleForm.assigned_at}
                 onChange={(e) =>
@@ -403,6 +494,7 @@ function GuestTransportManagement() {
               />
               <input
                 className="nicInput"
+                type="datetime-local"
                 placeholder="Released At"
                 value={vehicleForm.released_at}
                 onChange={(e) =>
@@ -422,6 +514,117 @@ function GuestTransportManagement() {
           </div>
         </div>
       )}
+
+      {/* EDIT DRIVER MODAL */}
+      {editDriverModalOpen && (
+      <div className="modalOverlay">
+        <div className="nicModal">
+          <div className="nicModalHeader">
+            <h2>Edit Driver Trip</h2>
+            <button onClick={() => setEditDriverModalOpen(false)}>
+              <X />
+            </button>
+          </div>
+
+          <div className="nicForm">
+            <input
+              className="nicInput"
+              placeholder="Pickup Location"
+              value={driverForm.pickup_location}
+              onChange={(e) =>
+                setDriverForm({ ...driverForm, pickup_location: e.target.value })
+              }
+            />
+
+            <input
+              className="nicInput"
+              placeholder="Drop Location"
+              value={driverForm.drop_location}
+              onChange={(e) =>
+                setDriverForm({ ...driverForm, drop_location: e.target.value })
+              }
+            />
+
+            <input
+              type="date"
+              className="nicInput"
+              value={driverForm.trip_date}
+              onChange={(e) =>
+                setDriverForm({ ...driverForm, trip_date: e.target.value })
+              }
+            />
+
+            <input
+              type="time"
+              className="nicInput"
+              value={driverForm.start_time}
+              onChange={(e) =>
+                setDriverForm({ ...driverForm, start_time: e.target.value })
+              }
+            />
+
+            <input
+              type="time"
+              className="nicInput"
+              value={driverForm.end_time ?? ""}
+              onChange={(e) =>
+                setDriverForm({ ...driverForm, end_time: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="nicModalActions">
+            <button
+              className="cancelBtn"
+              onClick={() => setEditDriverModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button className="saveBtn" onClick={submitEditDriver}>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+      {/* EDIT VEHICLE MODAL */}
+    {editVehicleModalOpen && (
+    <div className="modalOverlay">
+      <div className="nicModal">
+        <div className="nicModalHeader">
+          <h2>Edit Vehicle Assignment</h2>
+          <button onClick={() => setEditVehicleModalOpen(false)}>
+            <X />
+          </button>
+        </div>
+
+        <div className="nicForm">
+          <input
+            className="nicInput"
+            placeholder="Location"
+            value={vehicleForm.location}
+            onChange={(e) =>
+              setVehicleForm({ ...vehicleForm, location: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="nicModalActions">
+          <button
+            className="cancelBtn"
+            onClick={() => setEditVehicleModalOpen(false)}
+          >
+            Cancel
+          </button>
+          <button className="saveBtn" onClick={submitEditVehicle}>
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
     </div>
   );
 }

@@ -296,4 +296,46 @@ export class GuestDriverService {
     const res = await this.db.query(sql, [now, user, ip, id]);
     return res.rows[0];
   }
+  async updateTrip(
+  guestDriverId: string,
+  payload: {
+    trip_status?: string;
+    start_time?: string;
+    end_time?: string;
+    pickup_location?: string;
+    drop_location?: string;
+  },
+  user: string,
+  ip: string
+) {
+  const sql = `
+    UPDATE t_guest_driver
+    SET
+      trip_status = COALESCE($2, trip_status),
+      start_time = COALESCE($3, start_time),
+      end_time = COALESCE($4, end_time),
+      pickup_location = COALESCE($5, pickup_location),
+      drop_location = COALESCE($6, drop_location),
+      updated_at = NOW(),
+      updated_by = $7,
+      updated_ip = $8
+    WHERE guest_driver_id = $1
+      AND is_active = TRUE
+    RETURNING *;
+  `;
+
+  const res = await this.db.query(sql, [
+    guestDriverId,
+    payload.trip_status,
+    payload.start_time,
+    payload.end_time,
+    payload.pickup_location,
+    payload.drop_location,
+    user,
+    ip,
+  ]);
+
+  return res.rows[0];
+}
+
 }

@@ -1,4 +1,6 @@
 import api from "./apiClient";
+import { AssignGuestVehiclePayload } from "../types/guestVehicle";
+import { AssignGuestDriverPayload } from "../types/guestDriver";
 
 /* =======================
    READ — BASE GUEST LIST
@@ -34,8 +36,10 @@ export async function assignDriverToGuest(payload: {
   guest_id: string;
   driver_id: string;
   pickup_location: string;
+  drop_location: string;
   trip_date: string;
   start_time: string;
+  end_time?: string | null;
   trip_status?: string;
 }) {
   const res = await api.post("/guest-driver/assign", payload);
@@ -48,6 +52,19 @@ export async function unassignDriver(guestDriverId: string) {
   const res = await api.delete(`/guest-driver/${guestDriverId}`);
   return res.data;
 }
+
+/* =======================
+   DRIVER — UPDATE
+   ======================= */
+
+export async function updateDriverTrip(
+  guestDriverId: string,
+  payload: Partial<AssignGuestDriverPayload>
+) {
+  const res = await api.patch(`/guest-driver/editTripStatus/${guestDriverId}`, payload);
+  return res.data;
+}
+
 
 /* =======================
    VEHICLE — READ
@@ -84,5 +101,17 @@ export async function unassignVehicle(guestVehicleId: string) {
   const res = await api.patch(
     `/guest-vehicle/guest-vehicle/${guestVehicleId}/release`
   );
+  return res.data;
+}
+
+/* =======================
+   VEHICLE — UPDATE
+   ======================= */
+
+export async function updateVehicleAssignment(
+  guestVehicleId: string,
+  payload: Partial<AssignGuestVehiclePayload>
+) {
+  const res = await api.patch(`/guest-vehicle/editVehicleAssignment/${guestVehicleId}`, payload);
   return res.data;
 }

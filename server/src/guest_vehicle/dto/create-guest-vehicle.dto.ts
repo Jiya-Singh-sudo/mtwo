@@ -1,5 +1,5 @@
 export class CreateGuestVehicleDto {
-  guest_id: number;
+  guest_id: string;
   vehicle_no: string;
   location?: string;
 }
