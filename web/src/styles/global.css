@@ -133,6 +133,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+[data-radix-dialog-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  z-index: 9998 !important;
+}
+
+
 
 /**
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
