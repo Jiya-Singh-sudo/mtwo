@@ -25,6 +25,19 @@ export class GuestVehicleService {
 
     return `GV${num.toString().padStart(3, '0')}`;
   }
+  async findActiveByGuest(guestId: string) {
+    const sql = `
+      SELECT *
+      FROM t_guest_vehicle
+      WHERE guest_id = $1
+        AND is_active = true
+      ORDER BY inserted_at DESC
+      LIMIT 1
+    `;
+    const res = await this.db.query(sql, [guestId]);
+    return res.rows[0] || null;
+  }
+
 
 
   // READ #1 — Guests checked-in but without vehicle

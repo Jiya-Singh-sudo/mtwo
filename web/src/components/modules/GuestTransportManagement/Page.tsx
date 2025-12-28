@@ -60,29 +60,34 @@ function GuestTransportManagement() {
      LOAD GUEST TRANSPORT
      ======================= */
 
-async function loadGuests() {
-  const guests = await getActiveGuests();
+  async function loadGuests() {
+    setLoading(true);
+    try {
+      const guests = await getActiveGuests();
 
-  const rows = await Promise.all(
-    guests.map(async (g) => {
-      let vehicle = null;
+      const rows = await Promise.all(
+        guests.map(async (g: ActiveGuestRow) => {
+          let vehicle = null;
 
-      try {
-        vehicle = await getVehicleByGuest(g.guest_id);
-      } catch (err) {
-        console.warn("Vehicle fetch failed for guest", g.guest_id);
-      }
+          try {
+            vehicle = await getVehicleByGuest(String(g.guest_id));
+          } catch (err) {
+            console.warn("Vehicle fetch failed for guest", g.guest_id);
+          }
 
-      return {
-        guest: g,
-        driver: await getActiveDriverByGuest(g.guest_id),
-        vehicle
-      };
-    })
-  );
+          return {
+            guest: g,
+            driver: await getActiveDriverByGuest(String(g.guest_id)),
+            vehicle
+          };
+        })
+      );
 
-  setRows(rows);
-}
+      setRows(rows);
+    } finally {
+      setLoading(false);
+    }
+  }
 
 
   useEffect(() => {
