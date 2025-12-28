@@ -20,6 +20,27 @@ export class DriversService {
     const number = parseInt(lastId.replace('D', '')) + 1;
     return 'D' + number.toString().padStart(3, '0');
   }
+  async findAssignableDrivers() {
+  const sql = `
+    SELECT
+      d.driver_id,
+      d.driver_name,
+      d.driver_contact
+    FROM m_driver d
+    WHERE d.is_active = TRUE
+      AND NOT EXISTS (
+        SELECT 1
+        FROM t_guest_vehicle gv
+        WHERE gv.driver_id = d.driver_id
+          AND gv.is_active = TRUE
+      )
+    ORDER BY d.driver_name;
+  `;
+
+  const res = await this.db.query(sql);
+  return res.rows;
+}
+
 
 async getDriverDashboard() {
   const sql = `

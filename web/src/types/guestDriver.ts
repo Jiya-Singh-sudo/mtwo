@@ -30,8 +30,10 @@ export interface AssignGuestDriverPayload {
   driver_id: string;
 
   pickup_location: string;
+  drop_location: string;
   trip_date: string;   // YYYY-MM-DD
   start_time: string;  // HH:mm
+  end_time?: string | null;
 
   trip_status?: "Scheduled" | "Ongoing" | "Completed" | "Cancelled";
 }

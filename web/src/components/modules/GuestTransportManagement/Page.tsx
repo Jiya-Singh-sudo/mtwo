@@ -39,8 +39,10 @@ function GuestTransportManagement() {
     guest_id: "",
     driver_id: "",
     pickup_location: "",
+    drop_location: "",
     trip_date: "",
     start_time: "",
+    end_time: "",
     trip_status: "Scheduled"
   });
 
@@ -105,18 +107,47 @@ function GuestTransportManagement() {
       guest_id: String(guestId),
       driver_id: "",
       pickup_location: "",
+      drop_location: "",
       trip_date: "",
       start_time: "",
+      end_time: "",
       trip_status: "Scheduled"
     });
     setDriverModalOpen(true);
   }
 
   async function submitAssignDriver() {
-    await assignDriverToGuest(driverForm);
-    setDriverModalOpen(false);
-    await loadGuests();
+  if (!driverForm.driver_id) {
+    alert("Please select a driver first!");
+    return;
   }
+
+  if (!driverForm.trip_date || !driverForm.start_time) {
+    alert("Trip date and start time are required");
+    return;
+  }
+
+  await assignDriverToGuest({
+    guest_id: driverForm.guest_id,
+    driver_id: driverForm.driver_id,
+    pickup_location: driverForm.pickup_location,
+    drop_location: driverForm.drop_location,
+    trip_date: driverForm.trip_date,
+    start_time: driverForm.start_time,
+    end_time: driverForm.end_time,
+    trip_status: driverForm.trip_status,
+  });
+  let driver = null;
+  try {
+    driver = await getActiveDriverByGuest(String(driverForm.guest_id));
+  } catch {
+    driver = null;
+  }
+
+  setDriverModalOpen(false);
+  await loadGuests();
+}
+
 
   /* =======================
      VEHICLE ACTIONS
@@ -159,7 +190,19 @@ function GuestTransportManagement() {
           <div key={guest.guest_id} className="transport-card">
             <div className="flex justify-between mb-2">
               <div>
-                <p className="font-semibold">{guest.guest_name}</p>
+                <p className="font-bold">{guest.guest_name ?? "-" } | {guest.designation_name ?? "-"}</p>
+                <p className="subText">
+                  Guest Name in Local Language: {guest.guest_name_local_language ?? "-"}
+                </p>
+                <p className="subText">
+                  Guest Contact: {guest.guest_mobile ?? "-"}
+                </p>
+                <p className="subText">
+                  Guest Check In: {guest.entry_date ?? "-"} | {guest.entry_time ?? "-"}
+                </p>
+                <p className="subText">
+                  Guest Check Out: {guest.exit_date ?? "-"} | {guest.exit_time ?? "-"}
+                </p>
                 <p className="subText">
                   Room: {guest.room_id ?? "-"} | {guest.inout_status ?? "Unknown"}
                 </p>
@@ -172,7 +215,12 @@ function GuestTransportManagement() {
 
               {driver ? (
                 <>
-                  <p>{driver.driver_name} ({driver.driver_contact})</p>
+                  <p>{driver.driver_name} </p>
+                  <p>{driver.driver_contact}</p>
+                  <p>{driver.trip_date}</p>
+                  <p>{driver.start_time ?? "-"} | {driver.end_time}</p>
+                  <p>{driver.pickup_location ?? "-"} | {driver.drop_location}</p>
+                  <p>{driver.trip_status}</p>
                   <button
                     className="dangerBtn"
                     onClick={async () => {
@@ -200,6 +248,9 @@ function GuestTransportManagement() {
               {vehicle ? (
                 <>
                   <p>{vehicle.vehicle_no} — {vehicle.vehicle_name}</p>
+                  <p>{vehicle.model}</p>
+                  <p>{vehicle.assigned_at ?? "-"} | {vehicle.released_at}</p>
+                  <p>{vehicle.location}</p>
                   <button
                     className="dangerBtn"
                     onClick={async () => {
@@ -260,6 +311,15 @@ function GuestTransportManagement() {
               />
 
               <input
+                className="nicInput"
+                placeholder="Drop Location"
+                value={driverForm.drop_location}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, pickup_location: e.target.value })
+                }
+              />
+
+              <input
                 type="date"
                 className="nicInput"
                 value={driverForm.trip_date}
@@ -274,6 +334,14 @@ function GuestTransportManagement() {
                 value={driverForm.start_time}
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, start_time: e.target.value })
+                }
+              />
+              <input
+                type="time"
+                className="nicInput"
+                value={driverForm.end_time}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, end_time: e.target.value })
                 }
               />
             </div>
@@ -323,6 +391,22 @@ function GuestTransportManagement() {
                 value={vehicleForm.location}
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, location: e.target.value })
+                }
+              />
+              <input
+                className="nicInput"
+                placeholder="Assigned At"
+                value={vehicleForm.assigned_at}
+                onChange={(e) =>
+                  setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
+                }
+              />
+              <input
+                className="nicInput"
+                placeholder="Released At"
+                value={vehicleForm.released_at}
+                onChange={(e) =>
+                  setVehicleForm({ ...vehicleForm, released_at: e.target.value })
                 }
               />
             </div>

@@ -42,6 +42,7 @@ export async function assignDriverToGuest(payload: {
   return res.data;
 }
 
+
 // Unassign driver
 export async function unassignDriver(guestDriverId: string) {
   const res = await api.delete(`/guest-driver/${guestDriverId}`);
@@ -54,13 +55,13 @@ export async function unassignDriver(guestDriverId: string) {
 
 // Vehicle assigned to a guest
 export async function getVehicleByGuest(guestId: string) {
-  const res = await api.get(`/guest-vehicle/guest/${guestId}`);
+  const res = await api.get(`/guest-vehicle/by-guest/${guestId}`);
   return res.data; // object | null
 }
 
 // Vehicles available for assignment
 export async function getAssignableVehicles() {
-  const res = await api.get("/vehicles/available");
+  const res = await api.get("/vehicles/assignable");
   return res.data;
 }
 
@@ -80,6 +81,8 @@ export async function assignVehicleToGuest(payload: {
 
 // Unassign vehicle
 export async function unassignVehicle(guestVehicleId: string) {
-  const res = await api.patch(`/guest-vehicle/${guestVehicleId}`);
+  const res = await api.patch(
+    `/guest-vehicle/guest-vehicle/${guestVehicleId}/release`
+  );
   return res.data;
 }

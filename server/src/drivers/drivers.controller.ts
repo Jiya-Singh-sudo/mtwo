@@ -78,6 +78,11 @@ assignDriver(
   findAllActive() {
     return this.service.findAll(true);
   }
+  @Get('available')
+getAvailableDrivers() {
+  return this.service.findAssignableDrivers();
+}
+
 
   // GET all drivers including inactive
   @Get('all')
