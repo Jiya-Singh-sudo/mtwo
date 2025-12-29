@@ -217,27 +217,20 @@ export default function DriverDutyRoasterPage() {
                                             className="editBtn"
                                             onClick={() => {
                                                 setEditItem({
-                                                    duty_id: "",
                                                     driver_id: item.driver_id,
                                                     duty_date: weekStartDate,
-                                                    shift: "morning",
-                                                    duty_in_time: null,
-                                                    duty_out_time: null,
-                                                    is_week_off: false,
-                                                    is_active: true,
-                                                });
+                                                } as DriverDuty);
+
                                                 setEditForm({
-                                                    duty_id: "",
                                                     driver_id: item.driver_id,
                                                     duty_date: weekStartDate,
                                                     shift: "morning",
                                                     duty_in_time: null,
                                                     duty_out_time: null,
                                                     is_week_off: false,
-                                                    is_active: true,
-                                                });
-                                            }}
-                                        >
+                                                } as DriverDuty);
+                                                }}
+                                            >
                                             <Edit size={16} />
                                         </button>
                                     </td>
