@@ -31,14 +31,6 @@ export class DriverDutyController {
   ) {
     return this.service.update(dutyId, dto);
   }
-
-  /* ================= READ ================= */
-
-  @Get(':dutyId')
-  findOne(@Param('dutyId') dutyId: string) {
-    return this.service.findOne(dutyId);
-  }
-
   /**
    * Fetch duties in a date range
    * Example:
@@ -52,6 +44,15 @@ export class DriverDutyController {
     return this.service.findByDateRange(from, to);
   }
 
+
+  /* ================= READ ================= */
+
+  @Get(':dutyId')
+  findOne(@Param('dutyId') dutyId: string) {
+    return this.service.findOne(dutyId);
+  }
+
+  
   /**
    * Fetch duties for a specific driver
    * Example:

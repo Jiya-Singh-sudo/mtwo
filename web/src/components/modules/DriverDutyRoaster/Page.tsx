@@ -37,7 +37,8 @@ export default function DriverDutyRoasterPage() {
         async function load() {
             try {
                 setLoading(true);
-                const duties = await getDriverDutiesByRange(from, to);
+                const response = await getDriverDutiesByRange(from, to);
+                const duties = response.data;
                 console.log("FROM:", from, "TO:", to);
                 console.log("RAW DUTIES:", duties);
 

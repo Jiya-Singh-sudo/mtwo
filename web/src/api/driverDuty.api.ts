@@ -38,15 +38,13 @@ export async function getDriverDutyById(
  * Example:
  * getDriverDutiesByRange('2025-03-01', '2025-03-07')
  */
-export async function getDriverDutiesByRange(
-  from: string,
-  to: string,
-): Promise<DriverDuty[]> {
-  const res = await api.get('/driver-duty', {
-    params: { from, to },
-  });
+export async function getDriverDutiesByRange(from: string, to: string) {
+  const res = await api.get(
+    `/driver-duty/range?from=${from}&to=${to}`
+  );
   return res.data;
 }
+
 
 /**
  * Fetch duties for a specific driver
