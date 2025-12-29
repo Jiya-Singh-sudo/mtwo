@@ -1,6 +1,6 @@
 export enum DriverShiftEnum {
-    MORNING = 'Morning',
-    AFTERNOON = 'Afternoon',
-    EVENING = 'Evening',
-    NIGHT = 'Night',
+    MORNING = 'morning',
+    AFTERNOON = 'afternoon',
+    EVENING = 'evening',
+    NIGHT = 'night',
 }

@@ -21,10 +21,12 @@ export class DriverDutyService {
     return `DD${String(last + 1).padStart(3, '0')}`;
   }
 
-  async create(dto: CreateDriverDutyDto) {
+async create(dto: CreateDriverDutyDto) {
+  try {
     const dutyId = await this.generateId();
 
-    const sql = `
+    const res = await this.db.query(
+      `
       INSERT INTO t_driver_duty (
         duty_id,
         driver_id,
@@ -36,21 +38,25 @@ export class DriverDutyService {
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *;
-    `;
+      `,
+      [
+        dutyId,
+        dto.driver_id,
+        dto.duty_date,
+        dto.shift,
+        dto.duty_in_time ?? null,
+        dto.duty_out_time ?? null,
+        dto.is_week_off ?? false,
+      ],
+    );
 
-    const params = [
-      dutyId,
-      dto.driver_id,
-      dto.duty_date,
-      dto.shift,
-      dto.duty_in_time ?? null,
-      dto.duty_out_time ?? null,
-      dto.is_week_off ?? false,
-    ];
-
-    const res = await this.db.query(sql, params);
     return res.rows[0];
+  } catch (err) {
+    console.error("CREATE DRIVER DUTY FAILED", err);
+    throw err;
   }
+}
+
 
   async update(dutyId: string, dto: UpdateDriverDutyDto) {
     const existing = await this.findOne(dutyId);
