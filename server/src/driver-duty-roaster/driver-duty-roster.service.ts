@@ -1,0 +1,124 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DatabaseService } from '../database/database.service';
+import { CreateDriverDutyDto } from './dto/createDriverDuty.dto';
+import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
+
+@Injectable()
+export class DriverDutyRosterService {
+  constructor(private readonly db: DatabaseService) {}
+
+  private async generateId(): Promise<string> {
+    const res = await this.db.query(`
+      SELECT duty_id
+      FROM t_driver_duty
+      ORDER BY CAST(SUBSTRING(duty_id FROM 3) AS INTEGER) DESC
+      LIMIT 1
+    `);
+
+    if (!res.rows.length) return 'DD001';
+
+    const last = parseInt(res.rows[0].duty_id.replace('DD', ''), 10);
+    return `DD${String(last + 1).padStart(3, '0')}`;
+  }
+
+  async create(dto: CreateDriverDutyDto) {
+    const dutyId = await this.generateId();
+
+    const sql = `
+      INSERT INTO t_driver_duty (
+        duty_id,
+        driver_id,
+        duty_date,
+        shift,
+        duty_in_time,
+        duty_out_time,
+        is_week_off
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *;
+    `;
+
+    const params = [
+      dutyId,
+      dto.driver_id,
+      dto.duty_date,
+      dto.shift,
+      dto.duty_in_time ?? null,
+      dto.duty_out_time ?? null,
+      dto.is_week_off ?? false,
+    ];
+
+    const res = await this.db.query(sql, params);
+    return res.rows[0];
+  }
+
+  async update(dutyId: string, dto: UpdateDriverDutyDto) {
+    const existing = await this.findOne(dutyId);
+
+    const sql = `
+      UPDATE t_driver_duty
+      SET
+        duty_date     = $1,
+        shift         = $2,
+        duty_in_time  = $3,
+        duty_out_time = $4,
+        is_week_off   = $5,
+        updated_at    = now()
+      WHERE duty_id = $6
+      RETURNING *;
+    `;
+
+    const res = await this.db.query(sql, [
+      dto.duty_date ?? existing.duty_date,
+      dto.shift ?? existing.shift,
+      dto.duty_in_time ?? existing.duty_in_time,
+      dto.duty_out_time ?? existing.duty_out_time,
+      dto.is_week_off ?? existing.is_week_off,
+      dutyId,
+    ]);
+
+    return res.rows[0];
+  }
+
+  async findOne(dutyId: string) {
+    const res = await this.db.query(
+      `SELECT * FROM t_driver_duty WHERE duty_id = $1`,
+      [dutyId],
+    );
+
+    if (!res.rows.length) {
+      throw new NotFoundException(`Duty ${dutyId} not found`);
+    }
+
+    return res.rows[0];
+  }
+
+  async findByDateRange(from: string, to: string) {
+    const res = await this.db.query(
+      `
+      SELECT *
+      FROM t_driver_duty
+      WHERE duty_date BETWEEN $1 AND $2
+      ORDER BY duty_date, driver_id
+      `,
+      [from, to],
+    );
+
+    return res.rows;
+  }
+
+  async findByDriver(driverId: string, from: string, to: string) {
+    const res = await this.db.query(
+      `
+      SELECT *
+      FROM t_driver_duty
+      WHERE driver_id = $1
+      AND duty_date BETWEEN $2 AND $3
+      ORDER BY duty_date
+      `,
+      [driverId, from, to],
+    );
+
+    return res.rows;
+  }
+}

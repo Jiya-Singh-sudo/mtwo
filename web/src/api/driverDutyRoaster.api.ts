@@ -21,9 +21,6 @@ export async function getDriverRoasterWithDrivers(): Promise<DriverDutyRoasterRo
   }));
 }
 
-
-
-
 /* -------------------------------------------------
    GET – Active roasters only
 ------------------------------------------------- */
@@ -72,7 +69,7 @@ export async function updateDriverDutyRoaster(
   id: string,
   payload: DriverDutyRoasterUpdateDto
 ): Promise<DriverDutyRoasterRow> {
-  const res = await api.put(`/driver-duty-roaster/${id}`, payload);
+  const res = await api.put(`/driver-duty-roaster/update/${id}`, payload);
   return res.data;
 }
 

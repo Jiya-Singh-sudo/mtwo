@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Edit, Trash2, Car as CarIcon } from 'lucide-react';
+import { Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { getAllVehicles, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
-import { fetchDrivers, createDriver } from '../../../api/driver.api';
+import { fetchDrivers, createDriver, softDeleteDriver } from '../../../api/driver.api';
 import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
 
 interface Vehicle {
-  vehicle_id: string;
   vehicle_no: string;
   vehicle_name: string;
   model?: string | null;
@@ -155,10 +154,10 @@ export function VehicleManagement() {
       color: vehicleFormData.color,
     };
 
-    const updated = await updateVehicle(selectedVehicle.vehicle_id, payload);
+    const updated = await updateVehicle(selectedVehicle.vehicle_no, payload);
 
     setVehicles(prev =>
-      prev.map(v => (v.vehicle_id === selectedVehicle.vehicle_id ? updated : v))
+      prev.map(v => (v.vehicle_no === selectedVehicle.vehicle_no ? updated : v))
     );
 
     setShowEditVehicle(false);
@@ -168,10 +167,10 @@ export function VehicleManagement() {
   const handleDeleteVehicle = async () => {
     if (!selectedVehicle) return;
 
-    await softDeleteVehicle(selectedVehicle.vehicle_id);
+    await softDeleteVehicle(selectedVehicle.vehicle_no);
 
     setVehicles(prev =>
-      prev.filter(v => v.vehicle_id !== selectedVehicle.vehicle_id)
+      prev.filter(v => v.vehicle_no !== selectedVehicle.vehicle_no)
     );
 
     setShowDeleteVehicleConfirm(false);
@@ -195,21 +194,6 @@ export function VehicleManagement() {
     setSelectedVehicle(vehicle);
     setShowDeleteVehicleConfirm(true);
   };
-
-  const openAssignModal = (vehicle: Vehicle) => {
-    setSelectedVehicle(vehicle);
-    // setAssignDriver(vehicle.driverAssigned);
-    // setIsAssignModalOpen(true);
-  };
-
-  // const handleAssign = () => {
-  //   if (selectedVehicle && assignDriver) {
-  //     // setVehicles(vehicles.map(v => v.id === selectedVehicle.id ? { ...v, driverAssigned: assignDriver } : v));
-  //     setIsAssignModalOpen(false);
-  //     setSelectedVehicle(null);
-  //     setAssignDriver('');
-  //   }
-  // };
 
   const resetVehicleForm = () => {
     setVehicleFormData({
@@ -249,12 +233,14 @@ export function VehicleManagement() {
     }
   };
 
-  const handleDeleteDriver = () => {
-    if (selectedDriver) {
-      setDrivers(drivers.filter(d => d.driver_id !== selectedDriver.driver_id));
-      setShowDeleteDriverConfirm(false);
-      setSelectedDriver(null);
-    }
+  const handleDeleteDriver = async () => {
+     if (!selectedDriver) return;
+    await softDeleteDriver(selectedDriver.driver_id);
+    setDrivers(prev =>
+      prev.filter(v => v.driver_id !== selectedDriver.driver_id)
+    );
+    setShowDeleteDriverConfirm(false);
+    setSelectedDriver(null);
   };
 
   const openEditDriverModal = (driver: Driver) => {
@@ -385,7 +371,7 @@ export function VehicleManagement() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEditVehicleModal(vehicle)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                               title="Edit"
                             >
                               <Edit className="w-4 h-4" />
@@ -396,13 +382,6 @@ export function VehicleManagement() {
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openAssignModal(vehicle)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="Assign Driver"
-                            >
-                              <CarIcon className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -487,7 +466,7 @@ export function VehicleManagement() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEditDriverModal(driver)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                               title="Edit"
                             >
                               <Edit className="w-4 h-4" />

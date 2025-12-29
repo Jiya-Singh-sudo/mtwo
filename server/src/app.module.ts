@@ -26,7 +26,7 @@ import { AuthModule } from './auth/auth.module';
 import { GuestVehicleModule } from './guest_vehicle/guest_vehicle.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DocumentsModule } from './documents/documents.module';
-import { DriverDutyRoasterModule } from './driver-duty-roaster/driver-duty-roaster.module';
+import { DriverDutyRosterModule } from './driver-duty-roaster/driver-duty-roster.module';
 
 @Module({
   imports: [
@@ -57,7 +57,7 @@ import { DriverDutyRoasterModule } from './driver-duty-roaster/driver-duty-roast
     GuestVehicleModule,
     DashboardModule,
     DocumentsModule,
-    DriverDutyRoasterModule,
+    DriverDutyRosterModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

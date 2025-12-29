@@ -216,14 +216,11 @@ async assignDriver(
     return result.rows[0];
   }
 
-  async softDelete(driver_name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(driver_name);
+  async softDelete(driver_id: string, user: string, ip: string) {
+    const existing = await this.findOneById(driver_id);
     if (!existing) {
-      throw new Error(`Driver '${driver_name}' not found`);
+      throw new Error(`Driver '${driver_id}' not found`);
     }
-
-    const driver_id = existing.driver_id;
-
     const now = new Date().toISOString();
 
     const sql = `

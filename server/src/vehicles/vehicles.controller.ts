@@ -69,7 +69,7 @@ export class VehiclesController {
     }
   
     // SOFT DELETE
-    @Delete(':role_id')
+    @Delete('delete/:role_id')
     softDelete(@Param('role_id') id: string, @Req() req: any) {
       const user = req.headers['x-user'] || 'system';
       const ip = this.extractIp(req);

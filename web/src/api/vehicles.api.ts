@@ -37,7 +37,7 @@ export async function updateVehicle(
 // DELETE /vehicles/:vehicle_no
 export async function softDeleteVehicle(vehicleNo: string, user = "system") {
   const res = await api.delete(
-    `/vehicles/${encodeURIComponent(vehicleNo)}`,
+    `/vehicles/delete/${encodeURIComponent(vehicleNo)}`,
     { headers: { "x-user": user } }
   );
   return res.data;

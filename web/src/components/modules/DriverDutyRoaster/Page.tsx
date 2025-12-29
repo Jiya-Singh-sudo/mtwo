@@ -19,7 +19,6 @@ export default function DriverDutyRoasterPage() {
     const [viewItem, setViewItem] = useState<DriverDutyRoasterRow | null>(null);
     const [editItem, setEditItem] = useState<DriverDutyRoasterRow | null>(null);
     const [editForm, setEditForm] = useState<DriverDutyRoasterRow | null>(null);
-
     const [saving, setSaving] = useState(false);
 
     /* ================= LOAD DATA ================= */
@@ -34,6 +33,8 @@ export default function DriverDutyRoasterPage() {
 
                 if (mounted && Array.isArray(data)) {
                     setRosters(data);
+                    console.log("FETCHED ROSTERS:", data);
+
                 }
             } catch (err) {
                 console.error(err);
@@ -41,6 +42,7 @@ export default function DriverDutyRoasterPage() {
             } finally {
                 if (mounted) setLoading(false);
             }
+            
         }
 
         load();
@@ -50,33 +52,28 @@ export default function DriverDutyRoasterPage() {
     }, []);
 
     /* ================= HELPERS ================= */
-
     const renderDay = (
-        inTime?: string | null,
-        outTime?: string | null,
-        weekOff?: boolean | null
+    _dayIndex: number,
+    inTime?: string | null,
+    outTime?: string | null,
+    weekOff?: boolean | null
     ) => {
-        if (weekOff) {
-            return <span className="weekOff">Week Off</span>;
-        }
+    if (weekOff) {
+        return <span className="weekOff">Week Off</span>;
+    }
 
-        // 👇 THIS is where your "Pending" goes
-        if (!inTime && !outTime) {
-            return <span className="subText italic text-gray-400">Pending</span>;
-        }
+    if (!inTime || !outTime) {
+        return <span className="subText italic text-gray-400">Pending</span>;
+    }
 
-        // Partial data safety
-        if (!inTime || !outTime) {
-            return <span className="subText italic text-gray-400">Incomplete</span>;
-        }
-
-        return (
-            <span className="time flex items-center gap-1">
-                <Clock size={14} />
-                {inTime} – {outTime}
-            </span>
-        );
+    return (
+        <span className="time flex items-center gap-1">
+        <Clock size={14} />
+        {inTime} – {outTime}
+        </span>
+    );
     };
+
 
 
     const renderEditDay = (
@@ -85,6 +82,22 @@ export default function DriverDutyRoasterPage() {
         outKey: keyof DriverDutyRoasterRow,
         offKey: keyof DriverDutyRoasterRow
     ) => {
+        const dayIndex = {
+            Monday: 1,
+            Tuesday: 2,
+            Wednesday: 3,
+            Thursday: 4,
+            Friday: 5,
+            Saturday: 6,
+            Sunday: 0,
+            }[label];
+
+            const today = new Date().getDay();
+
+            if (dayIndex !== undefined && today !== 0 && dayIndex < today) {
+            return null;
+            }
+
         if (!editForm) return null;
 
         const isOff = Boolean(editForm[offKey]);
@@ -151,32 +164,32 @@ export default function DriverDutyRoasterPage() {
             setSaving(true);
 
             await updateDriverDutyRoaster(editForm.duty_roaster_id, {
-                monday_duty_in_time: editForm.monday_in_time ?? undefined,
-                monday_duty_out_time: editForm.monday_out_time ?? undefined,
+                monday_duty_in_time: editForm.monday_duty_in_time ?? undefined,
+                monday_duty_out_time: editForm.monday_duty_out_time ?? undefined,
                 monday_week_off: editForm.monday_week_off ?? undefined,
 
-                tuesday_duty_in_time: editForm.tuesday_in_time ?? undefined,
-                tuesday_duty_out_time: editForm.tuesday_out_time ?? undefined,
+                tuesday_duty_in_time: editForm.tuesday_duty_in_time ?? undefined,
+                tuesday_duty_out_time: editForm.tuesday_duty_out_time ?? undefined,
                 tuesday_week_off: editForm.tuesday_week_off ?? undefined,
 
-                wednesday_duty_in_time: editForm.wednesday_in_time ?? undefined,
-                wednesday_duty_out_time: editForm.wednesday_out_time ?? undefined,
+                wednesday_duty_in_time: editForm.wednesday_duty_in_time ?? undefined,
+                wednesday_duty_out_time: editForm.wednesday_duty_out_time ?? undefined,
                 wednesday_week_off: editForm.wednesday_week_off ?? undefined,
 
-                thursday_duty_in_time: editForm.thursday_in_time ?? undefined,
-                thursday_duty_out_time: editForm.thursday_out_time ?? undefined,
+                thursday_duty_in_time: editForm.thursday_duty_in_time ?? undefined,
+                thursday_duty_out_time: editForm.thursday_duty_out_time ?? undefined,
                 thursday_week_off: editForm.thursday_week_off ?? undefined,
 
-                friday_duty_in_time: editForm.friday_in_time ?? undefined,
-                friday_duty_out_time: editForm.friday_out_time ?? undefined,
+                friday_duty_in_time: editForm.friday_duty_in_time ?? undefined,
+                friday_duty_out_time: editForm.friday_duty_out_time ?? undefined,
                 friday_week_off: editForm.friday_week_off ?? undefined,
 
-                saturday_duty_in_time: editForm.saturday_in_time ?? undefined,
-                saturday_duty_out_time: editForm.saturday_out_time ?? undefined,
+                saturday_duty_in_time: editForm.saturday_duty_in_time ?? undefined,
+                saturday_duty_out_time: editForm.saturday_duty_out_time ?? undefined,
                 saturday_week_off: editForm.saturday_week_off ?? undefined,
 
-                sunday_duty_in_time: editForm.sunday_in_time ?? undefined,
-                sunday_duty_out_time: editForm.sunday_out_time ?? undefined,
+                sunday_duty_in_time: editForm.sunday_duty_in_time ?? undefined,
+                sunday_duty_out_time: editForm.sunday_duty_out_time ?? undefined,
                 sunday_week_off: editForm.sunday_week_off ?? undefined,
 
                 shift: editForm.shift ?? undefined,
@@ -240,18 +253,18 @@ export default function DriverDutyRoasterPage() {
                                 <tr key={item.duty_roaster_id ?? `driver-${item.driver_id}`}>
                                     <td>{item.driver_name}</td>
 
-                                    <td>{renderDay(item.monday_in_time, item.monday_out_time, item.monday_week_off)}</td>
-                                    <td>{renderDay(item.tuesday_in_time, item.tuesday_out_time, item.tuesday_week_off)}</td>
-                                    <td>{renderDay(item.wednesday_in_time, item.wednesday_out_time, item.wednesday_week_off)}</td>
-                                    <td>{renderDay(item.thursday_in_time, item.thursday_out_time, item.thursday_week_off)}</td>
-                                    <td>{renderDay(item.friday_in_time, item.friday_out_time, item.friday_week_off)}</td>
-                                    <td>{renderDay(item.saturday_in_time, item.saturday_out_time, item.saturday_week_off)}</td>
-                                    <td>{renderDay(item.sunday_in_time, item.sunday_out_time, item.sunday_week_off)}</td>
+                                    <td>{renderDay(1, item.monday_duty_in_time, item.monday_duty_out_time, item.monday_week_off)}</td>
+                                    <td>{renderDay(2, item.tuesday_duty_in_time, item.tuesday_duty_out_time, item.tuesday_week_off)}</td>
+                                    <td>{renderDay(3, item.wednesday_duty_in_time, item.wednesday_duty_out_time, item.wednesday_week_off)}</td>
+                                    <td>{renderDay(4, item.thursday_duty_in_time, item.thursday_duty_out_time, item.thursday_week_off)}</td>
+                                    <td>{renderDay(5, item.friday_duty_in_time, item.friday_duty_out_time, item.friday_week_off)}</td>
+                                    <td>{renderDay(6, item.saturday_duty_in_time, item.saturday_duty_out_time, item.saturday_week_off)}</td>
+                                    <td>{renderDay(0, item.sunday_duty_in_time, item.sunday_duty_out_time, item.sunday_week_off)}</td>
 
                                     <td>
                                         <div className="actionBtns">
                                             <button onClick={() => setViewItem(item)}>
-                                                <Eye size={16} />
+                                                <Eye className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" size={16} />
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -259,7 +272,7 @@ export default function DriverDutyRoasterPage() {
                                                     setEditForm({ ...item });
                                                 }}
                                             >
-                                                <Edit size={16} />
+                                                <Edit className="p-1.5 text-green-600 hover:bg-green-50 rounded" size={16} />
                                             </button>
                                         </div>
                                     </td>
@@ -331,13 +344,13 @@ export default function DriverDutyRoasterPage() {
                         </div>
 
                         <div className="editForm">
-                            {renderEditDay("Monday", "monday_in_time", "monday_out_time", "monday_week_off")}
-                            {renderEditDay("Tuesday", "tuesday_in_time", "tuesday_out_time", "tuesday_week_off")}
-                            {renderEditDay("Wednesday", "wednesday_in_time", "wednesday_out_time", "wednesday_week_off")}
-                            {renderEditDay("Thursday", "thursday_in_time", "thursday_out_time", "thursday_week_off")}
-                            {renderEditDay("Friday", "friday_in_time", "friday_out_time", "friday_week_off")}
-                            {renderEditDay("Saturday", "saturday_in_time", "saturday_out_time", "saturday_week_off")}
-                            {renderEditDay("Sunday", "sunday_in_time", "sunday_out_time", "sunday_week_off")}
+                            {renderEditDay("Monday", "monday_duty_in_time", "monday_duty_out_time", "monday_week_off")}
+                            {renderEditDay("Tuesday", "tuesday_duty_in_time", "tuesday_duty_out_time", "tuesday_week_off")}
+                            {renderEditDay("Wednesday", "wednesday_duty_in_time", "wednesday_duty_out_time", "wednesday_week_off")}
+                            {renderEditDay("Thursday", "thursday_duty_in_time", "thursday_duty_out_time", "thursday_week_off")}
+                            {renderEditDay("Friday", "friday_duty_in_time", "friday_duty_out_time", "friday_week_off")}
+                            {renderEditDay("Saturday", "saturday_duty_in_time", "saturday_duty_out_time", "saturday_week_off")}
+                            {renderEditDay("Sunday", "sunday_duty_in_time", "sunday_duty_out_time", "sunday_week_off")}
                         </div>
 
                         <div className="nicModalActions">

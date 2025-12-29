@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DriverDutyRoasterController } from './driver-duty-roaster.controller';
+import { DriverDutyRoasterController } from './driver-duty-roster.controller';
 
 describe('DriverDutyRoasterController', () => {
   let controller: DriverDutyRoasterController;

@@ -148,32 +148,32 @@ export interface DriverDutyRoasterRow {
   shift?: ShiftType | null;
 
 
-  monday_in_time?: string | null;
-  monday_out_time?: string | null;
+  monday_duty_in_time?: string | null;
+  monday_duty_out_time?: string | null;
   monday_week_off?: boolean | null;
 
-  tuesday_in_time?: string | null;
-  tuesday_out_time?: string | null;
+  tuesday_duty_in_time?: string | null;
+  tuesday_duty_out_time?: string | null;
   tuesday_week_off?: boolean | null;
 
-  wednesday_in_time?: string | null;
-  wednesday_out_time?: string | null;
+  wednesday_duty_in_time?: string | null;
+  wednesday_duty_out_time?: string | null;
   wednesday_week_off?: boolean | null;
 
-  thursday_in_time?: string | null;
-  thursday_out_time?: string | null;
+  thursday_duty_in_time?: string | null;
+  thursday_duty_out_time?: string | null;
   thursday_week_off?: boolean | null;
 
-  friday_in_time?: string | null;
-  friday_out_time?: string | null;
+  friday_duty_in_time?: string | null;
+  friday_duty_out_time?: string | null;
   friday_week_off?: boolean | null;
 
-  saturday_in_time?: string | null;
-  saturday_out_time?: string | null;
+  saturday_duty_in_time?: string | null;
+  saturday_duty_out_time?: string | null;
   saturday_week_off?: boolean | null;
 
-  sunday_in_time?: string | null;
-  sunday_out_time?: string | null;
+  sunday_duty_in_time?: string | null;
+  sunday_duty_out_time?: string | null;
   sunday_week_off?: boolean | null;
 
   is_roaster_active?: boolean | null;

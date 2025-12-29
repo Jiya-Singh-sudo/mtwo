@@ -91,10 +91,10 @@ getAvailableDrivers() {
   }
 
   // SOFT DELETE
-  @Delete(':driver_Name')
-  softDelete(@Param('driver_Name') driverName: string, @Req() req: any) {
+  @Delete(':driver_id')
+  softDelete(@Param('driver_id') driver_id: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
     const ip = this.extractIp(req);
-    return this.service.softDelete(driverName, user, ip);
+    return this.service.softDelete(driver_id, user, ip);
   }
 }
