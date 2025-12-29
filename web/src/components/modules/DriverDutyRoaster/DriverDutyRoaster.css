@@ -473,11 +473,12 @@
   cursor: pointer;
   padding: 6px;
   border-radius: 4px;
-  color: #2563eb;
+  color: green;
+  
 }
 
 .editBtn:hover {
-  background: #e0ecff;
+  background: rgb(217, 234, 217);
 }
 
 /* Modal overlay */

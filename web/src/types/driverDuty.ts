@@ -8,7 +8,7 @@ export interface DriverDuty {
 
   duty_date: string; // YYYY-MM-DD
 
-  shift: DriverShift;
+  shift: DriverShift; 
 
   duty_in_time: string | null; // HH:mm:ss
   duty_out_time: string | null;

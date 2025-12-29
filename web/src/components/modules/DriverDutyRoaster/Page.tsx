@@ -4,6 +4,7 @@ import { Clock, Edit, X } from "lucide-react";
 import {
     getDriverDutiesByRange,
     updateDriverDuty,
+    createDriverDuty,
 } from "../../../api/driverDuty.api";
 
 import { DriverDuty, DriverWeeklyRow } from "@/types/driverDuty";
@@ -29,66 +30,56 @@ export default function DriverDutyRoasterPage() {
 
 
     /* ================= LOAD DATA ================= */
-
-    useEffect(() => {
+    const load = async () => {
         const getDateForDay = (weekStart: string, dayIndex: number) => {
             const [y, m, d] = weekStart.split("-").map(Number);
             const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
             return date.toISOString().slice(0, 10);
         };
-
-
-
         const from = weekStartDate;
         const to = getDateForDay(weekStartDate, 6);
+        try {
+            setLoading(true);
+            const duties = await getDriverDutiesByRange(from, to);
+            console.log("FROM:", from, "TO:", to);
+            console.log("RAW DUTIES:", duties);
 
-        async function load() {
-            try {
-                setLoading(true);
-                const duties = await getDriverDutiesByRange(from, to);
-                console.log("FROM:", from, "TO:", to);
-                console.log("RAW DUTIES:", duties);
+            const grouped: Record<string, DriverWeeklyRow> = {};
 
-                const grouped: Record<string, DriverWeeklyRow> = {};
-
-                for (const d of duties) {
-                    if (!grouped[d.driver_id]) {
-                        grouped[d.driver_id] = {
+            for (const d of duties) {
+                if (!grouped[d.driver_id]) {
+                    grouped[d.driver_id] = {
                         driver_id: d.driver_id,
                         driver_name: d.driver_name,
                         duties: {},
-                        };
-                    }
-
-                    if (d.duty_date) {
-                        const date = d.duty_date.slice(0, 10);
-                        grouped[d.driver_id].duties[date] = d;
-                    }
+                    };
                 }
 
-                setRosters(Object.values(grouped));
-
-            } catch {
-                setError("Failed to load duties");
-            } finally {
-                setLoading(false);
+                if (d.duty_date) {
+                    const date = d.duty_date.slice(0, 10);
+                    grouped[d.driver_id].duties[date] = d;
+                }
             }
-        }
 
+            setRosters(Object.values(grouped));
+
+        } catch {
+            setError("Failed to load duties");
+        } finally {
+            setLoading(false);
+        }
+    }
+    useEffect(() => {
         load();
     }, [weekStartDate]);
 
-
-
     /* ================= HELPERS ================= */
 
-   const getDateForDay = (weekStart: string, dayIndex: number) => {
-    const [y, m, d] = weekStart.split("-").map(Number);
-    const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
-    return date.toISOString().slice(0, 10);
+    const getDateForDay = (weekStart: string, dayIndex: number) => {
+        const [y, m, d] = weekStart.split("-").map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
+        return date.toISOString().slice(0, 10);
     };
-
-
 
     const renderDay = (
         inTime?: string | null,
@@ -106,39 +97,51 @@ export default function DriverDutyRoasterPage() {
         );
     };
 
-
     /* ================= UPDATE HANDLER ================= */
 
     const handleUpdate = async () => {
-        if (!editForm || !editForm.duty_id) {
-            console.error("Missing duty_roaster_id", editForm);
-            alert("Invalid duty roaster. Cannot update.");
+        if (!editForm) {
+            alert("Invalid duty data");
             return;
         }
 
         try {
             setSaving(true);
 
-            await updateDriverDuty(editForm.duty_id, {
-                duty_in_time: editForm.duty_in_time,
-                duty_out_time: editForm.duty_out_time,
-                is_week_off: editForm.is_week_off,
-                shift: editForm.shift,
-            });
+            if (editForm.duty_id) {
+                // UPDATE
+                await updateDriverDuty(editForm.duty_id, {
+                    duty_in_time: editForm.duty_in_time,
+                    duty_out_time: editForm.duty_out_time,
+                    is_week_off: editForm.is_week_off,
+                    shift: editForm.shift,
+                });
+            } else {
+                // CREATE
+                await createDriverDuty({
+                    driver_id: editForm.driver_id,
+                    duty_date: editForm.duty_date,
+                    shift: editForm.shift,
+                    duty_in_time: editForm.duty_in_time ?? undefined,
+                    duty_out_time: editForm.duty_out_time ?? undefined,
+                    is_week_off: editForm.is_week_off,
+                });
+            }
 
             setEditItem(null);
             setEditForm(null);
+            await load();
 
             // reload week
             setWeekStartDate((prev) => prev);
-
         } catch (err) {
             console.error(err);
-            alert("Failed to update duty roaster");
+            alert("Failed to save duty roaster");
         } finally {
             setSaving(false);
         }
     };
+
 
     /* ================= UI STATES ================= */
 
@@ -152,19 +155,19 @@ export default function DriverDutyRoasterPage() {
             <h2 className="text-[#00247D] text-xl font-semibold">
                 Driver Duty Roaster
             </h2>
-                <div className="weekNav">
-                <button className="weekNavBtn prev">
+            <div className="weekNav">
+                <button className="weekNavBtn prev" onClick={() => setWeekStartDate((prev) => prev)}>
                     ← Prev Week
                 </button>
 
-                <span className="weekLabel">
+                <span className="weekLabel" onClick={() => setWeekStartDate((prev) => prev)}>
                     Week of {weekStartDate}
                 </span>
 
-                <button className="weekNavBtn next">
+                <button className="weekNavBtn next" onClick={() => setWeekStartDate((prev) => prev)}>
                     Next Week →
                 </button>
-                </div>
+            </div>
             <div className="rosterTableWrapper">
                 <table className="rosterTable">
                     <thead>
@@ -213,23 +216,31 @@ export default function DriverDutyRoasterPage() {
                                         <button
                                             className="editBtn"
                                             onClick={() => {
-                                            setEditItem({
-                                                driver_id: item.driver_id,
-                                                duty_date: weekStartDate,
-                                            } as DriverDuty);
-                                            setEditForm({
-                                                driver_id: item.driver_id,
-                                                duty_date: weekStartDate,
-                                                shift: "morning",
-                                                duty_in_time: null,
-                                                duty_out_time: null,
-                                                is_week_off: false,
-                                            } as DriverDuty);
+                                                setEditItem({
+                                                    duty_id: "",
+                                                    driver_id: item.driver_id,
+                                                    duty_date: weekStartDate,
+                                                    shift: "morning",
+                                                    duty_in_time: null,
+                                                    duty_out_time: null,
+                                                    is_week_off: false,
+                                                    is_active: true,
+                                                });
+                                                setEditForm({
+                                                    duty_id: "",
+                                                    driver_id: item.driver_id,
+                                                    duty_date: weekStartDate,
+                                                    shift: "morning",
+                                                    duty_in_time: null,
+                                                    duty_out_time: null,
+                                                    is_week_off: false,
+                                                    is_active: true,
+                                                });
                                             }}
                                         >
                                             <Edit size={16} />
                                         </button>
-                                        </td>
+                                    </td>
 
                                 </tr>
                             ))
