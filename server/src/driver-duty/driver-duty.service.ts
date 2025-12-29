@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { CreateDriverDutyDto } from './dto/createDriverDuty.dto';
-import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
+import { CreateDriverDutyDto } from '../driver-duty/dto/createDriverDuty.dto';
+import { UpdateDriverDutyDto } from '../driver-duty/dto/updateDriverDuty.dto';
 
 @Injectable()
-export class DriverDutyRosterService {
-  constructor(private readonly db: DatabaseService) {}
+export class DriverDutyService {
+  constructor(private readonly db: DatabaseService) { }
 
   private async generateId(): Promise<string> {
     const res = await this.db.query(`
@@ -87,23 +87,29 @@ export class DriverDutyRosterService {
     );
 
     if (!res.rows.length) {
-      throw new NotFoundException(`Duty ${dutyId} not found`);
+      return res.rows;
     }
 
     return res.rows[0];
   }
 
   async findByDateRange(from: string, to: string) {
-    const res = await this.db.query(
-      `
-      SELECT *
-      FROM t_driver_duty
-      WHERE duty_date BETWEEN $1 AND $2
-      ORDER BY duty_date, driver_id
-      `,
-      [from, to],
-    );
-
+    const sql = `
+    SELECT
+      d.duty_id,
+      d.driver_id,
+      dr.driver_name,
+      d.duty_date,
+      d.duty_in_time,
+      d.duty_out_time,
+      d.is_week_off,
+      d.shift
+    FROM t_driver_duty d
+    JOIN m_driver dr ON dr.driver_id = d.driver_id
+    WHERE d.duty_date BETWEEN $1 AND $2
+    ORDER BY dr.driver_name, d.duty_date
+  `;
+    const res = await this.db.query(sql, [from, to]);
     return res.rows;
   }
 

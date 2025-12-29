@@ -7,13 +7,13 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { DriverDutyRosterService } from './driver-duty-roster.service';
+import { DriverDutyService } from './driver-duty.service';
 import { CreateDriverDutyDto } from './dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
 
 @Controller('driver-duty')
-export class DriverDutyRosterController {
-  constructor(private readonly service: DriverDutyRosterService) {}
+export class DriverDutyController {
+  constructor(private readonly service: DriverDutyService) { }
 
   /* ================= CREATE ================= */
 
@@ -44,7 +44,7 @@ export class DriverDutyRosterController {
    * Example:
    * GET /driver-duty?from=2025-03-01&to=2025-03-07
    */
-  @Get()
+  @Get('range')
   findByDateRange(
     @Query('from') from: string,
     @Query('to') to: string,

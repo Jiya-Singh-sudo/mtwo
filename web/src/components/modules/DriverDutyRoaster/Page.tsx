@@ -1,160 +1,103 @@
 import { useEffect, useState } from "react";
-import { Clock, Eye, Edit, X } from "lucide-react";
+import { Clock, Edit, X } from "lucide-react";
 
 import {
-    getDriverRoasterWithDrivers,
-    updateDriverDutyRoaster,
-} from "../../../api/driverDutyRoaster.api";
+    getDriverDutiesByRange,
+    updateDriverDuty,
+} from "../../../api/driverDuty.api";
 
-import { DriverDutyRoasterRow } from "@/types/driverDutyRoaster";
+import { DriverDuty, DriverWeeklyRow } from "@/types/driverDuty";
 import "./DriverDutyRoaster.css";
 
 export default function DriverDutyRoasterPage() {
     /* ================= STATE ================= */
 
-    const [rosters, setRosters] = useState<DriverDutyRoasterRow[]>([]);
+    const [rosters, setRosters] = useState<DriverWeeklyRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [viewItem, setViewItem] = useState<DriverDutyRoasterRow | null>(null);
-    const [editItem, setEditItem] = useState<DriverDutyRoasterRow | null>(null);
-    const [editForm, setEditForm] = useState<DriverDutyRoasterRow | null>(null);
+    const [viewItem, setViewItem] = useState<DriverDuty | null>(null);
+    const [editItem, setEditItem] = useState<DriverDuty | null>(null);
+    const [editForm, setEditForm] = useState<DriverDuty | null>(null);
     const [saving, setSaving] = useState(false);
+    const [weekStartDate, setWeekStartDate] = useState<string>(() => {
+        const today = new Date();
+        const day = today.getDay() || 7; // Sunday = 7
+        today.setDate(today.getDate() - day + 1); // Monday
+        return today.toISOString().slice(0, 10);
+    });
+
 
     /* ================= LOAD DATA ================= */
 
     useEffect(() => {
-        let mounted = true;
+        const from = weekStartDate;
+        const to = getDateForDay(weekStartDate, 6);
 
         async function load() {
             try {
                 setLoading(true);
-                const data = await getDriverRoasterWithDrivers();
+                const duties = await getDriverDutiesByRange(from, to);
+                console.log("FROM:", from, "TO:", to);
+                console.log("RAW DUTIES:", duties);
 
-                if (mounted && Array.isArray(data)) {
-                    setRosters(data);
-                    console.log("FETCHED ROSTERS:", data);
 
+                const grouped: Record<string, DriverWeeklyRow> = {};
+
+                for (const d of duties) {
+                    if (!grouped[d.driver_id]) {
+                        grouped[d.driver_id] = {
+                            driver_id: d.driver_id,
+                            driver_name: d.driver_name,
+                            duties: {},
+                        };
+                    }
+                    grouped[d.driver_id].duties[d.duty_date] = d;
                 }
-            } catch (err) {
-                console.error(err);
-                if (mounted) setError("Failed to load driver duty roaster");
+
+                setRosters(Object.values(grouped));
+            } catch {
+                setError("Failed to load duties");
             } finally {
-                if (mounted) setLoading(false);
+                setLoading(false);
             }
-            
         }
 
         load();
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    }, [weekStartDate]);
+
+
 
     /* ================= HELPERS ================= */
-    const renderDay = (
-    _dayIndex: number,
-    inTime?: string | null,
-    outTime?: string | null,
-    weekOff?: boolean | null
-    ) => {
-    if (weekOff) {
-        return <span className="weekOff">Week Off</span>;
-    }
 
-    if (!inTime || !outTime) {
-        return <span className="subText italic text-gray-400">Pending</span>;
-    }
-
-    return (
-        <span className="time flex items-center gap-1">
-        <Clock size={14} />
-        {inTime} – {outTime}
-        </span>
-    );
+    const getDateForDay = (weekStart: string, dayIndex: number) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + dayIndex);
+        return d.toISOString().slice(0, 10);
     };
 
 
-
-    const renderEditDay = (
-        label: string,
-        inKey: keyof DriverDutyRoasterRow,
-        outKey: keyof DriverDutyRoasterRow,
-        offKey: keyof DriverDutyRoasterRow
+    const renderDay = (
+        inTime?: string | null,
+        outTime?: string | null,
+        weekOff?: boolean
     ) => {
-        const dayIndex = {
-            Monday: 1,
-            Tuesday: 2,
-            Wednesday: 3,
-            Thursday: 4,
-            Friday: 5,
-            Saturday: 6,
-            Sunday: 0,
-            }[label];
-
-            const today = new Date().getDay();
-
-            if (dayIndex !== undefined && today !== 0 && dayIndex < today) {
-            return null;
-            }
-
-        if (!editForm) return null;
-
-        const isOff = Boolean(editForm[offKey]);
+        if (weekOff) return <span className="weekOff">Week Off</span>;
+        if (!inTime || !outTime) return <span className="subText">Pending</span>;
 
         return (
-            <div className="dayRow">
-                <strong>{label}</strong>
-
-                <label className="weekOffToggle">
-                    <input
-                        type="checkbox"
-                        checked={isOff}
-                        onChange={(e) =>
-                            setEditForm({
-                                ...editForm,
-                                [offKey]: e.target.checked,
-                                ...(e.target.checked
-                                    ? { [inKey]: null, [outKey]: null }
-                                    : {}),
-                            })
-                        }
-                    />
-                    Week Off
-                </label>
-
-                {!isOff && (
-                    <>
-                        <input
-                            type="time"
-                            value={(editForm[inKey] as string) || ""}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    [inKey]: e.target.value,
-                                })
-                            }
-                        />
-                        <input
-                            type="time"
-                            value={(editForm[outKey] as string) || ""}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    [outKey]: e.target.value,
-                                })
-                            }
-                        />
-                    </>
-                )}
-            </div>
+            <span className="time">
+                <Clock size={14} />
+                {inTime} – {outTime}
+            </span>
         );
     };
+
 
     /* ================= UPDATE HANDLER ================= */
 
     const handleUpdate = async () => {
-        if (!editForm || !editForm.duty_roaster_id) {
+        if (!editForm || !editForm.duty_id) {
             console.error("Missing duty_roaster_id", editForm);
             alert("Invalid duty roaster. Cannot update.");
             return;
@@ -163,47 +106,19 @@ export default function DriverDutyRoasterPage() {
         try {
             setSaving(true);
 
-            await updateDriverDutyRoaster(editForm.duty_roaster_id, {
-                monday_duty_in_time: editForm.monday_duty_in_time ?? undefined,
-                monday_duty_out_time: editForm.monday_duty_out_time ?? undefined,
-                monday_week_off: editForm.monday_week_off ?? undefined,
-
-                tuesday_duty_in_time: editForm.tuesday_duty_in_time ?? undefined,
-                tuesday_duty_out_time: editForm.tuesday_duty_out_time ?? undefined,
-                tuesday_week_off: editForm.tuesday_week_off ?? undefined,
-
-                wednesday_duty_in_time: editForm.wednesday_duty_in_time ?? undefined,
-                wednesday_duty_out_time: editForm.wednesday_duty_out_time ?? undefined,
-                wednesday_week_off: editForm.wednesday_week_off ?? undefined,
-
-                thursday_duty_in_time: editForm.thursday_duty_in_time ?? undefined,
-                thursday_duty_out_time: editForm.thursday_duty_out_time ?? undefined,
-                thursday_week_off: editForm.thursday_week_off ?? undefined,
-
-                friday_duty_in_time: editForm.friday_duty_in_time ?? undefined,
-                friday_duty_out_time: editForm.friday_duty_out_time ?? undefined,
-                friday_week_off: editForm.friday_week_off ?? undefined,
-
-                saturday_duty_in_time: editForm.saturday_duty_in_time ?? undefined,
-                saturday_duty_out_time: editForm.saturday_duty_out_time ?? undefined,
-                saturday_week_off: editForm.saturday_week_off ?? undefined,
-
-                sunday_duty_in_time: editForm.sunday_duty_in_time ?? undefined,
-                sunday_duty_out_time: editForm.sunday_duty_out_time ?? undefined,
-                sunday_week_off: editForm.sunday_week_off ?? undefined,
-
-                shift: editForm.shift ?? undefined,
-                is_active: editForm.is_roaster_active ?? undefined,
+            await updateDriverDuty(editForm.duty_id, {
+                duty_in_time: editForm.duty_in_time,
+                duty_out_time: editForm.duty_out_time,
+                is_week_off: editForm.is_week_off,
+                shift: editForm.shift,
             });
-
-            setRosters((prev) =>
-                prev.map((r) =>
-                    r.duty_roaster_id === editForm.duty_roaster_id ? editForm : r
-                )
-            );
 
             setEditItem(null);
             setEditForm(null);
+
+            // reload week
+            setWeekStartDate((prev) => prev);
+
         } catch (err) {
             console.error(err);
             alert("Failed to update duty roaster");
@@ -224,6 +139,31 @@ export default function DriverDutyRoasterPage() {
             <h2 className="text-[#00247D] text-xl font-semibold">
                 Driver Duty Roaster
             </h2>
+            <div className="flex gap-4 items-center mb-4">
+                <button
+                    onClick={() => {
+                        const d = new Date(weekStartDate);
+                        d.setDate(d.getDate() - 7);
+                        setWeekStartDate(d.toISOString().slice(0, 10));
+                    }}
+                >
+                    ← Prev Week
+                </button>
+
+                <span className="font-semibold">
+                    Week of {weekStartDate}
+                </span>
+
+                <button
+                    onClick={() => {
+                        const d = new Date(weekStartDate);
+                        d.setDate(d.getDate() + 7);
+                        setWeekStartDate(d.toISOString().slice(0, 10));
+                    }}
+                >
+                    Next Week →
+                </button>
+            </div>
 
             <div className="rosterTableWrapper">
                 <table className="rosterTable">
@@ -250,32 +190,35 @@ export default function DriverDutyRoasterPage() {
                             </tr>
                         ) : (
                             rosters.map((item) => (
-                                <tr key={item.duty_roaster_id ?? `driver-${item.driver_id}`}>
-                                    <td>{item.driver_name}</td>
+                                <tr key={`driver-${item.driver_id}`}>
+                                    <td>{item.driver_name ?? "—"}</td>
 
-                                    <td>{renderDay(1, item.monday_duty_in_time, item.monday_duty_out_time, item.monday_week_off)}</td>
-                                    <td>{renderDay(2, item.tuesday_duty_in_time, item.tuesday_duty_out_time, item.tuesday_week_off)}</td>
-                                    <td>{renderDay(3, item.wednesday_duty_in_time, item.wednesday_duty_out_time, item.wednesday_week_off)}</td>
-                                    <td>{renderDay(4, item.thursday_duty_in_time, item.thursday_duty_out_time, item.thursday_week_off)}</td>
-                                    <td>{renderDay(5, item.friday_duty_in_time, item.friday_duty_out_time, item.friday_week_off)}</td>
-                                    <td>{renderDay(6, item.saturday_duty_in_time, item.saturday_duty_out_time, item.saturday_week_off)}</td>
-                                    <td>{renderDay(0, item.sunday_duty_in_time, item.sunday_duty_out_time, item.sunday_week_off)}</td>
+                                    {[0, 1, 2, 3, 4, 5, 6].map((dayOffset) => {
+                                        const date = getDateForDay(weekStartDate, dayOffset);
+                                        const duty = item.duties[date];
 
-                                    <td>
-                                        <div className="actionBtns">
-                                            <button onClick={() => setViewItem(item)}>
-                                                <Eye className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setEditItem(item);
-                                                    setEditForm({ ...item });
-                                                }}
-                                            >
-                                                <Edit className="p-1.5 text-green-600 hover:bg-green-50 rounded" size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
+                                        return (
+                                            <td key={date}>
+                                                {renderDay(
+                                                    duty?.duty_in_time,
+                                                    duty?.duty_out_time,
+                                                    duty?.is_week_off
+                                                )}
+
+                                                {duty && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditItem(duty);
+                                                            setEditForm(duty);
+                                                        }}
+                                                        className="ml-2"
+                                                    >
+                                                        <Edit size={14} />
+                                                    </button>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
                                 </tr>
                             ))
                         )}
@@ -312,45 +255,58 @@ export default function DriverDutyRoasterPage() {
                         </div>
 
                         <div className="editHeaderFields">
-                            <div>
-                                <label className="editLabel">Shift</label>
-                                <select
-                                    className="editSelect"
-                                    value={editForm.shift ?? ""}
-                                    onChange={(e) =>
-                                        setEditForm({ ...editForm, shift: e.target.value as any })
-                                    }
-                                >
-                                    <option value="">Select Shift</option>
-                                    <option value="morning">Morning</option>
-                                    <option value="afternoon">Afternoon</option>
-                                    <option value="night">Night</option>
-                                </select>
+                            <div className="editForm space-y-4">
+                                <label>
+                                    Shift
+                                    <select
+                                        value={editForm.shift}
+                                        onChange={(e) =>
+                                            setEditForm({ ...editForm, shift: e.target.value as any })
+                                        }
+                                    >
+                                        <option value="morning">Morning</option>
+                                        <option value="afternoon">Afternoon</option>
+                                        <option value="night">Night</option>
+                                    </select>
+                                </label>
+
+                                <label className="flex gap-2 items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={editForm.is_week_off}
+                                        onChange={(e) =>
+                                            setEditForm({
+                                                ...editForm,
+                                                is_week_off: e.target.checked,
+                                                ...(e.target.checked
+                                                    ? { duty_in_time: null, duty_out_time: null }
+                                                    : {}),
+                                            })
+                                        }
+                                    />
+                                    Week Off
+                                </label>
+
+                                {!editForm.is_week_off && (
+                                    <>
+                                        <input
+                                            type="time"
+                                            value={editForm.duty_in_time ?? ""}
+                                            onChange={(e) =>
+                                                setEditForm({ ...editForm, duty_in_time: e.target.value })
+                                            }
+                                        />
+                                        <input
+                                            type="time"
+                                            value={editForm.duty_out_time ?? ""}
+                                            onChange={(e) =>
+                                                setEditForm({ ...editForm, duty_out_time: e.target.value })
+                                            }
+                                        />
+                                    </>
+                                )}
                             </div>
 
-                            <label className="editCheckbox">
-                                <input
-                                    type="checkbox"
-                                    checked={Boolean(editForm.is_roaster_active)}
-                                    onChange={(e) =>
-                                        setEditForm({
-                                            ...editForm,
-                                            is_roaster_active: e.target.checked,
-                                        })
-                                    }
-                                />
-                                Active
-                            </label>
-                        </div>
-
-                        <div className="editForm">
-                            {renderEditDay("Monday", "monday_duty_in_time", "monday_duty_out_time", "monday_week_off")}
-                            {renderEditDay("Tuesday", "tuesday_duty_in_time", "tuesday_duty_out_time", "tuesday_week_off")}
-                            {renderEditDay("Wednesday", "wednesday_duty_in_time", "wednesday_duty_out_time", "wednesday_week_off")}
-                            {renderEditDay("Thursday", "thursday_duty_in_time", "thursday_duty_out_time", "thursday_week_off")}
-                            {renderEditDay("Friday", "friday_duty_in_time", "friday_duty_out_time", "friday_week_off")}
-                            {renderEditDay("Saturday", "saturday_duty_in_time", "saturday_duty_out_time", "saturday_week_off")}
-                            {renderEditDay("Sunday", "sunday_duty_in_time", "sunday_duty_out_time", "sunday_week_off")}
                         </div>
 
                         <div className="nicModalActions">
