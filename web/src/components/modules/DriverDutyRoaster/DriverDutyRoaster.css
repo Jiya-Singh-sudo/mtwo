@@ -531,3 +531,41 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+/* ================= WEEK NAV ================= */
+
+.weekNav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.weekNavBtn {
+  background: none;
+  border: none;
+  color: #00247d;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.weekNavBtn:hover {
+  text-decoration: underline;
+}
+
+.weekNavBtn.prev {
+  justify-self: start;
+}
+
+.weekNavBtn.next {
+  justify-self: end;
+}
+
+.weekLabel {
+  justify-self: center;
+  font-weight: 600;
+  color: #333;
+  font-size: 15px;
+}

@@ -38,6 +38,7 @@ export default function DriverDutyRoasterPage() {
         };
 
 
+
         const from = weekStartDate;
         const to = getDateForDay(weekStartDate, 6);
 
@@ -53,13 +54,16 @@ export default function DriverDutyRoasterPage() {
                 for (const d of duties) {
                     if (!grouped[d.driver_id]) {
                         grouped[d.driver_id] = {
-                            driver_id: d.driver_id,
-                            driver_name: d.driver_name,
-                            duties: {},
+                        driver_id: d.driver_id,
+                        driver_name: d.driver_name,
+                        duties: {},
                         };
                     }
-                    const date = d.duty_date.slice(0, 10);
-                    grouped[d.driver_id].duties[date] = d;
+
+                    if (d.duty_date) {
+                        const date = d.duty_date.slice(0, 10);
+                        grouped[d.driver_id].duties[date] = d;
+                    }
                 }
 
                 setRosters(Object.values(grouped));
@@ -148,32 +152,19 @@ export default function DriverDutyRoasterPage() {
             <h2 className="text-[#00247D] text-xl font-semibold">
                 Driver Duty Roaster
             </h2>
-            <div className="flex gap-4 items-center mb-4">
-                <button
-                    onClick={() => {
-                        const d = new Date(weekStartDate);
-                        d.setDate(d.getDate() - 7);
-                        setWeekStartDate(d.toISOString().slice(0, 10));
-                    }}
-                >
+                <div className="weekNav">
+                <button className="weekNavBtn prev">
                     ← Prev Week
                 </button>
 
-                <span className="font-semibold">
+                <span className="weekLabel">
                     Week of {weekStartDate}
                 </span>
 
-                <button
-                    onClick={() => {
-                        const d = new Date(weekStartDate);
-                        d.setDate(d.getDate() + 7);
-                        setWeekStartDate(d.toISOString().slice(0, 10));
-                    }}
-                >
+                <button className="weekNavBtn next">
                     Next Week →
                 </button>
-            </div>
-
+                </div>
             <div className="rosterTableWrapper">
                 <table className="rosterTable">
                     <thead>
@@ -213,49 +204,33 @@ export default function DriverDutyRoasterPage() {
                                                     duty?.duty_out_time,
                                                     duty?.is_week_off
                                                 )}
-
-                                                {duty && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (duty) {
-                                                                setEditItem(duty);
-                                                                setEditForm(duty);
-                                                            } else {
-                                                                setEditItem(null);
-                                                                setEditForm({
-                                                                    driver_id: item.driver_id,
-                                                                    duty_date: date,
-                                                                    shift: "morning",
-                                                                    duty_in_time: null,
-                                                                    duty_out_time: null,
-                                                                    is_week_off: false,
-                                                                } as DriverDuty);
-                                                            }
-                                                        }}
-                                                        className="ml-2"
-                                                    >
-                                                        <Edit size={14} />
-                                                    </button>
-
-                                                )}
                                             </td>
 
 
                                         );
                                     })}
-                                    <td>
+                                    <td className="actionsCell">
                                         <button
                                             className="editBtn"
                                             onClick={() => {
-                                                // choose a day to edit, usually clicked day later
-                                                const todayDate = getDateForDay(weekStartDate, 0);
-                                                const duty = item.duties[todayDate];
-
+                                            setEditItem({
+                                                driver_id: item.driver_id,
+                                                duty_date: weekStartDate,
+                                            } as DriverDuty);
+                                            setEditForm({
+                                                driver_id: item.driver_id,
+                                                duty_date: weekStartDate,
+                                                shift: "morning",
+                                                duty_in_time: null,
+                                                duty_out_time: null,
+                                                is_week_off: false,
+                                            } as DriverDuty);
                                             }}
                                         >
                                             <Edit size={16} />
                                         </button>
-                                    </td>
+                                        </td>
+
                                 </tr>
                             ))
                         )}
