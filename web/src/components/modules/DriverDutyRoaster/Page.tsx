@@ -31,17 +31,22 @@ export default function DriverDutyRoasterPage() {
     /* ================= LOAD DATA ================= */
 
     useEffect(() => {
+        const getDateForDay = (weekStart: string, dayIndex: number) => {
+            const [y, m, d] = weekStart.split("-").map(Number);
+            const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
+            return date.toISOString().slice(0, 10);
+        };
+
+
         const from = weekStartDate;
         const to = getDateForDay(weekStartDate, 6);
 
         async function load() {
             try {
                 setLoading(true);
-                const response = await getDriverDutiesByRange(from, to);
-                const duties = response.data;
+                const duties = await getDriverDutiesByRange(from, to);
                 console.log("FROM:", from, "TO:", to);
                 console.log("RAW DUTIES:", duties);
-
 
                 const grouped: Record<string, DriverWeeklyRow> = {};
 
@@ -53,10 +58,12 @@ export default function DriverDutyRoasterPage() {
                             duties: {},
                         };
                     }
-                    grouped[d.driver_id].duties[d.duty_date] = d;
+                    const date = d.duty_date.slice(0, 10);
+                    grouped[d.driver_id].duties[date] = d;
                 }
 
                 setRosters(Object.values(grouped));
+
             } catch {
                 setError("Failed to load duties");
             } finally {
@@ -71,11 +78,12 @@ export default function DriverDutyRoasterPage() {
 
     /* ================= HELPERS ================= */
 
-    const getDateForDay = (weekStart: string, dayIndex: number) => {
-        const d = new Date(weekStart);
-        d.setDate(d.getDate() + dayIndex);
-        return d.toISOString().slice(0, 10);
+   const getDateForDay = (weekStart: string, dayIndex: number) => {
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
+    return date.toISOString().slice(0, 10);
     };
+
 
 
     const renderDay = (
@@ -209,17 +217,45 @@ export default function DriverDutyRoasterPage() {
                                                 {duty && (
                                                     <button
                                                         onClick={() => {
-                                                            setEditItem(duty);
-                                                            setEditForm(duty);
+                                                            if (duty) {
+                                                                setEditItem(duty);
+                                                                setEditForm(duty);
+                                                            } else {
+                                                                setEditItem(null);
+                                                                setEditForm({
+                                                                    driver_id: item.driver_id,
+                                                                    duty_date: date,
+                                                                    shift: "morning",
+                                                                    duty_in_time: null,
+                                                                    duty_out_time: null,
+                                                                    is_week_off: false,
+                                                                } as DriverDuty);
+                                                            }
                                                         }}
                                                         className="ml-2"
                                                     >
                                                         <Edit size={14} />
                                                     </button>
+
                                                 )}
                                             </td>
+
+
                                         );
                                     })}
+                                    <td>
+                                        <button
+                                            className="editBtn"
+                                            onClick={() => {
+                                                // choose a day to edit, usually clicked day later
+                                                const todayDate = getDateForDay(weekStartDate, 0);
+                                                const duty = item.duties[todayDate];
+
+                                            }}
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                    </td>
                                 </tr>
                             ))
                         )}

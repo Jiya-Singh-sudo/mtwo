@@ -95,20 +95,22 @@ export class DriverDutyService {
 
   async findByDateRange(from: string, to: string) {
     const sql = `
-   SELECT
-  d.duty_id,
-  d.driver_id,
-  drv.driver_name,
-  d.duty_date,
-  d.shift,
-  d.duty_in_time,
-  d.duty_out_time,
-  d.is_week_off,
-  d.is_active
-FROM t_driver_duty d
-JOIN m_driver drv ON drv.driver_id = d.driver_id
-WHERE d.duty_date BETWEEN $1::date AND $2::date
-ORDER BY drv.driver_name, d.duty_date;
+      SELECT
+        drv.driver_id,
+        drv.driver_name,
+        d.duty_id,
+        d.duty_date,
+        d.shift,
+        d.duty_in_time,
+        d.duty_out_time,
+        d.is_week_off,
+        d.is_active
+      FROM m_driver drv
+      LEFT JOIN t_driver_duty d
+        ON d.driver_id = drv.driver_id
+        AND d.duty_date BETWEEN $1::date AND $2::date
+      WHERE drv.is_active = true
+      ORDER BY drv.driver_name, d.duty_date;
   `;
     const res = await this.db.query(sql, [from, to]);
     return res.rows;

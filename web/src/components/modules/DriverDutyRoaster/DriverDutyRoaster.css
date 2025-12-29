@@ -398,3 +398,136 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+/* Table wrapper */
+.rosterTableWrapper {
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Table */
+.rosterTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* Header */
+.rosterTable thead th {
+  background-color: #f5a623; /* NIC orange */
+  color: #ffffff;
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Body cells */
+.rosterTable tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Driver name column */
+.rosterTable tbody td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: #111827;
+}
+
+/* Pending text */
+.subText {
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Week off badge */
+.weekOff {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+/* Time display */
+.time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+/* Actions column */
+.rosterTable thead th:last-child,
+.rosterTable tbody td:last-child {
+  width: 90px;
+  text-align: center;
+}
+
+/* Edit button */
+.editBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  color: #2563eb;
+}
+
+.editBtn:hover {
+  background: #e0ecff;
+}
+
+/* Modal overlay */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+/* Modal */
+.nicModal {
+  background: #ffffff;
+  border-radius: 10px;
+  width: 420px;
+  max-width: 90%;
+  padding: 16px;
+}
+
+.nicModal.large {
+  width: 520px;
+}
+
+/* Modal header */
+.nicModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.nicModalHeader h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Save button */
+.saveBtn {
+  background: #2563eb;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
