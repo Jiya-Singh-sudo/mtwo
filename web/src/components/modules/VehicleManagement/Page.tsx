@@ -465,19 +465,19 @@ export function VehicleManagement() {
                           {driver.driver_name}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_name_ll}
+                          {driver.driver_name_ll || '-'}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
                           {driver.driver_contact}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_alternate_contact}
+                          {driver.driver_alternate_contact || '-'}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
                           {driver.driver_license}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.address}
+                          {driver.address || '-'}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200">
                           <div className="flex items-center gap-2">

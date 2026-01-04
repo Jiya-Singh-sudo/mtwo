@@ -190,9 +190,9 @@ export class DriversService {
     const sql = `
       UPDATE m_driver SET
         driver_name = $1,
-        driver_name_ll = $2,
+        driver_name_local_language = $2,
         driver_contact = $3,
-        driver_alternate_contact = $4,
+        driver_alternate_mobile = $4,
         driver_license = $5,
         address = $6,
         is_active = $7,
@@ -205,9 +205,9 @@ export class DriversService {
 
     const params = [
       dto.driver_name ?? existing.driver_name,
-      dto.driver_name_ll ?? existing.driver_name_ll,
+      dto.driver_name_ll ?? existing.driver_name_local_language,
       dto.driver_contact ?? existing.driver_contact,
-      dto.driver_alternate_contact ?? existing.driver_alternate_contact,
+      dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
       dto.driver_license ?? existing.driver_license,
       dto.address ?? existing.address,
       dto.is_active ?? existing.is_active,
