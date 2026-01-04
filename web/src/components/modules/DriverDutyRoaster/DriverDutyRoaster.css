@@ -1,172 +1,100 @@
-/* ======================================================
-   STATS CARDS
-====================================================== */
-
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.statCard {
-  background: white;
-  border: 2px solid #eee;
-  padding: 20px;
-  border-radius: 4px;
-}
-
-.statCard h3 {
-  font-size: 28px;
-  margin-top: 8px;
-}
-
-.statCard.green {
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-.statCard.blue {
-  border-color: #bfdbfe;
-  color: #1e40af;
-}
-
-.statCard.gray {
-  border-color: #e5e7eb;
-  color: #374151;
-}
-
-/* ======================================================
-   DUTY ROSTER TABLE
-====================================================== */
+/* ================= TABLE ================= */
 
 .rosterTableWrapper {
-  background: white;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow-x: auto;
 }
 
 .rosterTable {
   width: 100%;
   border-collapse: collapse;
+  font-size: 14px;
 }
 
-.rosterTable th {
+.rosterTable thead th {
   background: #f5a623;
-  color: white;
-  font-size: 14px;
-  padding: 10px;
-  text-align: left;
+  color: #ffffff;
+  padding: 12px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.rosterTable td {
-  padding: 10px;
-  font-size: 14px;
+.rosterTable tbody td {
+  padding: 12px;
   border-top: 1px solid #e5e7eb;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.rosterTable tr:hover {
+.rosterTable tbody tr:hover {
   background: #f9fafb;
 }
 
-/* ======================================================
-   DAY DUTY CELL
-====================================================== */
-
-.dayDuty {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* Driver name column */
+.rosterTable td:first-child {
+  text-align: left;
+  font-weight: 600;
+  background: #f8fafc;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.dayCell {
+  position: relative;
+  min-height: 42px;
+  border-radius: 6px;
 }
 
-.dayDuty .time {
+.dayCell.hasDuty {
+  background: #f0fdf4;
+}
+
+.dayCell.weekOff {
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+.subText {
+  color: #9ca3af;
+  font-style: italic;
   font-size: 13px;
+}
+
+.time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
   color: #1f2937;
 }
-
-.dayDuty .weekOff {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #fee2e2;
-  color: #991b1b;
-  display: inline-block;
-  width: fit-content;
-}
-
-/* ======================================================
-   STATUS PILL
-====================================================== */
-
-.statusPill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  display: inline-block;
-}
-
-.statusPill.Active {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.statusPill.Inactive {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-/* ======================================================
-   ACTION BUTTONS
-====================================================== */
-
-.actionBtns {
-  display: flex;
-  gap: 6px;
-}
-
-.iconBtn {
+.editBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+  border: none;
   padding: 6px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: white;
+  border-radius: 6px;
   cursor: pointer;
-}
-
-.iconBtn.view {
-  color: #2563eb;
-}
-
-.iconBtn.view:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.iconBtn.edit {
   color: #16a34a;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.iconBtn.edit:hover {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+.dayCell:hover .editBtn {
+  opacity: 1;
 }
 
-.iconBtn.delete {
-  color: #dc2626;
+.editBtn:hover {
+  background: #dcfce7;
 }
-
-.iconBtn.delete:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-
-/* ======================================================
-   MODAL (REUSING YOUR SYSTEM)
-====================================================== */
-
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,372 +102,177 @@
 }
 
 .nicModal {
-  background: white;
-  width: 440px;
-  border-radius: 6px;
-  padding: 20px;
+  background: #ffffff;
+  width: 480px;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
 }
-
 .nicModalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.nicForm {
-  display: grid;
-  gap: 14px;
-  margin-top: 14px;
+.nicModalHeader h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00247d;
 }
 
-.nicInput,
-.nicSelect {
-  width: 100%;
+.nicModalHeader button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.editForm {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editForm label {
+  font-size: 14px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editForm select,
+.editForm input[type="time"] {
   padding: 8px 10px;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
-}
-
-.nicCheckbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  border-radius: 6px;
   font-size: 14px;
 }
 
+.editForm input[type="checkbox"] {
+  margin-right: 6px;
+}
 .nicModalActions {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.cancelBtn {
-  padding: 8px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: white;
 }
 
 .saveBtn {
-  padding: 8px 16px;
   background: #00247d;
-  color: white;
-  border-radius: 4px;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .saveBtn:hover {
   background: #001a5e;
 }
 
-/* ======================================================
-   PRIMARY BUTTON
-====================================================== */
-
-.nicPrimaryBtn {
-  padding: 10px 20px;
-  background: #00247d;
-  color: white;
-  border-radius: 4px;
-}
-
-.nicPrimaryBtn:hover {
-  background: #001a5e;
-}
-
-/* ======================================================
-   VIEW DETAILS CARD
-====================================================== */
-
-.detailCard {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 14px;
-  margin-top: 10px;
-}
-
-.detailRow {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  margin-top: 6px;
-}
-
-.detailLabel {
-  color: #6b7280;
-}
-
-.detailValue {
-  color: #111827;
-  font-weight: 500;
-}
-.modalOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-}
-
-.nicModal {
-    background: #fff;
-    border-radius: 10px;
-    width: 520px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-}
-
-.nicModal.large {
-    width: 640px;
-}
-.nicModalHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.nicModalHeader h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #00247D;
-}
-
-.nicModalHeader button {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-}
-
-.editHeaderFields {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-    padding: 16px 20px;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.editLabel {
-    display: block;
-    font-size: 13px;
-    margin-bottom: 4px;
-    color: #475569;
-}
-
-.editSelect {
-    padding: 8px 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    min-width: 160px;
-}
-
-.editCheckbox {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-}
-.editForm {
-    padding: 16px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.dayRow {
-    display: grid;
-    grid-template-columns: 90px 110px 1fr 1fr;
-    align-items: center;
-    gap: 10px;
-}
-
-.dayRow strong {
-    font-size: 14px;
-}
-
-.weekOffToggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
-.dayRow input[type="time"] {
-    padding: 6px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    width: 100%;
-}
-.nicModalActions {
-    padding: 16px 20px;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.saveBtn {
-    background: #00247D;
-    color: #fff;
-    padding: 10px 18px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
-}
-
 .saveBtn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
-/* Table wrapper */
-.rosterTableWrapper {
-  overflow-x: auto;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
+/* ===== Table polish ===== */
 
-/* Table */
 .rosterTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 14px;
 }
 
-/* Header */
-.rosterTable thead th {
-  background-color: #f5a623; /* NIC orange */
-  color: #ffffff;
+.rosterTable th {
+  background: #f5a623;
+  color: white;
+  font-weight: 600;
   padding: 12px;
   text-align: center;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
-/* Body cells */
-.rosterTable tbody td {
-  padding: 10px 12px;
+.rosterTable td {
+  padding: 14px 12px;
   border-top: 1px solid #e5e7eb;
   text-align: center;
   vertical-align: middle;
 }
 
-/* Driver name column */
-.rosterTable tbody td:first-child {
+/* Sticky driver column */
+.rosterTable td:first-child {
   text-align: left;
-  font-weight: 500;
-  color: #111827;
+  font-weight: 600;
+  background: #f9fafb;
+  position: sticky;
+  left: 0;
+  z-index: 1;
 }
 
-/* Pending text */
+/* ===== Day cell ===== */
+
+.dayCell {
+  position: relative;
+  min-height: 44px;
+}
+
+/* Empty state */
 .subText {
-  color: #6b7280;
+  color: #9ca3af;
   font-style: italic;
 }
 
-/* Week off badge */
-.weekOff {
-  color: #b91c1c;
-  font-weight: 600;
-}
-
-/* Time display */
+/* Duty present */
 .time {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #065f46;
   font-weight: 500;
-  color: #1f2937;
+  font-size: 13px;
 }
 
-/* Actions column */
-.rosterTable thead th:last-child,
-.rosterTable tbody td:last-child {
-  width: 90px;
-  text-align: center;
+/* Week off */
+.weekOff {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 500;
 }
 
-/* Edit button */
-.editBtn {
+/* ===== Edit icon (UX fix) ===== */
+
+.dayCell .editBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
   background: transparent;
   border: none;
+  color: #16a34a;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  color: green;
-  
+  transition: opacity 0.2s ease;
 }
 
-.editBtn:hover {
-  background: rgb(217, 234, 217);
+.dayCell:hover .editBtn {
+  opacity: 1;
 }
 
-/* Modal overlay */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-}
-
-/* Modal */
-.nicModal {
-  background: #ffffff;
-  border-radius: 10px;
-  width: 420px;
-  max-width: 90%;
-  padding: 16px;
-}
-
-.nicModal.large {
-  width: 520px;
-}
-
-/* Modal header */
-.nicModalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.nicModalHeader h3 {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-/* Save button */
-.saveBtn {
-  background: #2563eb;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-}
-
-.saveBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-/* ================= WEEK NAV ================= */
+/* ===== Week navigation ===== */
 
 .weekNav {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 4px;
+  margin-bottom: 18px;
 }
 
 .weekNavBtn {
@@ -548,12 +281,7 @@
   color: #00247d;
   font-weight: 500;
   cursor: pointer;
-  padding: 6px 8px;
   font-size: 14px;
-}
-
-.weekNavBtn:hover {
-  text-decoration: underline;
 }
 
 .weekNavBtn.prev {
@@ -567,6 +295,6 @@
 .weekLabel {
   justify-self: center;
   font-weight: 600;
-  color: #333;
-  font-size: 15px;
+  font-size: 14px;
+  color: #374151;
 }

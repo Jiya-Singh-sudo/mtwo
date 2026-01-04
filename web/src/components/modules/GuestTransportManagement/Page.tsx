@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Car, UserCheck, X } from "lucide-react";
 import "./GuestTransportManagement.css";
-
+import {
+  formatISTDateTime,
+  formatISTDate,
+  toDateTimeLocal,
+  formatISTTime
+} from "../../../utils/dateTime";
 import {
   getActiveGuests,
   getActiveDriverByGuest,
@@ -133,6 +138,11 @@ function GuestTransportManagement() {
   }
 
   async function submitAssignDriver() {
+    if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
+      alert("End time cannot be earlier than start time");
+      return;
+    }
+
     if (!driverForm.driver_id) {
       alert("Please select a driver first!");
       return;
@@ -189,11 +199,11 @@ function GuestTransportManagement() {
     if (!editingGuestDriverId) return;
 
     await updateDriverTrip(editingGuestDriverId, {
-      pickup_location: driverForm.pickup_location,
-      drop_location: driverForm.drop_location,
-      trip_date: driverForm.trip_date,
-      start_time: driverForm.start_time,
-      end_time: driverForm.end_time,
+      pickup_location: driverForm.pickup_location || undefined,
+      drop_location: driverForm.drop_location || undefined,
+      trip_date: driverForm.trip_date || undefined,
+      start_time: driverForm.start_time || undefined,
+      end_time: driverForm.end_time || undefined,
       trip_status: driverForm.trip_status,
     });
 
@@ -233,135 +243,174 @@ function GuestTransportManagement() {
       {loading && <p>Loading...</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {rows.map(({ guest, driver, vehicle }) => (
-          <div key={guest.guest_id} className="transport-card">
-            <div className="flex justify-between mb-2">
-              <div>
-                <p className="font-bold">{guest.guest_name ?? "-"} | {guest.designation_name ?? "-"}</p>
-                <p className="subText">
-                  Guest Name in Local Language: {guest.guest_name_local_language ?? "-"}
-                </p>
-                <p className="subText">
-                  Guest Contact: {guest.guest_mobile ?? "-"}
-                </p>
-                <p className="subText">
-                  Guest Check In: {guest.entry_date ?? "-"} | {guest.entry_time ?? "-"}
-                </p>
-                <p className="subText">
-                  Guest Check Out: {guest.exit_date ?? "-"} | {guest.exit_time ?? "-"}
-                </p>
-                <p className="subText">
-                  Room: {guest.room_id ?? "-"} | {guest.inout_status ?? "Unknown"}
-                </p>
+        {rows.map(({ guest, driver, vehicle }) => {
+          if (!guest) return null;
+          return (
+            <div key={guest.guest_id} className="transportCard">
+
+              {/* ================= GUEST HEADER ================= */}
+              <div className="guestHeader">
+                <div>
+                  <h3 className="guestName">
+                    {guest.guest_name ?? "-"}
+                    <span className="guestLocal">
+                      {guest.guest_name_local_language
+                        ? ` | ${guest.guest_name_local_language}`
+                        : ""}
+                    </span>
+                  </h3>
+
+                  <div className="guestMeta">
+                    <span><strong>Contact:</strong> {guest.guest_mobile ?? "-"}</span>
+                    <span><strong>Room:</strong> {guest.room_id ?? "-"}</span>
+                    <span><strong>Status:</strong> {guest.inout_status ?? "-"}</span>
+                  </div>
+
+                  <div className="guestMeta">
+                    <span>
+                      <strong>Stay:</strong>{" "}
+                      {formatISTDateTime(guest.entry_date)} →{" "}
+                      {formatISTDateTime(guest.exit_date)}
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              {/* ================= DRIVER ================= */}
+              <div className="infoSection">
+                <h4><UserCheck size={16} /> Driver</h4>
+
+                {driver ? (
+                  <>
+                    <div className="infoGrid">
+                      <div><strong>Name:</strong> {driver.driver_name}</div>
+                      <div><strong>Contact:</strong> {driver.driver_contact}</div>
+                      <div><strong>Pickup:</strong> {driver.pickup_location ?? "-"}</div>
+                      <div><strong>Drop:</strong> {driver.drop_location ?? "-"}</div>
+                      <div>  <strong>Date:</strong> {formatISTDate(driver.trip_date)}</div>
+                      <div>
+                        <strong>Time:</strong>{" "}
+                        {driver.start_time
+                          ? formatISTTime(`${driver.trip_date}T${driver.start_time}`)
+                          : "-"}
+                        {" → "}
+                        {driver.end_time
+                          ? formatISTTime(`${driver.trip_date}T${driver.end_time}`)
+                          : "-"}
+
+                      </div>
+                      <div><strong>Status:</strong> {driver.trip_status}</div>
+                    </div>
+
+                    <div className="actionRow">
+                      <button
+                        className="secondaryBtn"
+                        onClick={() => {
+                          setEditingGuestDriverId(driver.guest_driver_id);
+                          setDriverForm({
+                            guest_id: String(guest.guest_id),
+                            driver_id: driver.driver_id,
+                            pickup_location: driver.pickup_location ?? "",
+                            drop_location: driver.drop_location ?? "",
+                            trip_date: driver.trip_date,
+                            start_time: driver.start_time,
+                            end_time: driver.end_time ?? "",
+                            trip_status: driver.trip_status,
+                          });
+                          setEditDriverModalOpen(true);
+                        }}
+                      >
+                        Edit Driver Trip
+                      </button>
+
+                      <button
+                        className="dangerBtn"
+                        onClick={async () => {
+                          await unassignDriver(driver.guest_driver_id);
+                          await loadGuests();
+                        }}
+                      >
+                        Unassign Driver
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    className="primaryBtn"
+                    onClick={() => openAssignDriver(String(guest.guest_id))}
+                  >
+                    Assign Driver
+                  </button>
+                )}
+              </div>
+
+              {/* ================= VEHICLE ================= */}
+              <div className="infoSection">
+                <h4><Car size={16} /> Vehicle</h4>
+
+                {vehicle ? (
+                  <>
+                    <div className="infoGrid">
+                      <div>
+                        <strong>Vehicle:</strong>{" "}
+                        {vehicle.vehicle_name} ({vehicle.vehicle_no})
+                      </div>
+                      <div><strong>Model:</strong> {vehicle.model ?? "-"}</div>
+                      <div><strong>Color:</strong> {vehicle.color ?? "-"}</div>
+                      <div><strong>Location:</strong> {vehicle.location ?? "-"}</div>
+                      <div>
+                        <strong>From:</strong> {formatISTDateTime(vehicle.assigned_at)}
+                      </div>
+                      <div>
+                        <strong>To:</strong>{" "}
+                        {vehicle.released_at
+                          ? formatISTDateTime(vehicle.released_at)
+                          : "Ongoing"}
+                      </div>
+                    </div>
+
+                    <div className="actionRow">
+                      <button
+                        className="secondaryBtn"
+                        onClick={() => {
+                          setEditingGuestVehicleId(vehicle.guest_vehicle_id);
+                          setVehicleForm({
+                            guest_id: String(guest.guest_id),
+                            vehicle_no: vehicle.vehicle_no,
+                            location: vehicle.location ?? "",
+                            assigned_at: vehicle.assigned_at,
+                            released_at: vehicle.released_at ?? undefined,
+                          });
+                          setEditVehicleModalOpen(true);
+                        }}
+                      >
+                        Edit Vehicle Assignment
+                      </button>
+
+                      <button
+                        className="dangerBtn"
+                        onClick={async () => {
+                          await unassignVehicle(vehicle.guest_vehicle_id);
+                          await loadGuests();
+                        }}
+                      >
+                        Unassign Vehicle
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    className="primaryBtn"
+                    onClick={() => openAssignVehicle(String(guest.guest_id))}
+                  >
+                    Assign Vehicle
+                  </button>
+                )}
+              </div>
+
             </div>
-
-            {/* DRIVER */}
-            <div className="section">
-              <h4><UserCheck size={16} /> Driver</h4>
-
-              {driver ? (
-                <>
-
-                  <p>{driver.driver_name} </p>
-                  <p>{driver.driver_contact}</p>
-                  <p>{driver.trip_date}</p>
-                  <p>{driver.start_time ?? "-"} | {driver.end_time}</p>
-                  <p>{driver.pickup_location ?? "-"} | {driver.drop_location}</p>
-                  <p>{driver.trip_status}</p>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      className="secondaryBtn"
-                      onClick={() => {
-                        setEditingGuestDriverId(driver.guest_driver_id);
-                        setDriverForm({
-                          guest_id: String(guest.guest_id),
-                          driver_id: driver.driver_id,
-                          pickup_location: driver.pickup_location ?? "",
-                          drop_location: driver.drop_location ?? "",
-                          trip_date: driver.trip_date,
-                          start_time: driver.start_time,
-                          end_time: driver.end_time ?? "",
-                          trip_status: driver.trip_status,
-                        });
-                        setEditDriverModalOpen(true);
-                      }}
-                    >
-                      Edit Driver Trip
-                    </button>
-
-                    <button
-                      className="dangerBtn"
-                      onClick={async () => {
-                        await unassignDriver(driver.guest_driver_id);
-                        await loadGuests();
-                      }}
-                    >
-                      Unassign Driver
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button
-                  className="primaryBtn"
-                  onClick={() => openAssignDriver(String(guest.guest_id))}
-                >
-                  Assign Driver
-                </button>
-              )}
-            </div>
-
-            {/* VEHICLE */}
-            <div className="section">
-              <h4><Car size={16} /> Vehicle</h4>
-
-              {vehicle ? (
-                <>
-                  <p>{vehicle.vehicle_no} — {vehicle.vehicle_name}</p>
-                  <p>{vehicle.model}</p>
-                  <p>{vehicle.assigned_at ?? "-"} | {vehicle.released_at}</p>
-                  <p>{vehicle.location}</p>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      className="secondaryBtn"
-                      onClick={() => {
-                        setEditingGuestVehicleId(vehicle.guest_vehicle_id);
-                        setVehicleForm({
-                          guest_id: String(guest.guest_id),
-                          vehicle_no: vehicle.vehicle_no,
-                          location: vehicle.location ?? "",
-                          assigned_at: vehicle.assigned_at ?? undefined,
-                          released_at: vehicle.released_at ?? undefined,
-                        });
-                        setEditVehicleModalOpen(true);
-                      }}
-                    >
-                      Edit Vehicle Assignment
-                    </button>
-
-
-                    <button
-                      className="dangerBtn"
-                      onClick={async () => {
-                        await unassignVehicle(vehicle.guest_vehicle_id);
-                        await loadGuests();
-                      }}
-                    >
-                      Unassign Vehicle
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button
-                  className="primaryBtn"
-                  onClick={() => openAssignVehicle(String(guest.guest_id))}
-                >
-                  Assign Vehicle
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ASSIGN DRIVER MODAL */}
@@ -487,7 +536,7 @@ function GuestTransportManagement() {
                 className="nicInput"
                 type="datetime-local"
                 placeholder="Assigned At"
-                value={vehicleForm.assigned_at ? vehicleForm.assigned_at.split('T')[0] : ""}
+                value={toDateTimeLocal(vehicleForm.assigned_at)}
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
                 }
@@ -496,7 +545,7 @@ function GuestTransportManagement() {
                 className="nicInput"
                 type="datetime-local"
                 placeholder="Released At"
-                value={vehicleForm.released_at ? vehicleForm.released_at.split('T')[0] : ""}
+                value={toDateTimeLocal(vehicleForm.released_at)}
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, released_at: e.target.value })
                 }
@@ -517,131 +566,131 @@ function GuestTransportManagement() {
 
       {/* EDIT DRIVER MODAL */}
       {editDriverModalOpen && (
-      <div className="modalOverlay">
-        <div className="nicModal">
-          <div className="nicModalHeader">
-            <h2>Edit Driver Trip</h2>
-            <button onClick={() => setEditDriverModalOpen(false)}>
-              <X />
-            </button>
-          </div>
+        <div className="modalOverlay">
+          <div className="nicModal">
+            <div className="nicModalHeader">
+              <h2>Edit Driver Trip</h2>
+              <button onClick={() => setEditDriverModalOpen(false)}>
+                <X />
+              </button>
+            </div>
 
-          <div className="nicForm">
-            <input
-              className="nicInput"
-              placeholder="Pickup Location"
-              value={driverForm.pickup_location}
-              onChange={(e) =>
-                setDriverForm({ ...driverForm, pickup_location: e.target.value })
-              }
-            />
+            <div className="nicForm">
+              <input
+                className="nicInput"
+                placeholder="Pickup Location"
+                value={driverForm.pickup_location}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, pickup_location: e.target.value })
+                }
+              />
 
-            <input
-              className="nicInput"
-              placeholder="Drop Location"
-              value={driverForm.drop_location}
-              onChange={(e) =>
-                setDriverForm({ ...driverForm, drop_location: e.target.value })
-              }
-            />
+              <input
+                className="nicInput"
+                placeholder="Drop Location"
+                value={driverForm.drop_location}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, drop_location: e.target.value })
+                }
+              />
 
-            <input
-              type="date"
-              className="nicInput"
-              value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
-              onChange={(e) =>
-                setDriverForm({ ...driverForm, trip_date: e.target.value })
-              }
-            />
+              <input
+                type="date"
+                className="nicInput"
+                value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, trip_date: e.target.value })
+                }
+              />
 
-            <input
-              type="time"
-              className="nicInput"
-              value={driverForm.start_time}
-              onChange={(e) =>
-                setDriverForm({ ...driverForm, start_time: e.target.value })
-              }
-            />
+              <input
+                type="time"
+                className="nicInput"
+                value={driverForm.start_time}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, start_time: e.target.value })
+                }
+              />
 
-            <input
-              type="time"
-              className="nicInput"
-              value={driverForm.end_time ?? ""}
-              onChange={(e) =>
-                setDriverForm({ ...driverForm, end_time: e.target.value })
-              }
-            />
-          </div>
+              <input
+                type="time"
+                className="nicInput"
+                value={driverForm.end_time ?? ""}
+                onChange={(e) =>
+                  setDriverForm({ ...driverForm, end_time: e.target.value })
+                }
+              />
+            </div>
 
-          <div className="nicModalActions">
-            <button
-              className="cancelBtn"
-              onClick={() => setEditDriverModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button className="saveBtn" onClick={submitEditDriver}>
-              Save Changes
-            </button>
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setEditDriverModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="saveBtn" onClick={submitEditDriver}>
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
       {/* EDIT VEHICLE MODAL */}
-    {editVehicleModalOpen && (
-    <div className="modalOverlay">
-      <div className="nicModal">
-        <div className="nicModalHeader">
-          <h2>Edit Vehicle Assignment</h2>
-          <button onClick={() => setEditVehicleModalOpen(false)}>
-            <X />
-          </button>
-        </div>
+      {editVehicleModalOpen && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+            <div className="nicModalHeader">
+              <h2>Edit Vehicle Assignment</h2>
+              <button onClick={() => setEditVehicleModalOpen(false)}>
+                <X />
+              </button>
+            </div>
 
-        <div className="nicForm">
-          <input
-            className="nicInput"
-            placeholder="Location"
-            value={vehicleForm.location}
-            onChange={(e) =>
-              setVehicleForm({ ...vehicleForm, location: e.target.value })
-            }
-          />
-          <input
-            className="nicInput"
-            type="datetime-local"
-            placeholder="Assigned At"
-            value={vehicleForm.assigned_at ? vehicleForm.assigned_at.split('T')[0] : ""}
-            onChange={(e) =>
-              setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
-            }
-          />
-          <input
-            className="nicInput"
-            type="datetime-local"
-            placeholder="Released At"
-            value={vehicleForm.released_at ? vehicleForm.released_at.split('T')[0] : ""}
-            onChange={(e) =>
-              setVehicleForm({ ...vehicleForm, released_at: e.target.value })
-            }
-          />
-        </div>
+            <div className="nicForm">
+              <input
+                className="nicInput"
+                placeholder="Location"
+                value={vehicleForm.location}
+                onChange={(e) =>
+                  setVehicleForm({ ...vehicleForm, location: e.target.value })
+                }
+              />
+              <input
+                className="nicInput"
+                type="datetime-local"
+                placeholder="Assigned At"
+                value={toDateTimeLocal(vehicleForm.assigned_at)}
+                onChange={(e) =>
+                  setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
+                }
+              />
+              <input
+                className="nicInput"
+                type="datetime-local"
+                placeholder="Released At"
+                value={toDateTimeLocal(vehicleForm.released_at)}
+                onChange={(e) =>
+                  setVehicleForm({ ...vehicleForm, released_at: e.target.value })
+                }
+              />
+            </div>
 
-        <div className="nicModalActions">
-          <button
-            className="cancelBtn"
-            onClick={() => setEditVehicleModalOpen(false)}
-          >
-            Cancel
-          </button>
-          <button className="saveBtn" onClick={submitEditVehicle}>
-            Save Changes
-          </button>
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setEditVehicleModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="saveBtn" onClick={submitEditVehicle}>
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  )}
+      )}
 
     </div>
   );

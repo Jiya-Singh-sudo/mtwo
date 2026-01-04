@@ -25,6 +25,7 @@ export interface ActiveGuestVehicle {
   vehicle_no: string;
   vehicle_name: string;
   model?: string | null;
+  color?: string | null;
 
   assigned_at: string;   // ISO datetime
   released_at?: string | null;

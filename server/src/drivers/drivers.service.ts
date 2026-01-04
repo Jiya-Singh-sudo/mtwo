@@ -43,14 +43,17 @@ export class DriversService {
     return res.rows;
   }
 
-
   async getDriverDashboard() {
     const sql = `
     SELECT
       d.driver_id,
       d.driver_name,
+      d.driver_name_local_language,
       d.driver_contact,
+      d.driver_alternate_mobile,
       d.driver_license,
+      d.address,
+      d.is_active,
 
       EXISTS (
         SELECT 1

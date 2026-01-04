@@ -43,8 +43,6 @@ interface Driver {
 }
 
 export function VehicleManagement() {
-
-
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleLoading, setVehicleLoading] = useState(true);
   useEffect(() => {
@@ -91,8 +89,6 @@ export function VehicleManagement() {
 
     loadDrivers();
   }, []);
-
-
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);

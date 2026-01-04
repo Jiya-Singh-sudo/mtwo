@@ -106,16 +106,26 @@ export class GuestDriverService {
     return res.rows[0];
   }
 
-  async findActiveByGuest(guestId: string) {
-    const sql = `
+async findActiveByGuest(guestId: string) {
+  const sql = `
     SELECT
       gd.guest_driver_id,
       gd.guest_id,
       gd.driver_id,
+
       d.driver_name,
       d.driver_contact,
+
+      gd.pickup_location,
+      gd.drop_location,
+
       gd.trip_date,
       gd.start_time,
+      gd.end_time,
+
+      gd.drop_date,
+      gd.drop_time,
+
       gd.trip_status
     FROM t_guest_driver gd
     JOIN m_driver d
@@ -126,9 +136,10 @@ export class GuestDriverService {
     LIMIT 1;
   `;
 
-    const res = await this.db.query(sql, [guestId]);
-    return res.rows[0] || null;
-  }
+  const res = await this.db.query(sql, [guestId]);
+  return res.rows[0] || null;
+}
+
   
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -308,6 +319,15 @@ export class GuestDriverService {
   user: string,
   ip: string
 ) {
+  // 🔑 Normalize empty strings → null
+  const cleanPayload = {
+    trip_status: payload.trip_status ?? null,
+    start_time: payload.start_time === "" ? null : payload.start_time,
+    end_time: payload.end_time === "" ? null : payload.end_time,
+    pickup_location: payload.pickup_location === "" ? null : payload.pickup_location,
+    drop_location: payload.drop_location === "" ? null : payload.drop_location,
+  };
+
   const sql = `
     UPDATE t_guest_driver
     SET
@@ -326,16 +346,15 @@ export class GuestDriverService {
 
   const res = await this.db.query(sql, [
     guestDriverId,
-    payload.trip_status,
-    payload.start_time,
-    payload.end_time,
-    payload.pickup_location,
-    payload.drop_location,
+    cleanPayload.trip_status,
+    cleanPayload.start_time,
+    cleanPayload.end_time,
+    cleanPayload.pickup_location,
+    cleanPayload.drop_location,
     user,
     ip,
   ]);
 
   return res.rows[0];
 }
-
 }

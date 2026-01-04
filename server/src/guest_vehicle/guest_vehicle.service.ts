@@ -38,8 +38,6 @@ export class GuestVehicleService {
     return res.rows[0] || null;
   }
 
-
-
   // READ #1 — Guests checked-in but without vehicle
   async findCheckedInGuestsWithoutVehicle() {
     const sql = `

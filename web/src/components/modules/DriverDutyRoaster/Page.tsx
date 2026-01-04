@@ -83,7 +83,7 @@ export default function DriverDutyRoasterPage() {
     weekOff?: boolean
   ) => {
     if (weekOff) return <span className="weekOff">Week Off</span>;
-    if (!inTime || !outTime) return <span className="subText">Pending</span>;
+    if (!inTime || !outTime) return <span className="pendingDot" title="Not assigned yet">—</span>;
 
     return (
       <span className="time">
@@ -92,6 +92,12 @@ export default function DriverDutyRoasterPage() {
       </span>
     );
   };
+
+  function shiftWeek(weekStart: string, days: number) {
+    const [y, m, d] = weekStart.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d + days));
+    return date.toISOString().slice(0, 10);
+  }
 
   /* ================= SAVE (CREATE / UPDATE) ================= */
 
@@ -152,25 +158,13 @@ export default function DriverDutyRoasterPage() {
       <div className="weekNav">
         <button
           className="weekNavBtn prev"
-          onClick={() =>
-            setWeekStartDate((prev) =>
-              getDateForDay(prev, -7)
-            )
-          }
-        >
+          onClick={() => setWeekStartDate(prev => shiftWeek(prev, -7))}>
           ← Prev Week
         </button>
-
         <span className="weekLabel">Week of {weekStartDate}</span>
-
         <button
           className="weekNavBtn next"
-          onClick={() =>
-            setWeekStartDate((prev) =>
-              getDateForDay(prev, 7)
-            )
-          }
-        >
+          onClick={() => setWeekStartDate(prev => shiftWeek(prev, 7))}>
           Next Week →
         </button>
       </div>
@@ -200,7 +194,9 @@ export default function DriverDutyRoasterPage() {
                   const duty = row.duties[date];
 
                   return (
-                    <td key={date} className="dayCell">
+                    <td key={date} className={`dayCell ${duty ? "hasDuty" : ""} ${
+                        duty?.is_week_off ? "weekOff" : ""
+                      }`}>
                       {renderDay(
                         duty?.duty_in_time,
                         duty?.duty_out_time,
