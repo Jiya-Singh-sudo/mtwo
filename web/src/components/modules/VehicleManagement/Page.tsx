@@ -74,7 +74,7 @@ export function VehicleManagement() {
           driver_name: d.driver_name,
           driver_name_ll: d.driver_name_local_language,
           driver_contact: d.driver_contact,
-          driver_alternate_contact: d.driver_alternate_contact,
+          driver_alternate_contact: d.driver_alternate_mobile,
           driver_license: d.driver_license,
           address: d.address,
           is_active: d.is_active,
@@ -448,7 +448,7 @@ export function VehicleManagement() {
                   <thead>
                     <tr className="bg-[#F5A623] text-white">
                       <th className="px-4 py-3 text-left text-sm">Driver Name</th>
-                      <th className="px-4 py-3 text-left text-sm">Driver Name Local</th>
+                      <th className="px-4 py-3 text-left text-sm">Driver Name in Local Language</th>
                       <th className="px-4 py-3 text-left text-sm">Contact</th>
                       <th className="px-4 py-3 text-left text-sm">Alternate Contact</th>
                       <th className="px-4 py-3 text-left text-sm">License No</th>

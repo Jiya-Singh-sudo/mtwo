@@ -102,7 +102,7 @@ export class DriversService {
 
     const sql = `
     INSERT INTO m_driver
-      (driver_id, driver_name, driver_name_ll, driver_contact, driver_alternate_contact, driver_license, address,
+      (driver_id, driver_name, driver_name_local_language, driver_contact, driver_alternate_mobile, driver_license, address,
        is_active, inserted_by, inserted_ip)
     VALUES
       ($1,$2,$3,$4,$5,$6,$7, TRUE,$8,$9)
