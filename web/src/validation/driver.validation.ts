@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const driverSchema = z.object({
   driver_name: z.string().min(2, "Driver name is required"),
-  driver_name_local: z.string().optional(),
+  driver_name_ll: z.string().optional(),
 
   driver_contact: z
     .string()

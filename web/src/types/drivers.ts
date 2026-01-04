@@ -1,9 +1,9 @@
 export interface Driver {
   driver_id: string;
   driver_name: string;
-  driver_name_local?: string;
+  driver_name_ll?: string;
   driver_contact: string;
-  driver_alternate_mobile?: string;
+  driver_alternate_contact?: string;
   driver_license: string;
   address?: string;
   is_active: boolean;
@@ -22,18 +22,18 @@ export interface AssignableDriver {
 
 export interface CreateDriverDto {
   driver_name: string;
-  driver_name_local?: string;
+  driver_name_ll?: string;
   driver_contact: string;
-  driver_alternate_mobile?: string;
+  driver_alternate_contact?: string;
   driver_license: string;
   address?: string;
 }
 
 export interface UpdateDriverDto {
   driver_name?: string;
-  driver_name_local?: string;
+  driver_name_ll?: string;
   driver_contact?: string;
-  driver_alternate_mobile?: string;
+  driver_alternate_contact?: string;
   driver_license?: string;
   address?: string;
   is_active?: boolean;

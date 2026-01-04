@@ -28,9 +28,9 @@ interface Vehicle {
 interface Driver {
   driver_id: string;
   driver_name: string;
-  driver_name_local?: string;
+  driver_name_ll?: string;
   driver_contact: string;
-  driver_alternate_mobile?: string;
+  driver_alternate_contact?: string;
   driver_license: string;
   address?: string;
   is_active: boolean;
@@ -44,7 +44,7 @@ interface Driver {
 
 export function VehicleManagement() {
 
-  
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleLoading, setVehicleLoading] = useState(true);
   useEffect(() => {
@@ -68,7 +68,20 @@ export function VehicleManagement() {
     async function loadDrivers() {
       try {
         const data = await fetchDrivers();
-        setDrivers(data);
+
+        const normalized = data.map((d: any) => ({
+          driver_id: d.driver_id,
+          driver_name: d.driver_name,
+          driver_name_ll: d.driver_name_local_language,
+          driver_contact: d.driver_contact,
+          driver_alternate_contact: d.driver_alternate_contact,
+          driver_license: d.driver_license,
+          address: d.address,
+          is_active: d.is_active,
+          inserted_at: d.inserted_at,
+        }));
+
+        setDrivers(normalized);
       } catch (err) {
         console.error('Failed to load driver', err);
       } finally {
@@ -114,16 +127,16 @@ export function VehicleManagement() {
 
   const [driverFormData, setDriverFormData] = useState<{
     driver_name: string;
-    driver_name_local?: string;
+    driver_name_ll?: string;
     driver_contact: string;
-    driver_alternate_mobile?: string;
+    driver_alternate_contact?: string;
     driver_license: string;
     address?: string;
   }>({
     driver_name: '',
-    driver_name_local: undefined,
+    driver_name_ll: undefined,
     driver_contact: '',
-    driver_alternate_mobile: undefined,
+    driver_alternate_contact: undefined,
     driver_license: '',
     address: undefined,
   });
@@ -208,19 +221,23 @@ export function VehicleManagement() {
 
   // Driver handlers
   const handleAddDriver = async () => {
-    const payload: CreateDriverDto = {
-      driver_name: driverFormData.driver_name,
-      driver_name_local: driverFormData.driver_name_local,
-      driver_contact: driverFormData.driver_contact,
-      driver_alternate_mobile: driverFormData.driver_alternate_mobile,
-      driver_license: driverFormData.driver_license,
-      address: driverFormData.address,
-    };
+    try {
+      const payload: CreateDriverDto = {
+        driver_name: driverFormData.driver_name,
+        driver_name_ll: driverFormData.driver_name_ll,
+        driver_contact: driverFormData.driver_contact,
+        driver_alternate_contact: driverFormData.driver_alternate_contact,
+        driver_license: driverFormData.driver_license,
+        address: driverFormData.address,
+      };
 
-    const saved = await createDriver(payload);
-    setDrivers(prev => [...prev, saved]);
-    setShowAddDriver(false);
-    resetDriverForm();
+      const saved = await createDriver(payload);
+      setDrivers(prev => [...prev, saved]);
+      setShowAddDriver(false);
+      resetDriverForm();
+    } catch (error) {
+      console.error('Failed to create driver', error);
+    }
   };
 
 
@@ -234,7 +251,7 @@ export function VehicleManagement() {
   };
 
   const handleDeleteDriver = async () => {
-     if (!selectedDriver) return;
+    if (!selectedDriver) return;
     await softDeleteDriver(selectedDriver.driver_id);
     setDrivers(prev =>
       prev.filter(v => v.driver_id !== selectedDriver.driver_id)
@@ -247,9 +264,9 @@ export function VehicleManagement() {
     setSelectedDriver(driver);
     setDriverFormData({
       driver_name: driver.driver_name,
-      driver_name_local: driver.driver_name_local,
+      driver_name_ll: driver.driver_name_ll,
       driver_contact: driver.driver_contact,
-      driver_alternate_mobile: driver.driver_alternate_mobile,
+      driver_alternate_contact: driver.driver_alternate_contact,
       driver_license: driver.driver_license,
       address: driver.address
     });
@@ -264,9 +281,9 @@ export function VehicleManagement() {
   const resetDriverForm = () => {
     setDriverFormData({
       driver_name: '',
-      driver_name_local: undefined,
+      driver_name_ll: undefined,
       driver_contact: '',
-      driver_alternate_mobile: undefined,
+      driver_alternate_contact: undefined,
       driver_license: '',
       address: undefined,
     });
@@ -448,13 +465,13 @@ export function VehicleManagement() {
                           {driver.driver_name}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_name_local}
+                          {driver.driver_name_ll}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
                           {driver.driver_contact}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_alternate_mobile}
+                          {driver.driver_alternate_contact}
                         </td>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
                           {driver.driver_license}
@@ -558,23 +575,23 @@ export function VehicleManagement() {
               </div>
             </div>
             <div className="modalActions">
-        <button
-          className="linkBtn"
-          onClick={() => {
-            setShowAddVehicle(false);
-            resetVehicleForm();
-          }}
-        >
-          Cancel
-        </button>
+              <button
+                className="linkBtn"
+                onClick={() => {
+                  setShowAddVehicle(false);
+                  resetVehicleForm();
+                }}
+              >
+                Cancel
+              </button>
 
-        <button className="primaryBtn" onClick={handleAddVehicle}>
-          Add Vehicle
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <button className="primaryBtn" onClick={handleAddVehicle}>
+                Add Vehicle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Vehicle Modal */}
       {showEditVehicle && selectedVehicle && (
@@ -675,8 +692,8 @@ export function VehicleManagement() {
                 <Label htmlFor="driverNameLocal">Full Name (Local)</Label>
                 <Input
                   id="driverNameLocal"
-                  value={driverFormData.driver_name_local ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_local: e.target.value || undefined })}
+                  value={driverFormData.driver_name_ll ?? ''}
+                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })}
                   placeholder="Enter full name in local language"
                 />
               </div>
@@ -693,8 +710,8 @@ export function VehicleManagement() {
                 <Label htmlFor="driverAlternateContact">Alternate Contact Number</Label>
                 <Input
                   id="driverAlternateContact"
-                  value={driverFormData.driver_alternate_mobile ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_mobile: e.target.value || undefined })}
+                  value={driverFormData.driver_alternate_contact ?? ''}
+                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })}
                   placeholder="+91 XXXXX XXXXX"
                 />
               </div>
@@ -753,8 +770,8 @@ export function VehicleManagement() {
                 <Label htmlFor="edit-driverNameLocal">Full Name (Local)</Label>
                 <Input
                   id="edit-driverNameLocal"
-                  value={driverFormData.driver_name_local ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_local: e.target.value || undefined })}
+                  value={driverFormData.driver_name_ll ?? ''}
+                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })}
                 />
               </div>
               <div>
@@ -769,8 +786,8 @@ export function VehicleManagement() {
                 <Label htmlFor="edit-driverAlternateMobile">Alternate Contact Number</Label>
                 <Input
                   id="edit-driverAlternateMobile"
-                  value={driverFormData.driver_alternate_mobile ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_mobile: e.target.value || undefined })}
+                  value={driverFormData.driver_alternate_contact ?? ''}
+                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })}
                 />
               </div>
               <div>

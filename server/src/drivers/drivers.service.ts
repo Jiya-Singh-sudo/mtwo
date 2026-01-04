@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
+import { translate } from '@vitalets/google-translate-api';
+
 
 @Injectable()
 export class DriversService {
-  constructor(private readonly db: DatabaseService) {}
-  
+  constructor(private readonly db: DatabaseService) { }
+
   // Generate ID like D001, D002 ...
   private async generateDriverId(): Promise<string> {
     const sql = `SELECT driver_id FROM m_driver ORDER BY driver_id DESC LIMIT 1`;
@@ -21,7 +23,7 @@ export class DriversService {
     return 'D' + number.toString().padStart(3, '0');
   }
   async findAssignableDrivers() {
-  const sql = `
+    const sql = `
     SELECT
       d.driver_id,
       d.driver_name,
@@ -37,13 +39,13 @@ export class DriversService {
     ORDER BY d.driver_name;
   `;
 
-  const res = await this.db.query(sql);
-  return res.rows;
-}
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
 
 
-async getDriverDashboard() {
-  const sql = `
+  async getDriverDashboard() {
+    const sql = `
     SELECT
       d.driver_id,
       d.driver_name,
@@ -90,41 +92,47 @@ async getDriverDashboard() {
     ORDER BY d.driver_name;
   `;
 
-  const res = await this.db.query(sql);
-  return res.rows;
-}
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
 
-async create(dto: CreateDriverDto, user: string, ip: string) {
-  const sql = `
+  async create(dto: CreateDriverDto, user: string, ip: string) {
+    const translated = await translate(dto.driver_name, { to: 'mr' });
+    dto.driver_name_ll = translated.text;
+
+    const sql = `
     INSERT INTO m_driver
-      (driver_id, driver_name, driver_contact, driver_license,
+      (driver_id, driver_name, driver_name_ll, driver_contact, driver_alternate_contact, driver_license, address,
        is_active, inserted_by, inserted_ip)
     VALUES
-      ($1,$2,$3,$4, TRUE,$5,$6)
+      ($1,$2,$3,$4,$5,$6,$7, TRUE,$8,$9)
     RETURNING driver_id, driver_name;
   `;
 
- const driverId = await this.generateDriverId();
+    const driverId = await this.generateDriverId();
 
 
-  const res = await this.db.query(sql, [
-    driverId,
-    dto.driver_name,
-    dto.driver_contact,
-    dto.driver_license_number || null,
-    user,
-    ip
-  ]);
+    const res = await this.db.query(sql, [
+      driverId,
+      dto.driver_name,
+      dto.driver_name_ll,
+      dto.driver_contact,
+      dto.driver_alternate_contact,
+      dto.driver_license || null,
+      dto.address,
+      user,
+      ip
+    ]);
 
-  return res.rows[0];
-}
+    return res.rows[0];
+  }
 
-async assignDriver(
-  payload: { guest_vehicle_id: string; driver_id: string },
-  user: string,
-  ip: string
-) {
-  const sql = `
+  async assignDriver(
+    payload: { guest_vehicle_id: string; driver_id: string },
+    user: string,
+    ip: string
+  ) {
+    const sql = `
     UPDATE t_guest_vehicle
     SET
       driver_id = $2,
@@ -136,18 +144,15 @@ async assignDriver(
     RETURNING *;
   `;
 
-  const res = await this.db.query(sql, [
-    payload.guest_vehicle_id,
-    payload.driver_id,
-    user,
-    ip
-  ]);
+    const res = await this.db.query(sql, [
+      payload.guest_vehicle_id,
+      payload.driver_id,
+      user,
+      ip
+    ]);
 
-  return res.rows[0];
-}
-
-
-
+    return res.rows[0];
+  }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -170,7 +175,7 @@ async assignDriver(
     return result.rows[0];
   }
 
-  
+
   async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
     const existing = await this.findOneById(driver_id);
     if (!existing) {
@@ -185,9 +190,9 @@ async assignDriver(
     const sql = `
       UPDATE m_driver SET
         driver_name = $1,
-        driver_name_local_language = $2,
+        driver_name_ll = $2,
         driver_contact = $3,
-        driver_alternate_mobile = $4,
+        driver_alternate_contact = $4,
         driver_license = $5,
         address = $6,
         is_active = $7,
@@ -200,10 +205,10 @@ async assignDriver(
 
     const params = [
       dto.driver_name ?? existing.driver_name,
-      dto.driver_name_ll ?? existing.driver_name_local,
+      dto.driver_name_ll ?? existing.driver_name_ll,
       dto.driver_contact ?? existing.driver_contact,
-      dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
-      dto.driver_license_number ?? existing.driver_license,
+      dto.driver_alternate_contact ?? existing.driver_alternate_contact,
+      dto.driver_license ?? existing.driver_license,
       dto.address ?? existing.address,
       dto.is_active ?? existing.is_active,
       now,
@@ -236,6 +241,6 @@ async assignDriver(
     const result = await this.db.query(sql, [now, user, ip, driver_id]);
     return result.rows[0];
   }
- 
+
 
 }
