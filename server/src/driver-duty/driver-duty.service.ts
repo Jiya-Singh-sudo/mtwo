@@ -28,25 +28,27 @@ async create(dto: CreateDriverDutyDto) {
     const res = await this.db.query(
       `
       INSERT INTO t_driver_duty (
-        duty_id,
-        driver_id,
-        duty_date,
-        shift,
-        duty_in_time,
-        duty_out_time,
-        is_week_off
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      RETURNING *;
+  duty_id,
+  driver_id,
+  duty_date,
+  shift,
+  duty_in_time,
+  duty_out_time,
+  is_week_off,
+  is_active
+)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+RETURNING *;
       `,
       [
-        dutyId,
-        dto.driver_id,
-        dto.duty_date,
-        dto.shift,
-        dto.duty_in_time ?? null,
-        dto.duty_out_time ?? null,
-        dto.is_week_off ?? false,
+  dutyId,
+  dto.driver_id,
+  dto.duty_date,
+  dto.shift,
+  dto.duty_in_time ?? null,
+  dto.duty_out_time ?? null,
+  dto.is_week_off ?? false,
+  true, // ✅ IMPORTANT
       ],
     );
 
