@@ -30,7 +30,6 @@ type RoomOverviewBackend = {
   residence_type?: string | null;
   status: string;
   guest_name?: string | null;
-  guest_id?: string | null;
 };
 // type EnumValue = {
 //   enum_value: string;
@@ -184,7 +183,7 @@ export function RoomManagement() {
 
     try {
       await assignRoomBoyToRoom({
-        guest_id: activeRoom.guest_id ?? "",
+        room_id: activeRoom.room_id,
         hk_id: assignmentForm.roomBoyId,
         task_date: assignmentForm.taskDate,
         task_shift: assignmentForm.shift as ShiftType,

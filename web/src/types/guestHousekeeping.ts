@@ -2,7 +2,7 @@ export interface GuestHousekeeping {
   guest_hk_id: string;
 
   hk_id: string;
-  guest_id: string;
+  room_id: number;
 
   task_date: string; // YYYY-MM-DD
   task_shift: "Morning" | "Evening" | "Night" | "Full-Day";
@@ -21,7 +21,7 @@ export interface GuestHousekeeping {
 
 export interface GuestHousekeepingCreateDto {
   hk_id: string;
-  guest_id: string;
+  room_id: number;
 
   task_date: string;
   task_shift: "Morning" | "Evening" | "Night" | "Full-Day";
@@ -32,7 +32,7 @@ export interface GuestHousekeepingCreateDto {
 
 export interface GuestHousekeepingUpdateDto {
   hk_id?: string;
-  guest_id?: string;
+  room_id?: number;
 
   task_date?: string;
   task_shift?: "Morning" | "Evening" | "Night" | "Full-Day";
