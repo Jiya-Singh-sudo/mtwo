@@ -8,12 +8,19 @@ export class GuestInoutService {
   constructor(private readonly db: DatabaseService) {}
 
   private async generateInoutId(): Promise<string> {
-    const sql = `SELECT inout_id FROM t_guest_inout ORDER BY (regexp_replace(inout_id,'\\D','','g'))::int DESC LIMIT 1`;
-    const r = await this.db.query(sql);
-    if (!r.rows.length) return 'IO001';
-    const last = r.rows[0].inout_id;
-    const next = parseInt(last.replace(/\D/g,'')) + 1;
-    return 'IO' + next.toString().padStart(3,'0');
+    const sql = `
+      SELECT inout_id
+      FROM t_guest_inout
+      ORDER BY CAST(SUBSTRING(inout_id, 6) AS INTEGER) DESC
+      LIMIT 1;
+    `;
+    const res = await this.db.query(sql);
+    if (res.rows.length === 0) {
+      return 'INOUT001';
+    }
+    const lastId = res.rows[0].inout_id; // e.g. "INOUT014"
+    const nextNum = parseInt(lastId.substring(5), 10) + 1;
+    return `INOUT${nextNum.toString().padStart(3, '0')}`;
   }
 
   async create(dto: CreateGuestInOutDto, user?: string, ip?: string) {

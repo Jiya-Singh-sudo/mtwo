@@ -14,9 +14,11 @@ import "./DriverDutyRoaster.css";
 
 function getDateForDay(weekStart: string, dayIndex: number): string {
   const [y, m, d] = weekStart.split("-").map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d + dayIndex));
+  const date = new Date(y, m - 1, d); // LOCAL date
+  date.setDate(date.getDate() + dayIndex);
   return date.toISOString().slice(0, 10);
 }
+
 
 export default function DriverDutyRoasterPage() {
   /* ================= STATE ================= */

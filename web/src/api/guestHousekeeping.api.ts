@@ -49,3 +49,13 @@ export async function cancelGuestHousekeeping(id: string, user = "system") {
   );
   return res.data;
 }
+export async function assignRoomBoyToRoom(
+  data: GuestHousekeepingCreateDto,
+  user = "system"
+) {
+  const res = await api.post("/guest-housekeeping", data, {
+    headers: { "x-user": user },
+  });
+  return res.data;
+}
+

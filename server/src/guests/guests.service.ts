@@ -2,10 +2,26 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
+import { translate } from '@vitalets/google-translate-api';
 
 @Injectable()
 export class GuestsService {
   constructor(private readonly db: DatabaseService) { }
+  private async generateGuestId(): Promise<string> {
+    const sql = `
+      SELECT guest_id
+      FROM m_guest
+      ORDER BY CAST(SUBSTRING(guest_id, 2) AS VARCHAR) DESC
+      LIMIT 1;
+    `;
+    const res = await this.db.query(sql);
+    if (res.rows.length === 0) {
+      return 'G001';
+    }
+    const lastId = res.rows[0].guest_id; // e.g. "G023"
+    const nextNum = parseInt(lastId.substring(1), 10) + 1;
+    return `G${nextNum.toString().padStart(3, '0')}`;
+  }
 
   // create guest (transactional)
   async createFullGuest(payload: {
@@ -33,7 +49,9 @@ export class GuestsService {
       const g = payload.guest;
       
       // 1. Generate ID (seconds timestamp to fit integer)
-      const guest_id = Math.floor(Date.now() / 1000); 
+      const guest_id = await this.generateGuestId(); 
+      const translated = await translate(g.guest_name, { to: 'mr' });
+      g.guest_name_local_language = translated.text;
 
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
@@ -46,7 +64,7 @@ export class GuestsService {
       const guestRes = await this.db.query(insertGuestSql, [
         guest_id, // $1
         g.guest_name, 
-        g.guest_name_local_language || null, 
+        g.guest_name_local_language, 
         g.guest_mobile || null, 
         g.guest_alternate_mobile || null, 
         g.guest_address || null, 

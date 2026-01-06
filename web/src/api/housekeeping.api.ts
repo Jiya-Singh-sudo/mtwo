@@ -42,3 +42,16 @@ export async function softDeleteHousekeeping(
   );
   return res.data;
 }
+
+export async function getHkShiftEnum() {
+  return safeGet<{ enum_value: string }[]>("/enums/hk_shift_enum");
+}
+export async function getRoomBoyOptions() {
+  const data = await getActiveHousekeeping();
+  return data.map((hk) => ({
+    hk_id: hk.hk_id,
+    hk_name: hk.hk_name,
+  }));
+}
+
+
