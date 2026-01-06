@@ -27,6 +27,7 @@ import { GuestVehicleModule } from './guest_vehicle/guest_vehicle.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DriverDutyModule } from './driver-duty/driver-duty.module';
+import { RoomManagementModule } from './room-management/room-management.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { DriverDutyModule } from './driver-duty/driver-duty.module';
     DashboardModule,
     DocumentsModule,
     DriverDutyModule,
+    RoomManagementModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

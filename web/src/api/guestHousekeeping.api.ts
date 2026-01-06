@@ -58,4 +58,7 @@ export async function assignRoomBoyToRoom(
   });
   return res.data;
 }
+export async function unassignRoomBoy(id: string) {
+  return api.put(`/room-housekeeping/${id}/unassign`);
+}
 

@@ -11,12 +11,12 @@ export class GuestHousekeepingService {
     const sql = `SELECT guest_hk_id FROM t_room_housekeeping ORDER BY guest_hk_id DESC LIMIT 1`;
     const res = await this.db.query(sql);
 
-    if (res.rows.length === 0) return "GHK001";
+    if (res.rows.length === 0) return "RHK001";
 
-    const last = res.rows[0].guest_hk_id.replace("GHK", "");
+    const last = res.rows[0].guest_hk_id.replace("RHK", "");
     const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
 
-    return `GHK${next}`;
+    return `RHK${next}`;
   }
 
   async findAll(activeOnly = true) {
@@ -40,7 +40,7 @@ export class GuestHousekeepingService {
 
     const sql = `
       INSERT INTO t_room_housekeeping (
-        guest_hk_id, hk_id, guest_id,
+        guest_hk_id, hk_id, room_id,
         task_date, task_shift,
         service_type, admin_instructions,
         status, assigned_by, assigned_at
@@ -55,7 +55,7 @@ export class GuestHousekeepingService {
     const params = [
       id,
       dto.hk_id,
-      dto.guest_id,
+      dto.room_id,
       dto.task_date,
       dto.task_shift,
       dto.service_type,
@@ -77,7 +77,7 @@ export class GuestHousekeepingService {
     const sql = `
       UPDATE t_room_housekeeping SET
         hk_id = $1,
-        guest_id = $2,
+        room_id = $2,
         task_date = $3,
         task_shift = $4,
         service_type = $5,
@@ -90,7 +90,7 @@ export class GuestHousekeepingService {
 
     const params = [
       dto.hk_id ?? existing.hk_id,
-      dto.guest_id ?? existing.guest_id,
+      dto.room_id ?? existing.room_id,
       dto.task_date ?? existing.task_date,
       dto.task_shift ?? existing.task_shift,
       dto.service_type ?? existing.service_type,

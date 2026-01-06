@@ -4,22 +4,20 @@ import { Search, Plus, Loader2 } from 'lucide-react';
 import api from "../../../api/apiClient";
 import "./RoomManagement.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
-import {
-  getActiveHousekeeping,
-  createHousekeeping,
-  updateHousekeeping,
-  softDeleteHousekeeping,
-} from "../../../api/housekeeping.api";
+import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping } from "../../../api/housekeeping.api";
 import { getRoomBoyOptions } from "../../../api/housekeeping.api";
 import { Button } from "../../ui/button";
-import type {
-  Housekeeping,
-  HousekeepingCreateDto,
-  HousekeepingUpdateDto,
-} from "../../../types/housekeeping";
+import type { Housekeeping, HousekeepingCreateDto, HousekeepingUpdateDto } from "../../../types/housekeeping";
 import { HK_SHIFTS } from "../../../constants/housekeeping";
-import { assignRoomBoyToRoom } from "../../../api/guestHousekeeping.api";
+import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
 type ShiftType = "Morning" | "Evening" | "Night" | "Full-Day";
+import { createRoom } from "../../../api/rooms.api";
+import { updateRoom } from "../../../api/rooms.api";
+import { createGuestRoom } from "../../../api/guestRoom.api";
+import { updateGuestRoom } from "../../../api/guestRoom.api";
+import type { RoomOverview } from "../../../types/guestRoom";
+import { RoomRow } from "@/types/roomManagement";
+
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 /* Matches DB / API response (snake_case, flat structure) */
@@ -29,7 +27,10 @@ type RoomOverviewBackend = {
   room_name: string;
   residence_type?: string | null;
   status: string;
-  guest_name?: string | null;
+  guest?: {
+    guestId: string;
+    guestName: string;
+  } | null;
 };
 // type EnumValue = {
 //   enum_value: string;
@@ -49,7 +50,7 @@ type AssignmentFormType = {
 export function RoomManagement() {
   /* ================= STATE ================= */
 
-  const [rooms, setRooms] = useState<RoomOverviewBackend[]>([]);
+  const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   /* ---------------- ASSIGN ROOM BOY ---------------- */
@@ -57,7 +58,16 @@ export function RoomManagement() {
   const [hkShifts, setHkShifts] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [roomBoyOptions, setRoomBoyOptions] = useState<RoomBoyOption[]>([]);
-
+  const [viewRoom, setViewRoom] = useState<RoomOverview | null>(null);
+  const [editRoom, setEditRoom] = useState<RoomOverview | null>(null);
+  const [showAddRoom, setShowAddRoom] = useState(false);
+  const [roomForm, setRoomForm] = useState({
+    room_no: "",
+    room_name: "",
+    residence_type: "",
+    room_capacity: 1,
+    status: "Available" as "Available" | "Occupied",
+  });
 
   const [activeRoom, setActiveRoom] =
     useState<RoomOverviewBackend | null>(null);
@@ -91,9 +101,7 @@ export function RoomManagement() {
     shift: "Morning",
   });
 
-
   /* ================= LOAD DATA ================= */
-
   useEffect(() => {
     loadRooms();
   }, []);
@@ -142,9 +150,24 @@ export function RoomManagement() {
     loadRoomBoys();
   }, []);
 
+  async function handleAddRoom() {
+    await createRoom(roomForm);
+    setShowAddRoom(false);
+    loadRooms(); // reload list
+  }
+
+  async function handleEditRoom() {
+    if (!editRoom) return;
+
+    await updateRoom(editRoom.roomNo, {
+      status: editRoom.status,
+    });
+
+    setEditRoom(null);
+    loadRooms();
+  }
 
   /* ================= FILTER ================= */
-
   const filteredRooms = rooms.filter((room) =>
     room.room_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (room.room_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -152,8 +175,28 @@ export function RoomManagement() {
     (room.guest_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  /* ================= OPEN ASSIGN MODAL ================= */
+async function unassignGuest(room: RoomOverview) {
+  if (!room.guestRoomId) return;
 
+  await updateGuestRoom(room.guestRoomId, {
+    action_type: "Room-Released",
+    is_active: false,
+  });
+
+  loadRooms();
+}
+
+  async function assignGuest(room: RoomOverview, guestId: string) {
+    await createGuestRoom({
+      guest_id: guestId,
+      room_id: room.roomId.toString(),
+      action_type: "Room-Allocated",
+    });
+
+    loadRooms();
+  }
+
+  /* ================= OPEN ASSIGN MODAL ================= */
   async function openAssignRoomBoyModal(room: RoomOverviewBackend) {
     setActiveRoom(room);
     setAssignmentForm({
@@ -168,19 +211,14 @@ export function RoomManagement() {
 
 
   /* ================= SUBMIT ================= */
-
   async function submitRoomBoyAssignment() {
     if (!activeRoom) return;
-
     const { roomBoyId, shift, taskDate } = assignmentForm;
-
     if (!roomBoyId || !shift || !taskDate) {
       alert("Room boy, shift, and task date are required.");
       return;
     }
-
     setAssigning(true);
-
     try {
       await assignRoomBoyToRoom({
         room_id: activeRoom.room_id,
@@ -203,7 +241,6 @@ export function RoomManagement() {
   }
 
   /* ================= ROOM BOY CRUD ================= */
-
   const handleAddRoomBoy = async () => {
     try {
       const saved = await createHousekeeping(roomBoyForm);
@@ -309,6 +346,15 @@ export function RoomManagement() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <div>
+              <Button
+                className="bg-[#00247D] text-white"
+                onClick={() => setShowAddRoom(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Room
+              </Button>
+            </div>
           </div>
 
           {/* ROOMS TABLE */}
@@ -345,14 +391,30 @@ export function RoomManagement() {
                       <td className="px-4 py-3 border-t">
                         {room.guest_name || "—"}
                       </td>
-                      <td className="px-4 py-3 border-t">
-                        <button
-                          className="text-indigo-600 hover:underline"
-                          onClick={() => openAssignRoomBoyModal(room)}
-                        >
-                          Assign Room Boy
-                        </button>
-                      </td>
+                      <td className="space-x-2">
+                        <button onClick={() => setViewRoom(room)}>View</button>
+                        <button onClick={() => setEditRoom(room)}>Edit</button>
+
+                        {room.guest ? (
+                          <button onClick={() => vacateGuest(room.guest.guestRoomId)}>
+                            Unassign Guest
+                          </button>
+                        ) : (
+                          <button onClick={() => openAssignGuest(room)}>
+                            Assign Guest
+                          </button>
+                        )}
+
+                        {room.housekeeping ? (
+                          <button onClick={() => cancelHousekeeping(room.housekeeping.guestHkId)}>
+                            Unassign Room Boy
+                          </button>
+                        ) : (
+                          <button onClick={() => openAssignRoomBoy(room)}>
+                            Assign Room Boy
+                          </button>
+                        )}
+                        </td>
                     </tr>
                   ))
                 )}
@@ -560,6 +622,20 @@ export function RoomManagement() {
           </div>
         </div>
       )}
+
+      {/* ================= VIEW ROOM ================= */}
+      {viewRoom && (
+      <div className="modal">
+        <h3>Room Details</h3>
+
+        <p><b>Room No:</b> {viewRoom.roomNo}</p>
+        <p><b>Status:</b> {viewRoom.status}</p>
+        <p><b>Guest:</b> {viewRoom.guest?.guestName ?? "—"}</p>
+
+        <button onClick={() => setViewRoom(null)}>Close</button>
+      </div>
+    )}
+
 
       {/* ================= ADD ROOM BOY MODAL ================= */}
       {showAddRoomBoy && (

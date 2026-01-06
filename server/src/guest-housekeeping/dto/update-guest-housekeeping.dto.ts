@@ -1,6 +1,6 @@
 export class UpdateGuestHousekeepingDto {
   hk_id?: string;
-  guest_id?: string;
+  room_id?: string;
 
   task_date?: string;
   task_shift?: "Morning" | "Evening" | "Night" | "Full-Day";
