@@ -1,6 +1,13 @@
 /* ============================
    NIC-STYLE MODAL OVERLAY
 =============================== */
+@media (max-width: 768px) {
+  .nicModal {
+    width: 90%;
+    padding: 20px;
+  }
+}
+
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -32,17 +39,48 @@
 }
 
 /* ============================
-   MODAL HEADER
-=============================== */
+   MODAL OVERLAY
+============================ */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px; /* breathing room on small screens */
+}
+
+/* ============================
+   MAIN MODAL
+============================ */
+.nicModal {
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 40px); /* never overflow viewport */
+  background: #ffffff;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* key fix */
+}
+
+/* ============================
+   HEADER
+============================ */
 .nicModalHeader {
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .nicModalHeader h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #00247D;
 }
@@ -50,15 +88,81 @@
 .closeBtn {
   background: none;
   border: none;
-  font-size: 22px;
-  color: #444;
+  font-size: 20px;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
+  color: #555;
 }
 
-.closeBtn:hover {
-  background: #f2f2f2;
+/* ============================
+   BODY (SCROLL AREA)
+============================ */
+.nicModalBody {
+  padding: 20px;
+  overflow-y: auto; /* scroll happens HERE */
+}
+
+/* ============================
+   FORM LAYOUT
+============================ */
+.nicFormStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nicFormStack label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.nicInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fafafa;
+  font-size: 14px;
+}
+
+.nicInput:focus {
+  outline: none;
+  border-color: #00247D;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 36, 125, 0.15);
+}
+
+/* ============================
+   FOOTER
+============================ */
+.nicModalActions {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancelBtn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
+.saveBtn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: #00247D;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.saveBtn:hover {
+  background: #001a5d;
 }
 
 /* ============================
@@ -168,8 +272,89 @@ table thead th {
 /* FIX accidental hidden header */
 thead, th {
   display: table-cell !important;
-<<<<<<< HEAD
 }
-=======
+/* ============================
+   FORM STACK (VERTICAL RHYTHM)
+=============================== */
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
->>>>>>> 49cbb8495ca58e28bc51af63682092bda2072d50
+
+/* Individual field wrapper */
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Labels refinement */
+.formField label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Inputs – softer and friendlier */
+.nicInput {
+  height: 42px;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fafafa;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nicInput::placeholder {
+  color: #9ca3af;
+}
+
+/* Focus state */
+.nicInput:focus {
+  outline: none;
+  border-color: #00247D;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 36, 125, 0.15);
+}
+
+/* Select fix */
+.nicInput select {
+  appearance: none;
+  background-color: #fafafa;
+  cursor: pointer;
+}
+
+/* Modal actions spacing */
+.modalActions,
+.nicModalActions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.detailSection {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.detailSection h4 {
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #00247D;
+}
+
+.detailSection p {
+  font-size: 14px;
+  margin-bottom: 6px;
+}

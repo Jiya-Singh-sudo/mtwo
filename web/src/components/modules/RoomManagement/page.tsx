@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from "react";
-import { Search, Plus, Loader2 } from 'lucide-react';
-import api from "../../../api/apiClient";
+import { Search, Plus, Loader2, Eye, FileEdit, UserPlus, UserMinus, User } from 'lucide-react';
 import "./RoomManagement.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping } from "../../../api/housekeeping.api";
@@ -12,29 +11,24 @@ import { HK_SHIFTS } from "../../../constants/housekeeping";
 import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
 type ShiftType = "Morning" | "Evening" | "Night" | "Full-Day";
 import { createRoom } from "../../../api/rooms.api";
-import { updateRoom } from "../../../api/rooms.api";
-import { createGuestRoom } from "../../../api/guestRoom.api";
-import { updateGuestRoom } from "../../../api/guestRoom.api";
-import type { RoomOverview } from "../../../types/guestRoom";
-import { RoomRow } from "@/types/roomManagement";
-
+import { createGuestRoom, updateGuestRoom } from "../../../api/guestRoom.api";
+import { getRoomManagementOverview, updateFullRoom } from "../../../api/roomManagement.api";
+import { RoomRow, EditRoomFullPayload } from "@/types/roomManagement";
+import { getAssignableGuests } from "../../../api/roomManagement.api";
+import { ActiveGuestRow } from "@/types/guests";
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 /* Matches DB / API response (snake_case, flat structure) */
-type RoomOverviewBackend = {
-  room_id: number;
+type RoomFormState = {
   room_no: string;
   room_name: string;
-  residence_type?: string | null;
-  status: string;
-  guest?: {
-    guestId: string;
-    guestName: string;
-  } | null;
+  residence_type: string;
+  building_name: string;
+  room_type: string;
+  room_capacity: number;
+  room_category: string;
+  status: "Available" | "Occupied";
 };
-// type EnumValue = {
-//   enum_value: string;
-// };
 type RoomBoyOption = {
   id: string;
   name: string;
@@ -49,28 +43,35 @@ type AssignmentFormType = {
 
 export function RoomManagement() {
   /* ================= STATE ================= */
-
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-
   /* ---------------- ASSIGN ROOM BOY ---------------- */
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
   const [isRoomBoyModalOpen, setIsRoomBoyModalOpen] = useState(false);
+  const [guestOptions, setGuestOptions] = useState<ActiveGuestRow[]>([]);
+  const [assignCheckInDate, setAssignCheckInDate] = useState<string>("");
+  const [assignCheckOutDate, setAssignCheckOutDate] = useState<string>("");
   const [hkShifts, setHkShifts] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [roomBoyOptions, setRoomBoyOptions] = useState<RoomBoyOption[]>([]);
-  const [viewRoom, setViewRoom] = useState<RoomOverview | null>(null);
-  const [editRoom, setEditRoom] = useState<RoomOverview | null>(null);
+  const [viewRoom, setViewRoom] = useState<RoomRow | null>(null);
+  const [editRoom, setEditRoom] = useState<RoomRow | null>(null);
+  const [assignGuestRoom, setAssignGuestRoom] = useState<RoomRow | null>(null);
   const [showAddRoom, setShowAddRoom] = useState(false);
-  const [roomForm, setRoomForm] = useState({
+  const [roomForm, setRoomForm] = useState<RoomFormState>({
     room_no: "",
     room_name: "",
     residence_type: "",
+    building_name: "",
+    room_type: "",
     room_capacity: 1,
-    status: "Available" as "Available" | "Occupied",
+    room_category: "",
+    status: "Available",
   });
+  
 
-  const [activeRoom, setActiveRoom] =
-    useState<RoomOverviewBackend | null>(null);
+
+  const [activeRoom, setActiveRoom] = useState<RoomRow | null>(null);
 
   // Assignment form (for assigning room boy to a room)
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormType>({
@@ -102,18 +103,32 @@ export function RoomManagement() {
   });
 
   /* ================= LOAD DATA ================= */
+  async function loadAssignableGuests() {
+    try {
+      const data = await getAssignableGuests();
+      setGuestOptions(data);
+    } catch (err) {
+      console.error("Failed to load assignable guests", err);
+    }
+  }
+
+  useEffect(() => {
+    loadAssignableGuests();
+  }, []);
+
   useEffect(() => {
     loadRooms();
   }, []);
 
   async function loadRooms() {
     try {
-      const res = await api.get("/rooms");
-      setRooms(res.data);
+      const data = await getRoomManagementOverview();
+      setRooms(data);
     } catch (err) {
-      console.error("Failed to load rooms", err);
+      console.error("Failed to load room overview", err);
     }
   }
+
   async function loadRoomBoysAndShifts() {
     try {
       const boys = await getRoomBoyOptions();
@@ -159,45 +174,65 @@ export function RoomManagement() {
   async function handleEditRoom() {
     if (!editRoom) return;
 
-    await updateRoom(editRoom.roomNo, {
+    const payload: EditRoomFullPayload = {
+      // ROOM
+      room_no: editRoom.roomNo,
+      room_name: editRoom.roomName ?? undefined,
+      building_name: editRoom.buildingName ?? undefined,
+      residence_type: editRoom.residenceType ?? undefined,
+      room_type: editRoom.roomType ?? undefined,
+      room_category: editRoom.roomCategory ?? undefined,
+      room_capacity: editRoom.roomCapacity ?? undefined,
       status: editRoom.status,
-    });
+
+      // GUEST (optional)
+      guest_id: editRoom.guest?.guestId ?? null,
+      action_type: "Room-Changed",
+      action_description: "Updated from Room Management",
+
+      // HOUSEKEEPING (optional)
+      hk_id: editRoom.housekeeping?.hkId ?? null,
+      task_date: editRoom.housekeeping?.taskDate ?? undefined,
+      task_shift: editRoom.housekeeping?.taskShift ?? undefined,
+      service_type: "Room Cleaning",
+    };
+
+    await updateFullRoom(editRoom.roomId, payload);
 
     setEditRoom(null);
-    loadRooms();
+    await loadRooms();
   }
+
 
   /* ================= FILTER ================= */
   const filteredRooms = rooms.filter((room) =>
-    room.room_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.room_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.residence_type || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.guest_name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.residenceType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (room.guest?.guestName || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-async function unassignGuest(room: RoomOverview) {
-  if (!room.guestRoomId) return;
-
-  await updateGuestRoom(room.guestRoomId, {
-    action_type: "Room-Released",
-    is_active: false,
-  });
-
-  loadRooms();
-}
-
-  async function assignGuest(room: RoomOverview, guestId: string) {
+  async function submitAssignGuest() {
+    if (!assignGuestRoom || selectedGuestId === null) return;
     await createGuestRoom({
-      guest_id: guestId,
-      room_id: room.roomId.toString(),
+      guest_id: selectedGuestId,
+      room_id: assignGuestRoom.roomId,
+      check_in_date: assignCheckInDate,
+      check_out_date: assignCheckOutDate || undefined,
       action_type: "Room-Allocated",
+      action_description: "Assigned from Room Management",
     });
-
-    loadRooms();
+    setAssignGuestRoom(null);
+    await Promise.all([
+      loadRooms(),              // refresh rooms
+      loadAssignableGuests(),   // 🔥 refresh dropdown source
+    ]);
   }
 
+
+
   /* ================= OPEN ASSIGN MODAL ================= */
-  async function openAssignRoomBoyModal(room: RoomOverviewBackend) {
+  async function openAssignRoomBoyModal(room: RoomRow) {
     setActiveRoom(room);
     setAssignmentForm({
       roomBoyId: "",
@@ -208,7 +243,6 @@ async function unassignGuest(room: RoomOverview) {
     await loadRoomBoysAndShifts();
     setIsRoomBoyModalOpen(true);
   }
-
 
   /* ================= SUBMIT ================= */
   async function submitRoomBoyAssignment() {
@@ -221,7 +255,7 @@ async function unassignGuest(room: RoomOverview) {
     setAssigning(true);
     try {
       await assignRoomBoyToRoom({
-        room_id: activeRoom.room_id,
+        room_id: activeRoom.roomId,
         hk_id: assignmentForm.roomBoyId,
         task_date: assignmentForm.taskDate,
         task_shift: assignmentForm.shift as ShiftType,
@@ -231,6 +265,7 @@ async function unassignGuest(room: RoomOverview) {
 
 
       alert("Room boy assigned successfully");
+      await loadRooms();
       setIsRoomBoyModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -238,6 +273,32 @@ async function unassignGuest(room: RoomOverview) {
     } finally {
       setAssigning(false);
     }
+  }
+
+  async function vacateGuest(guestRoomId: string) {
+    await updateGuestRoom(guestRoomId, {
+      action_type: "Room-Released",
+      is_active: false,
+    });
+    await Promise.all([
+      loadRooms(),              // refresh rooms
+      loadAssignableGuests(),   // 🔥 refresh dropdown source
+    ]);
+  }
+
+  function openAssignGuest(room: RoomRow) {
+    setAssignGuestRoom(room);
+    setSelectedGuestId("");
+    setAssignCheckInDate("");
+    setAssignCheckOutDate("");
+  }
+  async function unassignHousekeeping(guestHkId: string) {
+    await unassignRoomBoy(guestHkId);
+    await loadRooms(); // 🔥 THIS is what you were missing
+  }
+  function toDateOnly(value?: string) {
+    if (!value) return "";
+    return value.slice(0, 10);
   }
 
   /* ================= ROOM BOY CRUD ================= */
@@ -311,9 +372,7 @@ async function unassignGuest(room: RoomOverview) {
     setShowEditRoomBoy(true);
   };
 
-
   /* ================= UI ================= */
-
   return (
     <div className="space-y-6">
 
@@ -336,8 +395,9 @@ async function unassignGuest(room: RoomOverview) {
         {/* ---------------- ROOMS TAB ---------------- */}
         <TabsContent value="rooms" className="space-y-6">
           {/* SEARCH */}
-          <div className="bg-white border rounded-sm p-4">
-            <div className="relative max-w-md">
+          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+            {/* SEARCH */}
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
@@ -346,15 +406,15 @@ async function unassignGuest(room: RoomOverview) {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div>
-              <Button
-                className="bg-[#00247D] text-white"
-                onClick={() => setShowAddRoom(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Room
-              </Button>
-            </div>
+
+            {/* ADD ROOM BUTTON */}
+            <Button
+              className="bg-[#00247D] text-white whitespace-nowrap"
+              onClick={() => setShowAddRoom(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Room
+            </Button>
           </div>
 
           {/* ROOMS TABLE */}
@@ -380,41 +440,55 @@ async function unassignGuest(room: RoomOverview) {
                 ) : (
                   filteredRooms.map((room, idx) => (
                     <tr
-                      key={room.room_id}
+                      key={room.roomId}
                       className={idx % 2 ? "bg-gray-50" : "bg-white"}
                     >
-                      <td className="px-4 py-3 border-t">{room.room_no}</td>
+                      <td className="px-4 py-3 border-t">{room.roomNo}</td>
                       <td className="px-4 py-3 border-t">
-                        {room.room_name || "—"}
+                        {room.roomName || "—"}
                       </td>
                       <td className="px-4 py-3 border-t">{room.status}</td>
                       <td className="px-4 py-3 border-t">
-                        {room.guest_name || "—"}
+                        {room.guest?.guestName || "—"}
                       </td>
                       <td className="space-x-2">
-                        <button onClick={() => setViewRoom(room)}>View</button>
-                        <button onClick={() => setEditRoom(room)}>Edit</button>
-
+                        <button
+                          onClick={() => setViewRoom(room)}
+                          className="inline-flex items-center gap-1">
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => setEditRoom(room)}
+                          className="inline-flex items-center gap-1">
+                          <FileEdit size={16} />
+                        </button>
                         {room.guest ? (
-                          <button onClick={() => vacateGuest(room.guest.guestRoomId)}>
-                            Unassign Guest
+                          <button
+                            onClick={() => vacateGuest(room.guest!.guestRoomId)}
+                            className="inline-flex items-center gap-1">
+                            <UserMinus size={16} />
                           </button>
                         ) : (
-                          <button onClick={() => openAssignGuest(room)}>
-                            Assign Guest
+                          <button
+                            onClick={() => openAssignGuest(room)}
+                            className="inline-flex items-center gap-1">
+                            <UserPlus size={16} />
                           </button>
                         )}
-
                         {room.housekeeping ? (
-                          <button onClick={() => cancelHousekeeping(room.housekeeping.guestHkId)}>
-                            Unassign Room Boy
+                          <button
+                            onClick={() => unassignHousekeeping(room.housekeeping!.guestHkId) }
+                            className="inline-flex items-center gap-1">
+                            <UserMinus size={16} />
                           </button>
                         ) : (
-                          <button onClick={() => openAssignRoomBoy(room)}>
-                            Assign Room Boy
+                          <button
+                            onClick={() => openAssignRoomBoyModal(room)}
+                            className="inline-flex items-center gap-1">
+                            <User size={16} />
                           </button>
                         )}
-                        </td>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -520,7 +594,7 @@ async function unassignGuest(room: RoomOverview) {
                 <label>Room No</label>
                 <input
                   className="nicInput"
-                  value={activeRoom.room_no}
+                  value={activeRoom.roomNo}
                   readOnly
                 />
               </div>
@@ -623,18 +697,513 @@ async function unassignGuest(room: RoomOverview) {
         </div>
       )}
 
-      {/* ================= VIEW ROOM ================= */}
-      {viewRoom && (
-      <div className="modal">
-        <h3>Room Details</h3>
+      {editRoom && (
+        <div className="modalOverlay">
+          <div className="nicModal">
 
-        <p><b>Room No:</b> {viewRoom.roomNo}</p>
-        <p><b>Status:</b> {viewRoom.status}</p>
-        <p><b>Guest:</b> {viewRoom.guest?.guestName ?? "—"}</p>
+            <div className="nicModalHeader">
+              <h2>Edit Room</h2>
+              <button className="closeBtn" onClick={() => setEditRoom(null)}>
+                ✕
+              </button>
+            </div>
 
-        <button onClick={() => setViewRoom(null)}>Close</button>
+            <div className="nicFormGrid">
+
+              {/* Room No */}
+              <div>
+                <label>Room Number</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.roomNo}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, roomNo: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Room Name */}
+              <div>
+                <label>Room Name</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.roomName ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, roomName: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Building */}
+              <div>
+                <label>Building Name</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.buildingName ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, buildingName: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Residence Type */}
+              <div>
+                <label>Residence Type</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.residenceType ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, residenceType: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Room Type */}
+              <div>
+                <label>Room Type</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.roomType ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, roomType: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Room Category */}
+              <div>
+                <label>Room Category</label>
+                <input
+                  className="nicInput"
+                  value={editRoom.roomCategory ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({ ...editRoom, roomCategory: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Capacity */}
+              <div>
+                <label>Capacity</label>
+                <input
+                  type="number"
+                  min={1}
+                  className="nicInput"
+                  value={editRoom.roomCapacity ?? 1}
+                  onChange={(e) =>
+                    setEditRoom({
+                      ...editRoom,
+                      roomCapacity: Number(e.target.value),
+                    })
+                  }
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label>Status</label>
+                <select
+                  className="nicInput"
+                  value={editRoom.status}
+                  onChange={(e) =>
+                    setEditRoom({
+                      ...editRoom,
+                      status: e.target.value as "Available" | "Occupied",
+                    })
+                  }
+                >
+                  <option value="Available">Available</option>
+                  <option value="Occupied">Occupied</option>
+                </select>
+              </div>
+
+              {/* Guest */}
+              <div className="fullWidth">
+                <label>Guest</label>
+                <select
+                  className="nicInput"
+                  value={editRoom.guest?.guestId ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({
+                      ...editRoom,
+                      guest: e.target.value
+                        ? guestOptions.find(g => g.guest_id.toString() === e.target.value)
+                          ? {
+                            guestId: e.target.value,
+                            guestRoomId: editRoom.guest?.guestRoomId ?? "",
+                            guestName:
+                              guestOptions.find(g => g.guest_id.toString() === e.target.value)!
+                                .guest_name,
+                          }
+                          : null
+                        : null,
+                    })
+                  }
+                >
+                  <option value="">— No Guest —</option>
+                  {guestOptions.map((g) => (
+                    <option key={g.guest_id} value={g.guest_id}>
+                      {g.guest_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Room Boy */}
+              <div className="fullWidth">
+                <label>Room Boy</label>
+                <select
+                  className="nicInput"
+                  value={editRoom.housekeeping?.hkId ?? ""}
+                  onChange={(e) =>
+                    setEditRoom({
+                      ...editRoom,
+                      housekeeping: e.target.value
+                      ? {
+                          guestHkId: editRoom.housekeeping?.guestHkId ?? "",
+                          hkId: e.target.value,
+                          hkName:
+                            roomBoyOptions.find(rb => rb.id === e.target.value)?.name || "",
+                          taskDate: new Date().toISOString().slice(0, 10),
+                          taskShift: "Morning",
+                          isActive: true,
+                        }
+                      : null,
+                    })
+                  }
+                >
+                  <option value="">— Unassigned —</option>
+                  {roomBoyOptions.map((rb) => (
+                    <option key={rb.id} value={rb.id}>
+                      {rb.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+            </div>
+
+            <div className="nicModalActions">
+              <button className="cancelBtn" onClick={() => setEditRoom(null)}>
+                Cancel
+              </button>
+              <button className="saveBtn" onClick={handleEditRoom}>
+                Save Changes
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
+      {showAddRoom && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Add Room</h2>
+              <button
+                className="closeBtn"
+                onClick={() => setShowAddRoom(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY (SCROLLABLE) */}
+            <div className="nicModalBody">
+              <div className="nicFormStack">
+
+                <div>
+                  <label>Room Number</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. GFD-101"
+                    value={roomForm.room_no}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, room_no: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Room Name</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. Ground Floor Double"
+                    value={roomForm.room_name}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, room_name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Building Name</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. Jam Jalkar Bhavan"
+                    value={roomForm.building_name}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, building_name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Residence Type</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. First Floor / Penthouse"
+                    value={roomForm.residence_type}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, residence_type: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Room Type</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. Single / Double / Suite"
+                    value={roomForm.room_type}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, room_type: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Room Capacity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="nicInput"
+                    placeholder="Number of guests"
+                    value={roomForm.room_capacity}
+                    onChange={(e) =>
+                      setRoomForm({
+                        ...roomForm,
+                        room_capacity: Number(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Room Category</label>
+                  <input
+                    className="nicInput"
+                    placeholder="e.g. Deluxe / Standard"
+                    value={roomForm.room_category}
+                    onChange={(e) =>
+                      setRoomForm({ ...roomForm, room_category: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label>Status</label>
+                  <select
+                    className="nicInput"
+                    value={roomForm.status}
+                    onChange={(e) =>
+                      setRoomForm({
+                        ...roomForm,
+                        status: e.target.value as "Available" | "Occupied",
+                      })
+                    }
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Occupied">Occupied</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setShowAddRoom(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="saveBtn"
+                onClick={handleAddRoom}
+              >
+                Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
+      {assignGuestRoom && (
+      <div className="modalOverlay">
+        <div className="modal">
+          <h3>Assign Guest</h3>
+
+          <p className="mb-2">
+            <b>Room:</b> {assignGuestRoom.roomNo}
+          </p>
+
+          <div className="nicFormStack">
+            <div>
+              <label>Guest *</label>
+              <select
+                className="nicInput"
+                value={selectedGuestId ?? ""}
+                onChange={(e) => {
+                  const guestId = String(e.target.value);
+                  setSelectedGuestId(guestId);
+
+                  const guest = guestOptions.find(
+                    g => g.guest_id.toString() === guestId
+                  );
+
+                  setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
+                  setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
+                }}
+              >
+                <option value="">Select Guest</option>
+                {guestOptions.map((g) => (
+                  <option key={g.guest_id} value={g.guest_id}>
+                    {g.guest_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label>Check-in Date</label>
+              <input
+                type="date"
+                className="nicInput"
+                value={assignCheckInDate}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label>Check-out Date</label>
+              <input
+                type="date"
+                className="nicInput"
+                value={assignCheckOutDate}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="modalActions">
+            <button
+              className="linkBtn"
+              onClick={() => setAssignGuestRoom(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="primaryBtn"
+              onClick={submitAssignGuest}
+            >
+              Assign
+            </button>
+          </div>
+        </div>
       </div>
     )}
+
+      {/* ================= VIEW ROOM ================= */}
+      {viewRoom && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Room Details</h2>
+              <button
+                className="closeBtn"
+                onClick={() => setViewRoom(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="detailGrid">
+
+                {/* ROOM INFO */}
+                <div className="detailSection">
+                  <h4>Room Information</h4>
+                  <p><b>Room No:</b> {viewRoom.roomNo}</p>
+                  <p><b>Room Name:</b> {viewRoom.roomName || "—"}</p>
+                  <p><b>Building:</b> {viewRoom.buildingName || "—"}</p>
+                  <p><b>Residence Type:</b> {viewRoom.residenceType || "—"}</p>
+                  <p><b>Room Type:</b> {viewRoom.roomType || "—"}</p>
+                  <p><b>Room Category:</b> {viewRoom.roomCategory || "—"}</p>
+                  <p><b>Capacity:</b> {viewRoom.roomCapacity ?? "—"}</p>
+                  <p><b>Status:</b> {viewRoom.status}</p>
+                </div>
+
+                {/* GUEST INFO */}
+                <div className="detailSection">
+                  <h4>Guest Information</h4>
+                  {viewRoom.guest ? (
+                    <>
+                      <p><b>Guest Name:</b> {viewRoom.guest.guestName}</p>
+                      <p><b>Check-In:</b> {viewRoom.guest.checkInDate || "—"}</p>
+                      <p><b>Check-Out:</b> {viewRoom.guest.checkOutDate || "—"}</p>
+                    </>
+                  ) : (
+                    <p>— No guest assigned —</p>
+                  )}
+                </div>
+
+                {/* HOUSEKEEPING INFO */}
+                <div className="detailSection">
+                  <h4>Housekeeping</h4>
+                  {viewRoom.housekeeping ? (
+                    <>
+                      <p><b>Room Boy:</b> {viewRoom.housekeeping.hkName}</p>
+                      <p><b>Shift:</b> {viewRoom.housekeeping.taskShift}</p>
+                      <p><b>Task Date:</b> {viewRoom.housekeeping.taskDate}</p>
+                      <p>
+                        <b>Status:</b>{" "}
+                        {viewRoom.housekeeping.isActive ? "Assigned" : "Inactive"}
+                      </p>
+                    </>
+                  ) : (
+                    <p>— No room boy assigned —</p>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setViewRoom(null)}
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
 
 
       {/* ================= ADD ROOM BOY MODAL ================= */}

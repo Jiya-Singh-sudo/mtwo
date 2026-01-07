@@ -53,12 +53,11 @@ export async function assignRoomBoyToRoom(
   data: GuestHousekeepingCreateDto,
   user = "system"
 ) {
-  const res = await api.post("/guest-housekeeping", data, {
+  const res = await api.post("/guest-housekeeping/assignRoomBoy", data, {
     headers: { "x-user": user },
   });
   return res.data;
 }
 export async function unassignRoomBoy(id: string) {
-  return api.put(`/room-housekeeping/${id}/unassign`);
+  return api.put(`/guest-housekeeping/${id}/cancel`);
 }
-

@@ -24,12 +24,12 @@ export async function createButler(
 
 // UPDATE (by butler_name)
 export async function updateButler(
-  butlerName: string,
+  butlerId: string,
   data: ButlerUpdateDto,
   user = "system"
 ) {
   const res = await api.put(
-    `/butlers/${encodeURIComponent(butlerName)}`,
+    `/butlers/${encodeURIComponent(butlerId)}`,
     data,
     { headers: { "x-user": user } }
   );
@@ -38,11 +38,11 @@ export async function updateButler(
 
 // SOFT DELETE
 export async function softDeleteButler(
-  butlerName: string,
+  butlerId: string,
   user = "system"
 ) {
   const res = await api.delete(
-    `/butlers/${encodeURIComponent(butlerName)}`,
+    `/butlers/${encodeURIComponent(butlerId)}`,
     { headers: { "x-user": user } }
   );
   return res.data;

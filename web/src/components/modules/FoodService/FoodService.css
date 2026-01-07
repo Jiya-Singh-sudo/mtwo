@@ -185,3 +185,140 @@
   border-radius: 4px;
   font-weight: 500;
 }
+.foodServicePage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------------- TABS ---------------- */
+
+.nicTabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nicTab {
+  flex: 1;
+  padding: 12px;
+  background: #f9fafb;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+}
+
+.nicTab.active {
+  background: #ffffff;
+  border-bottom: 3px solid #00247d;
+  color: #00247d;
+}
+
+/* ---------------- STATS ---------------- */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.statCard h3 {
+  margin: 0;
+}
+
+.statCard.blue {
+  border-left: 4px solid #2563eb;
+}
+.statCard.green {
+  border-left: 4px solid #16a34a;
+}
+.statCard.orange {
+  border-left: 4px solid #ea580c;
+}
+.statCard.purple {
+  border-left: 4px solid #7c3aed;
+}
+
+/* ---------------- MEAL CARDS ---------------- */
+
+.mealCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.mealHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.mealLeft {
+  display: flex;
+  gap: 8px;
+}
+
+.mealInfo {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.mealActions {
+  margin-top: 12px;
+}
+
+/* ---------------- TABLE ---------------- */
+
+.nicTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nicTable th,
+.nicTable td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.sectionTitle {
+  margin-bottom: 12px;
+  color: #00247d;
+}
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.actionCell {
+  display: flex;
+  gap: 8px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.iconBtn.edit {
+  color: #2563eb;
+}
+
+.iconBtn.delete {
+  color: #dc2626;
+}
