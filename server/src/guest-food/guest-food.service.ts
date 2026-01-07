@@ -24,7 +24,8 @@ export class GuestFoodService {
     const totalGuestsSql = `
       SELECT COUNT(DISTINCT guest_id) AS count
       FROM t_guest_inout
-      WHERE is_active = TRUE;
+      WHERE is_active = TRUE
+        AND status = 'Entered';
     `;
 
     const mealsServedSql = `
@@ -231,5 +232,85 @@ export class GuestFoodService {
 
     const res = await this.db.query(sql, [now, user, ip, id]);
     return res.rows[0];
+  }
+  async getTodayGuestOrders() {
+    const sql = `
+      SELECT
+        gf.guest_food_id,
+        gf.guest_id,
+        gi.room_id,
+
+        g.guest_name,
+        r.room_name AS room_number,
+
+        gf.food_id,
+        mi.food_name,
+        mi.food_type,
+
+        /* derive meal */
+        CASE
+          WHEN gf.order_datetime::time BETWEEN '07:00' AND '10:00' THEN 'Breakfast'
+          WHEN gf.order_datetime::time BETWEEN '12:30' AND '15:00' THEN 'Lunch'
+          WHEN gf.order_datetime::time BETWEEN '19:00' AND '22:00' THEN 'Dinner'
+          ELSE
+            CASE
+              WHEN gf.order_datetime::time < '12:30' THEN 'Breakfast'
+              WHEN gf.order_datetime::time < '19:00' THEN 'Lunch'
+            ELSE 'Dinner'
+          END
+        END AS meal,
+
+        gf.delivery_status,
+        gf.order_datetime,
+        gf.delivered_datetime,
+
+        gb.butler_id,
+        b.butler_name
+
+      FROM t_guest_food gf
+
+      JOIN m_guest g
+        ON g.guest_id = gf.guest_id
+      AND g.is_active = TRUE
+
+      JOIN t_guest_inout gi
+        ON gi.guest_id = gf.guest_id
+      AND gi.is_active = TRUE
+      AND gi.status = 'Entered'
+
+      JOIN m_rooms r
+        ON r.room_id = gi.room_id
+
+      JOIN m_food_items mi
+        ON mi.food_id = gf.food_id
+
+      LEFT JOIN t_guest_butler gb
+        ON gb.guest_id = gf.guest_id
+      AND gb.is_active = TRUE
+      AND gb.service_type =
+        (
+          CASE
+            WHEN gf.order_datetime::time BETWEEN '07:00' AND '10:00' THEN 'Breakfast'
+            WHEN gf.order_datetime::time BETWEEN '12:30' AND '15:00' THEN 'Lunch'
+            WHEN gf.order_datetime::time BETWEEN '19:00' AND '22:00' THEN 'Dinner'
+            ELSE 'Other'
+          END
+        )::butler_service_enum   -- 🔥 THIS CAST FIXES EVERYTHING
+
+      LEFT JOIN m_butler b
+        ON b.butler_id = gb.butler_id
+
+      WHERE DATE(gf.order_datetime) = CURRENT_DATE
+        AND gf.is_active = TRUE
+
+      ORDER BY gf.order_datetime;
+    `;
+
+    const res = await this.db.query(sql);
+     console.log(
+    "[getTodayGuestOrders] rows:",
+    JSON.stringify(res.rows, null, 2)
+  );
+    return res.rows;
   }
 }

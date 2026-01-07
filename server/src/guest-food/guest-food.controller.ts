@@ -56,4 +56,8 @@ export class GuestFoodController {
     const user = req.headers["x-user"] || "system";
     return this.service.softDelete(id, user, this.extractIp(req));
   }
+  @Get("orders/today")
+  getTodayOrders() {
+    return this.service.getTodayGuestOrders();
+  }
 }
