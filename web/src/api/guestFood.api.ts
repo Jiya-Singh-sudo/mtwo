@@ -32,3 +32,7 @@ export const updateFoodStatus = async (
   );
   return res.data;
 };
+export const getTodayGuestOrders = async () => {
+  const res = await apiClient.get("/guest-food/orders/today");
+  return res.data;
+};

@@ -4,7 +4,8 @@ export interface Butler {
   butler_name: string;
   butler_name_local_language?: string | null;
 
-  mobile: string;
+  butler_mobile: number;
+  butler_alternate_mobile?: number | null;
   address?: string | null;
   remarks?: string | null;
 
@@ -25,7 +26,8 @@ export interface ButlerCreateDto {
   butler_name: string;
   butler_name_local_language?: string;
 
-  mobile: string;
+  butler_mobile: number;
+  butler_alternate_mobile?: number | null;
 
   address?: string;
   remarks?: string;
@@ -37,7 +39,8 @@ export interface ButlerUpdateDto {
   butler_name?: string;
   butler_name_local_language?: string;
 
-  mobile?: string;
+  butler_mobile?: number;
+  butler_alternate_mobile?: number | null;
 
   address?: string;
   remarks?: string;

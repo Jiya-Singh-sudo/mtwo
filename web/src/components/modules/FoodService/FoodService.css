@@ -1,4 +1,13 @@
-/* ---------- HEADER ---------- */
+/* ================= PAGE LAYOUT ================= */
+
+.foodServicePage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ================= HEADER ================= */
+
 .headerRow {
   display: flex;
   justify-content: space-between;
@@ -15,7 +24,31 @@
   color: #6b7280;
 }
 
-/* ---------- STATS ---------- */
+/* ================= TABS ================= */
+
+.nicTabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nicTab {
+  flex: 1;
+  padding: 12px;
+  background: #f9fafb;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+}
+
+.nicTab.active {
+  background: #ffffff;
+  border-bottom: 3px solid #00247d;
+  color: #00247d;
+}
+
+/* ================= STATS ================= */
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -26,7 +59,7 @@
   background: #ffffff;
   border-radius: 6px;
   padding: 18px;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -34,90 +67,250 @@
 
 .statCard h3 {
   font-size: 26px;
-  margin-top: 4px;
+  margin: 0;
 }
 
-.statCard.blue { border-color: #bfdbfe; color: #1e40af; }
-.statCard.green { border-color: #bbf7d0; color: #166534; }
-.statCard.orange { border-color: #fed7aa; color: #9a3412; }
-.statCard.purple { border-color: #e9d5ff; color: #6b21a8; }
+.statCard.blue {
+  border-left: 4px solid #2563eb;
+  color: #1e40af;
+}
 
-/* ---------- MEAL CARD ---------- */
-.mealCard {
+.statCard.green {
+  border-left: 4px solid #16a34a;
+  color: #166534;
+}
+
+.statCard.orange {
+  border-left: 4px solid #ea580c;
+  color: #9a3412;
+}
+
+.statCard.purple {
+  border-left: 4px solid #7c3aed;
+  color: #6b21a8;
+}
+
+/* ================= MEAL LANE ================= */
+
+.mealLane {
+  margin-bottom: 28px;
+  padding: 0 20px;
+}
+
+.activeMeal {
+  border-left: 6px solid #0ea5e9;
+  padding-left: 14px;
+}
+
+.mealLaneHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.laneTitle h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.mealWindow {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.laneStats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.pendingCount {
+  font-weight: 600;
+  color: #dc2626;
+}
+
+/* ================= EMPTY STATE ================= */
+
+.emptyLane {
+  padding: 24px 0;
+  text-align: center;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* ================= MEAL CARD GRID ================= */
+
+.mealCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* ================= GUEST MEAL CARD ================= */
+
+.guestMealCard {
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 18px;
-  margin-bottom: 14px;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.mealHeader {
+.guestMealCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+/* ----- Guest info ----- */
+
+.guestInfo {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.mealLeft {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.mealLeft h4 {
-  font-size: 16px;
+.guestName {
+  font-size: 15px;
   font-weight: 600;
+  color: #0f172a;
 }
 
-.mealLeft span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.mealInfo {
-  margin-top: 10px;
-  font-size: 14px;
-  color: #374151;
-  line-height: 1.6;
-}
-
-/* ---------- STATUS ---------- */
-.status {
-  padding: 4px 12px;
-  border-radius: 999px;
+.roomNumber {
   font-size: 12px;
-  font-weight: 500;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #334155;
 }
 
-.status.Completed { background: #dcfce7; color: #166534; }
-.status.InProgress { background: #dbeafe; color: #1e40af; }
-.status.Upcoming { background: #fef3c7; color: #92400e; }
+/* ----- Food info ----- */
 
-/* ---------- ACTION BUTTONS ---------- */
-.mealActions {
-  display: flex;
-  gap: 12px;
-  margin-top: 14px;
+.foodInfo {
+  font-size: 13px;
+  color: #475569;
 }
 
-.mealActions button {
-  padding: 8px 18px;
-  border-radius: 4px;
-  font-size: 14px;
-  border: 1px solid #00247d;
-  background: white;
-  color: #00247d;
-  transition: all 0.2s ease;
+.foodType {
+  font-weight: 600;
+  margin-bottom: 2px;
 }
 
-.mealActions button:hover {
-  background: #00247d;
+.foodItems {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ----- Butler assignment ----- */
+
+.assignButlerBtn {
+  background: #0ea5e9;
   color: white;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 999px;
+  cursor: pointer;
 }
 
-/* ---------- MODAL ---------- */
+.assignButlerBtn:hover {
+  background: #0284c7;
+}
+
+.assignedButler {
+  font-size: 12px;
+  background: #ecfeff;
+  color: #0369a1;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* ----- Footer ----- */
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statusBadge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  text-transform: capitalize;
+}
+
+.primaryActionBtn {
+  background: #16a34a;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.primaryActionBtn:hover {
+  background: #15803d;
+}
+
+/* ================= TABLE ================= */
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  color: #00247d;
+}
+
+.nicTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nicTable th,
+.nicTable td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.actionCell {
+  display: flex;
+  gap: 8px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.iconBtn.edit {
+  color: #2563eb;
+}
+
+.iconBtn.delete {
+  color: #dc2626;
+}
+
+/* ================= MODAL ================= */
+
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -146,23 +339,6 @@
   color: #00247d;
 }
 
-.nicForm {
-  display: grid;
-  gap: 12px;
-}
-
-.nicForm label {
-  font-size: 13px;
-  color: #374151;
-}
-
-.nicForm select,
-.nicForm textarea {
-  padding: 9px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-}
-
 .nicModalActions {
   display: flex;
   justify-content: flex-end;
@@ -170,155 +346,47 @@
   margin-top: 18px;
 }
 
+.nicPrimaryBtn,
 .saveBtn {
-  background: #00247d;
-  color: white;
   padding: 8px 18px;
   border-radius: 4px;
-}
-
-/* ---------- PRIMARY BUTTON ---------- */
-.nicPrimaryBtn {
-  padding: 10px 22px;
+  font-weight: 500;
   background: #00247d;
   color: white;
-  border-radius: 4px;
-  font-weight: 500;
-}
-.foodServicePage {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* ---------------- TABS ---------------- */
-
-.nicTabs {
-  display: flex;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.nicTab {
-  flex: 1;
-  padding: 12px;
-  background: #f9fafb;
   border: none;
   cursor: pointer;
-  font-weight: 500;
-  color: #374151;
 }
 
-.nicTab.active {
-  background: #ffffff;
-  border-bottom: 3px solid #00247d;
-  color: #00247d;
-}
+/* ================= UTIL ================= */
 
-/* ---------------- STATS ---------------- */
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+.clickable {
+  cursor: pointer;
 }
-
-.statCard {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 6px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-}
-
-.statCard h3 {
-  margin: 0;
-}
-
-.statCard.blue {
-  border-left: 4px solid #2563eb;
-}
-.statCard.green {
-  border-left: 4px solid #16a34a;
-}
-.statCard.orange {
-  border-left: 4px solid #ea580c;
-}
-.statCard.purple {
-  border-left: 4px solid #7c3aed;
-}
-
-/* ---------------- MEAL CARDS ---------------- */
-
-.mealCard {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.mealHeader {
-  display: flex;
-  justify-content: space-between;
-}
-
-.mealLeft {
-  display: flex;
-  gap: 8px;
-}
-
-.mealInfo {
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.mealActions {
-  margin-top: 12px;
-}
-
-/* ---------------- TABLE ---------------- */
-
-.nicTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.nicTable th,
-.nicTable td {
-  padding: 10px;
-  border-bottom: 1px solid #e5e7eb;
-  text-align: left;
-}
-
-.sectionTitle {
-  margin-bottom: 12px;
-  color: #00247d;
-}
-.tableHeader {
+.assignContextCard {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
-.actionCell {
-  display: flex;
-  gap: 8px;
+.assignContextCard strong {
+  font-size: 14px;
+  color: #0f172a;
 }
 
-.iconBtn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
+.mutedText {
+  font-size: 12px;
+  color: #64748b;
 }
 
-.iconBtn.edit {
-  color: #2563eb;
-}
-
-.iconBtn.delete {
-  color: #dc2626;
+.mealTag {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-weight: 500;
 }

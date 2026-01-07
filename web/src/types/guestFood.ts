@@ -81,3 +81,24 @@ export interface MealSchedule {
   data: MealScheduleRow[];
 }
 
+export type GuestMealUI = {
+  guestFoodId: string;
+
+  // backend identifiers (NOT shown in UI)
+  guestId: string;
+  roomId: string;
+
+  // UI fields
+  guestName: string;
+  roomNumber: string;
+  meal: "Breakfast" | "Lunch" | "Dinner";
+  foodItems: string[];
+  foodType: string;
+  status: string;
+
+  butler?: {
+    id: string;
+    name: string;
+  };
+};
+
