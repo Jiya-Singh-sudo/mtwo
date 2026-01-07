@@ -35,27 +35,43 @@ export class GuestHousekeepingService {
   }
 
   async create(dto: CreateGuestHousekeepingDto, user: string, ip: string) {
+    // 1️⃣ Find active guest for this room
+    const guestRes = await this.db.query(
+      `
+      SELECT guest_id
+      FROM t_guest_room
+      WHERE room_id = $1
+        AND is_active = TRUE
+      `,
+      [dto.room_id]
+    );
+    const guestId = guestRes.rows[0]?.guest_id ?? null;
     const id = await this.generateId();
     const now = new Date().toISOString();
-
     const sql = `
       INSERT INTO t_room_housekeeping (
-        guest_hk_id, hk_id, room_id,
-        task_date, task_shift,
-        service_type, admin_instructions,
-        status, assigned_by, assigned_at
+        guest_hk_id,
+        hk_id,
+        room_id,
+        guest_id,           -- ✅ ADD THIS
+        task_date,
+        task_shift,
+        service_type,
+        admin_instructions,
+        status,
+        assigned_by,
+        assigned_at,
+        is_active            -- ✅ ADD THIS
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
-        'Scheduled',
-        $8,$9
+        $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',$9,$10,True
       )
       RETURNING *;
     `;
-
     const params = [
       id,
       dto.hk_id,
       dto.room_id,
+      guestId,                 // ✅ ADD
       dto.task_date,
       dto.task_shift,
       dto.service_type,
@@ -63,7 +79,6 @@ export class GuestHousekeepingService {
       user,
       now,
     ];
-
     const res = await this.db.query(sql, params);
     return res.rows[0];
   }
@@ -107,7 +122,10 @@ export class GuestHousekeepingService {
   async cancel(id: string) {
     const sql = `
       UPDATE t_room_housekeeping
-      SET status = 'Cancelled'
+      SET
+        status = 'Cancelled',
+        is_active = FALSE,
+        completed_at = NOW()
       WHERE guest_hk_id = $1
       RETURNING *;
     `;

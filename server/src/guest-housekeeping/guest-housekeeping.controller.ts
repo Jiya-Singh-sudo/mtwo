@@ -24,7 +24,7 @@ export class GuestHousekeepingController {
     return this.service.findAll(true);
   }
 
-  @Post()
+  @Post("assignRoomBoy")
   create(@Body() dto: CreateGuestHousekeepingDto, @Req() req: any) {
     const user = req.headers["x-user"] || "system";
     const ip = this.extractIp(req);

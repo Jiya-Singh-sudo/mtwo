@@ -50,21 +50,21 @@ export class RoomsController {
     return this.service.create(dto, user, ip);
   }
 
-  @Put(':room_no')
+  @Put(':roomId')
   update(
-    @Param('room_no') room_no: string,
+    @Param('roomId') room_id: string,
     @Body() dto: UpdateRoomDto,
     @Req() req: any,
   ) {
     const user = req.headers['x-user'] || 'system';
     const ip = this.extractIp(req);
-    return this.service.update(room_no, dto, user, ip);
+    return this.service.update(room_id, dto, user, ip);
   }
 
-  @Delete(':room_no')
-  softDelete(@Param('room_no') room_no: string, @Req() req: any) {
+  @Delete(':room_id')
+  softDelete(@Param('room_id') room_id: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
     const ip = this.extractIp(req);
-    return this.service.softDelete(room_no, user, ip);
+    return this.service.softDelete(room_id, user, ip);
   }
 }

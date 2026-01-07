@@ -3,8 +3,6 @@ import { GuestRoomService } from "./guest-room.service";
 import { CreateGuestRoomDto } from "./dto/create-guest-room.dto";
 import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
 
-
-
 @Controller("guest-room")
 export class GuestRoomController {
   constructor(private readonly service: GuestRoomService) {}

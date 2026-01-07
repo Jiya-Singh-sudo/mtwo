@@ -7,6 +7,33 @@ import { UpdateRoomDto } from './dto/update-rooms.dto';
 export class RoomsService {
   constructor(private readonly db: DatabaseService) {}
 
+  private async generateRoomId(): Promise<string> {
+    const result = await this.db.query(`
+      SELECT room_id
+      FROM m_rooms
+      WHERE room_id ~ '^R[_]?[0-9]+$'
+      ORDER BY
+        CAST(REGEXP_REPLACE(room_id, '[^0-9]', '', 'g') AS INTEGER) DESC
+      LIMIT 1
+    `);
+
+    if (result.rows.length === 0) {
+      return 'R_001';
+    }
+
+    const lastId = result.rows[0].room_id;
+
+    // Extract ONLY digits, safely
+    const numericPart = lastId.replace(/\D/g, '');
+    const num = Number(numericPart);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(`Corrupt room_id detected: ${lastId}`);
+    }
+
+    return `R_${String(num + 1).padStart(3, '0')}`;
+  }
+
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM m_rooms WHERE is_active = $1 ORDER BY room_no`
@@ -22,7 +49,7 @@ export class RoomsService {
     return result.rows[0];
   }
 
-  async findOneById(room_id: number) {
+  async findOneById(room_id: string) {
     const sql = `SELECT * FROM m_rooms WHERE room_id = $1`;
     const result = await this.db.query(sql, [room_id]);
     return result.rows[0];
@@ -32,9 +59,11 @@ export class RoomsService {
     const now = new Date()
       .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
       .replace(',', '');
+    const roomId = await this.generateRoomId();
 
     const sql = `
       INSERT INTO m_rooms (
+        room_id,
         room_no,
         room_name,
         building_name,
@@ -47,11 +76,12 @@ export class RoomsService {
         inserted_at, inserted_by, inserted_ip,
         updated_at, updated_by, updated_ip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,NULL,NULL,NULL)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12,NULL,NULL,NULL)
       RETURNING *;
     `;
 
     const params = [
+      roomId,
       dto.room_no,
       dto.room_name ?? null,
       dto.building_name ?? null,
@@ -69,10 +99,10 @@ export class RoomsService {
     return result.rows[0];
   }
 
-  async update(room_no: string, dto: UpdateRoomDto, user: string, ip: string) {
-    const existing = await this.findOneByRoomNo(room_no);
+  async update(room_id: string, dto: UpdateRoomDto, user: string, ip: string) {
+    const existing = await this.findOneById(room_id);
     if (!existing) {
-      throw new Error(`Room '${room_no}' not found`);
+      throw new Error(`Room '${room_id}' not found`);
     }
 
     const now = new Date()
