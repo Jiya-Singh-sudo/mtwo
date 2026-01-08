@@ -28,6 +28,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DocumentsModule } from './documents/documents.module';
 import { DriverDutyModule } from './driver-duty/driver-duty.module';
 import { RoomManagementModule } from './room-management/room-management.module';
+import { ActivityLogModule } from './activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { RoomManagementModule } from './room-management/room-management.module';
     DocumentsModule,
     DriverDutyModule,
     RoomManagementModule,
+    ActivityLogModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
