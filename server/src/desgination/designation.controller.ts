@@ -31,6 +31,11 @@ export class DesignationController {
     return this.service.findAll(false);
   }
 
+  @Get("dropdown")
+  async getDesignationDropdown() {
+    return this.service.getActiveDesignationList();
+  }
+
   @Post()
   create(@Body() dto: CreateDesignationDto, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';

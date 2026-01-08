@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query } from '@nestjs/common';
 import { GuestsService } from './guests.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
@@ -7,9 +7,23 @@ import { UpdateGuestDto } from './dto/update-guests.dto';
 export class GuestsController {
   constructor(private readonly service: GuestsService) { }
 
+  // @Get('active')
+  // async active() {
+  //   return this.service.findActiveGuestsWithInOut();
+  // }
   @Get('active')
-  async active() {
-    return this.service.findActiveGuestsWithInOut();
+  async activeRows(
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.service.findActiveGuestsWithInOut({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      status,
+    });
   }
 
   // create full guest (guest + designation + inout)

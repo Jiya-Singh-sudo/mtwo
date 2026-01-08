@@ -56,8 +56,8 @@ export class GuestsService {
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
         INSERT INTO m_guest
-          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, id_proof_type, id_proof_no, email, inserted_by, inserted_ip)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
       `;
       
@@ -68,8 +68,6 @@ export class GuestsService {
         g.guest_mobile || null, 
         g.guest_alternate_mobile || null, 
         g.guest_address || null, 
-        g.id_proof_type, 
-        g.id_proof_no || null, 
         g.email || null, 
         user, 
         ip 
@@ -171,7 +169,7 @@ export class GuestsService {
   async update(guestId:string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
-      'guest_address', 'id_proof_type', 'id_proof_no', 'email'
+      'guest_address', 'email'
     ]);
     const fields: string[] = [];
     const vals: any[] = [];
@@ -209,8 +207,89 @@ export class GuestsService {
     return r.rows[0];
   }
 
-  async findActiveGuestsWithInOut() {
-    const sql = `
+  async findActiveGuestsWithInOut(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    entryDateFrom?: string;
+    entryDateTo?: string;
+  }) {
+    const { page, limit, search, status, sortBy, sortOrder, entryDateFrom, entryDateTo } = params;
+
+    const offset = (page - 1) * limit;
+
+    const where: string[] = [
+      'io.is_active = TRUE',
+      'g.is_active = TRUE',
+    ];
+
+    const values: any[] = [];
+    let idx = 1;
+    
+    /* ---------------- DATE FILTER ---------------- */
+    if (entryDateFrom) {
+      where.push(`io.entry_date >= $${idx}`);
+      values.push(entryDateFrom);
+      idx++;
+    }
+
+    if (entryDateTo) {
+      where.push(`io.entry_date <= $${idx}`);
+      values.push(entryDateTo);
+      idx++;
+    }
+    /* ---------------- SORTING ---------------- */
+    const allowedSorts: Record<string, string> = {
+      guest_name: 'g.guest_name',
+      designation_name: 'md.designation_name',
+      entry_date: 'io.entry_date',
+    };
+
+    const sortColumn =
+      allowedSorts[sortBy ?? 'entry_date'] ?? allowedSorts.entry_date;
+
+    const sortDirection =
+      sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    /* ---------------- SEARCH ---------------- */
+    if (search) {
+      where.push(`
+        (
+          g.guest_name ILIKE $${idx}
+          OR g.guest_mobile ILIKE $${idx}
+          OR g.guest_id ILIKE $${idx}
+        )
+      `);
+      values.push(`%${search}%`);
+      idx++;
+    }
+
+    /* ---------------- STATUS FILTER ---------------- */
+    if (status && status !== 'All') {
+      where.push(`io.status = $${idx}`);
+      values.push(status);
+      idx++;
+    }
+
+    /* ---------------- COUNT QUERY ---------------- */
+    const countSql = `
+      SELECT COUNT(*)::int AS total
+      FROM t_guest_inout io
+      JOIN m_guest g ON g.guest_id = io.guest_id
+      LEFT JOIN t_guest_designation d
+        ON d.guest_id = g.guest_id
+        AND d.is_current = TRUE
+        AND d.is_active = TRUE
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = d.designation_id
+      WHERE ${where.join(' AND ')}
+    `;
+
+    /* ---------------- DATA QUERY ---------------- */
+    const dataSql = `
       SELECT
         g.guest_id,
         g.guest_name,
@@ -219,8 +298,6 @@ export class GuestsService {
         g.guest_alternate_mobile,
         g.guest_address,
         g.email,
-        g.id_proof_type,
-        g.id_proof_no,
 
         d.gd_id,
         d.designation_id,
@@ -241,15 +318,30 @@ export class GuestsService {
       FROM t_guest_inout io
       JOIN m_guest g ON g.guest_id = io.guest_id
       LEFT JOIN t_guest_designation d
-        ON d.guest_id = g.guest_id AND d.is_current = TRUE AND d.is_active = TRUE
+        ON d.guest_id = g.guest_id
+        AND d.is_current = TRUE
+        AND d.is_active = TRUE
       LEFT JOIN m_guest_designation md
         ON md.designation_id = d.designation_id
-      WHERE io.is_active = TRUE
-        AND g.is_active = TRUE
-      ORDER BY io.entry_date DESC, io.entry_time DESC;
+      WHERE ${where.join(' AND ')}
+      ORDER BY ${sortColumn} ${sortDirection}
+      LIMIT $${idx} OFFSET $${idx + 1};
     `;
-    const res = await this.db.query(sql);
-    return res.rows;
+
+    /* ---------------- EXECUTION ---------------- */
+    const countResult = await this.db.query(
+      countSql,
+      values.slice(0, idx - 1)
+    );
+
+    values.push(limit, offset);
+
+    const dataResult = await this.db.query(dataSql, values);
+
+    return {
+      data: dataResult.rows,
+      totalCount: countResult.rows[0].total,
+    };
   }
 
   async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {

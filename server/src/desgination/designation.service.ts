@@ -28,6 +28,20 @@ export class DesignationService {
     return result.rows;
   }
 
+  async getActiveDesignationList() {
+    const sql = `
+      SELECT
+        designation_id,
+        designation_name
+      FROM m_guest_designation
+      WHERE is_active = true
+      ORDER BY designation_name;
+    `;
+
+    const result = await this.db.query(sql);
+    return result.rows;
+  }
+
   async findOneByName(name: string) {
     const sql = `SELECT * FROM m_designation WHERE designation_name = $1`;
     const result = await this.db.query(sql, [name]);
