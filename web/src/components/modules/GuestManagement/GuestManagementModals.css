@@ -13,7 +13,21 @@
   width: 420px;
   padding: 24px;
   border-radius: 8px;
+
+  /* NEW */
+  max-height: 90vh;
+  overflow-y: auto;
+
   animation: fadeIn 0.2s ease-in-out;
+}
+
+.largeModal {
+  width: 650px;
+  max-width: 95%;
+
+  /* NEW */
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modalActions {
@@ -149,10 +163,6 @@ label {
   border-radius: 6px;
   border: none;
 }
-.largeModal {
-  width: 650px;
-  max-width: 95%;
-}
 
 .section {
   margin-bottom: 20px;
@@ -164,3 +174,29 @@ label {
   font-weight: 600;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+.modalBody {
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.errorText {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.nicInput.error {
+  border-color: #dc2626;
+}
+.nicInput.error {
+  border-color: #dc2626;
+}
+
+.errorText {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}

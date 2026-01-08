@@ -99,6 +99,7 @@ export type GuestMealUI = {
   butler?: {
     id: string;
     name: string;
+    guestButlerId?: string;
   };
 };
 

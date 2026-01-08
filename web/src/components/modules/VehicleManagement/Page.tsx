@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Edit, Trash2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { Button } from '../../ui/button';
+import { Edit, Trash2 } from 'lucide-react';
+import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { getAllVehicles, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
@@ -90,9 +89,12 @@ export function VehicleManagement() {
     loadDrivers();
   }, []);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, _setSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [vehicleFilter, setVehicleFilter] = useState<"ALL" | "ACTIVE">("ALL");
+  const [driverFilter, setDriverFilter] = useState<"ALL" | "ACTIVE">("ALL");
+  const [activeTab, setActiveTab] = useState<"vehicles" | "drivers">("vehicles");
 
   // Vehicle modals
   const [showAddVehicle, setShowAddVehicle] = useState(false);
@@ -285,15 +287,27 @@ export function VehicleManagement() {
     });
   };
 
-  const filteredVehicles = vehicles.filter(v =>
-    v.vehicle_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.vehicle_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredVehicles = vehicles
+    .filter(v =>
+      vehicleFilter === "ALL" ? true : v.is_active
+    )
+    .filter(v =>
+      v.vehicle_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.vehicle_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-  const filteredDrivers = drivers.filter(driver =>
-    driver.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    driver.driver_contact.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+
+  const filteredDrivers = drivers
+    .filter(d =>
+      driverFilter === "ALL" ? true : d.is_active
+    )
+    .filter(driver =>
+      driver.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      driver.driver_contact.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+
 
   return (
     <div className="space-y-6">
@@ -302,42 +316,71 @@ export function VehicleManagement() {
         <h2 className="text-[#00247D]">Vehicle & Driver Management</h2>
         <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन औ�� चालक प्रबंधन</p>
       </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="vehicles" className="space-y-6">
-        <TabsList className="bg-white border border-gray-200">
-          <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
-          <TabsTrigger value="drivers">Drivers</TabsTrigger>
-        </TabsList>
-
-        {/* Vehicles Tab */}
-        <TabsContent value="vehicles" className="space-y-6">
-          {/* Search and Add */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 max-w-md bg-white border border-gray-200 rounded-sm p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
-                  type="text"
-                  placeholder="Search vehicles..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Button
-              onClick={() => {
-                console.log('Clicked Add Vehicle');
-                setShowAddVehicle(true);
-              }}
-              className="bg-[#00247D] hover:bg-[#003399] text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Vehicle
-            </Button>
+      {/* STATS */}
+      <div className="statsGrid">
+        <div
+          className="statCard blue"
+          onClick={() => setVehicleFilter("ALL")}
+        >
+          <Car />
+          <div>
+            <p>Total Vehicles</p>
+            <h3>{vehicles.length}</h3>
           </div>
+        </div>
 
+        <div
+          className="statCard green"
+          onClick={() => setVehicleFilter("ACTIVE")}
+        >
+          <CheckCircle />
+          <div>
+            <p>Active Vehicles</p>
+            <h3>{vehicles.filter(v => v.is_active).length}</h3>
+          </div>
+        </div>
+
+        <div
+          className="statCard orange"
+          onClick={() => setDriverFilter("ALL")}
+        >
+          <Users />
+          <div>
+            <p>Total Drivers</p>
+            <h3>{drivers.length}</h3>
+          </div>
+        </div>
+
+        <div
+          className="statCard purple"
+          onClick={() => setDriverFilter("ACTIVE")}
+        >
+          <AlertCircle />
+          <div>
+            <p>Active Drivers</p>
+            <h3>{drivers.filter(d => d.is_active).length}</h3>
+          </div>
+        </div>
+      </div>
+      {/* TABS */}
+      <div className="nicTabs">
+        <button
+          className={`nicTab ${activeTab === "vehicles" ? "active" : ""}`}
+          onClick={() => setActiveTab("vehicles")}
+        >
+          Vehicles
+        </button>
+        <button
+          className={`nicTab ${activeTab === "drivers" ? "active" : ""}`}
+          onClick={() => setActiveTab("drivers")}
+        >
+          Drivers
+        </button>
+      </div>
+
+      {/* VEHICLES TAB */}
+      {activeTab === "vehicles" && (
+        <>
           {/* Vehicle List Table */}
           {vehicleLoading ? (
             <div className="bg-white border border-gray-200 rounded-sm p-6 text-sm text-gray-500">
@@ -379,7 +422,6 @@ export function VehicleManagement() {
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
                           {vehicle.color ?? '-'}
                         </td>
-
                         <td className="px-4 py-3 border-t border-gray-200">
                           <div className="flex items-center gap-2">
                             <button
@@ -405,33 +447,12 @@ export function VehicleManagement() {
               </div>
             </div>
           )}
-        </TabsContent>
+        </>
+      )}
 
-        {/* Drivers Tab */}
-        <TabsContent value="drivers" className="space-y-6">
-          {/* Search and Add */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 max-w-md bg-white border border-gray-200 rounded-sm p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
-                  type="text"
-                  placeholder="Search drivers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Button
-              onClick={() => setShowAddDriver(true)}
-              className="bg-[#00247D] hover:bg-[#003399] text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Driver
-            </Button>
-          </div>
-
+      {/* DRIVERS TAB */}
+      {activeTab === "drivers" && (
+        <>
           {/* Driver List Table */}
           {driverLoading ? (
             <div className="bg-white border border-gray-200 rounded-sm p-6 text-sm text-gray-500">
@@ -449,14 +470,12 @@ export function VehicleManagement() {
                       <th className="px-4 py-3 text-left text-sm">Alternate Contact</th>
                       <th className="px-4 py-3 text-left text-sm">License No</th>
                       <th className="px-4 py-3 text-left text-sm">Address</th>
+                      <th className="px-4 py-3 text-left text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDrivers.map((driver, index) => (
-                      <tr
-                        key={`${driver.driver_id ?? 'tmp'}-${driver.driver_contact}-${index}`}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                      >
+                      <tr key={`${driver.driver_id ?? 'tmp'}-${driver.driver_contact}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
                           {driver.driver_name}
                         </td>
@@ -500,8 +519,8 @@ export function VehicleManagement() {
               </div>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
 
       {/* Add Vehicle Modal */}
       {showAddVehicle && (

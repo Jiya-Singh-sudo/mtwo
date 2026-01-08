@@ -9,6 +9,10 @@ export async function getAllDesignations() {
   return safeGet<any[]>("/designations/all");
 }
 
+export async function getActiveDesignationList() {
+  return safeGet<any[]>("/designations/dropdown");
+}
+
 export async function createDesignation(
   data: DesignationCreateDto,
   user = "system"

@@ -4,7 +4,7 @@ import "./FoodService.css";
 import { getFoodDashboard, updateFoodStatus, getTodayGuestOrders } from "@/api/guestFood.api";
 import { FoodDashboard, GuestMealUI } from "../../../types/guestFood";
 import { getActiveButlers, createButler, updateButler, softDeleteButler } from "@/api/butler.api";
-import { createGuestButler } from "@/api/guestButler.api";
+import { createGuestButler, softDeleteGuestButler } from "@/api/guestButler.api";
 
 /* ---------------- TYPES ---------------- */
 type Butler = {
@@ -108,6 +108,17 @@ export function FoodService() {
     });
     await loadFoodData();
     await loadGuestOrders(); // 🔥 REQUIRED
+  }
+
+  async function unassignButler(guestButlerId: string) {
+    if (!confirm("Unassign this butler from the guest?")) return;
+    try {
+      await softDeleteGuestButler(guestButlerId);
+      await loadGuestOrders();
+    } catch (err) {
+      console.error("Failed to unassign butler", err);
+      alert("Failed to unassign butler");
+    }
   }
   function openAddButler() {
     setButlerMode("add");
@@ -214,10 +225,10 @@ export function FoodService() {
 
       butler: order.butler_id
         ? {
-            id: order.butler_id,
-            name: order.butler_name,
-            guestButlerId: order.guest_butler_id, // ✅ NEW
-          }
+          id: order.butler_id,
+          name: order.butler_name,
+          guestButlerId: order.guest_butler_id, // ✅ NEW
+        }
         : undefined,
     };
   }
@@ -291,7 +302,7 @@ export function FoodService() {
 
               <button
                 className="unassignBtn"
-                onClick={() => unassignButler(data.butler.guestButlerId)}
+                onClick={() => data.butler?.guestButlerId && unassignButler(data.butler.guestButlerId)}
               >
                 Unassign
               </button>
@@ -342,7 +353,7 @@ export function FoodService() {
         room_id: assignContext!.roomId,
         butler_id: assignmentForm.butlerId,
 
-        service_type: assignContext!.meal, 
+        service_type: assignContext!.meal,
         service_date: new Date().toISOString().split("T")[0],
         service_time: assignmentForm.serviceTime || undefined,
 
@@ -370,8 +381,8 @@ export function FoodService() {
     return now >= start && now <= end;
   }
 
-  const breakfastGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Breakfast").map(mapToGuestMealUI); 
-  const lunchGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Lunch").map(mapToGuestMealUI); 
+  const breakfastGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Breakfast").map(mapToGuestMealUI);
+  const lunchGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Lunch").map(mapToGuestMealUI);
   const dinnerGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Dinner").map(mapToGuestMealUI);
   const otherGuests: GuestMealUI[] = guestOrders.filter(o => o.meal === "Other").map(mapToGuestMealUI);
 
@@ -383,6 +394,41 @@ export function FoodService() {
         <div>
           <h2>Food Service</h2>
           <p>खाद्य सेवा – Butler & Guest Food Management</p>
+        </div>
+      </div>
+
+      {/* STATS */}
+      <div className="statsGrid">
+        <div className="statCard blue">
+          <Users />
+          <div>
+            <p>Total Guests</p>
+            <h3>{stats?.totalGuests ?? 0}</h3>
+          </div>
+        </div>
+
+        <div className="statCard green">
+          <CheckCircle />
+          <div>
+            <p>Meals Served</p>
+            <h3>{stats?.mealsServed ?? 0}</h3>
+          </div>
+        </div>
+
+        <div className="statCard orange">
+          <AlertCircle />
+          <div>
+            <p>Special Requests</p>
+            <h3>{stats?.specialRequests ?? 0}</h3>
+          </div>
+        </div>
+
+        <div className="statCard purple">
+          <UtensilsCrossed />
+          <div>
+            <p>Menu Items</p>
+            <h3>{stats?.menuItems ?? 0}</h3>
+          </div>
         </div>
       </div>
 
@@ -406,68 +452,33 @@ export function FoodService() {
       {/* ---------------- GUEST FOOD SERVICE TAB ---------------- */}
       {activeTab === "food" && (
         <>
-          {/* STATS */}
-          <div className="statsGrid">
-            <div className="statCard blue">
-              <Users />
-              <div>
-                <p>Total Guests</p>
-                <h3>{stats?.totalGuests ?? 0}</h3>
-              </div>
-            </div>
-
-            <div className="statCard green">
-              <CheckCircle />
-              <div>
-                <p>Meals Served</p>
-                <h3>{stats?.mealsServed ?? 0}</h3>
-              </div>
-            </div>
-
-            <div className="statCard orange">
-              <AlertCircle />
-              <div>
-                <p>Special Requests</p>
-                <h3>{stats?.specialRequests ?? 0}</h3>
-              </div>
-            </div>
-
-            <div className="statCard purple">
-              <UtensilsCrossed />
-              <div>
-                <p>Menu Items</p>
-                <h3>{stats?.menuItems ?? 0}</h3>
-              </div>
-            </div>
-          </div>
-
           {/* MEAL SCHEDULE */}
           <div className="bg-white border rounded-sm">
             <div className="border-b px-6 py-4">
               <h3 className="text-[#00247D]">Today's Meal Schedule</h3>
             </div>
-              <MealLane
-                meal="Breakfast"
-                window="07:00 – 10:00"
-                guests={breakfastGuests}
-              />
+            <MealLane
+              meal="Breakfast"
+              window="07:00 – 10:00"
+              guests={breakfastGuests}
+            />
 
-              <MealLane
-                meal="Lunch"
-                window="12:30 – 15:00"
-                guests={lunchGuests}
-              />
+            <MealLane
+              meal="Lunch"
+              window="12:30 – 15:00"
+              guests={lunchGuests}
+            />
 
-              <MealLane
-                meal="Dinner"
-                window="19:00 – 22:00"
-                guests={dinnerGuests}
-              />
-              <MealLane
-                meal="Other"
-                window="All Day"
-                guests={otherGuests}
-              />
+            <MealLane
+              meal="Dinner"
+              window="19:00 – 22:00"
+              guests={dinnerGuests}
+            />
+            <MealLane
+              meal="Other"
+              window="All Day"
+              guests={otherGuests}
+            />
           </div>
         </>
       )}
@@ -574,7 +585,7 @@ export function FoodService() {
                   value={butlerForm.butler_mobile}
                   onChange={(e) =>
                     setButlerForm({ ...butlerForm, butler_mobile: e.target.value })
-                  }/>
+                  } />
               </div>
 
               <div>
@@ -621,7 +632,7 @@ export function FoodService() {
                   value={butlerForm.address}
                   onChange={(e) =>
                     setButlerForm({ ...butlerForm, address: e.target.value })
-                  }/>
+                  } />
               </div>
 
               <div className="fullWidth">
@@ -633,7 +644,7 @@ export function FoodService() {
                   value={butlerForm.remarks}
                   onChange={(e) =>
                     setButlerForm({ ...butlerForm, remarks: e.target.value })
-                  }/>
+                  } />
               </div>
             </div>
 

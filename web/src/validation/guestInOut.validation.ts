@@ -1,26 +1,51 @@
 import { z } from "zod";
 
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateRegex = /^\d{2}-\d{2}-\d{`2}$/;
 const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
 
-export const guestInOutSchema = z.object({
-  guest_id: z.string().min(1, "guest_id is required"),
-  room_id: z.string().optional(),
+export const guestInOutSchema = z
+  .object({
+    guest_id: z.string().optional(), // frontend can omit
 
-  guest_inout: z.boolean().optional(),
+    room_id: z.string().optional(),
 
-  entry_date: z.string().regex(dateRegex, "entry_date must be YYYY-MM-DD"),
-  entry_time: z.string().regex(timeRegex, "entry_time must be HH:MM or HH:MM:SS"),
+    guest_inout: z.boolean().optional(),
 
-  exit_date: z.string().regex(dateRegex).optional(),
-  exit_time: z.string().regex(timeRegex).optional(),
+    entry_date: z
+      .string()
+      .regex(dateRegex, "Check-in date must be DD-MM-YYYY"),
 
-  status: z.enum(["Entered", "Inside", "Exited"]).optional(),
+    entry_time: z
+      .string()
+      .regex(timeRegex, "Check-in time must be HH:MM or HH:MM:SS"),
 
-  purpose: z.string().optional(),
-  remarks: z.string().optional()
-});
+    exit_date: z
+      .string()
+      .regex(dateRegex, "Check-out date must be DD-MM-YYYY")
+      .optional(),
+
+    exit_time: z
+      .string()
+      .regex(timeRegex, "Check-out time must be HH:MM or HH:MM:SS")
+      .optional(),
+
+    status: z.enum(["Entered", "Inside", "Exited"]).optional(),
+
+    purpose: z.string().optional(),
+    remarks: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // If exit_date is present, exit_time must be present
+      if (data.exit_date && !data.exit_time) return false;
+      return true;
+    },
+    {
+      message: "Exit time is required when exit date is provided",
+      path: ["exit_time"],
+    }
+  );
 
 export const guestInOutUpdateSchema = guestInOutSchema.partial().extend({
-  is_active: z.boolean().optional()
+  is_active: z.boolean().optional(),
 });
