@@ -206,6 +206,7 @@ export function GuestManagement() {
   // In web/src/components/modules/GuestManagement/Page.tsx
   async function handleAddGuest() {
     setFormErrors({});
+    console.log("Submitting", guestForm);
 
     try {
       /* ======================
@@ -273,15 +274,15 @@ export function GuestManagement() {
       });
 
       // Cross-field rule
-      if (guestForm.exit_date && !guestForm.exit_time) {
-        throw new ZodError([
-          {
-            path: ["exit_time"],
-            message: "Exit time is required when exit date is provided",
-            code: "custom",
-          },
-        ]);
-      }
+      // if (guestForm.exit_date && !guestForm.exit_time) {
+      //   throw new ZodError([
+      //     {
+      //       path: ["exit_time"],
+      //       message: "Exit time is required when exit date is provided",
+      //       code: "custom",
+      //     },
+      //   ]);
+      // }
 
       /* ======================
         4. API CALL
@@ -325,6 +326,9 @@ export function GuestManagement() {
         setFormErrors(errors);
         return;
       }
+
+      console.error("Create guest failed:", err);
+      alert("Failed to add guest. Check browser console and server logs.");
     }
   }
 
@@ -753,7 +757,6 @@ export function GuestManagement() {
 
                   <div className="fullWidth">
                     <label>Designation *</label>
-
                     <select
                       className="nicInput"
                       value={designationMode === "other" ? "OTHER" : guestForm.designation_id}
@@ -924,6 +927,19 @@ export function GuestManagement() {
                     <p className="errorText">{formErrors.entry_date}</p>
                   </div>
 
+                  <div>
+                    <label>Check-in Time *</label>
+                    <input
+                      type="time"
+                      className={`nicInput ${formErrors.entry_time ? "error" : ""}`}
+                      value={guestForm.entry_time}
+                      onChange={(e) =>
+                        setGuestForm(s => ({ ...s, entry_time: e.target.value }))
+                      }
+                    />
+                    <p className="errorText">{formErrors.entry_time}</p>
+                  </div>
+
                   {/* Check-out Date */}
                   <div>
                     <label>Check-out Date</label>
@@ -956,6 +972,19 @@ export function GuestManagement() {
                         }
                       }}
                     />
+                  </div>
+
+                  <div>
+                    <label>Check-out Time *</label>
+                    <input
+                      type="time"
+                      className={`nicInput ${formErrors.exit_time ? "error" : ""}`}
+                      value={guestForm.exit_time}
+                      onChange={(e) =>
+                        setGuestForm(s => ({ ...s, exit_time: e.target.value }))
+                      }
+                    />
+                    <p className="errorText">{formErrors.exit_time}</p>
                   </div>
 
                   <div className="fullWidth">

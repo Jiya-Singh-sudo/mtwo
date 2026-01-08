@@ -18,35 +18,42 @@ export class DashboardService {
       recentActivity,
     ] = await Promise.all([
       // ================= GUEST STATS =================
+
+      // Total Guests
       this.db.query(`
         SELECT COUNT(*) 
         FROM m_guest 
         WHERE is_active = TRUE
       `),
 
+      // Checked In → guest entered and not exited yet
       this.db.query(`
-        SELECT COUNT(*) 
+        SELECT COUNT(*)
         FROM t_guest_inout
-        WHERE is_active = TRUE 
-          AND status = 'Inside'
+        WHERE is_active = TRUE
+          AND guest_inout = TRUE
+          AND exit_date IS NULL
       `),
 
+      // Upcoming Arrivals → entry in next 24 hours
       this.db.query(`
-        SELECT COUNT(*) 
+        SELECT COUNT(*)
         FROM t_guest_inout
-        WHERE entry_date 
-          BETWEEN CURRENT_DATE 
-          AND CURRENT_DATE + INTERVAL '1 day'
+        WHERE is_active = TRUE
+          AND guest_inout = TRUE
+          AND entry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
       `),
 
+      // Checked Out Today → exited today
       this.db.query(`
-        SELECT COUNT(*) 
+        SELECT COUNT(*)
         FROM t_guest_inout
-        WHERE status = 'Exited' 
+        WHERE is_active = TRUE
           AND exit_date = CURRENT_DATE
       `),
 
       // ================= OCCUPANCY =================
+
       this.db.query(`
         SELECT COALESCE(
           ROUND(
@@ -97,6 +104,7 @@ export class DashboardService {
           message, 
           inserted_at AS timestamp
         FROM t_activity_log
+        WHERE is_active = TRUE
         ORDER BY inserted_at DESC
         LIMIT 5
       `),
