@@ -1,9 +1,11 @@
+
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
-import { translate } from '@vitalets/google-translate-api';
+import Sanscript from '@indic-transliteration/sanscript';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
+
 
 @Injectable()
 export class GuestsService {
@@ -23,6 +25,21 @@ export class GuestsService {
     const nextNum = parseInt(lastId.substring(1), 10) + 1;
     return `G${nextNum.toString().padStart(3, '0')}`;
   }
+  // private isLatin(text: string): boolean {
+  //   return /^[A-Za-z\s]+$/.test(text);
+  // }
+  // private isValidLocalizedName(original: string, localized?: string): boolean {
+  //   if (!localized) return false;
+  //   const o = original.trim().toLowerCase();
+  //   const l = localized.trim().toLowerCase();
+  //   // Same text → useless
+  //   if (o === l) return false;
+  //   // Too short
+  //   if (localized.length < 2) return false;
+  //   // Garbage characters
+  //   if (/[\d@#$%^&*()_+=]/.test(localized)) return false;
+  //   return true;
+  // }
 
   // create guest (transactional)
   async createFullGuest(payload: {
@@ -47,53 +64,54 @@ export class GuestsService {
     // transaction start
     await this.db.query('BEGIN');
 
-   const today = todayISO();
-let status = 'Entered';
+    const today = todayISO();
+    let status = 'Entered';
 
-// ❌ Block back-dated entry
-if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
-  throw new BadRequestException('Entry date cannot be in the past');
-}
+    // pastedGraphic.png Block back-dated entry
+    if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
+      throw new BadRequestException('Entry date cannot be in the past');
+    }
 
-// 📅 Auto Scheduled
-if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
-  status = 'Scheduled';
-}
+    // pastedGraphic_1.png Auto Scheduled
+    if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
+      status = 'Scheduled';
+    }
 
-// 🚪 Auto Exited
-if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
-  status = 'Exited';
-}
+    // pastedGraphic_2.png Auto Exited
+    if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
+      status = 'Exited';
+    }
     try {
       const g = payload.guest;
-      
+
       // 1. Generate ID (seconds timestamp to fit integer)
-      const guest_id = await this.generateGuestId(); 
-      const translated = await translate(g.guest_name, { to: 'mr' });
-      g.guest_name_local_language = translated.text;
+      const guest_id = await this.generateGuestId();
+      // Transliteration (NON-BLOCKING & SAFE)
+      const mr = Sanscript.t(g.guest_name, 'itrans', 'devanagari');
 
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
-        INSERT INTO m_guest
-          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
-        RETURNING *;
-      `;
-      
+  INSERT INTO m_guest
+    (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
+  RETURNING *;
+`;
+
       const guestRes = await this.db.query(insertGuestSql, [
         guest_id, // $1
-        g.guest_name, 
-        g.guest_name_local_language, 
-        g.guest_mobile || null, 
-        g.guest_alternate_mobile || null, 
-        g.guest_address || null, 
-        g.email || null, 
-        user, 
+        g.guest_name,
+        mr,
+        g.guest_mobile || null,
+        g.guest_alternate_mobile || null,
+        g.guest_address || null,
+        g.email || null,
+        user,
         ip,
         g.id_proof_type || 'Aadhaar',
         g.id_proof_number || null
       ]);
       const guestRow = guestRes.rows[0];
+
 
       // 3. Upsert m_designation
       let finalDesignationId = payload.designation?.designation_id;
@@ -126,10 +144,11 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         }
       }
 
+
       // 4. Create t_guest_designation
       let gd_id: string | null = null;
       if (finalDesignationId) {
-        gd_id = `GD${Date.now()}`; 
+        gd_id = `GD${Date.now()}`;
         const insertGdSql = `
           INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
           VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
@@ -146,6 +165,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         ]);
       }
 
+
       // 5. Create t_guest_inout
       const inout_id = `IN${Date.now()}`;
       const now = new Date();
@@ -154,14 +174,14 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       }
       const entry_date = payload.inout.entry_date;
       const entry_time = payload.inout.entry_time;
-      
+
       const insertIoSql = `
         INSERT INTO t_guest_inout
           (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, is_active, inserted_by, inserted_ip)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, TRUE, $11, $12)
         RETURNING *;
       `;
-      
+
       const ioRes = await this.db.query(insertIoSql, [
         inout_id,
         guestRow.guest_id,
@@ -177,6 +197,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         ip
       ]);
 
+
       await this.db.query('COMMIT');
       return {
         guest: guestRow,
@@ -189,8 +210,9 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
     }
   }
 
+
   // Generic update
-  async update(guestId:string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
+  async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
       'guest_address', 'email'
@@ -214,11 +236,13 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
     return r.rows[0];
   }
 
+
   async findOne(guestId: string) {
     const sql = `SELECT * FROM m_guest WHERE guest_id = $1 LIMIT 1`;
     const r = await this.db.query(sql, [guestId]);
     return r.rows[0];
   }
+
 
   async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
@@ -230,6 +254,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
     const r = await this.db.query(sql, [guestId, user, ip]);
     return r.rows[0];
   }
+
 
   async findActiveGuestsWithInOut(params: {
     page: number;
@@ -243,22 +268,26 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
   }) {
     const { page, limit, search, status, sortBy, sortOrder, entryDateFrom, entryDateTo } = params;
 
+
     const offset = (page - 1) * limit;
+
 
     const where: string[] = [
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
 
+
     const values: any[] = [];
     let idx = 1;
-    
+
     /* ---------------- DATE FILTER ---------------- */
     if (entryDateFrom) {
       where.push(`io.entry_date >= $${idx}`);
       values.push(entryDateFrom);
       idx++;
     }
+
 
     if (entryDateTo) {
       where.push(`io.entry_date <= $${idx}`);
@@ -272,11 +301,14 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       entry_date: 'io.entry_date',
     };
 
+
     const sortColumn =
       allowedSorts[sortBy ?? 'entry_date'] ?? allowedSorts.entry_date;
 
+
     const sortDirection =
       sortOrder === 'asc' ? 'ASC' : 'DESC';
+
 
     /* ---------------- SEARCH ---------------- */
     if (search) {
@@ -291,12 +323,14 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       idx++;
     }
 
+
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {
       where.push(`io.status = $${idx}`);
       values.push(status);
       idx++;
     }
+
 
     /* ---------------- COUNT QUERY ---------------- */
     const countSql = `
@@ -312,6 +346,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       WHERE ${where.join(' AND ')}
     `;
 
+
     /* ---------------- DATA QUERY ---------------- */
     const dataSql = `
       SELECT
@@ -323,6 +358,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         g.guest_address,
         g.email,
 
+
         d.gd_id,
         d.designation_id,
         md.designation_name,
@@ -331,6 +367,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         d.office_location,
         d.is_current AS designation_is_current,
 
+
         io.inout_id,
         io.entry_date,
         io.entry_time,
@@ -338,6 +375,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         io.exit_time,
         io.status AS inout_status,
         io.room_id
+
 
       FROM t_guest_inout io
       JOIN m_guest g ON g.guest_id = io.guest_id
@@ -352,21 +390,26 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
 
+
     /* ---------------- EXECUTION ---------------- */
     const countResult = await this.db.query(
       countSql,
       values.slice(0, idx - 1)
     );
 
+
     values.push(limit, offset);
 
+
     const dataResult = await this.db.query(dataSql, values);
+
 
     return {
       data: dataResult.rows,
       totalCount: countResult.rows[0].total,
     };
   }
+
 
   async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
@@ -379,6 +422,7 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
     return r.rows[0];
   }
 
+
   async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
       UPDATE t_guest_inout
@@ -387,8 +431,8 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
     `;
     await this.db.query(sql, [guestId, user, ip]);
   }
- async findCheckedInWithoutVehicle() {
-  const sql = `
+  async findCheckedInWithoutVehicle() {
+    const sql = `
     SELECT
       g.guest_id,
       g.guest_name,
@@ -398,18 +442,22 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
       g.email,
       g.guest_address,
 
+
       io.inout_id,
       io.entry_date,
       io.entry_time,
       io.status
 
+
     FROM t_guest_inout io
     JOIN m_guest g
       ON g.guest_id = io.guest_id
 
+
     WHERE io.is_active = TRUE
       AND io.status IN ('Entered', 'Inside')
       AND g.is_active = TRUE
+
 
       AND NOT EXISTS (
         SELECT 1
@@ -418,11 +466,14 @@ if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
           AND gv.is_active = TRUE
       )
 
+
     ORDER BY io.entry_date DESC, io.entry_time DESC;
   `;
 
-  const res = await this.db.query(sql);
-  return res.rows;
-}
+
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
+
 
 }

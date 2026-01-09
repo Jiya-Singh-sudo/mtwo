@@ -62,10 +62,29 @@ export class GuestInoutService {
     const today = todayISO();
     const now = new Date();
 
+    // 🔍 Load existing row
+    const existing = await this.db.query(
+      `SELECT entry_date FROM t_guest_inout WHERE inout_id = $1`,
+      [inoutId]
+    );
+
+    if (!existing.rows.length) {
+      throw new BadRequestException('Invalid inout record');
+    }
+
+    // ✅ NORMALIZED existing entry date
+    const existingEntryDate = existing.rows[0].entry_date
+      ? existing.rows[0].entry_date.toISOString().split('T')[0]
+      : null;
+
     let status = dto.status ?? 'Entered';
 
-    // ❌ Block back-dated entry
-    if (dto.entry_date && isBefore(dto.entry_date, today)) {
+    // ❌ Block back-dated entry ONLY if user actually changed it
+    if (
+      dto.entry_date &&
+      dto.entry_date !== existingEntryDate &&
+      isBefore(dto.entry_date, today)
+    ) {
       throw new BadRequestException('Entry date cannot be in the past');
     }
 
@@ -79,15 +98,16 @@ export class GuestInoutService {
       status = 'Exited';
     }
 
-    // Apply DTO fields (skip empty strings)
+    // Apply DTO fields
     for (const [k, v] of Object.entries(dto)) {
       if (v === '' || v === undefined) continue;
+      if (k === 'status') continue; // 🚫 status handled separately
       fields.push(`${k} = $${idx}`);
       vals.push(v);
       idx++;
     }
 
-    // 🔥 Enforced business rules
+    // 🔥 Enforce status
     fields.push(`status = $${idx}`);
     vals.push(status);
     idx++;
@@ -129,6 +149,7 @@ export class GuestInoutService {
     const r = await this.db.query(sql, vals);
     return r.rows[0];
   }
+
 
   async softDelete(inoutId: string, user?: string, ip?: string) {
     const sql = `
