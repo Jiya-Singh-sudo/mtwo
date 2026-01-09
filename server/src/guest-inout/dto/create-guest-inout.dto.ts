@@ -5,7 +5,7 @@ export class CreateGuestInOutDto {
   entry_time!: string;  // 'HH:MM:SS' or 'HH:MM'
   exit_date?: string;
   exit_time?: string;
-  status?: 'Entered' | 'Inside' | 'Exited';
+  status?: 'Entered' | 'Inside' | 'Exited' | 'Cancelled' | 'Scheduled';
   purpose?: string;
   remarks?: string;
 }

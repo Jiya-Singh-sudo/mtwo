@@ -1,15 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
 import { translate } from '@vitalets/google-translate-api';
+import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 
 @Injectable()
 export class GuestsService {
   constructor(private readonly db: DatabaseService) { }
   private async generateGuestId(): Promise<string> {
     const sql = `
-      SELECT guest_id
+      SELECT guest_id 
       FROM m_guest
       ORDER BY CAST(SUBSTRING(guest_id, 2) AS VARCHAR) DESC
       LIMIT 1;
@@ -45,6 +46,24 @@ export class GuestsService {
   }, user = 'system', ip = '0.0.0.0') {
     // transaction start
     await this.db.query('BEGIN');
+
+   const today = todayISO();
+let status = 'Entered';
+
+// ❌ Block back-dated entry
+if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
+  throw new BadRequestException('Entry date cannot be in the past');
+}
+
+// 📅 Auto Scheduled
+if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
+  status = 'Scheduled';
+}
+
+// 🚪 Auto Exited
+if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
+  status = 'Exited';
+}
     try {
       const g = payload.guest;
       
@@ -56,8 +75,8 @@ export class GuestsService {
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
         INSERT INTO m_guest
-          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
         RETURNING *;
       `;
       
@@ -70,7 +89,9 @@ export class GuestsService {
         g.guest_address || null, 
         g.email || null, 
         user, 
-        ip 
+        ip,
+        g.id_proof_type || 'Aadhaar',
+        g.id_proof_number || null
       ]);
       const guestRow = guestRes.rows[0];
 
@@ -128,8 +149,11 @@ export class GuestsService {
       // 5. Create t_guest_inout
       const inout_id = `IN${Date.now()}`;
       const now = new Date();
-      const entry_date = payload.inout?.entry_date || now.toISOString().split('T')[0];
-      const entry_time = payload.inout?.entry_time || now.toTimeString().slice(0, 8);
+      if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
+        throw new Error("Entry date and time are required");
+      }
+      const entry_date = payload.inout.entry_date;
+      const entry_time = payload.inout.entry_time;
       
       const insertIoSql = `
         INSERT INTO t_guest_inout
@@ -144,9 +168,9 @@ export class GuestsService {
         true,
         entry_date,
         entry_time,
-        payload.inout?.exit_date || null,
-        payload.inout?.exit_time || null,
-        payload.inout?.status || 'Entered',
+        payload.inout?.exit_date,
+        payload.inout?.exit_time,
+        status,
         payload.inout?.purpose || null,
         payload.inout?.remarks || null,
         user,

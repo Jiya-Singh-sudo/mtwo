@@ -3,7 +3,7 @@ export class UpdateGuestInoutDto {
   entry_time?: string;
   exit_date?: string;
   exit_time?: string;
-  status?: 'Entered'|'Inside'|'Exited';
+  status?: 'Entered'|'Inside'|'Exited'|'Cancelled'|'Scheduled';
   remarks?: string;
   purpose?: string;
   room_id?: string;

@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestInOutDto } from './dto/create-guest-inout.dto';
 import { UpdateGuestInoutDto } from './dto/update-guest-inout.dto';
+import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 
 @Injectable()
 export class GuestInoutService {
@@ -57,13 +58,73 @@ export class GuestInoutService {
     const fields: string[] = [];
     const vals: any[] = [];
     let idx = 1;
-    for (const [k,v] of Object.entries(dto)) {
-      fields.push(`${k}=$${idx}`); vals.push(v); idx++;
+
+    const today = todayISO();
+    const now = new Date();
+
+    let status = dto.status ?? 'Entered';
+
+    // ❌ Block back-dated entry
+    if (dto.entry_date && isBefore(dto.entry_date, today)) {
+      throw new BadRequestException('Entry date cannot be in the past');
     }
+
+    // 📅 Auto Scheduled
+    if (dto.entry_date && isAfter(dto.entry_date, today)) {
+      status = 'Scheduled';
+    }
+
+    // 🚪 Auto Exited
+    if (dto.exit_date && isBefore(dto.exit_date, today)) {
+      status = 'Exited';
+    }
+
+    // Apply DTO fields (skip empty strings)
+    for (const [k, v] of Object.entries(dto)) {
+      if (v === '' || v === undefined) continue;
+      fields.push(`${k} = $${idx}`);
+      vals.push(v);
+      idx++;
+    }
+
+    // 🔥 Enforced business rules
+    fields.push(`status = $${idx}`);
+    vals.push(status);
+    idx++;
+
+    if (status === 'Exited' || status === 'Cancelled') {
+      fields.push(`is_active = FALSE`);
+
+      if (!dto.exit_date) {
+        fields.push(`exit_date = $${idx}`);
+        vals.push(today);
+        idx++;
+      }
+
+      if (!dto.exit_time) {
+        fields.push(`exit_time = $${idx}`);
+        vals.push(now.toTimeString().slice(0, 8));
+        idx++;
+      }
+    }
+
     if (!fields.length) return null;
-    fields.push(`updated_at = NOW()`); fields.push(`updated_by = $${idx}`); vals.push(user||'system'); idx++;
-    fields.push(`updated_ip = $${idx}`); vals.push(ip||'0.0.0.0');
-    const sql = `UPDATE t_guest_inout SET ${fields.join(', ')} WHERE inout_id = $${idx+1} RETURNING *`;
+
+    fields.push(`updated_at = NOW()`);
+    fields.push(`updated_by = $${idx}`);
+    vals.push(user || 'system');
+    idx++;
+
+    fields.push(`updated_ip = $${idx}`);
+    vals.push(ip || '0.0.0.0');
+
+    const sql = `
+      UPDATE t_guest_inout
+      SET ${fields.join(', ')}
+      WHERE inout_id = $${idx + 1}
+      RETURNING *;
+    `;
+
     vals.push(inoutId);
     const r = await this.db.query(sql, vals);
     return r.rows[0];
