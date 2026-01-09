@@ -4,7 +4,7 @@ import { getActiveGuests, createGuest, updateGuest, softDeleteGuest } from "@/ap
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
 import { updateGuestInOut, softDeleteGuestInOut } from "@/api/guestInOut.api";
 import { guestSchema } from "@/validation/guest.validation";
-import { designationSchema } from "@/validation/designation.validation";
+// import { designationSchema } from "@/validation/designation.validation";
 import { guestInOutSchema } from "@/validation/guestInOut.validation";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { ZodError } from "zod";
@@ -12,6 +12,7 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import type { ActiveGuestRow } from "../../../types/guests";
 import "./GuestManagementModals.css";
 import { getActiveDesignationList } from "@/api/designation.api";
+import { formatSeparate } from "@/utils/dateTime";
 
 type DesignationOption = {
   designation_id: string;
@@ -208,6 +209,10 @@ export function GuestManagement() {
     setFormErrors({});
     console.log("Submitting", guestForm);
 
+    const finalDesignationId =
+      designationMode === "existing"
+        ? guestForm.designation_id
+        : undefined;
     try {
       /* ======================
         1. Guest validation
@@ -223,17 +228,12 @@ export function GuestManagement() {
       /* ======================
         2. Designation validation (conditional)
       ====================== */
-      if (guestForm.designation_name || guestForm.designation_id) {
-        designationSchema.parse({
-          designation_name: guestForm.designation_name,
-          designation_name_local_language: undefined,
-        });
-
-        if (!guestForm.designation_id) {
+      if (designationMode === "other") {
+        if (!guestForm.designation_name) {
           throw new ZodError([
             {
-              path: ["designation_id"],
-              message: "Designation ID is required if designation is provided",
+              path: ["designation_name"],
+              message: "Designation Name is required",
               code: "custom",
             },
           ]);
@@ -253,25 +253,20 @@ export function GuestManagement() {
         ]);
       }
 
-      if (!guestForm.entry_time) {
-        throw new ZodError([
-          {
-            path: ["entry_time"],
-            message: "Check-in time is required",
-            code: "custom",
-          },
-        ]);
-      }
+      // Ensure entry_time exists (auto-fill if user didn't touch it)
+      const finalEntryTime =
+        guestForm.entry_time
+          ? `${guestForm.entry_time}:00`
+          : new Date().toTimeString().slice(0, 8);
 
-      guestInOutSchema.parse({
-        guest_id: "TEMP", // frontend-only, backend assigns real id
-        entry_date: guestForm.entry_date,
-        entry_time: guestForm.entry_time,
-        exit_date: guestForm.exit_date || undefined,
-        exit_time: guestForm.exit_time || undefined,
-        status: "Entered",
-        purpose: "Visit",
-      });
+
+        guestInOutSchema.pick({
+          entry_date: true,
+          entry_time: true,
+        }).parse({
+          entry_date: guestForm.entry_date,
+          entry_time: finalEntryTime,
+        });
 
       // Cross-field rule
       // if (guestForm.exit_date && !guestForm.exit_time) {
@@ -296,16 +291,22 @@ export function GuestManagement() {
           guest_address: guestForm.guest_address,
           email: guestForm.email,
         },
-        designation: {
-          designation_id: guestForm.designation_id,
-          designation_name: guestForm.designation_name,
-          department: guestForm.department,
-          organization: guestForm.organization,
-          office_location: guestForm.office_location,
-        },
+
+        designation:
+          designationMode === "existing"
+            ? { designation_id: guestForm.designation_id }
+            : {
+                designation_name: guestForm.designation_name,
+                department: guestForm.department,
+                organization: guestForm.organization,
+                office_location: guestForm.office_location,
+              },
+
         inout: {
           entry_date: guestForm.entry_date,
           entry_time: guestForm.entry_time,
+          exit_date: guestForm.exit_date,
+          exit_time: guestForm.exit_time,
           status: "Entered",
           purpose: "Visit",
         },
@@ -319,6 +320,7 @@ export function GuestManagement() {
 
     } catch (err) {
       if (err instanceof ZodError) {
+        console.log("ZOD VALIDATION FAILED:", err.issues);
         const errors: Record<string, string> = {};
         err.issues.forEach(issue => {
           errors[issue.path.join(".")] = issue.message;
@@ -326,7 +328,6 @@ export function GuestManagement() {
         setFormErrors(errors);
         return;
       }
-
       console.error("Create guest failed:", err);
       alert("Failed to add guest. Check browser console and server logs.");
     }
@@ -566,7 +567,7 @@ export function GuestManagement() {
             {/* DESIGNATION */}
             <div className="section">
               <h3>Designation Details</h3>
-              <p><strong>Designation ID:</strong> {selectedGuest.designation_id}</p>
+              <p><strong>Designation Name:</strong> {selectedGuest.designation_name}</p>
               <p><strong>Department:</strong> {selectedGuest.department}</p>
               <p><strong>Organization:</strong> {selectedGuest.organization}</p>
               <p><strong>Office Location:</strong> {selectedGuest.office_location}</p>
@@ -576,8 +577,8 @@ export function GuestManagement() {
             <div className="section">
               <h3>Visit Information</h3>
               <p><strong>Status:</strong> {selectedGuest.inout_status}</p>
-              <p><strong>Arrival:</strong> {selectedGuest.entry_date}</p>
-              <p><strong>Departure:</strong> {selectedGuest.exit_date}</p>
+              <p><strong>Arrival:</strong>{" "}{formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}</p>
+              <p><strong>Departure:</strong>{" "}{formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}</p>
             </div>
 
             <div className="modalActions">
@@ -586,8 +587,6 @@ export function GuestManagement() {
           </div>
         </div>
       )}
-
-
 
       {/* EDIT GUEST */}
       {showEdit && selectedGuest && (
@@ -619,14 +618,14 @@ export function GuestManagement() {
             {/* DESIGNATION */}
             <h4>Designation</h4>
 
-            <label>Designation ID</label>
+            {/* <label>Designation ID</label>
             <input
               className="modalInput"
               value={editGuestForm.designation_id}
               onChange={(e) =>
                 setEditGuestForm({ ...editGuestForm, designation_id: e.target.value })
               }
-            />
+            /> */}
 
             <label>Designation Name</label>
             <input
@@ -660,14 +659,12 @@ export function GuestManagement() {
 
             <label>Check-in Date</label>
             <input
-              type="text"
-              placeholder="DD/MM/YYYY"
-              className={`nicInput ${formErrors.entry_date ? "error" : ""}`}
-              value={guestForm.entry_date}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const value = e.target.value;
-                setGuestForm(s => ({ ...s, entry_date: value }));
-              }}
+              type="date"
+              className="modalInput"
+              value={editGuestForm.entry_date}
+              onChange={(e) =>
+                setEditGuestForm({ ...editGuestForm, entry_date: e.target.value })
+              }
             />
             <label>Check-out Date</label>
             <input
@@ -682,10 +679,14 @@ export function GuestManagement() {
             <label>Status</label>
             <select
               className="border p-2 rounded w-full"
-              value={query.status}
-              onChange={(e) => setStatus(e.target.value)}
+              value={editGuestForm.status}
+              onChange={(e) =>
+                setEditGuestForm({
+                  ...editGuestForm,
+                  status: e.target.value,
+                })
+              }
             >
-              <option>All</option>
               <option value="Entered">Checked In</option>
               <option value="Exited">Checked Out</option>
               <option value="Inside">Inside</option>
@@ -817,7 +818,7 @@ export function GuestManagement() {
                         <p className="errorText">{formErrors.designation_name}</p>
                       </div>
 
-                      <div>
+                      {/* <div>
                         <label>Designation ID *</label>
                         <input
                           className={`nicInput ${formErrors.designation_id ? "error" : ""}`}
@@ -827,7 +828,7 @@ export function GuestManagement() {
                           }
                         />
                         <p className="errorText">{formErrors.designation_id}</p>
-                      </div>
+                      </div> */}
 
                       <div>
                         <label>Organization *</label>
@@ -945,32 +946,11 @@ export function GuestManagement() {
                     <label>Check-out Date</label>
                     <input
                       type="date"
-                      className={`nicInput ${formErrors["exit_time"] ? "error" : ""}`}
+                      className="nicInput"
                       value={guestForm.exit_date}
                       onChange={(e) =>
                         setGuestForm((s) => ({ ...s, exit_date: e.target.value }))
                       }
-                      onBlur={() => {
-                        try {
-                          guestInOutSchema.parse({
-                            entry_date: guestForm.entry_date,
-                            entry_time: guestForm.entry_time,
-                            exit_date: guestForm.exit_date,
-                            exit_time: guestForm.exit_time,
-                          });
-
-                          setFormErrors((prev) => {
-                            const copy = { ...prev };
-                            delete copy.exit_time;
-                            return copy;
-                          });
-                        } catch (err: any) {
-                          setFormErrors((prev) => ({
-                            ...prev,
-                            exit_time: err.errors?.[0]?.message,
-                          }));
-                        }
-                      }}
                     />
                   </div>
 

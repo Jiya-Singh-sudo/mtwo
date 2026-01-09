@@ -1,4 +1,41 @@
 // src/utils/dateTime.ts
+export function formatDate(date?: string) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+export function formatDateTime(date?: string) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+// utils/dateTime.ts
+export function formatSeparate(
+  date?: string | null,
+  time?: string | null
+) {
+  if (!date) return "N/A";
+
+  const formattedDate = new Date(date).toLocaleDateString("en-GB");
+
+  const formattedTime =
+    time && time.length >= 5
+      ? time.slice(0, 5) // HH:mm
+      : "";
+
+  return formattedTime
+    ? `${formattedDate} ${formattedTime}`
+    : formattedDate;
+}
+
 export function formatISTDateTime(value?: string | null): string {
     if (!value) return "-";
 
@@ -42,3 +79,4 @@ export function formatISTTime(value?: string) {
     hour12: true,
   });
 }
+

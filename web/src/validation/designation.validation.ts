@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const designationSchema = z
   .object({
-    designation_id: z.string().optional(),
+    designation_id: z.string().optional(), // backend responsibility
     designation_name: z.string().optional(),
     designation_name_local_language: z.string().optional(),
     department: z.string().optional(),
@@ -11,21 +11,20 @@ export const designationSchema = z
   })
   .refine(
     (data) => {
-      // If ANY designation detail is entered manually,
-      // designation_id and designation_name are mandatory
+      // If user starts entering a designation manually,
+      // ONLY designation_name is required (not ID)
       if (
-        data.designation_name ||
         data.organization ||
         data.office_location ||
         data.department
       ) {
-        return Boolean(data.designation_id && data.designation_name);
+        return Boolean(data.designation_name);
       }
       return true;
     },
     {
-      message: "Designation ID and Name are required",
-      path: ["designation_id"],
+      message: "Designation Name is required",
+      path: ["designation_name"],
     }
   );
 
