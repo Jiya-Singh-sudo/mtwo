@@ -17,6 +17,16 @@ export function formatDateTime(date?: string) {
     minute: "2-digit",
   });
 }
+function to24Hour(
+  hour: number,
+  minute: string,
+  meridiem: "AM" | "PM"
+) {
+  let h = hour % 12;
+  if (meridiem === "PM") h += 12;
+  return `${String(h).padStart(2, "0")}:${minute}`;
+}
+
 // utils/dateTime.ts
 export function formatSeparate(
   date?: string | null,

@@ -7,6 +7,7 @@ import {
   toDateTimeLocal,
   formatISTTime
 } from "../../../utils/dateTime";
+import TimePicker12h from "@/components/common/TimePicker12h"
 import {
   getActiveGuests,
   getActiveDriverByGuest,
@@ -47,9 +48,13 @@ function GuestTransportManagement() {
     driver_id: "",
     pickup_location: "",
     drop_location: "",
+    // Pickup (planned)
     trip_date: "",
     start_time: "",
     end_time: "",
+    // Drop (actual)
+    drop_date: "",
+    drop_time: "",
     trip_status: "Scheduled"
   });
 
@@ -86,12 +91,14 @@ function GuestTransportManagement() {
   async function loadGuests() {
     setLoading(true);
     try {
-      const guests = await getActiveGuests();
+      // 1. Pass the required pagination parameters (e.g., page 1, limit 100)
+      // 2. Destructure 'data' from the response
+      const response = await getActiveGuests({ page: 1, limit: 100 });
+      const guestList = response.data || [];
 
       const rows = await Promise.all(
-        guests.map(async (g: ActiveGuestRow) => {
+        guestList.map(async (g: ActiveGuestRow) => {
           let vehicle = null;
-
           try {
             vehicle = await getVehicleByGuest(String(g.guest_id));
           } catch (err) {
@@ -107,6 +114,8 @@ function GuestTransportManagement() {
       );
 
       setRows(rows);
+    } catch (error) {
+      console.error("Failed to load guests:", error);
     } finally {
       setLoading(false);
     }
@@ -132,6 +141,8 @@ function GuestTransportManagement() {
       trip_date: "",
       start_time: "",
       end_time: "",
+      drop_date: "",
+      drop_time: "",
       trip_status: "Scheduled"
     });
     setDriverModalOpen(true);
@@ -315,6 +326,8 @@ function GuestTransportManagement() {
                             trip_date: driver.trip_date,
                             start_time: driver.start_time,
                             end_time: driver.end_time ?? "",
+                            drop_date: driver.drop_date,
+                            drop_time: driver.drop_time,
                             trip_status: driver.trip_status,
                           });
                           setEditDriverModalOpen(true);
@@ -458,29 +471,37 @@ function GuestTransportManagement() {
                 }
               />
 
+              <h4>Pickup Schedule</h4>
+
+              <input type="date" className="nicInput" />
+
+              <TimePicker12h
+                label="From Time"
+                onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+              />
+
+              <TimePicker12h
+                label="To Time"
+                onChange={(v) => setDriverForm({ ...driverForm, end_time: v })}
+              />
+
+              <hr />
+
+              <h4>Drop Details</h4>
+
               <input
                 type="date"
                 className="nicInput"
-                value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
+                value={driverForm.drop_date}
                 onChange={(e) =>
-                  setDriverForm({ ...driverForm, trip_date: e.target.value })
+                  setDriverForm({ ...driverForm, drop_date: e.target.value })
                 }
               />
 
-              <input
-                type="time"
-                className="nicInput"
-                value={driverForm.start_time}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, start_time: e.target.value })
-                }
-              />
-              <input
-                type="time"
-                className="nicInput"
-                value={driverForm.end_time ?? ""}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, end_time: e.target.value })
+              <TimePicker12h
+                label="Drop Time"
+                onChange={(v) =>
+                  setDriverForm({ ...driverForm, drop_time: v })
                 }
               />
             </div>

@@ -6,8 +6,13 @@ import { AssignGuestDriverPayload } from "../types/guestDriver";
    READ — BASE GUEST LIST
    ======================= */
 
-export async function getActiveGuests() {
-  const res = await api.get("/guests/active");
+export async function getActiveGuests(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}) {
+  const res = await api.get("/guests/active", { params });
   return res.data;
 }
 

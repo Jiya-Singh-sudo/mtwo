@@ -685,3 +685,58 @@
   gap: 10px;
   margin-top: 10px;
 }
+/* ===============================
+   TIME PICKER (AM / PM)
+================================ */
+
+.timePicker12h {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.timeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+/* ===============================
+   FORM SECTION HEADINGS
+================================ */
+
+.nicForm h4 {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #00247d;
+}
+
+.nicForm hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
+}
+/* ===============================
+   MODAL SCROLL FIX
+================================ */
+
+.nicModal {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.nicForm {
+  overflow-y: auto;
+  max-height: calc(90vh - 120px);
+}
+.timeRow select {
+  text-align: center;
+}

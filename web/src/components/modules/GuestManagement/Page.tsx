@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest } from "@/api/guest.api";
@@ -13,6 +14,7 @@ import type { ActiveGuestRow } from "../../../types/guests";
 import "./GuestManagementModals.css";
 import { getActiveDesignationList } from "@/api/designation.api";
 import { formatSeparate } from "@/utils/dateTime";
+import TimePicker12h from "@/components/common/TimePicker12h";
 
 type DesignationOption = {
   designation_id: string;
@@ -22,8 +24,33 @@ type DesignationOption = {
   department?: string;
 };
 
+type GuestForm = {
+  guest_name: string;
+  guest_name_local_language: string;
+  mobile: string;
+  alternate_mobile: string;
+  guest_address: string;
+  email: string;
+  designation_id: string;
+  designation_name: string;
+  department: string;
+  organization: string;
+  office_location: string;
+  entry_date: string;
+  entry_time: string;
+  exit_date: string;
+  exit_time: string;
+  status: string;
+};
 // Indian mobile number: 10 digits, starts with 6–9
 const MOBILE_REGEX = /^[6-9]\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STATUS_OPTIONS = [
+  "Existed",
+  "Scheduled",
+  "Cancelled",
+  "Arrived",
+];
 export function GuestManagement() {
   const [guests, setGuests] = useState<ActiveGuestRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,22 +81,23 @@ export function GuestManagement() {
     entry_date: '',
     entry_time: '',
     exit_date: '',
-    exit_time: ''
+    exit_time: '',
+    status: 'Scheduled'
   };
   // type SortOrder = 'asc' | 'desc';
   // type GuestTableQuery = {
-  //   page: number;
-  //   limit: number;
-  //   search: string;
-  //   status: string;
-  //   sortBy: string;
-  //   sortOrder: SortOrder;
+  // page: number;
+  // limit: number;
+  // search: string;
+  // status: string;
+  // sortBy: string;
+  // sortOrder: SortOrder;
   // };
   // const parseNumber = (value: string | null, fallback: number) =>
-  //   value ? Number(value) || fallback : fallback;
+  // value ? Number(value) || fallback : fallback;
 
   // const parseString = (value: string | null, fallback: string) =>
-  //   value ?? fallback;
+  // value ?? fallback;
   const {
     query,
     searchInput,
@@ -82,8 +110,8 @@ export function GuestManagement() {
     sortBy: "entry_date",
     sortOrder: "desc",
   });
-  const [guestForm, setGuestForm] = useState(initialGuestForm);
-  const [editGuestForm, setEditGuestForm] = useState<any>(initialGuestForm);
+  const [guestForm, setGuestForm] = useState<GuestForm>(initialGuestForm);
+  const [editGuestForm, setEditGuestForm] = useState<GuestForm>(initialGuestForm);
   const [editGdId, setEditGdId] = useState<string>('');
   const [editInoutId, setEditInoutId] = useState<string>('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -121,6 +149,24 @@ export function GuestManagement() {
             {g.guest_alternate_mobile}
           </p>
         </>
+      ),
+    },
+    {
+      header: "Check-in",
+      render: (g) => (
+        <span className="text-sm">
+          {formatSeparate(g.entry_date, g.entry_time) || "—"}
+        </span>
+      ),
+      sortable: true,
+      sortKey: "entry_date",
+    },
+    {
+      header: "Check-out",
+      render: (g) => (
+        <span className="text-sm">
+          {formatSeparate(g.exit_date, g.exit_time) || "—"}
+        </span>
       ),
     },
     {
@@ -202,20 +248,20 @@ export function GuestManagement() {
     }
   }
 
-
   // CREATE flow: create guest -> create designation (if needed) -> create inout
   // In web/src/components/modules/GuestManagement/Page.tsx
   async function handleAddGuest() {
     setFormErrors({});
     console.log("Submitting", guestForm);
-
-    const finalDesignationId =
-      designationMode === "existing"
-        ? guestForm.designation_id
-        : undefined;
+    // const finalDesignationId =
+    // designationMode === "existing"
+    // ? guestForm.designation_id
+    // : undefined;
     try {
       /* ======================
-        1. Guest validation
+      
+      1. Guest validation
+      
       ====================== */
       guestSchema.parse({
         guest_name: guestForm.guest_name,
@@ -225,8 +271,20 @@ export function GuestManagement() {
         email: guestForm.email || undefined,
       });
 
+      if (guestForm.email && !EMAIL_REGEX.test(guestForm.email)) {
+        throw new ZodError([
+          {
+            path: ["email"],
+            message: "Invalid email address",
+            code: "custom",
+          },
+        ]);
+      }
+
       /* ======================
-        2. Designation validation (conditional)
+      
+      2. Designation validation (conditional)
+      
       ====================== */
       if (designationMode === "other") {
         if (!guestForm.designation_name) {
@@ -241,7 +299,9 @@ export function GuestManagement() {
       }
 
       /* ======================
-        3. InOut validation (STRICT)
+      
+      3. InOut validation (STRICT)
+      
       ====================== */
       if (!guestForm.entry_date) {
         throw new ZodError([
@@ -260,28 +320,34 @@ export function GuestManagement() {
           : new Date().toTimeString().slice(0, 8);
 
 
-        guestInOutSchema.pick({
-          entry_date: true,
-          entry_time: true,
-        }).parse({
-          entry_date: guestForm.entry_date,
-          entry_time: finalEntryTime,
-        });
+      guestInOutSchema.pick({
+        entry_date: true,
+        entry_time: true,
+      }).parse({
+        entry_date: guestForm.entry_date,
+        entry_time: finalEntryTime,
+      });
 
       // Cross-field rule
       // if (guestForm.exit_date && !guestForm.exit_time) {
-      //   throw new ZodError([
-      //     {
-      //       path: ["exit_time"],
-      //       message: "Exit time is required when exit date is provided",
-      //       code: "custom",
-      //     },
-      //   ]);
+      // throw new ZodError([
+      // {
+      // path: ["exit_time"],
+      // message: "Exit time is required when exit date is provided",
+      // code: "custom",
+      // },
+      // ]);
       // }
 
       /* ======================
-        4. API CALL
+      
+      4. API CALL
+      
       ====================== */
+      if (guestForm.email && formErrors.email) {
+        return;
+      }
+
       const payload = {
         guest: {
           guest_name: guestForm.guest_name,
@@ -296,40 +362,45 @@ export function GuestManagement() {
           designationMode === "existing"
             ? { designation_id: guestForm.designation_id }
             : {
-                designation_name: guestForm.designation_name,
-                department: guestForm.department,
-                organization: guestForm.organization,
-                office_location: guestForm.office_location,
-              },
+              designation_name: guestForm.designation_name,
+              department: guestForm.department,
+              organization: guestForm.organization,
+              office_location: guestForm.office_location,
+            },
 
         inout: {
           entry_date: guestForm.entry_date,
-          entry_time: guestForm.entry_time,
-          exit_date: guestForm.exit_date,
-          exit_time: guestForm.exit_time,
-          status: "Entered",
+          entry_time: finalEntryTime, // ✅ FIX
+          exit_date: guestForm.exit_date || null,
+          exit_time: guestForm.exit_time
+            ? `${guestForm.exit_time}:00`
+            : null,
+          status: guestForm.status,
           purpose: "Visit",
         },
       };
 
+      console.log("Payload being sent:", payload);
       await createGuest(payload);
 
       setShowAdd(false);
       setGuestForm(initialGuestForm);
       await loadGuests();
+      alert("Guest added successfully!");
 
     } catch (err) {
       if (err instanceof ZodError) {
-        console.log("ZOD VALIDATION FAILED:", err.issues);
         const errors: Record<string, string> = {};
         err.issues.forEach(issue => {
           errors[issue.path.join(".")] = issue.message;
         });
         setFormErrors(errors);
+        console.log("Validation errors:", errors);
         return;
       }
+
       console.error("Create guest failed:", err);
-      alert("Failed to add guest. Check browser console and server logs.");
+      alert("Failed to create guest. Check console for details.");
     }
   }
 
@@ -354,11 +425,12 @@ export function GuestManagement() {
       organization: g.organization || "",
       office_location: g.office_location || "",
 
-      // FIX: Split ISO string to get YYYY-MM-DD
       entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
+      entry_time: g.entry_time ? g.entry_time.toString() : "",
       exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
+      exit_time: g.exit_time ? g.exit_time.toString() : "",
 
-      status: g.inout_status || "Entered"
+      status: editGuestForm.status || "Scheduled"
     });
 
     setEditGdId(g.gd_id || "");
@@ -460,7 +532,9 @@ export function GuestManagement() {
   }
 
   /* =====================================================================
-     MAIN RENDER
+  
+  MAIN RENDER
+  
   ===================================================================== */
   return (
     <div className="space-y-6">
@@ -504,23 +578,25 @@ export function GuestManagement() {
               value={query.status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option>All</option>
-              <option value="Entered">Checked In</option>
-              <option value="Exited">Checked Out</option>
-              <option value="Inside">Inside</option>
+              <option value="All">All</option>
+              {STATUS_OPTIONS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
             </select>
           </div>
         </div>
       </div>
 
 
-      {loading && (
-        <div className="flex justify-center space-x-2 py-6">
-          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
-          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-150"></div>
-          <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-300"></div>
-        </div>
-      )}
+      {
+        loading && (
+          <div className="flex justify-center space-x-2 py-6">
+            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-150"></div>
+            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce delay-300"></div>
+          </div>
+        )
+      }
 
       {/* TABLE */}
       <div className="bg-white border rounded-sm overflow-hidden">
@@ -548,494 +624,512 @@ export function GuestManagement() {
       {/* ------------------------- MODALS BEGIN ------------------------ */}
 
       {/* VIEW GUEST */}
-      {showView && selectedGuest && (
-        <div className="modalOverlay">
-          <div className="modal largeModal">
+      {
+        showView && selectedGuest && (
+          <div className="modalOverlay">
+            <div className="modal largeModal">
 
-            <h2>Guest Details</h2>
+              <h2>Guest Details</h2>
 
-            {/* BASIC INFO */}
-            <div className="section">
-              <h3>Basic Information</h3>
-              <p><strong>Name:</strong> {selectedGuest.guest_name}</p>
-              <p><strong>Mobile:</strong> {selectedGuest.guest_mobile || "N/A"}</p>
-              <p><strong>Alternate Mobile:</strong> {selectedGuest.guest_alternate_mobile || "N/A"}</p>
-              <p><strong>Email:</strong> {selectedGuest.email || "N/A"}</p>
-              <p><strong>Address:</strong> {selectedGuest.guest_address || "N/A"}</p>
-            </div>
+              {/* BASIC INFO */}
+              <div className="section">
+                <h3>Basic Information</h3>
+                <p><strong>Name:</strong> {selectedGuest.guest_name}</p>
+                <p><strong>Mobile:</strong> {selectedGuest.guest_mobile || "N/A"}</p>
+                <p><strong>Alternate Mobile:</strong> {selectedGuest.guest_alternate_mobile || "N/A"}</p>
+                <p><strong>Email:</strong> {selectedGuest.email || "N/A"}</p>
+                <p><strong>Address:</strong> {selectedGuest.guest_address || "N/A"}</p>
+              </div>
 
-            {/* DESIGNATION */}
-            <div className="section">
-              <h3>Designation Details</h3>
-              <p><strong>Designation Name:</strong> {selectedGuest.designation_name}</p>
-              <p><strong>Department:</strong> {selectedGuest.department}</p>
-              <p><strong>Organization:</strong> {selectedGuest.organization}</p>
-              <p><strong>Office Location:</strong> {selectedGuest.office_location}</p>
-            </div>
+              {/* DESIGNATION */}
+              <div className="section">
+                <h3>Designation Details</h3>
+                <p><strong>Designation Name:</strong> {selectedGuest.designation_name}</p>
+                <p><strong>Department:</strong> {selectedGuest.department}</p>
+                <p><strong>Organization:</strong> {selectedGuest.organization}</p>
+                <p><strong>Office Location:</strong> {selectedGuest.office_location}</p>
+              </div>
 
-            {/* VISIT / IN-OUT */}
-            <div className="section">
-              <h3>Visit Information</h3>
-              <p><strong>Status:</strong> {selectedGuest.inout_status}</p>
-              <p><strong>Arrival:</strong>{" "}{formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}</p>
-              <p><strong>Departure:</strong>{" "}{formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}</p>
-            </div>
+              {/* VISIT / IN-OUT */}
+              <div className="section">
+                <h3>Visit Information</h3>
+                <p><strong>Status:</strong> {selectedGuest.inout_status}</p>
+                <p><strong>Arrival:</strong>{" "}{formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}</p>
+                <p><strong>Departure:</strong>{" "}{formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}</p>
+              </div>
 
-            <div className="modalActions">
-              <button onClick={() => setShowView(false)}>Close</button>
+              <div className="modalActions">
+                <button onClick={() => setShowView(false)}>Close</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
       {/* EDIT GUEST */}
-      {showEdit && selectedGuest && (
-        <div className="modalOverlay">
-          <div className="modal largeModal">
-            <h3>Edit Guest</h3>
+      {
+        showEdit && selectedGuest && (
+          <div className="modalOverlay">
+            <div className="modal largeModal">
+              <h3>Edit Guest</h3>
 
-            {/* BASIC INFO */}
-            <h4>Basic Information</h4>
+              {/* BASIC INFO */}
+              <h4>Basic Information</h4>
 
-            <label>Name</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.guest_name}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, guest_name: e.target.value })
-              }
-            />
+              <label>Name</label>
+              <input
+                className="modalInput"
+                value={editGuestForm.guest_name}
+                onChange={(e) =>
+                  setEditGuestForm({ ...editGuestForm, guest_name: e.target.value })
+                }
+              />
 
-            <label>Mobile</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.mobile}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, mobile: e.target.value })
-              }
-            />
+              <label>Mobile</label>
+              <input
+                className="modalInput"
+                value={editGuestForm.mobile}
+                onChange={(e) =>
+                  setEditGuestForm({ ...editGuestForm, mobile: e.target.value })
+                }
+              />
 
-            {/* DESIGNATION */}
-            <h4>Designation</h4>
+              {/* DESIGNATION */}
+              <h4>Designation</h4>
 
-            {/* <label>Designation ID</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.designation_id}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, designation_id: e.target.value })
-              }
-            /> */}
+              {/* <label>Designation ID</label>
+<input
+className="modalInput"
+value={editGuestForm.designation_id}
+onChange={(e) =>
+setEditGuestForm({ ...editGuestForm, designation_id: e.target.value })
+}
+/> */}
 
-            <label>Designation Name</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.designation_name}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, designation_name: e.target.value })
-              }
-            />
+              <label>Designation Name</label>
+              <input
+                className="modalInput"
+                value={editGuestForm.designation_name}
+                onChange={(e) =>
+                  setEditGuestForm({ ...editGuestForm, designation_name: e.target.value })
+                }
+              />
 
-            <label>Organization</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.organization}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, organization: e.target.value })
-              }
-            />
+              <label>Organization</label>
+              <input
+                className="modalInput"
+                value={editGuestForm.organization}
+                onChange={(e) =>
+                  setEditGuestForm({ ...editGuestForm, organization: e.target.value })
+                }
+              />
 
-            <label>Office Location</label>
-            <input
-              className="modalInput"
-              value={editGuestForm.office_location}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, office_location: e.target.value })
-              }
-            />
+              <label>Office Location</label>
+              <input
+                className="modalInput"
+                value={editGuestForm.office_location}
+                onChange={(e) =>
+                  setEditGuestForm({ ...editGuestForm, office_location: e.target.value })
+                }
+              />
 
-            {/* IN/OUT */}
-            <h4>Visit Details</h4>
+              {/* IN/OUT */}
+              <h4>Visit Details</h4>
 
-            <label>Check-in Date</label>
-            <input
-              type="date"
-              className="modalInput"
-              value={editGuestForm.entry_date}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, entry_date: e.target.value })
-              }
-            />
-            <label>Check-out Date</label>
-            <input
-              type="date"
-              className="modalInput"
-              value={editGuestForm.exit_date}
-              onChange={(e) =>
-                setEditGuestForm({ ...editGuestForm, exit_date: e.target.value })
-              }
-            />
+              {/* Check-in Date */}
+              <div>
+                <label>Check-in Date</label>
+                <input
+                  type="date"
+                  className="nicInput"
+                  value={editGuestForm.entry_date}
+                  onChange={(e) =>
+                    setEditGuestForm(s => ({ ...s, entry_date: e.target.value }))
+                  }
+                />
+              </div>
 
-            <label>Status</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={editGuestForm.status}
-              onChange={(e) =>
-                setEditGuestForm({
-                  ...editGuestForm,
-                  status: e.target.value,
-                })
-              }
-            >
-              <option value="Entered">Checked In</option>
-              <option value="Exited">Checked Out</option>
-              <option value="Inside">Inside</option>
-            </select>
+              {/* Check-in Time */}
+              <div>
+                <TimePicker12h
+                  label="Check-in Time"
+                  value={editGuestForm.entry_time}
+                  onChange={(value: string) =>
+                    setEditGuestForm(s => ({ ...s, entry_time: value }))
+                  }
+                />
+              </div>
 
-            {/* ACTIONS */}
-            <div className="modalActions">
-              <button onClick={() => setShowEdit(false)}>Cancel</button>
-              <button className="saveBtn" onClick={submitEdit}>
-                Save Changes
-              </button>
+              {/* Check-out Date */}
+              <div>
+                <label>Check-out Date</label>
+                <input
+                  type="date"
+                  className="nicInput"
+                  value={editGuestForm.exit_date}
+                  onChange={(e) =>
+                    setEditGuestForm(s => ({ ...s, exit_date: e.target.value }))
+                  }
+                />
+              </div>
+
+              {/* Check-out Time */}
+              <div>
+                <TimePicker12h
+                  label="Check-out Time"
+                  value={editGuestForm.exit_time}
+                  onChange={(value: string) =>
+                    setEditGuestForm(s => ({ ...s, exit_time: value }))
+                  }
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label>Status *</label>
+                <select
+                  className="nicInput"
+                  value={editGuestForm.status}
+                  onChange={(e) =>
+                    setEditGuestForm(s => ({ ...s, status: e.target.value }))
+                  }
+                >
+                  {STATUS_OPTIONS.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="modalActions">
+                <button onClick={() => setShowEdit(false)}>Cancel</button>
+                <button className="saveBtn" onClick={submitEdit}>
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
       {/* DELETE GUEST */}
-      {showDeleteConfirm && selectedGuest && (
-        <div className="modalOverlay">
-          <div className="modal">
-            <h3>Confirm Deletion</h3>
+      {
+        showDeleteConfirm && selectedGuest && (
+          <div className="modalOverlay">
+            <div className="modal">
+              <h3>Confirm Deletion</h3>
 
-            <p>
-              Are you sure you want to delete guest <strong>{selectedGuest.guest_name}</strong>? This
-              action cannot be undone.
-            </p>
+              <p>
+                Are you sure you want to delete guest <strong>{selectedGuest.guest_name}</strong>? This
+                action cannot be undone.
+              </p>
 
-            <div className="modalActions">
-              <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <div className="modalActions">
+                <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
 
-              <button className="saveBtn" style={{ backgroundColor: "red" }} onClick={handleDelete}>
-                Delete
-              </button>
+                <button className="saveBtn" style={{ backgroundColor: "red" }} onClick={handleDelete}>
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
 
       {/* ADD GUEST MODAL */}
-      {showAdd && (
-        <div className="modalOverlay">
-          <div className="modal largeModal">
-            <h3>Add Guest</h3>
-            <div className="modalBody">
-              <div>
+      {
+        showAdd && (
+          <div className="modalOverlay">
+            <div className="modal largeModal">
+              <h3>Add Guest</h3>
+              <div className="modalBody">
+                <div>
 
-                {/* 2-COLUMN FORM GRID */}
-                <div className="nicFormGrid">
-                  <div>
-                    <label>Full Name *</label>
-                    <input
-                      className={`nicInput ${formErrors.guest_name ? "error" : ""}`}
-                      value={guestForm.guest_name}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        const value = e.target.value;
-                        setGuestForm(s => ({ ...s, guest_name: value }));
-                        validateSingleField(guestSchema, "guest_name", value);
-                      }}
-                    />
-                    <p className="errorText">{formErrors.guest_name}</p>
-                  </div>
+                  {/* 2-COLUMN FORM GRID */}
+                  <div className="nicFormGrid">
+                    <div>
+                      <label>Full Name *</label>
+                      <input
+                        className={`nicInput ${formErrors.guest_name ? "error" : ""}`}
+                        value={guestForm.guest_name}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          setGuestForm(s => ({ ...s, guest_name: value }));
+                          validateSingleField(guestSchema, "guest_name", value);
+                        }}
+                      />
+                      <p className="errorText">{formErrors.guest_name}</p>
+                    </div>
 
-                  <div>
-                    <label>Name (Local Language)</label>
-                    <input className="nicInput" value={guestForm.guest_name_local_language} onChange={(e) => setGuestForm(s => ({ ...s, guest_name_local_language: e.target.value }))} />
-                  </div>
+                    <div>
+                      <label>Name (Local Language)</label>
+                      <input className="nicInput" value={guestForm.guest_name_local_language} onChange={(e) => setGuestForm(s => ({ ...s, guest_name_local_language: e.target.value }))} />
+                    </div>
 
-                  <div className="fullWidth">
-                    <label>Designation *</label>
-                    <select
-                      className="nicInput"
-                      value={designationMode === "other" ? "OTHER" : guestForm.designation_id}
-                      onChange={(e) => {
-                        const value = e.target.value;
+                    <div className="fullWidth">
+                      <label>Designation *</label>
+                      <select
+                        className="nicInput"
+                        value={designationMode === "other" ? "OTHER" : guestForm.designation_id}
+                        onChange={(e) => {
+                          const value = e.target.value;
 
-                        if (value === "OTHER") {
-                          setDesignationMode("other");
+                          if (value === "OTHER") {
+                            setDesignationMode("other");
+                            setGuestForm((s) => ({
+                              ...s,
+                              designation_id: "",
+                              designation_name: "",
+                              organization: "",
+                              office_location: "",
+                              department: "",
+                            }));
+                            return;
+                          }
+
+                          const selected = designations.find(d => d.designation_id === value);
+                          if (!selected) return;
+
+                          setDesignationMode("existing");
                           setGuestForm((s) => ({
                             ...s,
-                            designation_id: "",
-                            designation_name: "",
-                            organization: "",
-                            office_location: "",
-                            department: "",
+                            designation_id: selected.designation_id,
+                            designation_name: selected.designation_name,
+                            organization: selected.organization ?? "",
+                            office_location: selected.office_location ?? "",
+                            department: selected.department ?? "",
                           }));
-                          return;
+                        }}
+                      >
+                        <option value="">Select designation</option>
+
+                        {designations.map((d) => (
+                          <option key={d.designation_id} value={d.designation_id}>
+                            {d.designation_name}
+                          </option>
+                        ))}
+
+                        <option value="OTHER">Other</option>
+                      </select>
+
+                      <p className="errorText">{formErrors.designation_id}</p>
+                    </div>
+                    {designationMode === "other" && (
+                      <>
+                        <div>
+                          <label>Designation Name *</label>
+                          <input
+                            className={`nicInput ${formErrors.designation_name ? "error" : ""}`}
+                            value={guestForm.designation_name}
+                            onChange={(e) =>
+                              setGuestForm(s => ({ ...s, designation_name: e.target.value }))
+                            }
+                          />
+                          <p className="errorText">{formErrors.designation_name}</p>
+                        </div>
+
+                        {/* <div>
+<label>Designation ID *</label>
+<input
+className={`nicInput ${formErrors.designation_id ? "error" : ""}`}
+value={guestForm.designation_id}
+onChange={(e) =>
+setGuestForm(s => ({ ...s, designation_id: e.target.value }))
+}
+/>
+<p className="errorText">{formErrors.designation_id}</p>
+</div> */}
+
+                        <div>
+                          <label>Organization *</label>
+                          <input
+                            className="nicInput"
+                            value={guestForm.organization}
+                            onChange={(e) =>
+                              setGuestForm(s => ({ ...s, organization: e.target.value }))
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <label>Office Location *</label>
+                          <input
+                            className="nicInput"
+                            value={guestForm.office_location}
+                            onChange={(e) =>
+                              setGuestForm(s => ({ ...s, office_location: e.target.value }))
+                            }
+                          />
+                        </div>
+                      </>
+                    )}
+                    {/* <div>
+<label>Designation Id</label>
+<input className="nicInput" value={guestForm.designation_id} onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} />
+</div>
+
+<div>
+<label>Designation Name</label>
+<input className="nicInput" value={guestForm.designation_name} onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} />
+</div>
+
+<div>
+<label>Organization</label>
+<input className="nicInput" value={guestForm.organization} onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} />
+</div>
+
+<div>
+<label>Office Location</label>
+<input className="nicInput" value={guestForm.office_location} onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} />
+</div> */}
+
+                    <div>
+                      <label>Mobile Number *</label>
+                      <input
+                        className={`nicInput ${formErrors.mobile ? "error" : ""}`}
+                        placeholder="10-digit mobile number"
+                        value={guestForm.mobile}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          setGuestForm(s => ({ ...s, mobile: value }));
+
+                          if (!MOBILE_REGEX.test(value)) {
+                            setFormErrors(prev => ({
+                              ...prev,
+                              mobile: "Mobile number must be 10 digits and start with 6–9",
+                            }));
+                          } else {
+                            setFormErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.mobile;
+                              return copy;
+                            });
+                          }
+                        }}
+                      />
+                      <p className="errorText">{formErrors.mobile}</p>
+                      <p className="errorText">{formErrors.guest_mobile}</p>
+                    </div>
+
+                    <div>
+                      <label>Alternate Mobile</label>
+                      <input className="nicInput" value={guestForm.alternate_mobile} onChange={(e) => setGuestForm(s => ({ ...s, alternate_mobile: e.target.value }))} />
+                    </div>
+
+                    {/* Full width field */}
+                    <div className="fullWidth">
+                      <label>Address</label>
+                      <textarea className="nicInput" value={guestForm.guest_address} onChange={(e) => setGuestForm(s => ({ ...s, guest_address: e.target.value }))} />
+                    </div>
+
+                    {/* Check-in Date */}
+                    <div>
+                      <label>Check-in Date</label>
+                      <input
+                        type="date"
+                        className={`nicInput ${formErrors.entry_date ? "error" : ""}`}
+                        value={guestForm.entry_date}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          setGuestForm(s => ({ ...s, entry_date: value }));
+                          validateSingleField(guestInOutSchema, "entry_date", value);
+                        }}
+                      />
+                      <p className="errorText">{formErrors.entry_date}</p>
+                    </div>
+
+                    <div>
+                      <TimePicker12h
+                        label="Check-in Time *"
+                        value={guestForm.entry_time}
+                        onChange={(value: string) =>
+                          setGuestForm(s => ({ ...s, entry_time: value }))
                         }
+                      />
+                      <p className="errorText">{formErrors.entry_time}</p>
+                    </div>
 
-                        const selected = designations.find(d => d.designation_id === value);
-                        if (!selected) return;
-
-                        setDesignationMode("existing");
-                        setGuestForm((s) => ({
-                          ...s,
-                          designation_id: selected.designation_id,
-                          designation_name: selected.designation_name,
-                          organization: selected.organization ?? "",
-                          office_location: selected.office_location ?? "",
-                          department: selected.department ?? "",
-                        }));
-                      }}
-                    >
-                      <option value="">Select designation</option>
-
-                      {designations.map((d) => (
-                        <option key={d.designation_id} value={d.designation_id}>
-                          {d.designation_name}
-                        </option>
-                      ))}
-
-                      <option value="OTHER">Other</option>
-                    </select>
-
-                    <p className="errorText">{formErrors.designation_id}</p>
-                  </div>
-                  {designationMode === "other" && (
-                    <>
-                      <div>
-                        <label>Designation Name *</label>
-                        <input
-                          className={`nicInput ${formErrors.designation_name ? "error" : ""}`}
-                          value={guestForm.designation_name}
-                          onChange={(e) =>
-                            setGuestForm(s => ({ ...s, designation_name: e.target.value }))
-                          }
-                        />
-                        <p className="errorText">{formErrors.designation_name}</p>
-                      </div>
-
-                      {/* <div>
-                        <label>Designation ID *</label>
-                        <input
-                          className={`nicInput ${formErrors.designation_id ? "error" : ""}`}
-                          value={guestForm.designation_id}
-                          onChange={(e) =>
-                            setGuestForm(s => ({ ...s, designation_id: e.target.value }))
-                          }
-                        />
-                        <p className="errorText">{formErrors.designation_id}</p>
-                      </div> */}
-
-                      <div>
-                        <label>Organization *</label>
-                        <input
-                          className="nicInput"
-                          value={guestForm.organization}
-                          onChange={(e) =>
-                            setGuestForm(s => ({ ...s, organization: e.target.value }))
-                          }
-                        />
-                      </div>
-
-                      <div>
-                        <label>Office Location *</label>
-                        <input
-                          className="nicInput"
-                          value={guestForm.office_location}
-                          onChange={(e) =>
-                            setGuestForm(s => ({ ...s, office_location: e.target.value }))
-                          }
-                        />
-                      </div>
-                    </>
-                  )}
-                  {/* <div>
-                    <label>Designation Id</label>
-                    <input className="nicInput" value={guestForm.designation_id} onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} />
-                  </div>
-
-                  <div>
-                    <label>Designation Name</label>
-                    <input className="nicInput" value={guestForm.designation_name} onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} />
-                  </div>
-
-                  <div>
-                    <label>Organization</label>
-                    <input className="nicInput" value={guestForm.organization} onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} />
-                  </div>
-
-                  <div>
-                    <label>Office Location</label>
-                    <input className="nicInput" value={guestForm.office_location} onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} />
-                  </div> */}
-
-                  <div>
-                    <label>Mobile Number *</label>
-                    <input
-                      className={`nicInput ${formErrors.mobile ? "error" : ""}`}
-                      placeholder="10-digit mobile number"
-                      value={guestForm.mobile}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        const value = e.target.value;
-                        setGuestForm(s => ({ ...s, mobile: value }));
-
-                        if (!MOBILE_REGEX.test(value)) {
-                          setFormErrors(prev => ({
-                            ...prev,
-                            mobile: "Mobile number must be 10 digits and start with 6–9",
-                          }));
-                        } else {
-                          setFormErrors(prev => {
-                            const copy = { ...prev };
-                            delete copy.mobile;
-                            return copy;
-                          });
+                    {/* Check-out Date */}
+                    <div>
+                      <label>Check-out Date</label>
+                      <input
+                        type="date"
+                        className="nicInput"
+                        value={guestForm.exit_date}
+                        onChange={(e) =>
+                          setGuestForm((s) => ({ ...s, exit_date: e.target.value }))
                         }
-                      }}
-                    />
-                    <p className="errorText">{formErrors.mobile}</p>
-                    <p className="errorText">{formErrors.guest_mobile}</p>
+                      />
+                    </div>
+
+                    <div>
+                      <TimePicker12h
+                        label="Check-out Time"
+                        value={guestForm.exit_time}
+                        onChange={(value: string) =>
+                          setGuestForm(s => ({ ...s, exit_time: value }))
+                        }
+                      />
+                      <p className="errorText">{formErrors.exit_time}</p>
+                    </div>
+                    <div>
+                      <label>Status *</label>
+                      <select
+                        className="nicInput"
+                        value={guestForm.status}
+                        onChange={(e) =>
+                          setGuestForm(s => ({ ...s, status: e.target.value }))
+                        }
+                      >
+                        {STATUS_OPTIONS.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+
+                    <div className="fullWidth">
+                      <label>Email</label>
+                      <input
+                        className={`nicInput ${formErrors.email ? "error" : ""}`}
+                        value={guestForm.email}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          setGuestForm(s => ({ ...s, email: value }));
+
+                          if (value && !EMAIL_REGEX.test(value)) {
+                            setFormErrors(prev => ({
+                              ...prev,
+                              email: "Invalid email address",
+                            }));
+                          } else {
+                            setFormErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.email;
+                              return copy;
+                            });
+                          }
+                        }}
+                      />
+                      <p className="errorText">{formErrors.email}</p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label>Alternate Mobile</label>
-                    <input className="nicInput" value={guestForm.alternate_mobile} onChange={(e) => setGuestForm(s => ({ ...s, alternate_mobile: e.target.value }))} />
+                  {/* ACTION BUTTONS */}
+                  <div className="nicModalActions">
+                    <button className="cancelBtn" onClick={() => setShowAdd(false)}>
+                      Cancel
+                    </button>
+                    <button className="saveBtn" onClick={handleAddGuest}>
+                      Add Guest
+                    </button>
                   </div>
-
-                  {/* Full width field */}
-                  <div className="fullWidth">
-                    <label>Address</label>
-                    <textarea className="nicInput" value={guestForm.guest_address} onChange={(e) => setGuestForm(s => ({ ...s, guest_address: e.target.value }))} />
-                  </div>
-
-                  {/* Check-in Date */}
-                  <div>
-                    <label>Check-in Date</label>
-                    <input
-                      type="date"
-                      className={`nicInput ${formErrors.entry_date ? "error" : ""}`}
-                      value={guestForm.entry_date}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        const value = e.target.value;
-                        setGuestForm(s => ({ ...s, entry_date: value }));
-                        validateSingleField(guestInOutSchema, "entry_date", value);
-                      }}
-                    />
-                    <p className="errorText">{formErrors.entry_date}</p>
-                  </div>
-
-                  <div>
-                    <label>Check-in Time *</label>
-                    <input
-                      type="time"
-                      className={`nicInput ${formErrors.entry_time ? "error" : ""}`}
-                      value={guestForm.entry_time}
-                      onChange={(e) =>
-                        setGuestForm(s => ({ ...s, entry_time: e.target.value }))
-                      }
-                    />
-                    <p className="errorText">{formErrors.entry_time}</p>
-                  </div>
-
-                  {/* Check-out Date */}
-                  <div>
-                    <label>Check-out Date</label>
-                    <input
-                      type="date"
-                      className="nicInput"
-                      value={guestForm.exit_date}
-                      onChange={(e) =>
-                        setGuestForm((s) => ({ ...s, exit_date: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label>Check-out Time *</label>
-                    <input
-                      type="time"
-                      className={`nicInput ${formErrors.exit_time ? "error" : ""}`}
-                      value={guestForm.exit_time}
-                      onChange={(e) =>
-                        setGuestForm(s => ({ ...s, exit_time: e.target.value }))
-                      }
-                    />
-                    <p className="errorText">{formErrors.exit_time}</p>
-                  </div>
-
-                  <div className="fullWidth">
-                    <label>Email</label>
-                    <input className="nicInput" value={guestForm.email} onChange={(e) => setGuestForm(s => ({ ...s, email: e.target.value }))} />
-                  </div>
-                </div>
-
-                {/* ACTION BUTTONS */}
-                <div className="nicModalActions">
-                  <button className="cancelBtn" onClick={() => setShowAdd(false)}>
-                    Cancel
-                  </button>
-                  <button className="saveBtn" onClick={handleAddGuest}>
-                    Add Guest
-                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {designationMode === "other" && (
-        <>
-          <div>
-            <label>Designation Name *</label>
-            <input
-              className={`nicInput ${formErrors.designation_name ? "error" : ""}`}
-              value={guestForm.designation_name}
-              onChange={(e) =>
-                setGuestForm(s => ({ ...s, designation_name: e.target.value }))
-              }
-            />
-            <p className="errorText">{formErrors.designation_name}</p>
-          </div>
-
-          <div>
-            <label>Designation ID *</label>
-            <input
-              className={`nicInput ${formErrors.designation_id ? "error" : ""}`}
-              value={guestForm.designation_id}
-              onChange={(e) =>
-                setGuestForm(s => ({ ...s, designation_id: e.target.value }))
-              }
-            />
-          </div>
-
-          <div>
-            <label>Organization *</label>
-            <input
-              className="nicInput"
-              value={guestForm.organization}
-              onChange={(e) =>
-                setGuestForm(s => ({ ...s, organization: e.target.value }))
-              }
-            />
-          </div>
-
-          <div>
-            <label>Office Location *</label>
-            <input
-              className="nicInput"
-              value={guestForm.office_location}
-              onChange={(e) =>
-                setGuestForm(s => ({ ...s, office_location: e.target.value }))
-              }
-            />
-          </div>
-        </>
-      )}
+        )
+      }
     </div>
   );
 }

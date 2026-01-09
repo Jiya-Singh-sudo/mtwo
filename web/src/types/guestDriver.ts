@@ -14,6 +14,8 @@ export interface ActiveGuestDriver {
   trip_date: string;     // YYYY-MM-DD
   start_time: string;    // HH:mm:ss
   end_time?: string | null;
+  drop_date:string;
+  drop_time: string;
 
   pickup_location?: string | null;
   drop_location?: string | null;
@@ -28,13 +30,13 @@ export interface ActiveGuestDriver {
 export interface AssignGuestDriverPayload {
   guest_id: string;
   driver_id: string;
-
   pickup_location: string;
   drop_location: string;
   trip_date: string;   // YYYY-MM-DD
   start_time: string;  // HH:mm
   end_time?: string | null;
-
+  drop_date: string;
+  drop_time:string;
   trip_status?: "Scheduled" | "Ongoing" | "Completed" | "Cancelled";
 }
 
@@ -50,8 +52,8 @@ export interface CreateGuestDriverPayload extends AssignGuestDriverPayload {
   to_location?: string;
 
   end_time?: string;
-  drop_date?: string;
-  drop_time?: string;
+  drop_date: string;
+  drop_time: string;
 
   pickup_status?: "Waiting" | "Success";
   drop_status?: "Waiting" | "Success";

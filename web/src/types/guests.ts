@@ -1,4 +1,4 @@
-export type InoutStatus = 'Entered' | 'Inside' | 'Exited';
+export type InoutStatus = 'Entered' | 'Inside' | 'Exited' | 'Cancelled' | 'Scheduled';
 
 export interface ActiveGuestRow {
   guest_id: string;
