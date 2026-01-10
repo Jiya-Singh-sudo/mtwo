@@ -405,16 +405,16 @@ export function GuestManagement() {
       alternate_mobile: g.guest_alternate_mobile || "",
       guest_address: g.guest_address || "",
       email: g.email || "",
-      designation_id: g.designation_id || "",
+      designation_id: g.designation_id ?? "",
       designation_name: g.designation_name || "",
       department: g.department || "",
       organization: g.organization || "",
       office_location: g.office_location || "",
 
       entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
-      entry_time: g.entry_time ? g.entry_time.toString() : "",
+      entry_time: g.entry_time ? g.entry_time.slice(0,5):"",
       exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
-      exit_time: g.exit_time ? g.exit_time.toString() : "",
+      exit_time: g.exit_time ? g.exit_time.slice(0,5):"",
 
       status: g.inout_status || "Scheduled"
     });
@@ -506,22 +506,22 @@ export function GuestManagement() {
       setModalMode(null);
       await loadGuests();
       await refreshStatusCounts();
-    } catch (err) {
-      if (err instanceof ZodError) {
-        const errors: Record<string, string> = {};
-        err.issues.forEach(issue => {
-          errors[issue.path[0] as string] = issue.message;
-        });
-        setFormErrors(errors);
-        return;
-      }
-      if (err instanceof ZodError) {
-        console.log("EDIT VALIDATION ERRORS:", err.issues);
-      }
-      console.error("Edit failed", err);
-      alert("Failed to update guest");
-    }
+      } catch (err) {
+        if (err instanceof ZodError) {
+          console.log("EDIT VALIDATION ERRORS:", err.issues);
 
+          const errors: Record<string, string> = {};
+          err.issues.forEach(issue => {
+            errors[issue.path[0] as string] = issue.message;
+          });
+
+          setFormErrors(errors);
+          return;
+        }
+
+        console.error("Edit failed", err);
+        alert("Failed to update guest");
+      }
   }
 
   async function handleDelete() {

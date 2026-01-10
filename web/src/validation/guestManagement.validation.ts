@@ -201,7 +201,22 @@ export const guestManagementSchema = z
         });
       }
     }
-  });
+  })
+  .refine(
+  (data) => {
+    if (data.status === "Scheduled") return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const entry = new Date(data.entry_date);
+    return entry <= today;
+  },
+  {
+    message: "Future check-in allowed only for Scheduled guests",
+    path: ["entry_date"],
+  }
+);
 
 /* ======================================================
    TYPE
