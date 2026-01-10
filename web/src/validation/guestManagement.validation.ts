@@ -6,14 +6,14 @@ import { z } from "zod";
 
 const MIN_YEAR = 2025;
 const MAX_YEAR = 2026;
-const MAX_STAY_DAYS = 10;
+const MAX_STAY_DAYS = 30;
 
 const MAX_NAME_LENGTH = 100;
 const MAX_ADDRESS_LENGTH = 250;
 
 const nameRegex = /^[A-Za-z .]*$/;
 const mobileRegex = /^[6-9]\d{9}$/;
-const safeTextRegex = /^[A-Za-z0-9 ,./-]*$/;
+const safeTextRegex = /^[A-Za-z0-9 \s,./()-]*$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const timeRegex = /^\d{2}:\d{2}:\d{2}$/;
 
