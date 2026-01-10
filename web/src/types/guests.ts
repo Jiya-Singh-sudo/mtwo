@@ -10,7 +10,7 @@ export interface ActiveGuestRow {
   email?: string | null;
 
   gd_id?: string | null;
-  designation_id?: string | null;
+  designation_id?: string;
   designation_name?: string | null;
   department?: string | null;
   organization?: string | null;
@@ -23,5 +23,6 @@ export interface ActiveGuestRow {
   exit_date?: string | null;
   exit_time?: string | null;
   inout_status?: InoutStatus | string | null;
+  purpose?: string | null;
   room_id?: string | null;
 }

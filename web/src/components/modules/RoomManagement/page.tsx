@@ -44,6 +44,13 @@ type AssignmentFormType = {
 export function RoomManagement() {
   /* ================= STATE ================= */
   const [rooms, setRooms] = useState<RoomRow[]>([]);
+  const [roomStats, setRoomStats] = useState({
+    total: 0,
+    available: 0,
+    occupied: 0,
+    withGuest: 0,
+    withHousekeeping: 0,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   /* ---------------- ASSIGN ROOM BOY ---------------- */
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
@@ -68,7 +75,7 @@ export function RoomManagement() {
     room_category: "",
     status: "Available",
   });
-  
+
 
 
   const [activeRoom, setActiveRoom] = useState<RoomRow | null>(null);
@@ -124,6 +131,24 @@ export function RoomManagement() {
     try {
       const data = await getRoomManagementOverview();
       setRooms(data);
+
+      // Compute stats from loaded rooms
+      const stats = {
+        total: data.length,
+        available: 0,
+        occupied: 0,
+        withGuest: 0,
+        withHousekeeping: 0,
+      };
+
+      data.forEach((r: RoomRow) => {
+        if (r.status === "Available") stats.available++;
+        if (r.status === "Occupied") stats.occupied++;
+        if (r.guest) stats.withGuest++;
+        if (r.housekeeping) stats.withHousekeeping++;
+      });
+
+      setRoomStats(stats);
     } catch (err) {
       console.error("Failed to load room overview", err);
     }
@@ -386,6 +411,34 @@ export function RoomManagement() {
         </p>
       </div>
 
+      {/* ================= ROOM STATS GRID ================= */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="statCard">
+          <p className="statLabel">Total Rooms</p>
+          <p className="statValue">{roomStats.total}</p>
+        </div>
+
+        <div className="statCard bg-green-50">
+          <p className="statLabel">Available</p>
+          <p className="statValue">{roomStats.available}</p>
+        </div>
+
+        <div className="statCard bg-red-50">
+          <p className="statLabel">Occupied</p>
+          <p className="statValue">{roomStats.occupied}</p>
+        </div>
+
+        <div className="statCard bg-blue-50">
+          <p className="statLabel">Guest Assigned</p>
+          <p className="statValue">{roomStats.withGuest}</p>
+        </div>
+
+        <div className="statCard bg-yellow-50">
+          <p className="statLabel">Housekeeping</p>
+          <p className="statValue">{roomStats.withHousekeeping}</p>
+        </div>
+      </div>
+
       <Tabs defaultValue="rooms" className="space-y-6">
         <TabsList className="bg-white border border-gray-200">
           <TabsTrigger value="rooms">Rooms</TabsTrigger>
@@ -477,7 +530,7 @@ export function RoomManagement() {
                         )}
                         {room.housekeeping ? (
                           <button
-                            onClick={() => unassignHousekeeping(room.housekeeping!.guestHkId) }
+                            onClick={() => unassignHousekeeping(room.housekeeping!.guestHkId)}
                             className="inline-flex items-center gap-1">
                             <UserMinus size={16} />
                           </button>
@@ -859,7 +912,7 @@ export function RoomManagement() {
                     setEditRoom({
                       ...editRoom,
                       housekeeping: e.target.value
-                      ? {
+                        ? {
                           guestHkId: editRoom.housekeeping?.guestHkId ?? "",
                           hkId: e.target.value,
                           hkName:
@@ -868,7 +921,7 @@ export function RoomManagement() {
                           taskShift: "Morning",
                           isActive: true,
                         }
-                      : null,
+                        : null,
                     })
                   }
                 >
@@ -1047,79 +1100,79 @@ export function RoomManagement() {
 
 
       {assignGuestRoom && (
-      <div className="modalOverlay">
-        <div className="modal">
-          <h3>Assign Guest</h3>
+        <div className="modalOverlay">
+          <div className="modal">
+            <h3>Assign Guest</h3>
 
-          <p className="mb-2">
-            <b>Room:</b> {assignGuestRoom.roomNo}
-          </p>
+            <p className="mb-2">
+              <b>Room:</b> {assignGuestRoom.roomNo}
+            </p>
 
-          <div className="nicFormStack">
-            <div>
-              <label>Guest *</label>
-              <select
-                className="nicInput"
-                value={selectedGuestId ?? ""}
-                onChange={(e) => {
-                  const guestId = String(e.target.value);
-                  setSelectedGuestId(guestId);
+            <div className="nicFormStack">
+              <div>
+                <label>Guest *</label>
+                <select
+                  className="nicInput"
+                  value={selectedGuestId ?? ""}
+                  onChange={(e) => {
+                    const guestId = String(e.target.value);
+                    setSelectedGuestId(guestId);
 
-                  const guest = guestOptions.find(
-                    g => g.guest_id.toString() === guestId
-                  );
+                    const guest = guestOptions.find(
+                      g => g.guest_id.toString() === guestId
+                    );
 
-                  setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
-                  setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
-                }}
+                    setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
+                    setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
+                  }}
+                >
+                  <option value="">Select Guest</option>
+                  {guestOptions.map((g) => (
+                    <option key={g.guest_id} value={g.guest_id}>
+                      {g.guest_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label>Check-in Date</label>
+                <input
+                  type="date"
+                  className="nicInput"
+                  value={assignCheckInDate}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label>Check-out Date</label>
+                <input
+                  type="date"
+                  className="nicInput"
+                  value={assignCheckOutDate}
+                  readOnly
+                />
+              </div>
+            </div>
+
+            <div className="modalActions">
+              <button
+                className="linkBtn"
+                onClick={() => setAssignGuestRoom(null)}
               >
-                <option value="">Select Guest</option>
-                {guestOptions.map((g) => (
-                  <option key={g.guest_id} value={g.guest_id}>
-                    {g.guest_name}
-                  </option>
-                ))}
-              </select>
+                Cancel
+              </button>
+              <button
+                className="primaryBtn"
+                onClick={submitAssignGuest}
+              >
+                Assign
+              </button>
             </div>
-
-            <div>
-              <label>Check-in Date</label>
-              <input
-                type="date"
-                className="nicInput"
-                value={assignCheckInDate}
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label>Check-out Date</label>
-              <input
-                type="date"
-                className="nicInput"
-                value={assignCheckOutDate}
-                readOnly
-              />
-            </div>
-          </div>
-
-          <div className="modalActions">
-            <button
-              className="linkBtn"
-              onClick={() => setAssignGuestRoom(null)}
-            >
-              Cancel
-            </button>
-            <button
-              className="primaryBtn"
-              onClick={submitAssignGuest}
-            >
-              Assign
-            </button>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
       {/* ================= VIEW ROOM ================= */}
       {viewRoom && (

@@ -5,6 +5,11 @@ export type PaginatedResponse<T> = {
   totalCount: number;
 };
 
+export const fetchGuestStatusCounts = async () => {
+  const data = await safeGet("/guests/status-counts");
+  return data; // <-- unwrap one more level
+};
+
 export async function getActiveGuests(params: {
   page: number;
   limit: number;

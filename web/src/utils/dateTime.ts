@@ -1,5 +1,5 @@
 // src/utils/dateTime.ts
-export function formatDate(date?: string) {
+export function BformatDate(date?: string) {
   if (!date) return "N/A";
   return new Date(date).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -44,6 +44,15 @@ export function formatSeparate(
   return formattedTime
     ? `${formattedDate} ${formattedTime}`
     : formattedDate;
+}
+export function formatDate(date?: string | null): string {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("en-GB");
+}
+
+export function formatTime(time?: string | null): string {
+  if (!time || time.length < 5) return "";
+  return time.slice(0, 5); // HH:mm
 }
 
 export function formatISTDateTime(value?: string | null): string {

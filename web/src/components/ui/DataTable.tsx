@@ -5,6 +5,7 @@ export type Column<T> = {
 
   sortable?: boolean;
   sortKey?: string;
+  emptyFallback?: React.ReactNode;
 };
 
 export type DataTableProps<T> = {
@@ -72,6 +73,7 @@ export function DataTable<T extends Record<string, any>>({
                 </th>
               ))}
             </tr>
+            
           </thead>
 
           <tbody>
@@ -101,12 +103,16 @@ export function DataTable<T extends Record<string, any>>({
                   className={`border-b ${loading ? "" : "hover:bg-gray-50"}`}>
                 {columns.map((col, idx) => (
                     <td key={idx} className="px-6 py-4">
-                      {col.render
-                        ? col.render(row)
-                        : String(row[col.accessor as keyof T] ?? "")}
+                        {col.render
+                          ? col.render(row)
+                          : row[col.accessor as keyof T] != null &&
+                            row[col.accessor as keyof T] !== ""
+                              ? String(row[col.accessor as keyof T])
+                              : col.emptyFallback ?? "—"}
                     </td>
                   ))}
                   </tr>
+                  
               ))
             )}
           </tbody>

@@ -34,8 +34,15 @@
 
 /* Fade Animation */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================
@@ -49,7 +56,8 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px; /* breathing room on small screens */
+  padding: 20px;
+  /* breathing room on small screens */
 }
 
 /* ============================
@@ -58,13 +66,15 @@
 .nicModal {
   width: 100%;
   max-width: 560px;
-  max-height: calc(100vh - 40px); /* never overflow viewport */
+  max-height: calc(100vh - 40px);
+  /* never overflow viewport */
   background: #ffffff;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-  overflow: hidden; /* key fix */
+  overflow: hidden;
+  /* key fix */
 }
 
 /* ============================
@@ -98,7 +108,8 @@
 ============================ */
 .nicModalBody {
   padding: 20px;
-  overflow-y: auto; /* scroll happens HERE */
+  overflow-y: auto;
+  /* scroll happens HERE */
 }
 
 /* ============================
@@ -270,9 +281,11 @@ table thead th {
 }
 
 /* FIX accidental hidden header */
-thead, th {
+thead,
+th {
   display: table-cell !important;
 }
+
 /* ============================
    FORM STACK (VERTICAL RHYTHM)
 =============================== */
@@ -334,6 +347,7 @@ thead, th {
   justify-content: flex-end;
   gap: 12px;
 }
+
 .detailGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -357,4 +371,27 @@ thead, th {
 .detailSection p {
   font-size: 14px;
   margin-bottom: 6px;
+}
+
+/* ============================
+   STAT CARDS
+=============================== */
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: 700;
+  color: #00247D;
 }

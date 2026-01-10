@@ -32,13 +32,33 @@ export default function TimePicker12h({
   }, [value]);
 
   // 🔄 Convert to 24h and emit
-  useEffect(() => {
-    let h = hour % 12;
-    if (meridiem === "PM") h += 12;
+useEffect(() => {
+  if (!value) return;
 
-    const result = `${String(h).padStart(2, "0")}:${minute}`;
-    onChange(result);
-  }, [hour, minute, meridiem]);
+  const [h, m] = value.split(":").map(Number);
+  const isPM = h >= 12;
+  const normalizedHour = h % 12 === 0 ? 12 : h % 12;
+  const normalizedMinute = String(m).padStart(2, "0");
+  const normalizedMeridiem = isPM ? "PM" : "AM";
+
+  setHour((prev) => (prev !== normalizedHour ? normalizedHour : prev));
+  setMinute((prev) => (prev !== normalizedMinute ? normalizedMinute : prev));
+  setMeridiem((prev) =>
+    prev !== normalizedMeridiem ? normalizedMeridiem : prev
+  );
+}, [value]);
+
+const emitChange = (
+  newHour = hour,
+  newMinute = minute,
+  newMeridiem = meridiem
+) => {
+  let h = newHour % 12;
+  if (newMeridiem === "PM") h += 12;
+
+  onChange(`${String(h).padStart(2, "0")}:${newMinute}`);
+};
+
 
   return (
     <div className="timePicker12h">
@@ -48,7 +68,11 @@ export default function TimePicker12h({
         <select
           className="nicInput"
           value={hour}
-          onChange={(e) => setHour(Number(e.target.value))}
+          onChange={(e) => {
+  const v = Number(e.target.value);
+  setHour(v);
+  emitChange(v, minute, meridiem);
+}}
         >
           {HOURS.map((h) => (
             <option key={h} value={h}>
@@ -60,7 +84,11 @@ export default function TimePicker12h({
         <select
           className="nicInput"
           value={minute}
-          onChange={(e) => setMinute(e.target.value)}
+          onChange={(e) => {
+  const v = e.target.value;
+  setMinute(v);
+  emitChange(hour, v, meridiem);
+}}
         >
           {MINUTES.map((m) => (
             <option key={m} value={m}>
@@ -72,7 +100,11 @@ export default function TimePicker12h({
         <select
           className="nicInput"
           value={meridiem}
-          onChange={(e) => setMeridiem(e.target.value as "AM" | "PM")}
+          onChange={(e) => {
+  const v = e.target.value as "AM" | "PM";
+  setMeridiem(v);
+  emitChange(hour, minute, v);
+}}
         >
           <option value="AM">AM</option>
           <option value="PM">PM</option>
