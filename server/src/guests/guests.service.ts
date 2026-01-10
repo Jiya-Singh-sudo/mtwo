@@ -85,7 +85,7 @@ export class GuestsService {
       entry_time?: string;
       exit_date?: string;
       exit_time?: string;
-      status?: 'Entered' | 'Inside' | 'Exited';
+      // status?: 'Entered' | 'Inside' | 'Exited' | 'Scheduled';
       purpose?: string;
       remarks?: string;
     };
@@ -94,12 +94,12 @@ export class GuestsService {
     await this.db.query('BEGIN');
 
     const today = todayISO();
-    let status = 'Entered';
+    let status: 'Entered' | 'Scheduled' | 'Exited' = 'Entered';
 
     // pastedGraphic.png Block back-dated entry
-    if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
-      throw new BadRequestException('Entry date cannot be in the past');
-    }
+      // if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
+      //   throw new BadRequestException('Entry date cannot be in the past');
+      // }
 
     // pastedGraphic_1.png Auto Scheduled
     if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
@@ -231,7 +231,9 @@ export class GuestsService {
       };
     } catch (err) {
       await this.db.query('ROLLBACK');
-      throw err;
+      throw new BadRequestException(
+        err?.message || 'Guest creation failed'
+      );
     }
   }
 
