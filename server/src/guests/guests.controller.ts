@@ -26,6 +26,12 @@ export class GuestsController {
     });
   }
 
+  // guests.controller.ts
+  @Get('status-counts')
+  async getStatusCounts() {
+    return await this.service.getGuestStatusCounts();
+  } 
+
   // create full guest (guest + designation + inout)
   @Post()
   async createFull(@Body() body: { guest: CreateGuestDto; designation?: any; inout?: any }, @Req() req: any) {

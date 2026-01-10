@@ -40,6 +40,35 @@ export class GuestsService {
   //   if (/[\d@#$%^&*()_+=]/.test(localized)) return false;
   //   return true;
   // }
+  async getGuestStatusCounts() {
+    const sql = `
+      SELECT io.status, COUNT(*)::int AS count
+      FROM t_guest_inout io
+      JOIN m_guest g ON g.guest_id = io.guest_id
+      WHERE g.is_active = TRUE
+      GROUP BY io.status
+    `;
+
+    const res = await this.db.query(sql);
+
+    const result = {
+      All: 0,
+      Scheduled: 0,
+      Entered: 0,
+      Exited: 0,
+    };
+
+    for (const row of res.rows) {
+      if (row.status === 'Inside') {
+        result.Entered += row.count; // normalize
+      } else if (row.status in result) {
+        result[row.status] += row.count;
+      }
+      result.All += row.count;
+    }
+
+    return result;
+  }
 
   // create guest (transactional)
   async createFullGuest(payload: {
@@ -91,11 +120,10 @@ export class GuestsService {
 
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
-  INSERT INTO m_guest
-    (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
-  RETURNING *;
-`;
+        INSERT INTO m_guest
+          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
+        RETURNING *;`;
 
       const guestRes = await this.db.query(insertGuestSql, [
         guest_id, // $1
@@ -144,7 +172,6 @@ export class GuestsService {
         }
       }
 
-
       // 4. Create t_guest_designation
       let gd_id: string | null = null;
       if (finalDesignationId) {
@@ -164,7 +191,6 @@ export class GuestsService {
           user, ip
         ]);
       }
-
 
       // 5. Create t_guest_inout
       const inout_id = `IN${Date.now()}`;
@@ -197,7 +223,6 @@ export class GuestsService {
         ip
       ]);
 
-
       await this.db.query('COMMIT');
       return {
         guest: guestRow,
@@ -209,7 +234,6 @@ export class GuestsService {
       throw err;
     }
   }
-
 
   // Generic update
   async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
@@ -236,13 +260,11 @@ export class GuestsService {
     return r.rows[0];
   }
 
-
   async findOne(guestId: string) {
     const sql = `SELECT * FROM m_guest WHERE guest_id = $1 LIMIT 1`;
     const r = await this.db.query(sql, [guestId]);
     return r.rows[0];
   }
-
 
   async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
@@ -255,7 +277,6 @@ export class GuestsService {
     return r.rows[0];
   }
 
-
   async findActiveGuestsWithInOut(params: {
     page: number;
     limit: number;
@@ -267,17 +288,11 @@ export class GuestsService {
     entryDateTo?: string;
   }) {
     const { page, limit, search, status, sortBy, sortOrder, entryDateFrom, entryDateTo } = params;
-
-
     const offset = (page - 1) * limit;
-
-
     const where: string[] = [
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
-
-
     const values: any[] = [];
     let idx = 1;
 
@@ -287,7 +302,6 @@ export class GuestsService {
       values.push(entryDateFrom);
       idx++;
     }
-
 
     if (entryDateTo) {
       where.push(`io.entry_date <= $${idx}`);
@@ -301,14 +315,11 @@ export class GuestsService {
       entry_date: 'io.entry_date',
     };
 
-
     const sortColumn =
       allowedSorts[sortBy ?? 'entry_date'] ?? allowedSorts.entry_date;
 
-
     const sortDirection =
       sortOrder === 'asc' ? 'ASC' : 'DESC';
-
 
     /* ---------------- SEARCH ---------------- */
     if (search) {
@@ -323,14 +334,12 @@ export class GuestsService {
       idx++;
     }
 
-
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {
       where.push(`io.status = $${idx}`);
       values.push(status);
       idx++;
     }
-
 
     /* ---------------- COUNT QUERY ---------------- */
     const countSql = `
@@ -346,7 +355,6 @@ export class GuestsService {
       WHERE ${where.join(' AND ')}
     `;
 
-
     /* ---------------- DATA QUERY ---------------- */
     const dataSql = `
       SELECT
@@ -358,7 +366,6 @@ export class GuestsService {
         g.guest_address,
         g.email,
 
-
         d.gd_id,
         d.designation_id,
         md.designation_name,
@@ -367,15 +374,14 @@ export class GuestsService {
         d.office_location,
         d.is_current AS designation_is_current,
 
-
         io.inout_id,
         io.entry_date,
         io.entry_time,
         io.exit_date,
         io.exit_time,
         io.status AS inout_status,
+        io.purpose,
         io.room_id
-
 
       FROM t_guest_inout io
       JOIN m_guest g ON g.guest_id = io.guest_id
