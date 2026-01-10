@@ -362,8 +362,8 @@ export function GuestManagement() {
           entry_time: finalEntryTime,
           exit_date: parsed.exit_date ?? null,
           exit_time: parsed.exit_time ?? null,
-          status: parsed.status,
-          purpose: "Visit",
+          // status: parsed.status,
+          purpose: parsed.purpose || "Visit",
         },
       };
 
@@ -384,9 +384,6 @@ export function GuestManagement() {
         setFormErrors(errors);
         return;
       }
-
-      console.error("Create guest failed:", err);
-      alert("Failed to create guest. Check console for details.");
     }
   }
 
@@ -673,7 +670,6 @@ export function GuestManagement() {
       </div>
 
       {/* ------------------------- MODALS BEGIN ------------------------ */}
-
       {/* VIEW GUEST */}
       {
         showView && selectedGuest && (
@@ -743,7 +739,11 @@ export function GuestManagement() {
         <div className="modalOverlay">
           <div className="modal largeModal">
             <h3>{modalMode === "add" ? "Add Guest" : "Edit Guest"}</h3>
-
+            {formErrors.form && (
+              <div className="formErrorBanner">
+                {formErrors.form}
+              </div>
+            )}
             {/* FORM BODY */}
             {modalMode === "add" ? (
               <div className="modalBody">
@@ -899,12 +899,12 @@ export function GuestManagement() {
                         }}
                       />
                       <p className="errorText">{formErrors.mobile}</p>
-                      <p className="errorText">{formErrors.guest_mobile}</p>
                     </div>
 
                     <div>
                       <label>Alternate Mobile</label>
                       <input className="nicInput" value={guestForm.alternate_mobile} onChange={(e) => setGuestForm(s => ({ ...s, alternate_mobile: e.target.value }))} />
+                      <p className="errorText">{formErrors.alternate_mobile}</p>
                     </div>
 
                     {/* Full width field */}
@@ -1121,7 +1121,7 @@ export function GuestManagement() {
               <button onClick={() => setModalMode(null)}>Cancel</button>
 
               {modalMode === "add" ? (
-                <button className="saveBtn" onClick={handleAddGuest}>
+                <button className="saveBtn" onClick={() => { handleAddGuest(); console.log("button clicked") }}>
                   Add Guest
                 </button>
               ) : (

@@ -88,7 +88,12 @@ export const guestManagementSchema = z
       .regex(timeRegex, "Invalid time format (HH:mm:ss)")
       .optional(),
 
-    status: z.string(),
+    status: z.enum(["Scheduled", "Entered", "Inside", "Exited", "Cancelled"]).optional(),
+    purpose: z
+      .string()
+      .max(100, "Purpose too long")
+      .regex(safeTextRegex, "Invalid characters in purpose")
+      .optional(),
   })
 
   /* ======================================================
@@ -147,15 +152,15 @@ export const guestManagementSchema = z
     /* ---------- DATE RULES ---------- */
 
     const inDate = parseDate(entry_date);
-    const today = new Date();
+    // const today = new Date();
 
-    if (inDate > today) {
-      ctx.addIssue({
-        path: ["entry_date"],
-        message: "Future date not allowed",
-        code: z.ZodIssueCode.custom,
-      });
-    }
+    // if (inDate > today) {
+    //   ctx.addIssue({
+    //     path: ["entry_date"],
+    //     message: "Future date not allowed",
+    //     code: z.ZodIssueCode.custom,
+    //   });
+    // }
 
     const inYear = inDate.getFullYear();
     if (inYear < MIN_YEAR || inYear > MAX_YEAR) {
@@ -204,7 +209,7 @@ export const guestManagementSchema = z
   })
   .refine(
   (data) => {
-    if (data.status === "Scheduled") return true;
+    if (!data.status || data.status === "Scheduled") return true;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
