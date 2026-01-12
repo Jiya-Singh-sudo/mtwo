@@ -56,6 +56,7 @@ export function RoomManagement() {
   const hkTable = useTableQuery({
     sortBy: 'hk_name',
     sortOrder: 'asc',
+    limit: 10,
   });
 
   /* ================= STATE ================= */
@@ -155,6 +156,10 @@ export function RoomManagement() {
     roomTable.setSort("room_no", "asc");
   }, []);
 
+  // useEffect(() => {
+  //   hkTable.setLoading(true);
+  //   loadRoomBoys();
+  // }, []);
 
   async function loadRooms() {
     try {
@@ -164,7 +169,7 @@ export function RoomManagement() {
         search: roomTable.searchInput,
         sortBy: roomTable.query.sortBy,
         sortOrder: roomTable.query.sortOrder,
-        status: roomTable.query.status,
+        status: roomTable.query.status === "All" ? undefined : roomTable.query.status as "Available" | "Occupied" | undefined,
         entryDateFrom: roomTable.query.entryDateFrom,
         entryDateTo: roomTable.query.entryDateTo,
       });
@@ -174,6 +179,23 @@ export function RoomManagement() {
       setRoomStats(res.stats);
     } finally {
       roomTable.setLoading(false);
+    }
+  }
+  
+  async function loadRoomBoys() {
+    try {
+      const res = await getActiveHousekeeping({
+        page: hkTable.query.page,
+        limit: hkTable.query.limit,
+        search: hkTable.searchInput,
+        sortBy: hkTable.query.sortBy,
+        sortOrder: hkTable.query.sortOrder,
+      });
+
+      setRoomBoys(res.data);
+      hkTable.setTotal(res.totalCount);
+    } finally {
+      hkTable.setLoading(false); 
     }
   }
 
@@ -225,18 +247,6 @@ export function RoomManagement() {
     loadRoomBoysAndShifts();
   }, []);
 
-  async function loadRoomBoys() {
-    const res = await getActiveHousekeeping({
-      page: hkTable.query.page,
-      limit: hkTable.query.limit,
-      search: hkTable.searchInput,
-      sortBy: hkTable.query.sortBy,
-      sortOrder: hkTable.query.sortOrder,
-    });
-
-    setRoomBoys(res.data);
-    hkTable.setTotal(res.totalCount);
-  }
 
   useEffect(() => {
     hkTable.setLoading(true);
@@ -554,7 +564,8 @@ export function RoomManagement() {
           )}
 
           {row.housekeeping ? (
-            <button onClick={() => {if (row.housekeeping?.guestHkId) {
+            <button onClick={() => {
+              if (row.housekeeping?.guestHkId) {
                 unassignHousekeeping(row.housekeeping.guestHkId);
               }
             }}>
@@ -580,8 +591,8 @@ export function RoomManagement() {
     {
       header: "Local Name",
       accessor: "hk_name_local_language",
-      sortable: true,
-      sortKey: "hk_name_local_language",
+      // sortable: true,
+      // sortKey: "hk_name_local_language",
     },
     {
       header: "Contact",
@@ -646,7 +657,7 @@ export function RoomManagement() {
         <div
           className={`statCard cursor-pointer ${!roomTable.query.status ? "ring-2 ring-blue-500" : ""
             }`}
-          onClick={() => roomTable.setStatus(undefined)}
+          onClick={() => { roomTable.setStatus(undefined); roomTable.setPage(1); }}
         >
           <p className="statLabel">All Rooms</p>
           <p className="statValue">{roomStats.total}</p>
@@ -662,7 +673,7 @@ export function RoomManagement() {
 
         <div
           className="statCard bg-red-50 cursor-pointer"
-          onClick={() => roomTable.setStatus("Occupied")}
+          onClick={() => { roomTable.setStatus("Occupied"); roomTable.setPage(1); }}
         >
           <p className="statLabel">Occupied</p>
           <p className="statValue">{roomStats.occupied}</p>

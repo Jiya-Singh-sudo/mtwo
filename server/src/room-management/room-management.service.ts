@@ -30,44 +30,70 @@ export class RoomManagementService {
   }) {
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
+    const offset = (page - 1) * limit;
 
-    const searchSql = search
-      ? `AND (
-          r.room_no ILIKE $1 OR
-          r.room_name ILIKE $1 OR
-          g.guest_name ILIKE $1
-        )`
-      : '';
+    /* ================= WHERE + PARAMS ================= */
 
-    const statusSql =
-      status ? `AND r.status = $${search ? 2 : 1}` : '';
+    const whereParts: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (search) {
+      whereParts.push(`
+        (
+          r.room_no ILIKE $${idx}
+          OR r.room_name ILIKE $${idx}
+          OR g.guest_name ILIKE $${idx}
+        )
+      `);
+      params.push(`%${search}%`);
+      idx++;
+    }
+
+    if (status) {
+      whereParts.push(`r.status = $${idx}`);
+      params.push(status);
+      idx++;
+    }
+
+    const whereSql =
+      whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
+
+    /* ================= COUNT ================= */
 
     const countSql = `
       SELECT COUNT(*)::int AS count
       FROM m_rooms r
-      LEFT JOIN t_guest_room gr ON gr.room_id = r.room_id AND gr.is_active = true
-      LEFT JOIN m_guest g ON g.guest_id = gr.guest_id
+      LEFT JOIN t_guest_room gr
+        ON gr.room_id = r.room_id AND gr.is_active = true
+      LEFT JOIN m_guest g
+        ON g.guest_id = gr.guest_id
       WHERE r.is_active = true
-      ${searchSql}
-      ${statusSql}
+      ${whereSql}
     `;
+
+    /* ================= STATS (filtered) ================= */
 
     const statsSql = `
       SELECT
-      COUNT(*) FILTER (WHERE r.is_active = true)                      AS total,
-      COUNT(*) FILTER (WHERE r.status = 'Available')                  AS available,
-      COUNT(*) FILTER (WHERE r.status = 'Occupied')                   AS occupied,
-      COUNT(*) FILTER (WHERE gr.guest_id IS NOT NULL)                 AS with_guest,
-      COUNT(*) FILTER (WHERE gh.guest_hk_id IS NOT NULL)              AS with_housekeeping
-    FROM m_rooms r
-    LEFT JOIN t_guest_room gr ON gr.room_id = r.room_id AND gr.is_active = true
-    LEFT JOIN t_room_housekeeping gh ON gh.room_id = r.room_id AND gh.is_active = true
-    WHERE r.is_active = true;
+        COUNT(*)                                           AS total,
+        COUNT(*) FILTER (WHERE r.status = 'Available')     AS available,
+        COUNT(*) FILTER (WHERE r.status = 'Occupied')      AS occupied,
+        COUNT(*) FILTER (WHERE gr.guest_id IS NOT NULL)    AS with_guest,
+        COUNT(*) FILTER (WHERE gh.guest_hk_id IS NOT NULL) AS with_housekeeping
+      FROM m_rooms r
+      LEFT JOIN t_guest_room gr
+        ON gr.room_id = r.room_id AND gr.is_active = true
+      LEFT JOIN t_room_housekeeping gh
+        ON gh.room_id = r.room_id AND gh.is_active = true
+      WHERE r.is_active = true
+      ${whereSql}
     `;
+
+    /* ================= DATA ================= */
 
     const dataSql = `
       SELECT
-        -- Room
         r.room_id,
         r.room_no,
         r.room_name,
@@ -78,14 +104,12 @@ export class RoomManagementService {
         r.room_capacity,
         r.status,
 
-        -- Guest
         g.guest_id,
         g.guest_name,
         gr.guest_room_id,
         gr.check_in_date,
         gr.check_out_date,
 
-        -- Housekeeping
         gh.guest_hk_id,
         hk.hk_id,
         hk.hk_name,
@@ -93,66 +117,32 @@ export class RoomManagementService {
         gh.task_shift
 
       FROM m_rooms r
-
       LEFT JOIN t_guest_room gr
-        ON gr.room_id = r.room_id
-       AND gr.is_active = true
-
+        ON gr.room_id = r.room_id AND gr.is_active = true
       LEFT JOIN m_guest g
         ON g.guest_id = gr.guest_id
-
       LEFT JOIN t_room_housekeeping gh
         ON gh.room_id = r.room_id
-       AND gh.is_active = true
-       AND gh.status != 'Cancelled'
-
+      AND gh.is_active = true
+      AND gh.status != 'Cancelled'
       LEFT JOIN m_housekeeping hk
         ON hk.hk_id = gh.hk_id
 
       WHERE r.is_active = true
-      ${searchSql}
-      ${statusSql}
+      ${whereSql}
       ORDER BY ${sortColumn} ${order}
-      LIMIT $1::int OFFSET $2::int
+      LIMIT $${idx} OFFSET $${idx + 1}
     `;
 
-    const offset = (page - 1) * limit;
+    const dataParams = [...params, limit, offset];
 
-const params: any[] = [];
-let idx = 1;
+    /* ================= EXEC ================= */
 
-// search
-if (search) {
-  params.push(`%${search}%`);
-  idx++;
-}
+    const [{ count }] = (await this.db.query(countSql, params)).rows;
+    const statsRow = (await this.db.query(statsSql, params)).rows[0];
+    const { rows } = await this.db.query(dataSql, dataParams);
 
-// status
-if (status) {
-  params.push(status);
-  idx++;
-}
-
-// pagination ALWAYS last
-params.push(limit);
-params.push(offset);
-
-    const [{ count }] = (
-      await this.db.query(
-        countSql,
-        search ? [`%${search}%`] : []
-      )
-    ).rows;
-    const statsRes = await this.db.query(statsSql);
-    const {
-      total,
-      available,
-      occupied,
-      with_guest,
-      with_housekeeping,
-    } = statsRes.rows[0];
-
-    const { rows } = await this.db.query(dataSql, params);
+    /* ================= MAP ================= */
 
     return {
       data: rows.map((r) => ({
@@ -187,13 +177,14 @@ params.push(offset);
             }
           : null,
       })),
+
       totalCount: count,
       stats: {
-        total: Number(total),
-        available: Number(available),
-        occupied: Number(occupied),
-        withGuest: Number(with_guest),
-        withHousekeeping: Number(with_housekeeping),
+        total: Number(statsRow.total),
+        available: Number(statsRow.available),
+        occupied: Number(statsRow.occupied),
+        withGuest: Number(statsRow.with_guest),
+        withHousekeeping: Number(statsRow.with_housekeeping),
       },
     };
   }

@@ -17,6 +17,7 @@ import { SystemSettings } from './components/modules/SystemSettings/Page';
 import GuestTransportManagement from './components/modules/GuestTransportManagement/Page';
 import { FoodService } from "./components/modules/FoodService/Page";
 import { Search, Globe } from 'lucide-react';
+import { LoginPage } from './components/LoginPage/Page';
 // import ashokaEmblem from './ashoka_emblem.png';
 // import maharashtraSeal from './maharashtra_seal.png';
 // import indianFlag from './indian_flag.png';
@@ -34,7 +35,8 @@ export type ModuleType =
   | 'user-management'
   | 'settings'
   | 'guest-transport-management'
-  | 'food-service';
+  | 'food-service'
+  | 'login';
 
 export default function App() {
 
@@ -77,6 +79,8 @@ export default function App() {
         return <GuestTransportManagement />;
       case 'food-service':
         return <FoodService />;
+      case 'login':
+        return <LoginPage />;
       default:
         return <DashboardStats />;
     }
