@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import { LoginDto } from './dto/login.dto';
 
 
 @Injectable()
@@ -46,8 +47,8 @@ export class AuthService {
   }
 
   // SHA-256 for your password CHAR(64)
-  private sha256Hex(val: string) {
-    return crypto.createHash('sha256').update(val).digest('hex');
+  private sha256Hex(val: string): string{
+    return crypto.createHash('sha256').update(val,'utf8').digest('hex');
   }
 
   // --------------------- JWT Methods ---------------------
@@ -135,50 +136,35 @@ export class AuthService {
   }
 
   // --------------------- LOGIN ---------------------
-  async login(username: string, password: string, ip: string | null) {
-    if (!username || !password) {
-      throw new BadRequestException('username and password required');
-    }
+async login(dto: LoginDto, ip: string) {
+  const hashedPassword = this.sha256Hex(dto.password);
 
-    const hashed = this.sha256Hex(password);
+  const result = await this.db.query(
+    `SELECT * FROM m_user WHERE username = $1 AND is_active = true`,
+    [dto.username]
+  );
 
-    // Load user
-    const sqlUser = `SELECT * FROM m_user WHERE username = $1 LIMIT 1`;
-    const userResult = await this.db.query(sqlUser, [username]);
-
-    if (userResult.rows.length === 0) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const user = userResult.rows[0];
-
-    if (!user.is_active) throw new UnauthorizedException('User inactive');
-
-    if (user.password.toLowerCase() !== hashed.toLowerCase()) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Load role & permissions
-    const role = await this.loadRole(user.role_id);
-    const permissions = await this.loadPermissions(user.role_id);
-
-    const payload = {
-      sub: user.user_id,
-      username: user.username,
-      role: role?.role_id ?? null,
-      permissions,
-    };
-
-    const accessToken = this.signAccessToken(payload);
-    const rt = await this.createRefreshTokenRow(user.user_id, ip, undefined);
-
-    return {
-      accessToken,
-      refreshToken: rt.token,
-      refreshExpiresAt: rt.expiresAt,
-      payload,
-    };
+  if (!result.rows.length) {
+    throw new UnauthorizedException('Invalid credentials');
   }
+
+  const user = result.rows[0];
+
+  if (user.password !== hashedPassword) {
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  // ✅ Update last_login + IP
+  await this.db.query(
+    `UPDATE m_user
+     SET last_login = NOW(),
+         updated_ip = $1
+     WHERE user_id = $2`,
+    [ip, user.user_id]
+  );
+
+  // token + payload return
+}
 
   // --------------------- REFRESH TOKEN ---------------------
   async refresh(receivedToken: string, ip: string | null) {

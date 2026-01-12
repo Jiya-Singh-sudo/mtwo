@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   private async generateUserId(): Promise<string> {
     const sql = `SELECT user_id FROM m_user ORDER BY user_id DESC LIMIT 1`;
@@ -40,13 +40,15 @@ export class UsersService {
     const res = await this.db.query(sql, [user_id]);
     return res.rows[0];
   }
-
+  private sha256Hex(val: string): string{
+    return crypto.createHash('sha256').update(val,'utf8').digest('hex');
+  }
   async create(dto: CreateUserDto, user: string, ip: string) {
     // ensure username uniqueness should be handled by DB unique constraint,
     // you may wish to check and throw custom error if desired.
     const user_id = await this.generateUserId();
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
-    const hashed = this.hashPassword(dto.password);
+    const hashed = this.sha256Hex(dto.password);
 
     const sql = `
       INSERT INTO m_user (
@@ -56,16 +58,13 @@ export class UsersService {
         full_name_local_language,
         role_id,
         user_mobile,
-        user_alternate_mobile,
+        user_alternate_mobile
         password,
         email,
-        last_login,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
+        inserted_by,
+        inserted_ip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,true,$10,$11,$12,NULL,NULL,NULL)
-      RETURNING user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip;
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     `;
 
     const params = [
@@ -74,8 +73,8 @@ export class UsersService {
       dto.full_name,
       dto.full_name_local_language ?? null,
       dto.role_id,
-      dto.user_mobile ?? null,
-      dto.user_alternate_mobile ?? null,
+      dto.mobile ?? null,
+      dto.alternate_mobile ?? null,
       hashed,
       dto.email ?? null,
       now,

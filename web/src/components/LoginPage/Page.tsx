@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import './LoginPage.css';
 import { useAuth } from '@/context/AuthContext';
-import { loginApi } from '@/api/authentication/auth.api';
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
@@ -197,8 +196,7 @@ export function LoginPage() {
         setIsLoading(true);
 
         try {
-            const response = await loginApi(username, password);
-            login(response.accessToken, response.payload);
+            await login(username, password);
             // ✅ SUCCESS: AuthContext will redirect via routing
         } catch (err: any) {
             setErrors({

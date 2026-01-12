@@ -1,13 +1,25 @@
+import { IsNotEmpty, IsString } from 'class-validator';
+
 export class CreateUserDto {
-  username: string; // unique
-  full_name: string;
+  @IsString()
+  @IsNotEmpty()
+  username: string;
+
+  @IsString()
+  @IsNotEmpty()
+  full_name: string;   // 🔴 REQUIRED
+
+  @IsString()
   full_name_local_language?: string;
 
-  role_id: string; // FK to m_roles
+  @IsString()
+  role_id: string;
 
-  user_mobile?: string;
-  user_alternate_mobile?: string;
+  @IsString()
+  @IsNotEmpty()
+  password: string;
 
-  password: string; // plaintext incoming; will be hashed server-side (SHA-256)
+  mobile?: number;
+  alternate_mobile?: number;
   email?: string;
 }
