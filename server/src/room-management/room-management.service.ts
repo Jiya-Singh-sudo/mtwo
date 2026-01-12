@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { EditRoomFullDto } from './dto/editFullRoom.dto';
+const SORT_MAP: Record<string, string> = {
+  room_no: 'r.room_no',
+  room_name: 'r.room_name',
+  status: 'r.status',
+};
 
 @Injectable()
 export class RoomManagementService {
@@ -8,8 +13,40 @@ export class RoomManagementService {
 
   /* ================= OVERVIEW ================= */
 
-  async getOverview() {
-    const sql = `
+  async getOverview({
+    page,
+    limit,
+    search,
+    sortBy,
+    sortOrder,
+  }: {
+    page: number;
+    limit: number;
+    search?: string;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+  }) {
+    const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+    const searchSql = search
+      ? `AND (
+          r.room_no ILIKE $1 OR
+          r.room_name ILIKE $1 OR
+          g.guest_name ILIKE $1
+        )`
+      : '';
+
+    const countSql = `
+    SELECT COUNT(*)::int AS count
+    FROM m_rooms r
+    LEFT JOIN t_guest_room gr ON gr.room_id = r.room_id AND gr.is_active = true
+    LEFT JOIN m_guest g ON g.guest_id = gr.guest_id
+    WHERE r.is_active = true
+    ${searchSql}
+  `;
+
+    const dataSql = `
       SELECT
         -- Room
         r.room_id,
@@ -54,43 +91,61 @@ export class RoomManagementService {
         ON hk.hk_id = gh.hk_id
 
       WHERE r.is_active = true
-      ORDER BY r.room_no;
+      ${searchSql}
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $1 OFFSET $2
     `;
 
-    const { rows } = await this.db.query(sql);
+    const offset = (page - 1) * limit;
 
-    return rows.map((r) => ({
-      roomId: r.room_id,
-      roomNo: r.room_no,
-      roomName: r.room_name,
-      buildingName: r.building_name,
-      residenceType: r.residence_type,
-      roomType: r.room_type,
-      roomCategory: r.room_category,
-      roomCapacity: r.room_capacity,
-      status: r.status,
+    const params = search
+      ? [limit, offset, `%${search}%`]
+      : [limit, offset];
 
-      guest: r.guest_id
-        ? {
-            guestId: r.guest_id,
-            guestName: r.guest_name,
-            guestRoomId: r.guest_room_id,
-            checkInDate: r.check_in_date,
-            checkOutDate: r.check_out_date,
-          }
-        : null,
+    const [{ count }] = (
+      await this.db.query(
+        countSql,
+        search ? [`%${search}%`] : []
+      )
+    ).rows;
 
-      housekeeping: r.guest_hk_id
-        ? {
-            guestHkId: r.guest_hk_id,
-            hkId: r.hk_id,
-            hkName: r.hk_name,
-            taskDate: r.task_date,
-            taskShift: r.task_shift,
-            isActive: true,
-          }
-        : null,
-    }));
+    const { rows } = await this.db.query(dataSql, params);
+
+    return {
+      data: rows.map((r) => ({
+        roomId: r.room_id,
+        roomNo: r.room_no,
+        roomName: r.room_name,
+        buildingName: r.building_name,
+        residenceType: r.residence_type,
+        roomType: r.room_type,
+        roomCategory: r.room_category,
+        roomCapacity: r.room_capacity,
+        status: r.status,
+
+        guest: r.guest_id
+          ? {
+              guestId: r.guest_id,
+              guestName: r.guest_name,
+              guestRoomId: r.guest_room_id,
+              checkInDate: r.check_in_date,
+              checkOutDate: r.check_out_date,
+            }
+          : null,
+
+        housekeeping: r.guest_hk_id
+          ? {
+              guestHkId: r.guest_hk_id,
+              hkId: r.hk_id,
+              hkName: r.hk_name,
+              taskDate: r.task_date,
+              taskShift: r.task_shift,
+              isActive: true,
+            }
+          : null,
+      })),
+      totalCount: count,
+    };
   }
 
   /* ================= FULL UPDATE ================= */

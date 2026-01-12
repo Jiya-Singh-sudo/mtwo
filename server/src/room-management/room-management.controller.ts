@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Req, Query } from '@nestjs/common';
 import { RoomManagementService } from './room-management.service';
 import { EditRoomFullDto } from './dto/editFullRoom.dto';
 
@@ -7,9 +7,22 @@ export class RoomManagementController {
   constructor(private readonly service: RoomManagementService) {}
 
   @Get('overview')
-  async getOverview() {
-    return this.service.getOverview();
+  getOverview(
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy = 'room_no',
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+  ) {
+    return this.service.getOverview({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      sortBy,
+      sortOrder,
+    });
   }
+
   @Patch(':room_id/full')
   updateFullRoom(
     @Param('room_id') roomId: string,

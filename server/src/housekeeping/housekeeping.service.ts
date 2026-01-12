@@ -6,7 +6,7 @@ import { UpdateHousekeepingDto } from './dto/update-housekeeping.dto';
 @Injectable()
 export class HousekeepingService {
   constructor(private readonly db: DatabaseService) {}
-
+  
   private async generateId(): Promise<string> {
     const sql = `SELECT hk_id FROM m_housekeeping ORDER BY hk_id DESC LIMIT 1`;
     const res = await this.db.query(sql);
@@ -18,12 +18,30 @@ export class HousekeepingService {
     return "HK" + next;
   }
 
-  async findAll(activeOnly = true) {
-    const sql = activeOnly
-      ? `SELECT * FROM m_housekeeping WHERE is_active = $1 ORDER BY hk_name`
+  async findAll({
+    page,
+    limit,
+    search,
+    sortBy,
+    sortOrder,
+  }: {
+    page: number;
+    limit: number;
+    search?: string;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+  }) {
+    const SORT_MAP = {
+      hk_name: 'hk_name',
+      shift: 'shift',
+      hk_contact: 'hk_contact',
+    };
+
+    const sql = search
+      ? `SELECT * FROM m_housekeeping WHERE hk_name ILIKE $1 ORDER BY hk_name`
       : `SELECT * FROM m_housekeeping ORDER BY hk_name`;
 
-    const res = await this.db.query(sql, activeOnly ? [true] : []);
+    const res = await this.db.query(sql, search ? [`%${search}%`] : []);
     return res.rows;
   }
 

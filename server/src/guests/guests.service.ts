@@ -94,12 +94,12 @@ export class GuestsService {
     await this.db.query('BEGIN');
 
     const today = todayISO();
-    let status: 'Entered' | 'Scheduled' | 'Exited' = 'Entered';
+    let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
 
     // pastedGraphic.png Block back-dated entry
-      // if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
-      //   throw new BadRequestException('Entry date cannot be in the past');
-      // }
+    // if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
+    //   throw new BadRequestException('Entry date cannot be in the past');
+    // }
 
     // pastedGraphic_1.png Auto Scheduled
     if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {

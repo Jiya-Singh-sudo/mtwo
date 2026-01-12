@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Req
+  Body, Param, Req, Query
 } from '@nestjs/common';
 import { HousekeepingService } from './housekeeping.service';
 import { CreateHousekeepingDto } from './dto/create-housekeeping.dto';
@@ -20,15 +20,28 @@ export class HousekeepingController {
     return ip.replace("::ffff:", "").split(",")[0];
   }
 
-  @Get()
-  getActive() {
-    return this.service.findAll(true);
+  // @Get()
+  // getActive() {
+  //   return this.service.findAll(true);
+  // }
+
+  @Get('all')
+  findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy = 'hk_name',
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+  ) {
+    return this.service.findAll({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      sortBy,
+      sortOrder,
+    });
   }
 
-  @Get("all")
-  getAll() {
-    return this.service.findAll(false);
-  }
 
   @Post()
   create(@Body() dto: CreateHousekeepingDto, @Req() req: any) {
