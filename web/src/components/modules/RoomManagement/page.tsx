@@ -16,8 +16,11 @@ import { getRoomManagementOverview, updateFullRoom } from "../../../api/roomMana
 import { RoomRow, EditRoomFullPayload } from "@/types/roomManagement";
 import { getAssignableGuests } from "../../../api/roomManagement.api";
 import { ActiveGuestRow } from "@/types/guests";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { useTableQuery } from "@/hooks/useTableQuery";
 
 /* ================= BACKEND-MATCHING TYPES ================= */
+
 /* Matches DB / API response (snake_case, flat structure) */
 type RoomFormState = {
   room_no: string;
@@ -42,6 +45,15 @@ type AssignmentFormType = {
 };
 
 export function RoomManagement() {
+  const roomTable = useTableQuery<RoomRow>({
+    defaultSortBy: 'room_no',
+    defaultSortOrder: 'asc',
+  });
+  const hkTable = useTableQuery<Housekeeping>({
+    defaultSortBy: 'hk_name',
+    defaultSortOrder: 'asc',
+  });
+
   /* ================= STATE ================= */
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [roomStats, setRoomStats] = useState({
@@ -51,8 +63,9 @@ export function RoomManagement() {
     withGuest: 0,
     withHousekeeping: 0,
   });
-  const [searchQuery, setSearchQuery] = useState("");
+  // const [searchQuery, setSearchQuery] = useState("");
   /* ---------------- ASSIGN ROOM BOY ---------------- */
+  
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
   const [isRoomBoyModalOpen, setIsRoomBoyModalOpen] = useState(false);
   const [guestOptions, setGuestOptions] = useState<ActiveGuestRow[]>([]);
@@ -90,7 +103,6 @@ export function RoomManagement() {
 
   // Room boys management
   const [roomBoys, setRoomBoys] = useState<Housekeeping[]>([]);
-  const [roomBoyLoading, setRoomBoyLoading] = useState(true);
 
   const [selectedRoomBoy, setSelectedRoomBoy] = useState<Housekeeping | null>(null);
 
@@ -123,36 +135,59 @@ export function RoomManagement() {
     loadAssignableGuests();
   }, []);
 
-  useEffect(() => {
-    loadRooms();
-  }, []);
+useEffect(() => {
+  loadRooms();
+}, [
+  roomTable.page,
+  roomTable.limit,
+  roomTable.search,
+  roomTable.sortBy,
+  roomTable.sortOrder,
+]);
 
   async function loadRooms() {
-    try {
-      const data = await getRoomManagementOverview();
-      setRooms(data);
+  try {
+    const res = await getRoomManagementOverview({
+      page: roomTable.page,
+      limit: roomTable.limit,
+      search: roomTable.search,
+      sortBy: roomTable.sortBy,
+      sortOrder: roomTable.sortOrder,
+    });
 
-      // Compute stats from loaded rooms
-      const stats = {
-        total: data.length,
-        available: 0,
-        occupied: 0,
-        withGuest: 0,
-        withHousekeeping: 0,
-      };
-
-      data.forEach((r: RoomRow) => {
-        if (r.status === "Available") stats.available++;
-        if (r.status === "Occupied") stats.occupied++;
-        if (r.guest) stats.withGuest++;
-        if (r.housekeeping) stats.withHousekeeping++;
-      });
-
-      setRoomStats(stats);
-    } catch (err) {
-      console.error("Failed to load room overview", err);
-    }
+    setRooms(res.data);
+    roomTable.setTotal(res.totalCount);
+  } catch (err) {
+    console.error(err);
   }
+}
+
+  // async function loadRooms() {
+  //   try {
+  //     const data = await getRoomManagementOverview();
+  //     setRooms(data);
+
+  //     // Compute stats from loaded rooms
+  //     const stats = {
+  //       total: data.length,
+  //       available: 0,
+  //       occupied: 0,
+  //       withGuest: 0,
+  //       withHousekeeping: 0,
+  //     };
+
+  //     data.forEach((r: RoomRow) => {
+  //       if (r.status === "Available") stats.available++;
+  //       if (r.status === "Occupied") stats.occupied++;
+  //       if (r.guest) stats.withGuest++;
+  //       if (r.housekeeping) stats.withHousekeeping++;
+  //     });
+
+  //     setRoomStats(stats);
+  //   } catch (err) {
+  //     console.error("Failed to load room overview", err);
+  //   }
+  // }
 
   async function loadRoomBoysAndShifts() {
     try {
@@ -175,20 +210,28 @@ export function RoomManagement() {
     loadRoomBoysAndShifts();
   }, []);
 
-  useEffect(() => {
-    async function loadRoomBoys() {
-      try {
-        const data = await getActiveHousekeeping();
-        setRoomBoys(data);
-      } catch (err) {
-        console.error("Failed to load room boys", err);
-      } finally {
-        setRoomBoyLoading(false);
-      }
-    }
+async function loadRoomBoys() {
+  const res = await getActiveHousekeeping({
+    page: roomBoyTable.page,
+    limit: roomBoyTable.limit,
+    search: roomBoyTable.search,
+    sortBy: roomBoyTable.sortBy,
+    sortOrder: roomBoyTable.sortOrder,
+  });
 
-    loadRoomBoys();
-  }, []);
+  setRoomBoys(res.data);
+  roomBoyTable.setTotal(res.totalCount);
+}
+useEffect(() => {
+  loadRoomBoys();
+}, [
+  roomBoyTable.page,
+  roomBoyTable.limit,
+  roomBoyTable.search,
+  roomBoyTable.sortBy,
+  roomBoyTable.sortOrder,
+]);
+
 
   async function handleAddRoom() {
     await createRoom(roomForm);
@@ -230,12 +273,12 @@ export function RoomManagement() {
 
 
   /* ================= FILTER ================= */
-  const filteredRooms = rooms.filter((room) =>
-    room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.residenceType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (room.guest?.guestName || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // const filteredRooms = rooms.filter((room) =>
+  //   room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //   (room.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //   (room.residenceType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //   (room.guest?.guestName || "").toLowerCase().includes(searchQuery.toLowerCase())
+  // );
 
   async function submitAssignGuest() {
     if (!assignGuestRoom || selectedGuestId === null) return;
@@ -253,8 +296,6 @@ export function RoomManagement() {
       loadAssignableGuests(),   // 🔥 refresh dropdown source
     ]);
   }
-
-
 
   /* ================= OPEN ASSIGN MODAL ================= */
   async function openAssignRoomBoyModal(room: RoomRow) {
@@ -397,6 +438,114 @@ export function RoomManagement() {
     setShowEditRoomBoy(true);
   };
 
+  const roomColumns: Column<RoomRow>[] = [
+    { 
+      header: "Room No", 
+      accessor: "roomNo", 
+      sortable: true,
+      sortKey: "roomNo",
+    },
+    { 
+      header: "Residence", 
+      accessor: "roomName", 
+      sortable: true,
+      sortKey: "roomName",
+    },
+    { 
+      header: "Status", 
+      accessor: "status", 
+      sortable: true,
+      sortKey: "status",
+    },
+    {
+      header: "Guest",
+      render: (row) => row.guest?.guestName || "—",
+    },
+    {
+      header: "Actions",
+      render: (row) => (
+        <div className="flex gap-2">
+          <button onClick={() => setViewRoom(row)}><Eye size={16} /></button>
+          <button onClick={() => setEditRoom(row)}><FileEdit size={16} /></button>
+
+          {row.guest ? (
+            <button onClick={() => vacateGuest(row.guest!.guestRoomId)}>
+              <UserMinus size={16} />
+            </button>
+          ) : (
+            <button onClick={() => openAssignGuest(row)}>
+              <UserPlus size={16} />
+            </button>
+          )}
+
+          {row.housekeeping ? (
+            <button onClick={() => unassignHousekeeping(row.housekeeping!.guestHkId)}>
+              <UserMinus size={16} />
+            </button>
+          ) : (
+            <button onClick={() => openAssignRoomBoyModal(row)}>
+              <User size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const roomBoyColumns: Column<Housekeeping>[] = [
+    {  
+      header: "Name", 
+      accessor: "hk_name", 
+      sortable: true,
+      sortKey: "hk_name",
+    },
+    { 
+      header: "Local Name", 
+      accessor: "hk_name_local_language", 
+      sortable: true,
+      sortKey: "hk_name_local_language",
+    },
+    { 
+      header: "Contact", 
+      accessor: "hk_contact", 
+      sortable: true,
+      sortKey: "hk_contact",
+    },
+    {
+      header: "Alt Contact",
+      render: (rb) => rb.hk_alternate_contact || "—",
+    },
+    { 
+      header: "Shift", 
+      accessor: "shift", 
+      sortable: true,
+      sortKey: "shift",
+    },
+    { 
+      header: "Address", 
+      accessor: "address", 
+      sortable: true,
+      sortKey: "address",
+    },
+    {
+      header: "Actions",
+      render: (rb) => (
+        <div className="flex gap-2">
+          <button onClick={() => openEditRoomBoyModal(rb)}>✏️</button>
+          <button
+            onClick={() => {
+              setSelectedRoomBoy(rb);
+              setShowDeleteRoomBoyConfirm(true);
+            }}
+          >
+            🗑
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+
   /* ================= UI ================= */
   return (
     <div className="space-y-6">
@@ -455,8 +604,8 @@ export function RoomManagement() {
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
                 placeholder="Search room, guest, residence..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={roomTable.search}
+                onChange={(e) => roomTable.setSearch(e.target.value)}
               />
             </div>
 
@@ -472,81 +621,23 @@ export function RoomManagement() {
 
           {/* ROOMS TABLE */}
           <div className="bg-white border rounded-sm overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-[#F5A623] text-white text-sm">
-                <tr>
-                  <th className="px-4 py-3 text-left">Room No</th>
-                  <th className="px-4 py-3 text-left">Residence</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Guest</th>
-                  <th className="px-4 py-3 text-left">Actions</th>
-                </tr>
-              </thead>
+          <DataTable
+            data={rooms}
+            columns={roomColumns}
+            keyField="roomId"
 
-              <tbody>
-                {filteredRooms.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
-                      No rooms found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRooms.map((room, idx) => (
-                    <tr
-                      key={room.roomId}
-                      className={idx % 2 ? "bg-gray-50" : "bg-white"}
-                    >
-                      <td className="px-4 py-3 border-t">{room.roomNo}</td>
-                      <td className="px-4 py-3 border-t">
-                        {room.roomName || "—"}
-                      </td>
-                      <td className="px-4 py-3 border-t">{room.status}</td>
-                      <td className="px-4 py-3 border-t">
-                        {room.guest?.guestName || "—"}
-                      </td>
-                      <td className="space-x-2">
-                        <button
-                          onClick={() => setViewRoom(room)}
-                          className="inline-flex items-center gap-1">
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => setEditRoom(room)}
-                          className="inline-flex items-center gap-1">
-                          <FileEdit size={16} />
-                        </button>
-                        {room.guest ? (
-                          <button
-                            onClick={() => vacateGuest(room.guest!.guestRoomId)}
-                            className="inline-flex items-center gap-1">
-                            <UserMinus size={16} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => openAssignGuest(room)}
-                            className="inline-flex items-center gap-1">
-                            <UserPlus size={16} />
-                          </button>
-                        )}
-                        {room.housekeeping ? (
-                          <button
-                            onClick={() => unassignHousekeeping(room.housekeeping!.guestHkId)}
-                            className="inline-flex items-center gap-1">
-                            <UserMinus size={16} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => openAssignRoomBoyModal(room)}
-                            className="inline-flex items-center gap-1">
-                            <User size={16} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            page={roomTable.page}
+            limit={roomTable.limit}
+            totalCount={roomTable.totalCount}
+
+            sortBy={roomTable.sortBy}
+            sortOrder={roomTable.sortOrder}
+            loading={roomTable.loading}
+
+            onPageChange={roomTable.setPage}
+            onLimitChange={roomTable.setLimit}
+            onSortChange={roomTable.setSort}
+          />
           </div>
         </TabsContent>
 
@@ -572,60 +663,23 @@ export function RoomManagement() {
             </div>
           ) : (
             <div className="bg-white border rounded-sm overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-[#F5A623] text-white text-sm">
-                    <th className="px-4 py-3 text-left">Name</th>
-                    <th className="px-4 py-3 text-left">Local Name</th>
-                    <th className="px-4 py-3 text-left">Contact</th>
-                    <th className="px-4 py-3 text-left">Alt Contact</th>
-                    <th className="px-4 py-3 text-left">Shift</th>
-                    <th className="px-4 py-3 text-left">Address</th>
-                    <th className="px-4 py-3 text-left">Actions</th>
-                  </tr>
-                </thead>
+            <DataTable
+              data={roomBoys}
+              columns={roomBoyColumns}
+              keyField="hk_id"
 
-                <tbody>
-                  {roomBoys.map((rb, index) => (
-                    <tr
-                      key={rb.hk_id}
-                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      <td className="px-4 py-3 border-t">{rb.hk_name}</td>
-                      <td className="px-4 py-3 border-t">
-                        {rb.hk_name_local_language || "-"}
-                      </td>
-                      <td className="px-4 py-3 border-t">{rb.hk_contact}</td>
-                      <td className="px-4 py-3 border-t">
-                        {rb.hk_alternate_contact || "-"}
-                      </td>
-                      <td className="px-4 py-3 border-t">{rb.shift}</td>
-                      <td className="px-4 py-3 border-t">
-                        {rb.address || "-"}
-                      </td>
-                      <td className="px-4 py-3 border-t">
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                            onClick={() => openEditRoomBoyModal(rb)}
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                            onClick={() => {
-                              setSelectedRoomBoy(rb);
-                              setShowDeleteRoomBoyConfirm(true);
-                            }}
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              page={roomBoyTable.page}
+              limit={roomBoyTable.limit}
+              totalCount={roomBoyTable.totalCount}
+
+              sortBy={roomBoyTable.sortBy}
+              sortOrder={roomBoyTable.sortOrder}
+              loading={roomBoyTable.loading}
+
+              onPageChange={roomBoyTable.setPage}
+              onLimitChange={roomBoyTable.setLimit}
+              onSortChange={roomBoyTable.setSort}
+            />
             </div>
           )}
         </TabsContent>

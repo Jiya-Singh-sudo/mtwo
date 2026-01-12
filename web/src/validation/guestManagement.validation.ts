@@ -6,16 +6,16 @@ import { z } from "zod";
 
 const MIN_YEAR = 2025;
 const MAX_YEAR = 2026;
-const MAX_STAY_DAYS = 30;
+const MAX_STAY_DAYS = 90;
 
 const MAX_NAME_LENGTH = 100;
 const MAX_ADDRESS_LENGTH = 250;
 
 const nameRegex = /^[A-Za-z .]*$/;
 const mobileRegex = /^[6-9]\d{9}$/;
-const safeTextRegex = /^[A-Za-z0-9 \s,./()-]*$/;
+const safeTextRegex = /^[A-Za-z0-9 \s,./()\-]*$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-const timeRegex = /^\d{2}:\d{2}:\d{2}$/;
+const timeRegex = /^\d{2}:\d{2}$/;
 
 /* ======================================================
    HELPERS
@@ -76,7 +76,7 @@ export const guestManagementSchema = z
 
     entry_time: z
       .string()
-      .regex(timeRegex, "Invalid time format (HH:mm:ss)"),
+      .regex(timeRegex, "Invalid time format (HH:mm)"),
 
     exit_date: z
       .string()
@@ -85,7 +85,7 @@ export const guestManagementSchema = z
 
     exit_time: z
       .string()
-      .regex(timeRegex, "Invalid time format (HH:mm:ss)")
+      .regex(timeRegex, "Invalid time format (HH:mm)")
       .optional(),
 
     status: z.enum(["Scheduled", "Entered", "Inside", "Exited", "Cancelled"]).optional(),
@@ -186,7 +186,7 @@ export const guestManagementSchema = z
       if (stayDays > MAX_STAY_DAYS) {
         ctx.addIssue({
           path: ["exit_date"],
-          message: "Stay period cannot exceed 10 days",
+          message: "Stay period cannot exceed 90 days",
           code: z.ZodIssueCode.custom,
         });
       }

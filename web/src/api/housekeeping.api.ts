@@ -1,8 +1,23 @@
 import api, { safeGet } from "./apiClient";
 import type { HousekeepingCreateDto, HousekeepingUpdateDto } from "../types/housekeeping";
 
-export async function getActiveHousekeeping() {
-  return safeGet<any[]>("/housekeeping");
+export async function getActiveHousekeeping(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}) {
+  const res = await api.get("/housekeeping/all", {
+    params: {
+      page: params?.page ?? 1,
+      limit: params?.limit ?? 100,
+      search: params?.search,
+      sortBy: params?.sortBy ?? 'hk_name',
+      sortOrder: params?.sortOrder ?? 'asc',
+    }
+  });
+  return res.data;
 }
 
 export async function getAllHousekeeping() {
@@ -48,7 +63,7 @@ export async function getHkShiftEnum() {
 }
 export async function getRoomBoyOptions() {
   const data = await getActiveHousekeeping();
-  return data.map((hk) => ({
+  return data.map((hk: { hk_id: string; hk_name: string }) => ({
     hk_id: hk.hk_id,
     hk_name: hk.hk_name,
   }));

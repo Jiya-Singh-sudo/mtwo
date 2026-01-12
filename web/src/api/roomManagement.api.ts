@@ -1,8 +1,14 @@
 import api from './apiClient';
 import type { RoomRow, EditRoomFullPayload } from '../types/roomManagement';
 
-export async function getRoomManagementOverview(): Promise<RoomRow[]> {
-  const res = await api.get('/room-management/overview');
+export async function getRoomManagementOverview(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+}): Promise<{ data: RoomRow[]; totalCount: number }> {
+  const res = await api.get("/room-management/overview", { params });
   return res.data;
 }
 export async function updateFullRoom(

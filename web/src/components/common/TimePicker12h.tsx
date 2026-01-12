@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 interface TimePicker12hProps {
   label?: string;
   value?: string; // HH:mm or HH:mm:ss
+  name?: string;
   onChange: (value: string) => void;
+  onKeyUp?: () => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -12,7 +14,9 @@ const MINUTES = ["00", "15", "30", "45"];
 export default function TimePicker12h({
   label,
   value,
+  name,
   onChange,
+  onKeyUp,
 }: TimePicker12hProps) {
   const [hour, setHour] = useState<number>(1);
   const [minute, setMinute] = useState<string>("00");
@@ -59,36 +63,39 @@ const emitChange = (
   onChange(`${String(h).padStart(2, "0")}:${newMinute}`);
 };
 
-
   return (
     <div className="timePicker12h">
       {label && <label className="timeLabel">{label}</label>}
 
       <div className="timeRow">
         <select
-          className="nicInput"
-          value={hour}
-          onChange={(e) => {
-  const v = Number(e.target.value);
-  setHour(v);
-  emitChange(v, minute, meridiem);
-}}
-        >
-          {HOURS.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
+            name={name}                 // ✅ focus anchor
+            className="nicInput"
+            value={hour}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setHour(v);
+              emitChange(v, minute, meridiem);
+            }}
+            onKeyUp={onKeyUp}
+          >
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
 
         <select
+          name={name}
           className="nicInput"
           value={minute}
           onChange={(e) => {
-  const v = e.target.value;
-  setMinute(v);
-  emitChange(hour, v, meridiem);
-}}
+            const v = e.target.value;
+            setMinute(v);
+            emitChange(hour, v, meridiem);
+          }}
+          onKeyUp={onKeyUp}
         >
           {MINUTES.map((m) => (
             <option key={m} value={m}>
@@ -98,13 +105,15 @@ const emitChange = (
         </select>
 
         <select
+          name={name}
           className="nicInput"
           value={meridiem}
           onChange={(e) => {
-  const v = e.target.value as "AM" | "PM";
-  setMeridiem(v);
-  emitChange(hour, minute, v);
-}}
+            const v = e.target.value as "AM" | "PM";
+            setMeridiem(v);
+            emitChange(hour, minute, v);
+          }}
+          onKeyUp={onKeyUp}
         >
           <option value="AM">AM</option>
           <option value="PM">PM</option>

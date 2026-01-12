@@ -27,8 +27,8 @@ type DesignationOption = {
 type GuestForm = {
   guest_name: string;
   guest_name_local_language: string;
-  mobile: string;
-  alternate_mobile: string;
+  guest_mobile: string;
+  guest_alternate_mobile: string;
   guest_address: string;
   email: string;
   designation_id: string;
@@ -65,8 +65,8 @@ export function GuestManagement() {
   const initialGuestForm = {
     guest_name: '',
     guest_name_local_language: '',
-    mobile: '',
-    alternate_mobile: '',
+    guest_mobile: '',
+    guest_alternate_mobile: '',
     guest_address: '',
     email: '',
     // designation part
@@ -82,20 +82,7 @@ export function GuestManagement() {
     exit_time: '',
     status: 'Scheduled'
   };
-  // type SortOrder = 'asc' | 'desc';
-  // type GuestTableQuery = {
-  // page: number;
-  // limit: number;
-  // search: string;
-  // status: string;
-  // sortBy: string;
-  // sortOrder: SortOrder;
-  // };
-  // const parseNumber = (value: string | null, fallback: number) =>
-  // value ? Number(value) || fallback : fallback;
 
-  // const parseString = (value: string | null, fallback: string) =>
-  // value ?? fallback;
   const {
     query,
     searchInput,
@@ -194,20 +181,6 @@ export function GuestManagement() {
         </span>
       ),
     },
-    // {
-    //   header: "Duration",
-    //   render: (g) => {
-    //     if (!g.exit_date || !g.exit_time) return "—";
-
-    //     const start = new Date(`${g.entry_date}T${g.entry_time}`);
-    //     const end = new Date(`${g.exit_date}T${g.exit_time}`);
-
-    //     const mins = Math.floor((end.getTime() - start.getTime()) / 60000);
-
-    //     if (mins < 60) return `${mins} min`;
-    //     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-    //   },
-    // },
     {
       header: "Purpose",
       accessor: "purpose",
@@ -307,8 +280,8 @@ export function GuestManagement() {
       const parsed = guestManagementSchema.parse({
         guest_name: guestForm.guest_name,
         guest_name_local_language: guestForm.guest_name_local_language,
-        guest_mobile: guestForm.mobile,
-        guest_alternate_mobile: guestForm.alternate_mobile,
+        guest_mobile: guestForm.guest_mobile,
+        guest_alternate_mobile: guestForm.guest_alternate_mobile,
         guest_address: guestForm.guest_address,
         email: guestForm.email,
 
@@ -319,23 +292,12 @@ export function GuestManagement() {
         office_location: guestForm.office_location || undefined,
 
         entry_date: guestForm.entry_date,
-        entry_time: guestForm.entry_time
-          ? `${guestForm.entry_time}:00`
-          : new Date().toTimeString().slice(0, 8),
-
+        entry_time: guestForm.entry_time,
         exit_date: guestForm.exit_date || undefined,
-        exit_time: guestForm.exit_time
-          ? `${guestForm.exit_time}:00`
-          : undefined,
+        exit_time: guestForm.exit_time,
 
         status: guestForm.status,
       });
-
-      // derived value for API payload
-      const finalEntryTime =
-        guestForm.entry_time
-          ? `${guestForm.entry_time}:00`
-          : new Date().toTimeString().slice(0, 8);
 
       const payload = {
         guest: {
@@ -359,7 +321,7 @@ export function GuestManagement() {
 
         inout: {
           entry_date: parsed.entry_date,
-          entry_time: finalEntryTime,
+          entry_time: parsed.entry_time,
           exit_date: parsed.exit_date ?? null,
           exit_time: parsed.exit_time ?? null,
           // status: parsed.status,
@@ -369,7 +331,6 @@ export function GuestManagement() {
 
       console.log("Payload being sent:", payload);
       await createGuest(payload);
-
       setModalMode(null);
       setGuestForm(initialGuestForm);
       await loadGuests();
@@ -379,9 +340,12 @@ export function GuestManagement() {
       if (err instanceof ZodError) {
         const errors: Record<string, string> = {};
         err.issues.forEach(issue => {
-          errors[issue.path[0] as string] = issue.message;
+          const field = issue.path.join(".");
+          errors[field] = issue.message;
         });
         setFormErrors(errors);
+        // console.warn("VALIDATION BLOCKED SUBMIT", errors);
+        // alert("Validation failed. Check highlighted fields.");
         return;
       }
     }
@@ -398,8 +362,8 @@ export function GuestManagement() {
     setEditGuestForm({
       guest_name: g.guest_name || "",
       guest_name_local_language: g.guest_name_local_language || "",
-      mobile: g.guest_mobile || "",
-      alternate_mobile: g.guest_alternate_mobile || "",
+      guest_mobile: g.guest_mobile || "",
+      guest_alternate_mobile: g.guest_alternate_mobile || "",
       guest_address: g.guest_address || "",
       email: g.email || "",
       designation_id: g.designation_id ?? "",
@@ -432,8 +396,8 @@ export function GuestManagement() {
       const parsed = guestManagementSchema.parse({
         guest_name: editGuestForm.guest_name,
         guest_name_local_language: editGuestForm.guest_name_local_language,
-        guest_mobile: editGuestForm.mobile,
-        guest_alternate_mobile: editGuestForm.alternate_mobile,
+        guest_mobile: editGuestForm.guest_mobile,
+        guest_alternate_mobile: editGuestForm.guest_alternate_mobile,
         guest_address: editGuestForm.guest_address,
         email: editGuestForm.email,
 
@@ -444,13 +408,9 @@ export function GuestManagement() {
         office_location: editGuestForm.office_location || undefined,
 
         entry_date: editGuestForm.entry_date,
-        entry_time: editGuestForm.entry_time
-          ? `${editGuestForm.entry_time}:00`
-          : new Date().toTimeString().slice(0, 8),
+        entry_time: editGuestForm.entry_time,
         exit_date: editGuestForm.exit_date || undefined,
-        exit_time: editGuestForm.exit_time
-          ? `${editGuestForm.exit_time}:00`
-          : undefined,
+        exit_time: editGuestForm.exit_time,
 
         status: editGuestForm.status,
       });
@@ -489,13 +449,9 @@ export function GuestManagement() {
       if (editInoutId) {
         await updateGuestInOut(editInoutId, {
           entry_date: parsed.entry_date,
-          entry_time: editGuestForm.entry_time
-            ? `${editGuestForm.entry_time}:00`
-            : new Date().toTimeString().slice(0, 8),
+          entry_time: parsed.entry_time,
           exit_date: parsed.exit_date,
-          exit_time: editGuestForm.exit_time
-            ? `${editGuestForm.exit_time}:00`
-            : new Date().toTimeString().slice(0, 8),
+          exit_time: parsed.exit_time,
           status: parsed.status,
         });
       }
@@ -509,10 +465,18 @@ export function GuestManagement() {
 
           const errors: Record<string, string> = {};
           err.issues.forEach(issue => {
-            errors[issue.path[0] as string] = issue.message;
+            const field = issue.path.join(".");
+            errors[field] = issue.message;
           });
-
           setFormErrors(errors);
+          requestAnimationFrame(() => {
+            const firstErrorField = Object.keys(errors)[0];
+            const el = document.querySelector(
+              `[name="${firstErrorField}"]`
+            ) as HTMLElement | null;
+
+            el?.focus();
+          });
           return;
         }
 
@@ -540,20 +504,22 @@ export function GuestManagement() {
   }
 
   function validateSingleField(
-    schema: any,
-    field: string,
+    field: keyof GuestForm,
     value: any
   ) {
     try {
-      schema.pick({ [field]: true }).parse({ [field]: value });
-      setFormErrors((prev) => {
+      guestManagementSchema
+        .pick({ [field]: true } as any)
+        .parse({ [field]: value });
+
+      setFormErrors(prev => {
         const next = { ...prev };
         delete next[field];
         return next;
       });
     } catch (err) {
       if (err instanceof ZodError) {
-        setFormErrors((prev) => ({
+        setFormErrors(prev => ({
           ...prev,
           [field]: err.issues[0]?.message,
         }));
@@ -739,9 +705,9 @@ export function GuestManagement() {
         <div className="modalOverlay">
           <div className="modal largeModal">
             <h3>{modalMode === "add" ? "Add Guest" : "Edit Guest"}</h3>
-            {formErrors.form && (
+            {Object.keys(formErrors).length > 0 && (
               <div className="formErrorBanner">
-                {formErrors.form}
+                Please fix the highlighted fields below.
               </div>
             )}
             {/* FORM BODY */}
@@ -754,13 +720,15 @@ export function GuestManagement() {
                     <div>
                       <label>Full Name *</label>
                       <input
+                        name="guest_name"
                         className={`nicInput ${formErrors.guest_name ? "error" : ""}`}
                         value={guestForm.guest_name}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const value = e.target.value;
                           setGuestForm(s => ({ ...s, guest_name: value }));
-                          validateSingleField(guestManagementSchema, "guest_name", value);
+                          validateSingleField("guest_name", value);
                         }}
+                        onKeyUp={() => validateSingleField("guest_name", guestForm.guest_name)}
                       />
                       <p className="errorText">{formErrors.guest_name}</p>
                     </div>
@@ -773,6 +741,7 @@ export function GuestManagement() {
                     <div className="fullWidth">
                       <label>Designation *</label>
                       <select
+                        name="designation_id"
                         className="nicInput"
                         value={designationMode === "other" ? "OTHER" : guestForm.designation_id}
                         onChange={(e) => {
@@ -804,6 +773,7 @@ export function GuestManagement() {
                             department: selected.department ?? "",
                           }));
                         }}
+                        // onKeyUp={() => validateSingleField("designation_id", guestForm.designation_id)}
                       >
                         <option value="">Select designation *</option>
 
@@ -828,6 +798,7 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setGuestForm(s => ({ ...s, designation_name: e.target.value }))
                             }
+                            onKeyUp={() => validateSingleField("designation_name", guestForm.designation_name)}
                           />
                           <p className="errorText">{formErrors.designation_name}</p>
                         </div>
@@ -852,7 +823,9 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setGuestForm(s => ({ ...s, organization: e.target.value }))
                             }
+                            onKeyUp={() => validateSingleField("organization", guestForm.organization)}
                           />
+                          <p className="errorText">{formErrors.organization}</p>
                         </div>
 
                         <div>
@@ -863,79 +836,128 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setGuestForm(s => ({ ...s, office_location: e.target.value }))
                             }
+                            onKeyUp={() => validateSingleField("office_location", guestForm.office_location)}
                           />
+                          <p className="errorText">{formErrors.office_location}</p>
                         </div>
                       </>
                     )}
                     {/* <div>
                         <label>Designation Id</label>
-                        <input className="nicInput" value={guestForm.designation_id} onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} />
+                        <input 
+                          name="designation_id"
+                          className="nicInput" 
+                          value={guestForm.designation_id} 
+                          onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} 
+                          onKeyUp={() => validateSingleField("designation_id", guestForm.designation_id)}
+                        />
+                        <p className="errorText">{formErrors.designation_id}</p>
                         </div>
 
                         <div>
                         <label>Designation Name</label>
-                        <input className="nicInput" value={guestForm.designation_name} onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} />
+                        <input 
+                          name="designation_name"
+                          className="nicInput" 
+                          value={guestForm.designation_name} 
+                          onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} 
+                          onKeyUp={() => validateSingleField("designation_name", guestForm.designation_name)}
+                        />
+                        <p className="errorText">{formErrors.designation_name}</p>
                         </div>
 
                         <div>
                         <label>Organization</label>
-                        <input className="nicInput" value={guestForm.organization} onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} />
+                        <input 
+                          name="organization"
+                          className="nicInput" 
+                          value={guestForm.organization} 
+                          onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} 
+                          onKeyUp={() => validateSingleField("organization", guestForm.organization)}
+                        />
+                        <p className="errorText">{formErrors.organization}</p>
                         </div>
 
                         <div>
                         <label>Office Location</label>
-                        <input className="nicInput" value={guestForm.office_location} onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} />
+                        <input 
+                          name="office_location"
+                          className="nicInput" 
+                          value={guestForm.office_location} 
+                          onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} 
+                          onKeyUp={() => validateSingleField("office_location", guestForm.office_location)}
+                        />
+                        <p className="errorText">{formErrors.office_location}</p>
                         </div> */}
 
                     <div>
                       <label>Mobile Number *</label>
                       <input
-                        className={`nicInput ${formErrors.mobile ? "error" : ""}`}
+                        name="guest_mobile"
+                        className={`nicInput ${formErrors.guest_mobile ? "error" : ""}`}
                         placeholder="10-digit mobile number"
-                        value={guestForm.mobile}
+                        value={guestForm.guest_mobile}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const value = e.target.value;
-                          setGuestForm(s => ({ ...s, mobile: value }));
+                          setGuestForm(s => ({ ...s, guest_mobile: value }));
                         }}
+                        onKeyUp={() => validateSingleField("guest_mobile", guestForm.guest_mobile)}
                       />
-                      <p className="errorText">{formErrors.mobile}</p>
+                      <p className="errorText">{formErrors.guest_mobile}</p>
                     </div>
 
                     <div>
                       <label>Alternate Mobile</label>
-                      <input className="nicInput" value={guestForm.alternate_mobile} onChange={(e) => setGuestForm(s => ({ ...s, alternate_mobile: e.target.value }))} />
-                      <p className="errorText">{formErrors.alternate_mobile}</p>
+                      <input 
+                        name="guest_alternate_mobile" 
+                        className="nicInput" 
+                        value={guestForm.guest_alternate_mobile} 
+                        onChange={(e) => setGuestForm(s => ({ ...s, guest_alternate_mobile: e.target.value }))} 
+                        onKeyUp={() => validateSingleField("guest_alternate_mobile", guestForm.guest_alternate_mobile)}
+                      />
+                      <p className="errorText">{formErrors.guest_alternate_mobile}</p>
                     </div>
 
                     {/* Full width field */}
                     <div className="fullWidth">
                       <label>Address</label>
-                      <textarea className="nicInput" value={guestForm.guest_address} onChange={(e) => setGuestForm(s => ({ ...s, guest_address: e.target.value }))} />
+                      <textarea 
+                        name="guest_address" 
+                        className="nicInput" 
+                        value={guestForm.guest_address} 
+                        onChange={(e) => setGuestForm(s => ({ ...s, guest_address: e.target.value }))} 
+                        onKeyUp={() => validateSingleField("guest_address", guestForm.guest_address)}
+                      />
+                      <p className="errorText">{formErrors.guest_address}</p>
                     </div>
 
                     {/* Check-in Date */}
                     <div>
                       <label>Check-in Date *</label>
                       <input
+                        name="entry_date"
                         type="date"
                         className={`nicInput ${formErrors.entry_date ? "error" : ""}`}
                         value={guestForm.entry_date}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const value = e.target.value;
                           setGuestForm(s => ({ ...s, entry_date: value }));
-                          validateSingleField(guestManagementSchema, "entry_date", value);
+                          validateSingleField("entry_date", value);
                         }}
+                        onKeyUp={() => validateSingleField("entry_date", guestForm.entry_date)}
                       />
                       <p className="errorText">{formErrors.entry_date}</p>
                     </div>
 
                     <div>
                       <TimePicker12h
+                        name="entry_time"
                         label="Check-in Time *"
                         value={guestForm.entry_time}
                         onChange={(value: string) =>
                           setGuestForm(s => ({ ...s, entry_time: value }))
                         }
+                        onKeyUp={() => validateSingleField("entry_time", guestForm.entry_time)}
                       />
                       <p className="errorText">{formErrors.entry_time}</p>
                     </div>
@@ -944,22 +966,27 @@ export function GuestManagement() {
                     <div>
                       <label>Check-out Date *</label>
                       <input
+                        name="checkout_date"
                         type="date"
                         className="nicInput"
                         value={guestForm.exit_date}
                         onChange={(e) =>
                           setGuestForm((s) => ({ ...s, exit_date: e.target.value }))
                         }
+                        onKeyUp={() => validateSingleField("exit_date", guestForm.exit_date)}
                       />
+                      <p className="errorText">{formErrors.exit_date}</p>
                     </div>
 
                     <div>
                       <TimePicker12h
+                        name="exit_time"
                         label="Check-out Time"
                         value={guestForm.exit_time}
                         onChange={(value: string) =>
                           setGuestForm(s => ({ ...s, exit_time: value }))
                         }
+                        onKeyUp={() => validateSingleField("exit_time", guestForm.exit_time)}
                       />
                       <p className="errorText">{formErrors.exit_time}</p>
                     </div>
@@ -967,28 +994,33 @@ export function GuestManagement() {
                     <div>
                       <label>Status *</label>
                       <select
+                        name="status"
                         className="nicInput"
                         value={guestForm.status}
                         onChange={(e) =>
                           setGuestForm(s => ({ ...s, status: e.target.value }))
                         }
+                        onKeyUp={() => validateSingleField("status", guestForm.status)}
                       >
                         {GUEST_STATUSES.map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
+                      <p className="errorText">{formErrors.status}</p>
                     </div>
 
 
                     <div className="fullWidth">
                       <label>Email</label>
                       <input
+                        name="email"
                         className={`nicInput ${formErrors.email ? "error" : ""}`}
                         value={guestForm.email}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const value = e.target.value;
                           setGuestForm(s => ({ ...s, email: value }));
                         }}
+                        onKeyUp={() => validateSingleField("email", guestForm.email)}
                       />
                       <p className="errorText">{formErrors.email}</p>
                     </div>
@@ -1008,15 +1040,17 @@ export function GuestManagement() {
                     onChange={(e) =>
                       setEditGuestForm({ ...editGuestForm, guest_name: e.target.value })
                     }
+                    onKeyUp={() => validateSingleField("guest_name", editGuestForm.guest_name)}
                   />
 
                   <label>Mobile</label>
                   <input
                     className="modalInput"
-                    value={editGuestForm.mobile}
+                    value={editGuestForm.guest_mobile}
                     onChange={(e) =>
-                      setEditGuestForm({ ...editGuestForm, mobile: e.target.value })
+                      setEditGuestForm({ ...editGuestForm, guest_mobile: e.target.value })
                     }
+                    onKeyUp={() => validateSingleField("guest_mobile", editGuestForm.guest_mobile)}
                   />
 
                   <label>Designation Name</label>
@@ -1026,6 +1060,7 @@ export function GuestManagement() {
                     onChange={(e) =>
                       setEditGuestForm({ ...editGuestForm, designation_name: e.target.value })
                     }
+                    onKeyUp={() => validateSingleField("designation_name", editGuestForm.designation_name)}
                   />
 
                   <label>Organization</label>
@@ -1035,6 +1070,7 @@ export function GuestManagement() {
                     onChange={(e) =>
                       setEditGuestForm({ ...editGuestForm, organization: e.target.value })
                     }
+                    onKeyUp={() => validateSingleField("organization", editGuestForm.organization)}
                   />
 
                   <label>Office Location</label>
@@ -1044,6 +1080,7 @@ export function GuestManagement() {
                     onChange={(e) =>
                       setEditGuestForm({ ...editGuestForm, office_location: e.target.value })
                     }
+                    onKeyUp={() => validateSingleField("office_location", editGuestForm.office_location)}
                   />
 
                   {/* IN/OUT */}
@@ -1059,6 +1096,7 @@ export function GuestManagement() {
                       onChange={(e) =>
                         setEditGuestForm(s => ({ ...s, entry_date: e.target.value }))
                       }
+                      onKeyUp={() => validateSingleField("entry_date", editGuestForm.entry_date)}
                     />
                   </div>
 
@@ -1070,6 +1108,7 @@ export function GuestManagement() {
                       onChange={(value: string) =>
                         setEditGuestForm(s => ({ ...s, entry_time: value }))
                       }
+                      onKeyUp={() => validateSingleField("entry_time", editGuestForm.entry_time)}
                     />
                   </div>
 
@@ -1083,6 +1122,7 @@ export function GuestManagement() {
                       onChange={(e) =>
                         setEditGuestForm(s => ({ ...s, exit_date: e.target.value }))
                       }
+                      onKeyUp={() => validateSingleField("exit_date", editGuestForm.exit_date)}
                     />
                   </div>
 
@@ -1094,6 +1134,7 @@ export function GuestManagement() {
                       onChange={(value: string) =>
                         setEditGuestForm(s => ({ ...s, exit_time: value }))
                       }
+                      onKeyUp={() => validateSingleField("exit_time", editGuestForm.exit_time)}
                     />
                   </div>
 
@@ -1106,6 +1147,7 @@ export function GuestManagement() {
                       onChange={(e) =>
                         setEditGuestForm(s => ({ ...s, status: e.target.value }))
                       }
+                      onKeyUp={() => validateSingleField("status", editGuestForm.status)}
                     >
                       {GUEST_STATUSES.map(s => (
                         <option key={s} value={s}>{s}</option>
