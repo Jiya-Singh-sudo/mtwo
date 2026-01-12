@@ -1,95 +1,22 @@
+import { BrowserRouter } from 'react-router-dom';
 import { useState } from 'react';
-import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import AppRoutes from '@/routes/AppRoutes';
 import { Sidebar } from './components/Sidebar';
-import { DashboardStats } from './components/modules/DashboardStats/Page';
-import { QuickActions } from './components/QuickActions';
-import { RecentActivity } from './components/RecentActivity';
-import { GuestManagement } from './components/modules/GuestManagement/Page';
-import RoomManagement from "./components/modules/RoomManagement/page";
-import { VehicleManagement } from "./components/modules/VehicleManagement/Page";
-import { DutyRoster } from './components/modules/DutyRoaster/Page';
-import DriverDutyRoaster from './components/modules/DriverDutyRoaster/Page';
-import InfoPackage from './components/modules/InfoPackage/Page';
-import { Notifications } from './components/modules/Notification/Page';
-import { Reports } from './components/modules/Report/Page';
-import UserManagement from './components/modules/UserManagement/Page';
-import { SystemSettings } from './components/modules/SystemSettings/Page';
-import GuestTransportManagement from './components/modules/GuestTransportManagement/Page';
-import { FoodService } from "./components/modules/FoodService/Page";
 import { Search, Globe } from 'lucide-react';
-import { LoginPage } from './components/LoginPage/Page';
-// import ashokaEmblem from './ashoka_emblem.png';
-// import maharashtraSeal from './maharashtra_seal.png';
-// import indianFlag from './indian_flag.png';
 
-export type ModuleType =
-  | 'dashboard'
-  | 'guest-management'
-  | 'room-management'
-  | 'vehicle-management'
-  | 'duty-roster'
-  | 'driver-duty-roaster'
-  | 'info-package'
-  | 'notifications'
-  | 'reports'
-  | 'user-management'
-  | 'settings'
-  | 'guest-transport-management'
-  | 'food-service'
-  | 'login';
-
-export default function App() {
-
-  const location = useLocation();
+function Layout() {
+  const { isAuthenticated } = useAuth();
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
-  const activeModule = location.pathname.replace('/', '') as ModuleType || 'dashboard';
 
-
-  const renderModule = () => {
-    switch (activeModule) {
-      case 'dashboard':
-        return (
-          <div className="space-y-6">
-            <DashboardStats />
-            <QuickActions />
-            <RecentActivity />
-          </div>
-        );
-      case 'guest-management':
-        return <GuestManagement />;
-      case 'room-management':
-        return <RoomManagement />;
-      case 'vehicle-management':
-        return <VehicleManagement />;
-      case 'duty-roster':
-        return <DutyRoster />;
-      case 'driver-duty-roaster':
-        return <DriverDutyRoaster />;
-      case 'info-package':
-        return <InfoPackage />;
-      case 'notifications':
-        return <Notifications />;
-      case 'reports':
-        return <Reports />;
-      case 'user-management':
-        return <UserManagement />;
-      case 'settings':
-        return <SystemSettings />;
-      case 'guest-transport-management':
-        return <GuestTransportManagement />;
-      case 'food-service':
-        return <FoodService />;
-      case 'login':
-        return <LoginPage />;
-      default:
-        return <DashboardStats />;
-    }
-  };
-
+  // Show ONLY login routes when not authenticated
+  if (!isAuthenticated) {
+    return <AppRoutes />;
+  }
+  
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeModule={activeModule} />
-
+      <Sidebar/>
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
         <header className="bg-white border-b border-gray-200">
@@ -101,7 +28,6 @@ export default function App() {
               </button>
             </div>
           </div>
-
           {/* Main header with logos */}
           <div className="px-8 py-4">
             <div className="flex items-center justify-between">
@@ -113,7 +39,6 @@ export default function App() {
                   alt="Government of India Emblem"
                   className="w-20 h-24 object-contain"
                 />
-
                 {/* Title */}
                 <div>
                   <h1 className="text-[#00247D] tracking-wide">राजभवन महाराष्ट्र</h1>
@@ -121,7 +46,6 @@ export default function App() {
                   <p className="text-sm text-gray-600 mt-1">Guest House Management System</p>
                 </div>
               </div>
-
               {/* Right: Government seal and flag */}
               <div className="flex items-center gap-6">
                 {/* Maharashtra Government Seal - Real Image */}
@@ -130,7 +54,6 @@ export default function App() {
                   alt="Maharashtra Government Seal"
                   className="w-20 h-20 object-contain"
                 />
-
                 {/* Indian Flag - Real Image */}
                 <img
                   src={"./public/indian_flag.png"}
@@ -140,7 +63,6 @@ export default function App() {
               </div>
             </div>
           </div>
-
           {/* Search bar and tabs section */}
           <div className="bg-[#F2F2F2] px-8 py-3 border-t border-gray-300">
             <div className="flex items-center justify-between gap-4">
@@ -155,7 +77,6 @@ export default function App() {
                   />
                 </div>
               </div>
-
               {/* Language Preferences */}
               <div className="flex items-center gap-3">
                 <Globe className="w-5 h-5 text-gray-600" />
@@ -171,17 +92,10 @@ export default function App() {
             </div>
           </div>
         </header>
-
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="px-8 py-6">
-            {<Routes>
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-              <Route path="/*" element={renderModule()} />
-            </Routes>}
-          </div>
+          <AppRoutes />
         </main>
-
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 px-8 py-3">
           <div className="flex items-center justify-between text-sm text-gray-600">
@@ -191,5 +105,15 @@ export default function App() {
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

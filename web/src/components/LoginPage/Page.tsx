@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import './LoginPage.css';
+import { useAuth } from '@/context/AuthContext';
+import { loginApi } from '@/api/authentication/auth.api';
+
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
 const carouselImage2 = '/4d519aa914a9b25ad3459a587f5224ecd108d8a9.png';
@@ -41,6 +44,8 @@ export function LoginPage() {
         captcha: false,
     });
     const [captchaCode, setCaptchaCode] = useState('');
+    const { login } = useAuth();
+
 
     // Auto-play carousel
     useEffect(() => {
@@ -173,10 +178,8 @@ export function LoginPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Mark all as touched
         setTouched({ username: true, password: true, captcha: true });
 
-        // Validate all fields
         const usernameError = validateUsername(username);
         const passwordError = validatePassword(password);
         const captchaError = validateCaptcha(captchaInput);
@@ -193,13 +196,20 @@ export function LoginPage() {
 
         setIsLoading(true);
 
-        // Simulate login API call
-        setTimeout(() => {
-            setIsLoading(false);
-            // For demo, show error
-            setErrors({ general: 'Invalid username or password' });
+        try {
+            const response = await loginApi(username, password);
+            login(response.accessToken, response.payload);
+            // ✅ SUCCESS: AuthContext will redirect via routing
+        } catch (err: any) {
+            setErrors({
+                general:
+                    err?.response?.data?.message ||
+                    'Invalid username or password',
+            });
             generateCaptcha();
-        }, 1500);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -281,8 +291,8 @@ export function LoginPage() {
                                             key={index}
                                             onClick={() => setCurrentSlide(index)}
                                             className={`w-3 h-3 rounded-full transition-all ${currentSlide === index
-                                                    ? 'bg-white w-8'
-                                                    : 'bg-white/50 hover:bg-white/75'
+                                                ? 'bg-white w-8'
+                                                : 'bg-white/50 hover:bg-white/75'
                                                 }`}
                                         />
                                     ))}
@@ -328,8 +338,8 @@ export function LoginPage() {
                                         onChange={(e) => handleUsernameChange(e.target.value)}
                                         onBlur={() => handleBlur('username')}
                                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.username && touched.username
-                                                ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                            ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                            : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
                                             }`}
                                         placeholder="Enter your username"
                                         disabled={isLoading}
@@ -355,8 +365,8 @@ export function LoginPage() {
                                             onChange={(e) => handlePasswordChange(e.target.value)}
                                             onBlur={() => handleBlur('password')}
                                             className={`w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.password && touched.password
-                                                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                    : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                                ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                                : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
                                                 }`}
                                             placeholder="Enter your password"
                                             disabled={isLoading}
@@ -410,8 +420,8 @@ export function LoginPage() {
                                         onChange={(e) => handleCaptchaChange(e.target.value)}
                                         onBlur={() => handleBlur('captcha')}
                                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.captcha && touched.captcha
-                                                ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                            ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                            : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
                                             }`}
                                         placeholder="Enter CAPTCHA code"
                                         disabled={isLoading}
@@ -429,8 +439,8 @@ export function LoginPage() {
                                     type="submit"
                                     disabled={!isFormValid() || isLoading}
                                     className={`w-full py-3 px-4 rounded-lg transition-all ${!isFormValid() || isLoading
-                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                            : 'bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                                         }`}
                                 >
                                     {isLoading ? (

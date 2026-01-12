@@ -1,5 +1,5 @@
-import api, { safeGet } from "./apiClient";
-import type { UserCreateDto, UserUpdateDto, UserLoginDto } from "../types/users";
+import api, { safeGet } from "../apiClient";
+import type { UserCreateDto, UserUpdateDto, UserLoginDto } from "../../types/users";
 
 // GET active users
 export async function getActiveUsers() {
