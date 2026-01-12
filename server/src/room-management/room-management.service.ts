@@ -19,12 +19,14 @@ export class RoomManagementService {
     search,
     sortBy,
     sortOrder,
+    status,
   }: {
     page: number;
     limit: number;
     search?: string;
     sortBy: string;
     sortOrder: 'asc' | 'desc';
+    status?: 'Available' | 'Occupied';
   }) {
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
@@ -37,14 +39,31 @@ export class RoomManagementService {
         )`
       : '';
 
+    const statusSql =
+      status ? `AND r.status = $${search ? 2 : 1}` : '';
+
     const countSql = `
-    SELECT COUNT(*)::int AS count
+      SELECT COUNT(*)::int AS count
+      FROM m_rooms r
+      LEFT JOIN t_guest_room gr ON gr.room_id = r.room_id AND gr.is_active = true
+      LEFT JOIN m_guest g ON g.guest_id = gr.guest_id
+      WHERE r.is_active = true
+      ${searchSql}
+      ${statusSql}
+    `;
+
+    const statsSql = `
+      SELECT
+      COUNT(*) FILTER (WHERE r.is_active = true)                      AS total,
+      COUNT(*) FILTER (WHERE r.status = 'Available')                  AS available,
+      COUNT(*) FILTER (WHERE r.status = 'Occupied')                   AS occupied,
+      COUNT(*) FILTER (WHERE gr.guest_id IS NOT NULL)                 AS with_guest,
+      COUNT(*) FILTER (WHERE gh.guest_hk_id IS NOT NULL)              AS with_housekeeping
     FROM m_rooms r
     LEFT JOIN t_guest_room gr ON gr.room_id = r.room_id AND gr.is_active = true
-    LEFT JOIN m_guest g ON g.guest_id = gr.guest_id
-    WHERE r.is_active = true
-    ${searchSql}
-  `;
+    LEFT JOIN t_room_housekeeping gh ON gh.room_id = r.room_id AND gh.is_active = true
+    WHERE r.is_active = true;
+    `;
 
     const dataSql = `
       SELECT
@@ -92,15 +111,31 @@ export class RoomManagementService {
 
       WHERE r.is_active = true
       ${searchSql}
+      ${statusSql}
       ORDER BY ${sortColumn} ${order}
-      LIMIT $1 OFFSET $2
+      LIMIT $1::int OFFSET $2::int
     `;
 
     const offset = (page - 1) * limit;
 
-    const params = search
-      ? [limit, offset, `%${search}%`]
-      : [limit, offset];
+const params: any[] = [];
+let idx = 1;
+
+// search
+if (search) {
+  params.push(`%${search}%`);
+  idx++;
+}
+
+// status
+if (status) {
+  params.push(status);
+  idx++;
+}
+
+// pagination ALWAYS last
+params.push(limit);
+params.push(offset);
 
     const [{ count }] = (
       await this.db.query(
@@ -108,6 +143,14 @@ export class RoomManagementService {
         search ? [`%${search}%`] : []
       )
     ).rows;
+    const statsRes = await this.db.query(statsSql);
+    const {
+      total,
+      available,
+      occupied,
+      with_guest,
+      with_housekeeping,
+    } = statsRes.rows[0];
 
     const { rows } = await this.db.query(dataSql, params);
 
@@ -145,6 +188,13 @@ export class RoomManagementService {
           : null,
       })),
       totalCount: count,
+      stats: {
+        total: Number(total),
+        available: Number(available),
+        occupied: Number(occupied),
+        withGuest: Number(with_guest),
+        withHousekeeping: Number(with_housekeeping),
+      },
     };
   }
 

@@ -31,18 +31,71 @@ export class HousekeepingService {
     sortBy: string;
     sortOrder: 'asc' | 'desc';
   }) {
-    const SORT_MAP = {
+    const SORT_MAP: Record<string, string> = {
       hk_name: 'hk_name',
       shift: 'shift',
       hk_contact: 'hk_contact',
     };
 
-    const sql = search
-      ? `SELECT * FROM m_housekeeping WHERE hk_name ILIKE $1 ORDER BY hk_name`
-      : `SELECT * FROM m_housekeeping ORDER BY hk_name`;
+    const sortColumn = SORT_MAP[sortBy] ?? 'hk_name';
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
+    const offset = (page - 1) * limit;
 
-    const res = await this.db.query(sql, search ? [`%${search}%`] : []);
-    return res.rows;
+    if (search) {
+      const countSql = `
+        SELECT COUNT(*)::int AS count
+        FROM m_housekeeping
+        WHERE is_active = true
+          AND (
+            hk_name ILIKE $1
+            OR hk_contact ILIKE $1
+          )
+      `;
+
+      const dataSql = `
+        SELECT *
+        FROM m_housekeeping
+        WHERE is_active = true
+          AND (
+            hk_name ILIKE $1
+            OR hk_contact ILIKE $1
+          )
+        ORDER BY ${sortColumn} ${order}
+        LIMIT $2::int OFFSET $3::int
+      `;
+
+      const [{ count }] = (
+        await this.db.query(countSql, [`%${search}%`])
+      ).rows;
+
+      const { rows } = await this.db.query(dataSql, [
+        `%${search}%`,
+        limit,
+        offset,
+      ]);
+
+      return { data: rows, totalCount: count };
+    }
+
+    // no search
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM m_housekeeping
+      WHERE is_active = true
+    `;
+
+    const dataSql = `
+      SELECT *
+      FROM m_housekeeping
+      WHERE is_active = true
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $1::int OFFSET $2::int
+    `;
+
+    const [{ count }] = (await this.db.query(countSql)).rows;
+    const { rows } = await this.db.query(dataSql, [limit, offset]);
+
+    return { data: rows, totalCount: count };
   }
 
   async findOneByName(name: string) {
