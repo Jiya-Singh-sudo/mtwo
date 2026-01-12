@@ -10,25 +10,26 @@ const parseString = (v: string | null, fallback: string) =>
 export function useTableQuery(defaults?: Partial<TableQuery>) {
     const [searchParams, setSearchParams] = useSearchParams();
 
-const [query, setQuery] = useState<TableQuery>(() => ({
-  page: parseNumber(searchParams.get("page"), defaults?.page ?? 1),
-  limit: parseNumber(searchParams.get("limit"), defaults?.limit ?? 10),
-  search: parseString(searchParams.get("search"), defaults?.search ?? ""),
-  status: parseString(searchParams.get("status"), defaults?.status ?? "All"),
-sortBy: parseString(searchParams.get("sortBy"), defaults?.sortBy ?? "entry_date") || "entry_date",
+    const [query, setQuery] = useState<TableQuery>(() => ({
+        page: parseNumber(searchParams.get("page"), defaults?.page ?? 1),
+        limit: parseNumber(searchParams.get("limit"), defaults?.limit ?? 10),
+        search: parseString(searchParams.get("search"), defaults?.search ?? ""),
+        status: parseString(searchParams.get("status"), defaults?.status ?? "All"),
+        sortBy: parseString(searchParams.get("sortBy"), defaults?.sortBy ?? "entry_date") || "entry_date",
 sortOrder:(searchParams.get("sortOrder") as SortOrder) ??defaults?.sortOrder ?? "desc",
 
-  // ✅ ADD THESE TWO
-  entryDateFrom: parseString(
-    searchParams.get("entryDateFrom"),
-    defaults?.entryDateFrom ?? ""
-  ),
-  entryDateTo: parseString(
-    searchParams.get("entryDateTo"),
-    defaults?.entryDateTo ?? ""
-  ),
-}));
-
+        // ✅ ADD THESE TWO
+        entryDateFrom: parseString(
+            searchParams.get("entryDateFrom"),
+            defaults?.entryDateFrom ?? ""
+        ),
+        entryDateTo: parseString(
+            searchParams.get("entryDateTo"),
+            defaults?.entryDateTo ?? ""
+        ),
+    }));
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(false);
 
     /* ---------- URL sync ---------- */
     useEffect(() => {
@@ -65,28 +66,33 @@ sortOrder:(searchParams.get("sortOrder") as SortOrder) ??defaults?.sortOrder ?? 
 
     /* ---------- Helpers ---------- */
     return {
-    query,
+        query,
 
-    searchInput,
-    setSearchInput,
+        searchInput,
+        setSearchInput,
 
-    setPage: (page: number) =>
-        setQuery((q) => ({ ...q, page })),
+        setPage: (page: number) =>
+            setQuery((q) => ({ ...q, page })),
 
-    setLimit: (limit: number) =>
-        setQuery((q) => ({ ...q, limit, page: 1 })),
+        setLimit: (limit: number) =>
+            setQuery((q) => ({ ...q, limit, page: 1 })),
 
-    setStatus: (status: string) =>
-        setQuery((q) => ({ ...q, status, page: 1 })),
+        setStatus: (status?: string) =>
+            setQuery((q) => ({ ...q, status: status ?? "All", page: 1 })),
 
-    setSort: (sortBy: string, sortOrder: SortOrder) =>
-        setQuery((q) => ({ ...q, sortBy, sortOrder, page: 1 })),
+        setSort: (sortBy: string, sortOrder: SortOrder) =>
+            setQuery((q) => ({ ...q, sortBy, sortOrder, page: 1 })),
 
-    // ✅ ADD THESE
-    setEntryDateFrom: (date: string) =>
-        setQuery((q) => ({ ...q, entryDateFrom: date, page: 1 })),
+        // ✅ ADD THESE
+        setEntryDateFrom: (date: string) =>
+            setQuery((q) => ({ ...q, entryDateFrom: date, page: 1 })),
 
-    setEntryDateTo: (date: string) =>
-        setQuery((q) => ({ ...q, entryDateTo: date, page: 1 })),
+        setEntryDateTo: (date: string) =>
+            setQuery((q) => ({ ...q, entryDateTo: date, page: 1 })),
+        total,
+        setTotal,
+        loading,
+        setLoading,
+
     };
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Loader2, Eye, FileEdit, UserPlus, UserMinus, User } from 'lucide-react';
 import "./RoomManagement.css";
+import { ZodError } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping } from "../../../api/housekeeping.api";
 import { getRoomBoyOptions } from "../../../api/housekeeping.api";
@@ -18,6 +19,9 @@ import { getAssignableGuests } from "../../../api/roomManagement.api";
 import { ActiveGuestRow } from "@/types/guests";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { useTableQuery } from "@/hooks/useTableQuery";
+// roomManagementSchema import removed - unused
+import { roomBoyManagementSchema } from "@/validation/roomBoyManagement.validation";
+import { roomCreateEditSchema } from "@/validation/roomCreateEdit.validation";
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 
@@ -45,13 +49,13 @@ type AssignmentFormType = {
 };
 
 export function RoomManagement() {
-  const roomTable = useTableQuery<RoomRow>({
-    defaultSortBy: 'room_no',
-    defaultSortOrder: 'asc',
+  const roomTable = useTableQuery({
+    sortBy: 'room_no',
+    sortOrder: 'asc',
   });
-  const hkTable = useTableQuery<Housekeeping>({
-    defaultSortBy: 'hk_name',
-    defaultSortOrder: 'asc',
+  const hkTable = useTableQuery({
+    sortBy: 'hk_name',
+    sortOrder: 'asc',
   });
 
   /* ================= STATE ================= */
@@ -65,7 +69,7 @@ export function RoomManagement() {
   });
   // const [searchQuery, setSearchQuery] = useState("");
   /* ---------------- ASSIGN ROOM BOY ---------------- */
-  
+
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
   const [isRoomBoyModalOpen, setIsRoomBoyModalOpen] = useState(false);
   const [guestOptions, setGuestOptions] = useState<ActiveGuestRow[]>([]);
@@ -88,11 +92,11 @@ export function RoomManagement() {
     room_category: "",
     status: "Available",
   });
-
-
-
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [activeRoom, setActiveRoom] = useState<RoomRow | null>(null);
-
+  // const [roomErrors, setRoomErrors] = useState<Record<string, string>>({});
+  // const [roomBoyErrors, setRoomBoyErrors] = useState<Record<string, string>>({});
+  // const [assignmentErrors, setAssignmentErrors] = useState<Record<string, string>>({});
   // Assignment form (for assigning room boy to a room)
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormType>({
     roomBoyId: "",
@@ -135,32 +139,43 @@ export function RoomManagement() {
     loadAssignableGuests();
   }, []);
 
-useEffect(() => {
-  loadRooms();
-}, [
-  roomTable.page,
-  roomTable.limit,
-  roomTable.search,
-  roomTable.sortBy,
-  roomTable.sortOrder,
-]);
+  useEffect(() => {
+    roomTable.setLoading(true);
+    loadRooms();
+  }, [
+    roomTable.query.page,
+    roomTable.query.limit,
+    roomTable.searchInput,
+    roomTable.query.sortBy,
+    roomTable.query.sortOrder,
+    roomTable.query.status,
+  ]);
+
+  useEffect(() => {
+    roomTable.setSort("room_no", "asc");
+  }, []);
+
 
   async function loadRooms() {
-  try {
-    const res = await getRoomManagementOverview({
-      page: roomTable.page,
-      limit: roomTable.limit,
-      search: roomTable.search,
-      sortBy: roomTable.sortBy,
-      sortOrder: roomTable.sortOrder,
-    });
+    try {
+      const res = await getRoomManagementOverview({
+        page: roomTable.query.page,
+        limit: roomTable.query.limit,
+        search: roomTable.searchInput,
+        sortBy: roomTable.query.sortBy,
+        sortOrder: roomTable.query.sortOrder,
+        status: roomTable.query.status,
+        entryDateFrom: roomTable.query.entryDateFrom,
+        entryDateTo: roomTable.query.entryDateTo,
+      });
 
-    setRooms(res.data);
-    roomTable.setTotal(res.totalCount);
-  } catch (err) {
-    console.error(err);
+      setRooms(res.data);
+      roomTable.setTotal(res.totalCount);
+      setRoomStats(res.stats);
+    } finally {
+      roomTable.setLoading(false);
+    }
   }
-}
 
   // async function loadRooms() {
   //   try {
@@ -194,7 +209,7 @@ useEffect(() => {
       const boys = await getRoomBoyOptions();
 
       setRoomBoyOptions(
-        boys.map((b) => ({
+        boys.map((b: Housekeeping) => ({
           id: b.hk_id,
           name: b.hk_name,
         }))
@@ -210,34 +225,55 @@ useEffect(() => {
     loadRoomBoysAndShifts();
   }, []);
 
-async function loadRoomBoys() {
-  const res = await getActiveHousekeeping({
-    page: roomBoyTable.page,
-    limit: roomBoyTable.limit,
-    search: roomBoyTable.search,
-    sortBy: roomBoyTable.sortBy,
-    sortOrder: roomBoyTable.sortOrder,
-  });
+  async function loadRoomBoys() {
+    const res = await getActiveHousekeeping({
+      page: hkTable.query.page,
+      limit: hkTable.query.limit,
+      search: hkTable.searchInput,
+      sortBy: hkTable.query.sortBy,
+      sortOrder: hkTable.query.sortOrder,
+    });
 
-  setRoomBoys(res.data);
-  roomBoyTable.setTotal(res.totalCount);
-}
-useEffect(() => {
-  loadRoomBoys();
-}, [
-  roomBoyTable.page,
-  roomBoyTable.limit,
-  roomBoyTable.search,
-  roomBoyTable.sortBy,
-  roomBoyTable.sortOrder,
-]);
+    setRoomBoys(res.data);
+    hkTable.setTotal(res.totalCount);
+  }
 
+  useEffect(() => {
+    hkTable.setLoading(true);
+    loadRoomBoys();
+  }, [
+    hkTable.query.page,
+    hkTable.query.limit,
+    hkTable.searchInput,
+    hkTable.query.sortBy,
+    hkTable.query.sortOrder,
+  ]);
 
   async function handleAddRoom() {
-    await createRoom(roomForm);
-    setShowAddRoom(false);
-    loadRooms(); // reload list
+    setFormErrors({});
+
+    try {
+      // ✅ Validate ONLY room creation fields
+      const parsed = roomCreateEditSchema.parse(roomForm);
+
+      // ✅ parsed already matches RoomCreateDto exactly
+      await createRoom(parsed);
+
+      setShowAddRoom(false);
+      await loadRooms();
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+
+        err.issues.forEach((issue) => {
+          errors[issue.path.join(".")] = issue.message;
+        });
+
+        setFormErrors(errors);
+      }
+    }
   }
+
 
   async function handleEditRoom() {
     if (!editRoom) return;
@@ -313,33 +349,48 @@ useEffect(() => {
   /* ================= SUBMIT ================= */
   async function submitRoomBoyAssignment() {
     if (!activeRoom) return;
-    const { roomBoyId, shift, taskDate } = assignmentForm;
-    if (!roomBoyId || !shift || !taskDate) {
-      alert("Room boy, shift, and task date are required.");
-      return;
-    }
-    setAssigning(true);
+
+    setFormErrors({});
+
     try {
-      await assignRoomBoyToRoom({
-        room_id: activeRoom.roomId,
-        hk_id: assignmentForm.roomBoyId,
-        task_date: assignmentForm.taskDate,
-        task_shift: assignmentForm.shift as ShiftType,
-        service_type: "Room Cleaning",
-        admin_instructions: assignmentForm.remarks || undefined,
+      const parsed = roomBoyManagementSchema.parse({
+        room_boy_id: assignmentForm.roomBoyId,
+        assignment_start_date: assignmentForm.taskDate,
+        shift: assignmentForm.shift,
+        remarks: assignmentForm.remarks,
       });
 
+      // 🔒 Hard guarantee for TS + runtime
+      if (!parsed.room_boy_id || !parsed.assignment_start_date) {
+        throw new Error("Required assignment fields missing");
+      }
 
-      alert("Room boy assigned successfully");
-      await loadRooms();
+      setAssigning(true);
+
+      await assignRoomBoyToRoom({
+        room_id: activeRoom.roomId,
+        hk_id: parsed.room_boy_id,
+        task_date: parsed.assignment_start_date,
+        task_shift: parsed.shift as ShiftType,
+        service_type: "Room Cleaning",
+        admin_instructions: parsed.remarks || undefined,
+      });
+
       setIsRoomBoyModalOpen(false);
+      await loadRooms();
     } catch (err) {
-      console.error(err);
-      alert("Failed to assign room boy");
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+        err.issues.forEach(i => {
+          errors[i.path.join(".")] = i.message;
+        });
+        setFormErrors(errors);
+      }
     } finally {
       setAssigning(false);
     }
   }
+
 
   async function vacateGuest(guestRoomId: string) {
     await updateGuestRoom(guestRoomId, {
@@ -438,22 +489,46 @@ useEffect(() => {
     setShowEditRoomBoy(true);
   };
 
+  function validateField(
+    schema: any,
+    field: string,
+    value: any,
+    setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  ) {
+    try {
+      schema.pick({ [field]: true }).parse({ [field]: value });
+
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    } catch (err) {
+      if (err instanceof ZodError) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: err.issues[0]?.message,
+        }));
+      }
+    }
+  }
+
   const roomColumns: Column<RoomRow>[] = [
-    { 
-      header: "Room No", 
-      accessor: "roomNo", 
+    {
+      header: "Room No",
+      accessor: "roomNo",
       sortable: true,
-      sortKey: "roomNo",
+      sortKey: "room_no",
     },
-    { 
-      header: "Residence", 
-      accessor: "roomName", 
+    {
+      header: "Residence",
+      accessor: "roomName",
       sortable: true,
-      sortKey: "roomName",
+      sortKey: "room_name",
     },
-    { 
-      header: "Status", 
-      accessor: "status", 
+    {
+      header: "Status",
+      accessor: "status",
       sortable: true,
       sortKey: "status",
     },
@@ -479,7 +554,10 @@ useEffect(() => {
           )}
 
           {row.housekeeping ? (
-            <button onClick={() => unassignHousekeeping(row.housekeeping!.guestHkId)}>
+            <button onClick={() => {if (row.housekeeping?.guestHkId) {
+                unassignHousekeeping(row.housekeeping.guestHkId);
+              }
+            }}>
               <UserMinus size={16} />
             </button>
           ) : (
@@ -493,37 +571,39 @@ useEffect(() => {
   ];
 
   const roomBoyColumns: Column<Housekeeping>[] = [
-    {  
-      header: "Name", 
-      accessor: "hk_name", 
+    {
+      header: "Name",
+      accessor: "hk_name",
       sortable: true,
       sortKey: "hk_name",
     },
-    { 
-      header: "Local Name", 
-      accessor: "hk_name_local_language", 
+    {
+      header: "Local Name",
+      accessor: "hk_name_local_language",
       sortable: true,
       sortKey: "hk_name_local_language",
     },
-    { 
-      header: "Contact", 
-      accessor: "hk_contact", 
+    {
+      header: "Contact",
+      accessor: "hk_contact",
       sortable: true,
       sortKey: "hk_contact",
     },
     {
       header: "Alt Contact",
       render: (rb) => rb.hk_alternate_contact || "—",
+      sortKey: "hk_alternate_contact",
+      sortable: true,
     },
-    { 
-      header: "Shift", 
-      accessor: "shift", 
+    {
+      header: "Shift",
+      accessor: "shift",
       sortable: true,
       sortKey: "shift",
     },
-    { 
-      header: "Address", 
-      accessor: "address", 
+    {
+      header: "Address",
+      accessor: "address",
       sortable: true,
       sortKey: "address",
     },
@@ -560,19 +640,30 @@ useEffect(() => {
         </p>
       </div>
 
-      {/* ================= ROOM STATS GRID ================= */}
+      {/* ================= ROOM STATS GRID =================*/}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="statCard">
-          <p className="statLabel">Total Rooms</p>
+
+        <div
+          className={`statCard cursor-pointer ${!roomTable.query.status ? "ring-2 ring-blue-500" : ""
+            }`}
+          onClick={() => roomTable.setStatus(undefined)}
+        >
+          <p className="statLabel">All Rooms</p>
           <p className="statValue">{roomStats.total}</p>
         </div>
 
-        <div className="statCard bg-green-50">
+        <div
+          className="statCard bg-green-50 cursor-pointer"
+          onClick={() => { roomTable.setStatus("Available"); roomTable.setPage(1); }}
+        >
           <p className="statLabel">Available</p>
           <p className="statValue">{roomStats.available}</p>
         </div>
 
-        <div className="statCard bg-red-50">
+        <div
+          className="statCard bg-red-50 cursor-pointer"
+          onClick={() => roomTable.setStatus("Occupied")}
+        >
           <p className="statLabel">Occupied</p>
           <p className="statValue">{roomStats.occupied}</p>
         </div>
@@ -586,6 +677,7 @@ useEffect(() => {
           <p className="statLabel">Housekeeping</p>
           <p className="statValue">{roomStats.withHousekeeping}</p>
         </div>
+
       </div>
 
       <Tabs defaultValue="rooms" className="space-y-6">
@@ -604,8 +696,8 @@ useEffect(() => {
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
                 placeholder="Search room, guest, residence..."
-                value={roomTable.search}
-                onChange={(e) => roomTable.setSearch(e.target.value)}
+                value={roomTable.searchInput ?? ""}
+                onChange={(e) => roomTable.setSearchInput(e.target.value)}
               />
             </div>
 
@@ -621,28 +713,53 @@ useEffect(() => {
 
           {/* ROOMS TABLE */}
           <div className="bg-white border rounded-sm overflow-hidden">
-          <DataTable
-            data={rooms}
-            columns={roomColumns}
-            keyField="roomId"
+            <DataTable
+              data={rooms}
+              columns={roomColumns}
+              keyField="roomId"
 
-            page={roomTable.page}
-            limit={roomTable.limit}
-            totalCount={roomTable.totalCount}
+              page={roomTable.query.page}
+              limit={roomTable.query.limit}
+              totalCount={roomTable.total}
 
-            sortBy={roomTable.sortBy}
-            sortOrder={roomTable.sortOrder}
-            loading={roomTable.loading}
+              sortBy={roomTable.query.sortBy}
+              sortOrder={roomTable.query.sortOrder}
+              loading={roomTable.loading}
 
-            onPageChange={roomTable.setPage}
-            onLimitChange={roomTable.setLimit}
-            onSortChange={roomTable.setSort}
-          />
+              onPageChange={roomTable.setPage}
+              onLimitChange={roomTable.setLimit}
+              onSortChange={roomTable.setSort}
+            />
+
           </div>
         </TabsContent>
 
         {/* ---------------- ROOM BOYS TAB ---------------- */}
         <TabsContent value="roomBoys" className="space-y-6">
+          {/* SEARCH */}
+          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                className="pl-10 pr-3 py-2 w-full border rounded-sm"
+                placeholder="Search room boys..."
+                value={hkTable.searchInput ?? ""}
+                onChange={(e) => hkTable.setSearchInput(e.target.value)}
+              />
+            </div>
+
+            {/* <Button
+            onClick={() => {
+              resetRoomBoyForm();
+              setShowAddRoomBoy(true);
+            }}
+            className="bg-[#00247D] hover:bg-[#003399] text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Room Boy
+          </Button> */}
+          </div>
+
           {/* Add Button */}
           <div className="flex justify-end">
             <Button
@@ -657,31 +774,25 @@ useEffect(() => {
             </Button>
           </div>
 
-          {roomBoyLoading ? (
-            <div className="bg-white border rounded-sm p-6 text-sm text-gray-500">
-              Loading room boys…
-            </div>
-          ) : (
-            <div className="bg-white border rounded-sm overflow-hidden">
+          <div className="bg-white border rounded-sm overflow-hidden">
             <DataTable
               data={roomBoys}
               columns={roomBoyColumns}
               keyField="hk_id"
 
-              page={roomBoyTable.page}
-              limit={roomBoyTable.limit}
-              totalCount={roomBoyTable.totalCount}
+              page={hkTable.query.page}
+              limit={hkTable.query.limit}
+              totalCount={hkTable.total}
 
-              sortBy={roomBoyTable.sortBy}
-              sortOrder={roomBoyTable.sortOrder}
-              loading={roomBoyTable.loading}
+              sortBy={hkTable.query.sortBy}
+              sortOrder={hkTable.query.sortOrder}
+              loading={hkTable.loading}
 
-              onPageChange={roomBoyTable.setPage}
-              onLimitChange={roomBoyTable.setLimit}
-              onSortChange={roomBoyTable.setSort}
+              onPageChange={hkTable.setPage}
+              onLimitChange={hkTable.setLimit}
+              onSortChange={hkTable.setSort}
             />
-            </div>
-          )}
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -777,7 +888,6 @@ useEffect(() => {
                   }
                 />
               </div>
-
             </div>
 
             <div className="nicModalActions">
@@ -826,7 +936,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomNo: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_no", editRoom.roomNo, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.room_no}</p>
               </div>
 
               {/* Room Name */}
@@ -838,7 +950,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomName: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_name", editRoom.roomName, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.room_name}</p>
               </div>
 
               {/* Building */}
@@ -850,7 +964,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, buildingName: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "building_name", editRoom.buildingName, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.building_name}</p>
               </div>
 
               {/* Residence Type */}
@@ -862,7 +978,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, residenceType: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", editRoom.residenceType, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.residence_type}</p>
               </div>
 
               {/* Room Type */}
@@ -874,7 +992,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomType: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_type", editRoom.roomType, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.room_type}</p>
               </div>
 
               {/* Room Category */}
@@ -886,7 +1006,9 @@ useEffect(() => {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomCategory: e.target.value })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_category", editRoom.roomCategory, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.room_category}</p>
               </div>
 
               {/* Capacity */}
@@ -903,7 +1025,9 @@ useEffect(() => {
                       roomCapacity: Number(e.target.value),
                     })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", editRoom.roomCapacity, setFormErrors)}
                 />
+                <p className="errorText">{formErrors.room_capacity}</p>
               </div>
 
               {/* Status */}
@@ -918,10 +1042,12 @@ useEffect(() => {
                       status: e.target.value as "Available" | "Occupied",
                     })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "status", editRoom.status, setFormErrors)}
                 >
                   <option value="Available">Available</option>
                   <option value="Occupied">Occupied</option>
                 </select>
+                <p className="errorText">{formErrors.status}</p>
               </div>
 
               {/* Guest */}
@@ -946,6 +1072,7 @@ useEffect(() => {
                         : null,
                     })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "guest", editRoom.guest?.guestId, setFormErrors)}
                 >
                   <option value="">— No Guest —</option>
                   {guestOptions.map((g) => (
@@ -954,6 +1081,7 @@ useEffect(() => {
                     </option>
                   ))}
                 </select>
+                <p className="errorText">{formErrors.guest}</p>
               </div>
 
               {/* Room Boy */}
@@ -978,6 +1106,7 @@ useEffect(() => {
                         : null,
                     })
                   }
+                  onKeyUp={() => validateField(roomCreateEditSchema, "room_boy", editRoom.housekeeping?.hkId, setFormErrors)}
                 >
                   <option value="">— Unassigned —</option>
                   {roomBoyOptions.map((rb) => (
@@ -986,6 +1115,7 @@ useEffect(() => {
                     </option>
                   ))}
                 </select>
+                <p className="errorText">{formErrors.room_boy}</p>
               </div>
 
             </div>
@@ -1032,7 +1162,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_no: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "room_no", roomForm.room_no, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.room_no}</p>
                 </div>
 
                 <div>
@@ -1044,7 +1176,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_name: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.room_name}</p>
                 </div>
 
                 <div>
@@ -1056,7 +1190,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, building_name: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "building_name", roomForm.building_name, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.building_name}</p>
                 </div>
 
                 <div>
@@ -1068,7 +1204,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, residence_type: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", roomForm.residence_type, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.residence_type}</p>
                 </div>
 
                 <div>
@@ -1080,7 +1218,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_type: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.room_type}</p>
                 </div>
 
                 <div>
@@ -1097,7 +1237,9 @@ useEffect(() => {
                         room_capacity: Number(e.target.value) || 1,
                       })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.room_capacity}</p>
                 </div>
 
                 <div>
@@ -1109,7 +1251,9 @@ useEffect(() => {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_category: e.target.value })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "room_category", roomForm.room_category, setFormErrors)}
                   />
+                  <p className="errorText">{formErrors.room_category}</p>
                 </div>
 
                 <div>
@@ -1123,10 +1267,12 @@ useEffect(() => {
                         status: e.target.value as "Available" | "Occupied",
                       })
                     }
+                    onKeyUp={() => validateField(roomCreateEditSchema, "status", roomForm.status, setFormErrors)}
                   >
                     <option value="Available">Available</option>
                     <option value="Occupied">Occupied</option>
                   </select>
+                  <p className="errorText">{formErrors.status}</p>
                 </div>
 
               </div>
