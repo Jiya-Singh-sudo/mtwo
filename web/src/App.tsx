@@ -8,6 +8,8 @@ function Layout() {
   const { isAuthenticated } = useAuth();
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
 
+  const {logout}=useAuth();
+
   // Show ONLY login routes when not authenticated
   if (!isAuthenticated) {
     return <AppRoutes />;
@@ -24,6 +26,9 @@ function Layout() {
             <div className="flex items-center justify-end gap-4">
               <button className="text-white text-sm hover:text-gray-300" onClick={() => setLanguage(language === 'english' ? 'hindi' : 'english')}>
                 {language === 'english' ? 'HINDI' : 'ENGLISH'}
+              </button>
+              <button onClick={logout}>
+                Logout
               </button>
             </div>
           </div>

@@ -78,7 +78,7 @@ export function Sidebar() {
       labelHi: 'ड्राइवर ड्यूटी रोस्टर',
       icon: Calendar,
       path: '/driver-duty-roaster',
-      permission: 'driver.view',
+      permission: 'driver_duty.view',
     },
 
     {

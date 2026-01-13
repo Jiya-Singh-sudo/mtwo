@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import './LoginPage.css';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { api } from '@/api/apiClient';
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
@@ -21,6 +23,7 @@ const CAROUSEL_IMAGES = [
 ];
 
 export function LoginPage() {
+    const { isAuthenticated, login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [captchaInput, setCaptchaInput] = useState('');
@@ -43,8 +46,7 @@ export function LoginPage() {
         captcha: false,
     });
     const [captchaCode, setCaptchaCode] = useState('');
-    const { login } = useAuth();
-
+    const navigate = useNavigate();
 
     // Auto-play carousel
     useEffect(() => {
@@ -53,6 +55,12 @@ export function LoginPage() {
         }, 4000);
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+    if (isAuthenticated) {
+        navigate('/dashboard', { replace: true });
+    }
+    }, [isAuthenticated]);
 
     // Navigate to next slide
     const nextSlide = () => {
@@ -175,39 +183,45 @@ export function LoginPage() {
 
     // Handle login
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    e.preventDefault();
 
-        setTouched({ username: true, password: true, captcha: true });
+    setTouched({ username: true, password: true, captcha: true });
 
-        const usernameError = validateUsername(username);
-        const passwordError = validatePassword(password);
-        const captchaError = validateCaptcha(captchaInput);
+    const usernameError = validateUsername(username);
+    const passwordError = validatePassword(password);
+    const captchaError = validateCaptcha(captchaInput);
 
-        setErrors({
-            username: usernameError,
-            password: passwordError,
-            captcha: captchaError,
-        });
+    setErrors({
+        username: usernameError,
+        password: passwordError,
+        captcha: captchaError,
+    });
 
-        if (usernameError || passwordError || captchaError) {
-            return;
-        }
+    if (usernameError || passwordError || captchaError) return;
 
+    try {
         setIsLoading(true);
 
-        try {
-            await login(username, password);
-            // ✅ SUCCESS: AuthContext will redirect via routing
-        } catch (err: any) {
-            setErrors({
-                general:
-                    err?.response?.data?.message ||
-                    'Invalid username or password',
-            });
-            generateCaptcha();
-        } finally {
-            setIsLoading(false);
-        }
+        // 🔑 Call backend
+        const res = await api.post('/auth/login', {
+        username,
+        password,
+        });
+
+        const { accessToken, payload } = res.data;
+
+        // 🔐 Save auth state
+        login(accessToken, payload);
+
+        // ✅ Redirect to dashboard
+        navigate('/dashboard', { replace: true });
+
+    } catch (err: any) {
+        setErrors({ general: 'Invalid username or password' });
+        generateCaptcha();
+    } finally {
+        setIsLoading(false);
+    }
     };
 
     return (

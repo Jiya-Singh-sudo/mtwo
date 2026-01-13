@@ -1,9 +1,9 @@
-import { 
-  UserPlus, 
-  BedDouble, 
-  CarFront, 
-  FileText, 
-  Bell, 
+import {
+  UserPlus,
+  BedDouble,
+  CarFront,
+  FileText,
+  Bell,
   Calendar,
   Download,
   Settings,
@@ -11,7 +11,18 @@ import {
   UtensilsCrossed
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { ModuleType } from '../App';
+
+type ModuleType =
+  | 'guest-management'
+  | 'room-management'
+  | 'vehicle-management'
+  | 'driver-management'
+  | 'food-service'
+  | 'duty-roster'
+  | 'info-package'
+  | 'notifications'
+  | 'reports'
+  | 'settings';
 
 
 export function QuickActions() {
