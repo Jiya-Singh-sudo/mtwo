@@ -7,20 +7,19 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
-@Post('login')
-async login(
-  @Body() dto: LoginDto,
-  @Req() req: any,
-) {
-  const ip =
-    req.headers['x-forwarded-for'] ||
-    req.ip ||
-    req.connection?.remoteAddress ||
-    null;
+  @Post('login')
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: any,
+  ) {
+    const ip =
+      req.headers['x-forwarded-for'] ||
+      req.ip ||
+      req.connection?.remoteAddress ||
+      null;
 
-  return this.authService.login(dto, ip);
-}
-
+    return this.authService.login(dto, ip);
+  }
 
   @Post('refresh')
   async refresh(@Body('refreshToken') refreshToken: string, @Req() req: any) {
