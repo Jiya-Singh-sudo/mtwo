@@ -5,7 +5,7 @@ interface TimePicker12hProps {
   value?: string; // HH:mm or HH:mm:ss
   name?: string;
   onChange: (value: string) => void;
-  onKeyUp?: () => void;
+  onBlur?: () => void;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -16,7 +16,7 @@ export default function TimePicker12h({
   value,
   name,
   onChange,
-  onKeyUp,
+  onBlur,
 }: TimePicker12hProps) {
   const [hour, setHour] = useState<number>(1);
   const [minute, setMinute] = useState<string>("00");
@@ -77,7 +77,7 @@ const emitChange = (
               setHour(v);
               emitChange(v, minute, meridiem);
             }}
-            onKeyUp={onKeyUp}
+            onBlur={onBlur}
           >
             {HOURS.map((h) => (
               <option key={h} value={h}>
@@ -95,7 +95,7 @@ const emitChange = (
             setMinute(v);
             emitChange(hour, v, meridiem);
           }}
-          onKeyUp={onKeyUp}
+          onBlur={onBlur}
         >
           {MINUTES.map((m) => (
             <option key={m} value={m}>
@@ -113,7 +113,7 @@ const emitChange = (
             setMeridiem(v);
             emitChange(hour, minute, v);
           }}
-          onKeyUp={onKeyUp}
+          onBlur={onBlur}
         >
           <option value="AM">AM</option>
           <option value="PM">PM</option>

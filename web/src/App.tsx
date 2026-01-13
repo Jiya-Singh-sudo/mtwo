@@ -27,7 +27,7 @@ function Layout() {
               <button className="text-white text-sm hover:text-gray-300" onClick={() => setLanguage(language === 'english' ? 'hindi' : 'english')}>
                 {language === 'english' ? 'HINDI' : 'ENGLISH'}
               </button>
-              <button onClick={logout}>
+              <button className="text-white" onClick={logout}>
                 Logout
               </button>
             </div>

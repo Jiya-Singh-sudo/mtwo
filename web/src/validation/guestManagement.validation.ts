@@ -13,7 +13,7 @@ const MAX_ADDRESS_LENGTH = 250;
 
 const nameRegex = /^[A-Za-z .]*$/;
 const mobileRegex = /^[6-9]\d{9}$/;
-const safeTextRegex = /^[A-Za-z0-9 \s,./()\-]*$/;
+const safeTextRegex = /^[A-Za-z0-9 ,./()\-]*$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const timeRegex = /^\d{2}:\d{2}$/;
 
@@ -45,7 +45,18 @@ export const guestManagementSchema = z
       .string()
       .regex(mobileRegex, "Enter valid 10 digit mobile number"),
 
-    guest_alternate_mobile: z.string().optional(),
+    guest_alternate_mobile: z
+      .string()
+      .optional()
+      .refine(
+        (val) => {
+          if (!val || val.trim() === "") return true; // optional
+          return mobileRegex.test(val);
+        },
+        {
+          message: "Alternate mobile number must be 10 digits",
+        }
+      ),
 
     email: z.string().email("Invalid email address").optional(),
 
@@ -53,6 +64,7 @@ export const guestManagementSchema = z
       .string()
       .max(MAX_ADDRESS_LENGTH, "Address too long")
       .regex(safeTextRegex, "Invalid characters in address")
+      .transform(v => v.replace(/[\r\n]+/g, " "))
       .optional(),
 
     /* ---------------- DESIGNATION ---------------- */
@@ -208,20 +220,20 @@ export const guestManagementSchema = z
     }
   })
   .refine(
-  (data) => {
-    if (!data.status || data.status === "Scheduled") return true;
+    (data) => {
+      if (!data.status || data.status === "Scheduled") return true;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const entry = new Date(data.entry_date);
-    return entry <= today;
-  },
-  {
-    message: "Future check-in allowed only for Scheduled guests",
-    path: ["entry_date"],
-  }
-);
+      const entry = new Date(data.entry_date);
+      return entry <= today;
+    },
+    {
+      message: "Future check-in allowed only for Scheduled guests",
+      path: ["entry_date"],
+    }
+  );
 
 /* ======================================================
    TYPE

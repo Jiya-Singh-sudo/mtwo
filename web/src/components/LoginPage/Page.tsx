@@ -3,7 +3,6 @@ import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield 
 import './LoginPage.css';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/api/apiClient';
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
@@ -57,9 +56,9 @@ export function LoginPage() {
     }, []);
 
     useEffect(() => {
-    if (isAuthenticated) {
-        navigate('/dashboard', { replace: true });
-    }
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
     }, [isAuthenticated]);
 
     // Navigate to next slide
@@ -183,49 +182,39 @@ export function LoginPage() {
 
     // Handle login
     const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
 
-    setTouched({ username: true, password: true, captcha: true });
+        setTouched({ username: true, password: true, captcha: true });
 
-    const usernameError = validateUsername(username);
-    const passwordError = validatePassword(password);
-    const captchaError = validateCaptcha(captchaInput);
+        const usernameError = validateUsername(username);
+        const passwordError = validatePassword(password);
+        const captchaError = validateCaptcha(captchaInput);
 
-    setErrors({
-        username: usernameError,
-        password: passwordError,
-        captcha: captchaError,
-    });
-
-    if (usernameError || passwordError || captchaError) return;
-
-    try {
-        setIsLoading(true);
-
-        // 🔑 Call backend
-        const res = await api.post('/auth/login', {
-        username,
-        password,
+        setErrors({
+            username: usernameError,
+            password: passwordError,
+            captcha: captchaError,
         });
 
-        const { accessToken, payload } = res.data;
+        if (usernameError || passwordError || captchaError) return;
 
-        // 🔐 Save auth state
-        login(accessToken, payload);
+        try {
+            setIsLoading(true);
+            login(username, password);
 
-        // ✅ Redirect to dashboard
-        navigate('/dashboard', { replace: true });
+            // ✅ Redirect to dashboard
+            navigate('/dashboard', { replace: true });
 
-    } catch (err: any) {
-        setErrors({ general: 'Invalid username or password' });
-        generateCaptcha();
-    } finally {
-        setIsLoading(false);
-    }
+        } catch (err: any) {
+            setErrors({ general: 'Invalid username or password' });
+            generateCaptcha();
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
+        <div className="login-page h-screen flex flex-col bg-gray-50">
             {/* Header */}
             <header className="bg-white shadow-sm border-b border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -259,65 +248,60 @@ export function LoginPage() {
             </header>
 
             {/* Main Content - Split Layout */}
-            <main className="flex-1 flex">
+            <main className="flex flex-1 min-h-0">
                 {/* Left Side - Carousel */}
-                <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden">
+                <div className="hidden lg:flex lg:w-[70%] xl:w-[75%] relative overflow-hidden flex-1">
+                    <div className="relative w-full h-full">
 
-                    <div className="relative z-10 w-full h-full">
-                        <div className="h-full">
-                            <div className="relative h-full flex items-center justify-center">
+                        <img
+                            src={CAROUSEL_IMAGES[currentSlide].src}
+                            alt={CAROUSEL_IMAGES[currentSlide].alt}
+                            className="absolute inset-0 w-full h-full object-cover scale-110"
+                        />
 
-                                <img
-                                    src={CAROUSEL_IMAGES[currentSlide].src}
-                                    alt={CAROUSEL_IMAGES[currentSlide].alt}
-                                    className="w-full h-full object-cover transition-opacity duration-700"
+                        {/* Caption */}
+                        {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-8 z-10">
+                            <h3 className="text-white text-2xl mb-2">राज्यपाल महाराष्ट्र</h3>
+                            <p className="text-blue-200">
+                                Lok Bhavan Maharashtra - Guest Management System
+                            </p>
+                        </div> */}
+
+                        {/* Left Arrow */}
+                        <button
+                            onClick={prevSlide}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg"
+                        >
+                            <ChevronLeft className="h-6 w-6 text-gray-800" />
+                        </button>
+
+                        {/* Right Arrow */}
+                        <button
+                            onClick={nextSlide}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg"
+                        >
+                            <ChevronRight className="h-6 w-6 text-gray-800" />
+                        </button>
+
+                        {/* Dots */}
+                        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                            {CAROUSEL_IMAGES.map((_, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setCurrentSlide(index)}
+                                    className={`h-3 rounded-full transition-all ${currentSlide === index
+                                        ? 'w-8 bg-white'
+                                        : 'w-3 bg-white/50 hover:bg-white/75'
+                                        }`}
                                 />
-
-                                {/* Caption */}
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-8">
-                                    <h3 className="text-white text-2xl mb-2">राज्यपाल महाराष्ट्र</h3>
-                                    <p className="text-blue-200">
-                                        Lok Bhavan Maharashtra - Guest Management System
-                                    </p>
-                                </div>
-
-                                {/* Navigation Arrows */}
-                                <button
-                                    onClick={prevSlide}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-                                >
-                                    <ChevronLeft className="h-6 w-6 text-gray-800" />
-                                </button>
-
-                                <button
-                                    onClick={nextSlide}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-                                >
-                                    <ChevronRight className="h-6 w-6 text-gray-800" />
-                                </button>
-
-                                {/* Dots Indicator */}
-                                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                                    {CAROUSEL_IMAGES.map((_, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => setCurrentSlide(index)}
-                                            className={`w-3 h-3 rounded-full transition-all ${currentSlide === index
-                                                ? 'bg-white w-8'
-                                                : 'bg-white/50 hover:bg-white/75'
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-
-                            </div>
+                            ))}
                         </div>
+
                     </div>
                 </div>
 
-
                 {/* Right Side - Login Form */}
-                <div className="w-full lg:w-[45%] flex items-center justify-center px-6 py-12 bg-gradient-to-br from-gray-50 to-blue-50">
+                <div className="w-full lg:w-[45%] flex-1 flex items-center justify-center px-6 py-12 bg-gradient-to-br from-gray-50 to-blue-50">
                     <div className="w-full max-w-xl">
                         {/* Login Card */}
                         <div className="bg-white rounded-xl shadow-2xl border-t-4 border-blue-700 p-8">
@@ -340,65 +324,82 @@ export function LoginPage() {
                             <form onSubmit={handleLogin} className="space-y-5">
                                 {/* Username Field */}
                                 <div>
-                                    <label htmlFor="username" className="block text-sm text-gray-700 mb-2">
-                                        Username <span className="text-red-500">*</span>
-                                    </label>
+                                <label htmlFor="username" className="block text-sm text-gray-700 mb-2">
+                                    Username <span className="text-red-500">*</span>
+                                </label>
+
+                                <div className="relative">
                                     <input
-                                        type="text"
-                                        id="username"
-                                        value={username}
-                                        onChange={(e) => handleUsernameChange(e.target.value)}
-                                        onBlur={() => handleBlur('username')}
-                                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.username && touched.username
+                                    type="text"
+                                    id="username"
+                                    value={username}
+                                    onChange={(e) => handleUsernameChange(e.target.value)}
+                                    onBlur={() => handleBlur('username')}
+                                    placeholder="Enter your username"
+                                    disabled={isLoading}
+                                    className={`w-full h-12 px-4 pr-10 text-base
+                                        border rounded-lg focus:outline-none focus:ring-2 transition-all
+                                        ${
+                                        errors.username && touched.username
                                             ? 'border-red-500 focus:ring-red-500 bg-red-50'
                                             : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                            }`}
-                                        placeholder="Enter your username"
-                                        disabled={isLoading}
+                                        }`}
                                     />
-                                    {errors.username && touched.username && (
-                                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="h-4 w-4" />
-                                            {errors.username}
-                                        </p>
-                                    )}
                                 </div>
 
-                                {/* Password Field */}
-                                <div>
-                                    <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
-                                        Password <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            id="password"
-                                            value={password}
-                                            onChange={(e) => handlePasswordChange(e.target.value)}
-                                            onBlur={() => handleBlur('password')}
-                                            className={`w-full px-4 py-2.5 pr-12 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.password && touched.password
-                                                ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                                }`}
-                                            placeholder="Enter your password"
-                                            disabled={isLoading}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-700 transition-colors"
-                                            disabled={isLoading}
-                                        >
-                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                        </button>
-                                    </div>
-                                    {errors.password && touched.password && (
-                                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="h-4 w-4" />
-                                            {errors.password}
-                                        </p>
-                                    )}
+                                {errors.username && touched.username && (
+                                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {errors.username}
+                                    </p>
+                                )}
                                 </div>
+
+
+                                {/* Password Field */}
+                                <div dir="ltr">
+                                <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
+                                    Password <span className="text-red-500">*</span>
+                                </label>
+
+                                <div className="relative">
+                                    <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => handlePasswordChange(e.target.value)}
+                                    onBlur={() => handleBlur('password')}
+                                    placeholder="Enter your password"
+                                    disabled={isLoading}
+                                    className={`w-full h-12 px-4 pr-12 text-base
+                                        border rounded-lg focus:outline-none focus:ring-2 transition-all
+                                        ${
+                                        errors.password && touched.password
+                                            ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                            : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                        }`}
+                                    />
+
+                                    {/* 👁 Eye button INSIDE input, right aligned */}
+                                    <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2
+                                                text-gray-500 hover:text-blue-700"
+                                    tabIndex={-1}
+                                    >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+
+                                {errors.password && touched.password && (
+                                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {errors.password}
+                                    </p>
+                                )}
+                                </div>
+
 
                                 {/* CAPTCHA Section */}
                                 <div>
@@ -407,7 +408,7 @@ export function LoginPage() {
                                     </label>
                                     <div className="flex gap-3 mb-3">
                                         <div className="flex-1 bg-gradient-to-r from-blue-900 to-blue-700 border-2 border-blue-700 rounded-lg px-4 py-3 flex items-center justify-center shadow-inner">
-                                            <span className="select-none tracking-widest text-xl text-white" style={{
+                                            <span className="select-none tracking-widest text-xl text-black" style={{
                                                 fontFamily: 'monospace',
                                                 letterSpacing: '0.3em',
                                                 textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
@@ -418,7 +419,7 @@ export function LoginPage() {
                                         <button
                                             type="button"
                                             onClick={generateCaptcha}
-                                            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white border border-blue-700 rounded-lg transition-colors shadow-md"
+                                            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-black border border-blue-700 rounded-lg transition-colors shadow-md"
                                             disabled={isLoading}
                                             title="Refresh CAPTCHA"
                                         >
@@ -431,7 +432,7 @@ export function LoginPage() {
                                         value={captchaInput}
                                         onChange={(e) => handleCaptchaChange(e.target.value)}
                                         onBlur={() => handleBlur('captcha')}
-                                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.captcha && touched.captcha
+                                        className={`w-full h-12 px-4 text-base border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.captcha && touched.captcha
                                             ? 'border-red-500 focus:ring-red-500 bg-red-50'
                                             : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
                                             }`}
@@ -450,9 +451,9 @@ export function LoginPage() {
                                 <button
                                     type="submit"
                                     disabled={!isFormValid() || isLoading}
-                                    className={`w-full py-3 px-4 rounded-lg transition-all ${!isFormValid() || isLoading
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-blue-950 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                    className={`w-full py-3 rounded-lg transition-all ${!isFormValid() || isLoading
+                                        ? 'bg-blue-200 text-blue-700 cursor-not-allowed'
+                                        : 'bg-blue-700 hover:bg-blue-800 text-black shadow-md'
                                         }`}
                                 >
                                     {isLoading ? (
@@ -477,11 +478,9 @@ export function LoginPage() {
                                 </div>
                             </form>
                         </div>
-
                     </div>
                 </div>
             </main>
-
 
             {/* Footer */}
             <footer className="bg-gradient-to-r from-blue-900 to-blue-800 border-t border-blue-700 py-4">
