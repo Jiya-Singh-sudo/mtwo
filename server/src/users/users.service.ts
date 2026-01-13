@@ -50,6 +50,8 @@ export class UsersService {
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
     const hashed = this.sha256Hex(dto.password);
 
+    // server/src/users/users.service.ts (Inside the create method)
+
     const sql = `
       INSERT INTO m_user (
         user_id,
@@ -58,28 +60,32 @@ export class UsersService {
         full_name_local_language,
         role_id,
         user_mobile,
-        user_alternate_mobile
+        user_alternate_mobile,
         password,
         email,
+        last_login,
+        is_active,
+        inserted_at,
         inserted_by,
         inserted_ip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, true, $10, $11, $12)
+      RETURNING user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip;
     `;
 
     const params = [
-      user_id,
-      dto.username,
-      dto.full_name,
-      dto.full_name_local_language ?? null,
-      dto.role_id,
-      dto.mobile ?? null,
-      dto.alternate_mobile ?? null,
-      hashed,
-      dto.email ?? null,
-      now,
-      user,
-      ip,
+      user_id,                         // $1
+      dto.username,                    // $2
+      dto.full_name,                   // $3
+      dto.full_name_local_language ?? null, // $4
+      dto.role_id,                     // $5
+      dto.mobile ?? null,         // $6
+      dto.alternate_mobile ?? null, // $7
+      hashed,                          // $8
+      dto.email ?? null,               // $9
+      now,                             // $10
+      user,                            // $11
+      ip,                              // $12
     ];
 
     const res = await this.db.query(sql, params);

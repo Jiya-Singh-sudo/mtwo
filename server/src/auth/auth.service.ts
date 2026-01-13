@@ -136,35 +136,65 @@ export class AuthService {
   }
 
   // --------------------- LOGIN ---------------------
-async login(dto: LoginDto, ip: string) {
-  const hashedPassword = this.sha256Hex(dto.password);
+  async login(dto: LoginDto, ip: string) {
+    const hashedPassword = this.sha256Hex(dto.password);
 
-  const result = await this.db.query(
-    `SELECT * FROM m_user WHERE username = $1 AND is_active = true`,
-    [dto.username]
-  );
+    const result = await this.db.query(
+      `SELECT * FROM m_user WHERE username = $1 AND is_active = true`,
+      [dto.username]
+    );
 
-  if (!result.rows.length) {
-    throw new UnauthorizedException('Invalid credentials');
+    if (!result.rows.length) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const user = result.rows[0];
+
+    if (user.password !== hashedPassword) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // ✅ Update last login
+    await this.db.query(
+      `UPDATE m_user
+      SET last_login = NOW(),
+          updated_ip = $1
+      WHERE user_id = $2`,
+      [ip, user.user_id]
+    );
+
+    // ✅ Load role
+    const role = await this.loadRole(user.role_id);
+
+    // ✅ Load permissions
+    const permissions = await this.loadPermissions(user.role_id);
+
+    // ✅ JWT payload
+    const payload = {
+      sub: user.user_id,
+      username: user.username,
+      role: role?.role_name ?? user.role_id,
+      permissions,
+    };
+
+    // ✅ Access token
+    const accessToken = this.signAccessToken(payload);
+
+    // ✅ Refresh token
+    const refresh = await this.createRefreshTokenRow(
+      user.user_id,
+      ip,
+    );
+
+    // ✅ Final response (frontend expects THIS shape)
+    return {
+      accessToken,
+      refreshToken: refresh.token,
+      refreshExpiresAt: refresh.expiresAt,
+      payload,
+    };
   }
 
-  const user = result.rows[0];
-
-  if (user.password !== hashedPassword) {
-    throw new UnauthorizedException('Invalid credentials');
-  }
-
-  // ✅ Update last_login + IP
-  await this.db.query(
-    `UPDATE m_user
-     SET last_login = NOW(),
-         updated_ip = $1
-     WHERE user_id = $2`,
-    [ip, user.user_id]
-  );
-
-  // token + payload return
-}
 
   // --------------------- REFRESH TOKEN ---------------------
   async refresh(receivedToken: string, ip: string | null) {
