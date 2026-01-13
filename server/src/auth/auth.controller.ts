@@ -17,7 +17,7 @@ export class AuthController {
       req.ip ||
       req.connection?.remoteAddress ||
       null;
-
+    console.log('DTO received:', dto);
     return this.authService.login(dto, ip);
   }
 

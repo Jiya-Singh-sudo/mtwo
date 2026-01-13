@@ -1,10 +1,18 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // 1. Remove { cors: true } from here. This was enabling the "wildcard" default 
   // which caused the conflict with credentials: true.
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,   // 🔑 THIS fixes the login crash
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // 2. Configure CORS explicitly here
   app.enableCors({
