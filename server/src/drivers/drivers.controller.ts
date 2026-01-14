@@ -1,15 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Delete,
-  Req,
-  Patch,
-} from '@nestjs/common';
-
+import { Controller, Get, Post, Put, Body, Param, Delete, Req, Patch, Query } from '@nestjs/common';
 import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
@@ -39,50 +28,65 @@ export class DriversController {
     return ip;
   }
 
+  @Get('table')
+  getDriversTable(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search = '',
+    @Query('sortBy') sortBy = 'driver_name',
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+  ) {
+    return this.service.getDriversTable({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      sortBy,
+      sortOrder,
+    });
+  }
+
   @Get('dashboard')
-getDashboard() {
-  return this.service.getDriverDashboard();
-}
+  getDashboard() {
+    return this.service.getDriverDashboard();
+  }
 
-@Post()
-create(@Body() dto: CreateDriverDto, @Req() req: any) {
-  const user = req.user?.username || 'system';
-  const ip = req.ip || '0.0.0.0';
-  return this.service.create(dto, user, ip);
-}
-@Patch(':id')
-update(
-  @Param('id') id: string,
-  @Body() dto: UpdateDriverDto,
-  @Req() req: any
-) {
-  const user = req.user?.username || 'system';
-  const ip = req.ip || '0.0.0.0';
-  return this.service.update(id, dto, user, ip);
-}
+  @Post()
+  create(@Body() dto: CreateDriverDto, @Req() req: any) {
+    const user = req.user?.username || 'system';
+    const ip = req.ip || '0.0.0.0';
+    return this.service.create(dto, user, ip);
+  }
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateDriverDto,
+    @Req() req: any
+  ) {
+    const user = req.user?.username || 'system';
+    const ip = req.ip || '0.0.0.0';
+    return this.service.update(id, dto, user, ip);
+  }
 
-
-
-@Post('assign')
-assignDriver(
-  @Body() body: { guest_vehicle_id: string; driver_id: string },
-  @Req() req: any
-) {
-  const user = req.user?.username || 'system';
-  const ip = req.ip || '0.0.0.0';
-  return this.service.assignDriver(body, user, ip);
-}
+  @Post('assign')
+  assignDriver(
+    @Body() body: { guest_vehicle_id: string; driver_id: string },
+    @Req() req: any
+  ) {
+    const user = req.user?.username || 'system';
+    const ip = req.ip || '0.0.0.0';
+    return this.service.assignDriver(body, user, ip);
+  }
 
   // GET only active drivers
   @Get()
   findAllActive() {
     return this.service.findAll(true);
   }
-  @Get('available')
-getAvailableDrivers() {
-  return this.service.findAssignableDrivers();
-}
 
+  @Get('available')
+  getAvailableDrivers() {
+    return this.service.findAssignableDrivers();
+  }
 
   // GET all drivers including inactive
   @Get('all')

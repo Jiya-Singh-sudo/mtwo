@@ -9,6 +9,62 @@ export class VehiclesService {
 
     // This is NOT a master-table API.
 // This is a READ MODEL for the Vehicle Management page.
+async getVehiclesTable(query: {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}) {
+  const offset = (query.page - 1) * query.limit;
+
+  const SORT_MAP: Record<string, string> = {
+    vehicle_no: 'v.vehicle_no',
+    vehicle_name: 'v.vehicle_name',
+    manufacturing: 'v.manufacturing',
+    capacity: 'v.capacity',
+  };
+
+  const sortColumn = SORT_MAP[query.sortBy] ?? 'v.vehicle_name';
+  const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+  const where: string[] = ['v.is_active = TRUE'];
+  const params: any[] = [];
+
+  if (query.search) {
+    params.push(`%${query.search}%`);
+    where.push(`(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const dataSql = `
+    SELECT *
+    FROM m_vehicle v
+    ${whereSql}
+    ORDER BY ${sortColumn} ${sortOrder}
+    LIMIT ${query.limit}
+    OFFSET ${offset};
+  `;
+
+  const countSql = `
+    SELECT COUNT(*)::int AS count
+    FROM m_vehicle v
+    ${whereSql};
+  `;
+
+  const [dataRes, countRes] = await Promise.all([
+    this.db.query(dataSql, params),
+    this.db.query(countSql, params),
+  ]);
+
+  return {
+    data: dataRes.rows,
+    totalCount: countRes.rows[0].count,
+  };
+}
+
 async getFleetOverview() {
   const sql = `
     SELECT
@@ -42,23 +98,23 @@ async getFleetOverview() {
 }
 
 
-    async findAll(activeOnly = true) {
-        const sql = activeOnly
-        ? `SELECT * FROM m_vehicle WHERE is_active = $1 ORDER BY vehicle_name`
-        : `SELECT * FROM m_vehicle ORDER BY vehicle_name`;
+  async findAll(activeOnly = true) {
+    const sql = activeOnly
+      ? `SELECT * FROM m_vehicle WHERE is_active = $1 ORDER BY vehicle_name`
+      : `SELECT * FROM m_vehicle ORDER BY vehicle_name`;
 
-        const result = await this.db.query(sql, activeOnly ? [true] : []);
-        return result.rows;
-    }
+    const result = await this.db.query(sql, activeOnly ? [true] : []);
+    return result.rows;
+  }
 
-    async findOne(vehicle_no: string) {
-        const sql = `SELECT * FROM m_vehicle WHERE vehicle_no = $1`;
-        const result = await this.db.query(sql, [vehicle_no]);
-        return result.rows[0];
-    }
+  async findOne(vehicle_no: string) {
+    const sql = `SELECT * FROM m_vehicle WHERE vehicle_no = $1`;
+    const result = await this.db.query(sql, [vehicle_no]);
+    return result.rows[0];
+  }
 
-    async create(dto: CreateVehicleDto, user: string, ip: string) {
-        const now = new Date().toLocaleString("en-GB", {
+  async create(dto: CreateVehicleDto, user: string, ip: string) {
+    const now = new Date().toLocaleString("en-GB", {
             timeZone: "Asia/Kolkata",
             hour12: false,
         }).replace(",", "");

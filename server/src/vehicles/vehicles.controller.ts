@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Delete,
-  Req,
-} from '@nestjs/common';
-
+import {  Controller, Get, Post, Put, Body, Param, Delete,Req,Query,} from '@nestjs/common';
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -17,24 +7,40 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 export class VehiclesController {
     constructor(private readonly service: VehiclesService) {}
 
-        private extractIp(req: any): string {
-            let ip =
-            req.headers['x-forwarded-for'] ||
-            req.connection?.remoteAddress ||
-            req.socket?.remoteAddress ||
-            req.ip ||
-            '';
-            // Fix IPv6 localhost (::1)
-            if (ip === '::1' || ip === '127.0.0.1') {
-            return '127.0.0.1';
-            }
-            // Remove IPv6 prefix if present
-            ip = ip.toString().replace('::ffff:', '');
-            // If x-forwarded-for contains multiple IPs, take the first one
-            if (ip.includes(',')) {
-            ip = ip.split(',')[0].trim();
-            }
-            return ip;
+  private extractIp(req: any): string {
+    let ip =
+      req.headers['x-forwarded-for'] ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      '';
+    // Fix IPv6 localhost (::1)
+    if (ip === '::1' || ip === '127.0.0.1') {
+      return '127.0.0.1';
+    }
+    // Remove IPv6 prefix if present
+    ip = ip.toString().replace('::ffff:', '');
+    // If x-forwarded-for contains multiple IPs, take the first one
+    if (ip.includes(',')) {
+      ip = ip.split(',')[0].trim();
+    }
+    return ip;
+  }
+  @Get('table')
+  getVehiclesTable(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search = '',
+    @Query('sortBy') sortBy = 'vehicle_name',
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+  ) {
+    return this.service.getVehiclesTable({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      sortBy,
+      sortOrder,
+    });
   }
   @Get('with-assignment-status')
   getFleetOverview() {

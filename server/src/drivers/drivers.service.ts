@@ -22,6 +22,75 @@ export class DriversService {
     const number = parseInt(lastId.replace('D', '')) + 1;
     return 'D' + number.toString().padStart(3, '0');
   }
+  
+  async getDriversTable(query: {
+    page: number;
+    limit: number;
+    search?: string;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+  }) {
+    const offset = (query.page - 1) * query.limit;
+
+    const SORT_MAP: Record<string, string> = {
+      driver_name: 'd.driver_name',
+      driver_contact: 'd.driver_contact',
+      driver_license: 'd.driver_license',
+    };
+
+    const sortColumn = SORT_MAP[query.sortBy] ?? 'd.driver_name';
+    const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+    const where: string[] = ['d.is_active = TRUE'];
+    const params: any[] = [];
+
+    if (query.search) {
+      params.push(`%${query.search}%`);
+      where.push(`
+        (
+          d.driver_name ILIKE $${params.length}
+          OR d.driver_contact ILIKE $${params.length}
+          OR d.driver_license ILIKE $${params.length}
+        )
+      `);
+    }
+
+    const whereSql = `WHERE ${where.join(' AND ')}`;
+
+    const dataSql = `
+      SELECT
+        d.driver_id,
+        d.driver_name,
+        d.driver_name_local_language,
+        d.driver_contact,
+        d.driver_alternate_mobile,
+        d.driver_license,
+        d.address,
+        d.is_active
+      FROM m_driver d
+      ${whereSql}
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT ${query.limit}
+      OFFSET ${offset};
+    `;
+
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM m_driver d
+      ${whereSql};
+    `;
+
+    const [dataRes, countRes] = await Promise.all([
+      this.db.query(dataSql, params),
+      this.db.query(countSql, params),
+    ]);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].count,
+    };
+  }
+
   async findAssignableDrivers() {
     const sql = `
     SELECT

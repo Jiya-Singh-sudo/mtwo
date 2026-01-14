@@ -29,6 +29,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { DriverDutyModule } from './driver-duty/driver-duty.module';
 import { RoomManagementModule } from './room-management/room-management.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
+import { GuestTransportModule } from './guest-transport/guest-transport.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ActivityLogModule } from './activity-log/activity-log.module';
     DriverDutyModule,
     RoomManagementModule,
     ActivityLogModule,
+    GuestTransportModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

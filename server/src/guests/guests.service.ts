@@ -1,4 +1,3 @@
-
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
