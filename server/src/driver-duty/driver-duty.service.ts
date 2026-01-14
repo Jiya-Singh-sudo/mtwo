@@ -121,7 +121,7 @@ export class DriverDutyService {
         drv.driver_id,
         drv.driver_name,
         d.duty_id,
-        d.duty_date,
+        d.duty_date::date AS duty_date,
         d.shift,
         d.duty_in_time,
         d.duty_out_time,

@@ -5,6 +5,7 @@ import { DriverDuty, DriverWeeklyRow } from "@/types/driverDuty";
 import "./DriverDutyRoaster.css";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import React from "react";
+import { toISODateKey } from "@/utils/dateKey";
 
 type DriverDutyTableRow = {
   driver_id: string;
@@ -20,24 +21,11 @@ type DriverDutyTableRow = {
 
 /* ================= DATE HELPERS ================= */
 
-// function getDateForDay(weekStart: string, dayIndex: number): string {
-//   const [y, m, d] = weekStart.split("-").map(Number);
-//   const date = new Date(y, m - 1, d); // LOCAL date
-//   date.setDate(date.getDate() + dayIndex);
-//   return date.toISOString().slice(0, 10);
-// }
-function getDateForDay(weekStart: string, dayIndex: number): string {
+function getDateForDay(weekStart: string, offset: number): string {
   const [y, m, d] = weekStart.split("-").map(Number);
-
-  // Manual day addition, no Date object
-  const base = new Date(y, m - 1, d);
-  base.setDate(base.getDate() + dayIndex);
-
-  const yyyy = base.getFullYear();
-  const mm = String(base.getMonth() + 1).padStart(2, "0");
-  const dd = String(base.getDate()).padStart(2, "0");
-
-  return `${yyyy}-${mm}-${dd}`;
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + offset);
+  return base.toISOString().slice(0, 10);
 }
 
 export default function DriverDutyRoasterPage() {
@@ -71,7 +59,7 @@ export default function DriverDutyRoasterPage() {
     try {
       setLoading(true);
       const from = weekStartDate;
-      const to = getDateForDay(weekStartDate, 6);
+      const to = getDateForDay(weekStartDate, 7);
 
       const duties = await getDriverDutiesByRange(from, to);
 
@@ -85,10 +73,9 @@ export default function DriverDutyRoasterPage() {
             duties: {},
           };
         }
-
         if (d.duty_date) {
-          const dateKey = d.duty_date.slice(0, 10);
-          grouped[d.driver_id].duties[dateKey] = d;
+          const dataKey = toISODateKey(d.duty_date);
+          grouped[d.driver_id].duties[dataKey] = d;
         }
       }
 
@@ -181,6 +168,10 @@ export default function DriverDutyRoasterPage() {
     const cellsByDay = WEEK_DAYS.reduce((acc, day) => {
       const date = datesByDay[day];
       const duty = row.duties[date];
+      console.log("Sunday lookup:", {
+        expected: getDateForDay(weekStartDate, 6),
+        keys: Object.keys(row.duties),
+      });
 
       acc[day] = (
         <div
