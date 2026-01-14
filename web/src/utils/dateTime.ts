@@ -17,7 +17,7 @@ export function formatDateTime(date?: string) {
     minute: "2-digit",
   });
 }
-function to24Hour(
+export function to24Hour(
   hour: number,
   minute: string,
   meridiem: "AM" | "PM"
@@ -97,5 +97,26 @@ export function formatISTTime(value?: string) {
     minute: "2-digit",
     hour12: true,
   });
+}
+// ==========================
+// API DATE HELPERS (ISO)
+// ==========================
+
+/**
+ * Converts DD-MM-YYYY → YYYY-MM-DD
+ * Used ONLY for backend API calls
+ */
+export function toISODate(ddmmyyyy?: string | null): string | undefined {
+  if (!ddmmyyyy) return undefined;
+
+  // Accept already-ISO values safely
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ddmmyyyy)) {
+    return ddmmyyyy;
+  }
+
+  const [dd, mm, yyyy] = ddmmyyyy.split("-");
+  if (!dd || !mm || !yyyy) return undefined;
+
+  return `${yyyy}-${mm}-${dd}`;
 }
 

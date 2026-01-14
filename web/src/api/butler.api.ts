@@ -6,6 +6,18 @@ export async function getActiveButlers() {
   return safeGet<any[]>("/butlers");
 }
 
+export async function getButlerTable(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  status?: string;
+}) {
+  const res = await api.get("/butlers/table", { params });
+  return res.data;
+}
+
 // GET all (active + inactive)
 export async function getAllButlers() {
   return safeGet<any[]>("/butlers/all");

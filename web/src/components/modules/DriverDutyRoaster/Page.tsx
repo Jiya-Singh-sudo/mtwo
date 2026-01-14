@@ -3,6 +3,20 @@ import { Clock, Edit, X } from "lucide-react";
 import { getDriverDutiesByRange, updateDriverDuty, createDriverDuty } from "../../../api/driverDuty.api";
 import { DriverDuty, DriverWeeklyRow } from "@/types/driverDuty";
 import "./DriverDutyRoaster.css";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import React from "react";
+
+type DriverDutyTableRow = {
+  driver_id: string;
+  driver_name: string;
+  mon: React.ReactNode;
+  tue: React.ReactNode;
+  wed: React.ReactNode;
+  thu: React.ReactNode;
+  fri: React.ReactNode;
+  sat: React.ReactNode;
+  sun: React.ReactNode;
+};
 
 /* ================= DATE HELPERS ================= */
 
@@ -89,6 +103,56 @@ export default function DriverDutyRoasterPage() {
     );
   };
 
+  const tableData: DriverDutyTableRow[] = rosters.map((row) => {
+    const dates = [0, 1, 2, 3, 4, 5, 6].map((i) =>
+      getDateForDay(weekStartDate, i)
+    );
+
+    const cells = dates.map((date) => {
+      const duty = row.duties[date];
+
+      return (
+        <div className={`dayCell ${duty ? "hasDuty" : ""} ${duty?.is_week_off ? "weekOff" : ""}`}>
+          {renderDay(
+            duty?.duty_in_time,
+            duty?.duty_out_time,
+            duty?.is_week_off
+          )}
+
+          <button
+            className="editBtn"
+            onClick={() =>
+              setEditForm(
+                duty ?? {
+                  driver_id: row.driver_id,
+                  duty_date: date,
+                  shift: "morning",
+                  duty_in_time: null,
+                  duty_out_time: null,
+                  is_week_off: false,
+                }
+              )
+            }
+          >
+            <Edit size={14} />
+          </button>
+        </div>
+      );
+    });
+
+    return {
+      driver_id: row.driver_id,
+      driver_name: row.driver_name ?? "",
+      mon: cells[0],
+      tue: cells[1],
+      wed: cells[2],
+      thu: cells[3],
+      fri: cells[4],
+      sat: cells[5],
+      sun: cells[6],
+    };
+  });
+
   function shiftWeek(weekStart: string, days: number) {
     const [y, m, d] = weekStart.split("-").map(Number);
     const date = new Date(Date.UTC(y, m - 1, d + days));
@@ -143,6 +207,54 @@ export default function DriverDutyRoasterPage() {
   if (loading) return <p className="p-6">Loading duty roaster…</p>;
   if (error) return <p className="p-6 text-red-600">{error}</p>;
 
+  const page = 1;
+  const limit = tableData.length || 1;
+  const totalCount = tableData.length;
+  const sortBy = "driver_name";
+  const sortOrder: "asc" | "desc" = "asc";
+
+  const driverColumns: Column<DriverDutyTableRow>[] = [
+    {
+      header: "Driver Name",
+      accessor: "driver_name",
+    },
+    {
+      header: "Mon",
+      accessor: "mon",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Tue",
+      accessor: "tue",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Wed",
+      accessor: "wed",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Thu",
+      accessor: "thu",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Fri",
+      accessor: "fri",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Sat",
+      accessor: "sat",
+      cell: ({ value }) => value,
+    },
+    {
+      header: "Sun",
+      accessor: "sun",
+      cell: ({ value }) => value,
+    },
+  ];
+
   /* ================= UI ================= */
 
   return (
@@ -166,63 +278,25 @@ export default function DriverDutyRoasterPage() {
       </div>
 
       <div className="rosterTableWrapper">
-        <table className="rosterTable">
-          <thead>
-            <tr>
-              <th>Driver Name</th>
-              <th>Mon</th>
-              <th>Tue</th>
-              <th>Wed</th>
-              <th>Thu</th>
-              <th>Fri</th>
-              <th>Sat</th>
-              <th>Sun</th>
-            </tr>
-          </thead>
+        <div className="rosterTable">
+        <div className="bg-white border rounded-sm overflow-hidden">
 
-          <tbody>
-            {rosters.map((row) => (
-              <tr key={row.driver_id}>
-                <td>{row.driver_name}</td>
-
-                {[0, 1, 2, 3, 4, 5, 6].map((offset) => {
-                  const date = getDateForDay(weekStartDate, offset);
-                  const duty = row.duties[date];
-
-                  return (
-                    <td key={date} className={`dayCell ${duty ? "hasDuty" : ""} ${
-                        duty?.is_week_off ? "weekOff" : ""
-                      }`}>
-                      {renderDay(
-                        duty?.duty_in_time,
-                        duty?.duty_out_time,
-                        duty?.is_week_off
-                      )}
-
-                      <button
-                        className="editBtn"
-                        onClick={() =>
-                          setEditForm(
-                            duty ?? {
-                              driver_id: row.driver_id,
-                              duty_date: date,
-                              shift: "morning",
-                              duty_in_time: null,
-                              duty_out_time: null,
-                              is_week_off: false,
-                            }
-                          )
-                        }
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          data={tableData}
+          columns={driverColumns}
+          keyField="driver_id"
+          loading={loading}
+          page={page}
+          limit={limit}
+          totalCount={totalCount}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onPageChange={() => {}}
+          onSortChange={() => {}}
+          onLimitChange={() => {}}
+        />
+        </div>
+        </div>
       </div>
 
       {/* ================= EDIT MODAL ================= */}

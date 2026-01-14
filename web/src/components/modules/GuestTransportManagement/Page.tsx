@@ -3,12 +3,7 @@ import { Car, UserCheck, X } from "lucide-react";
 import "./GuestTransportManagement.css";
 import { Input } from "@/components/ui/input";
 import GuestTransportCardSkeleton from "@/components/skeletons/GuestTransportCardSkeleton";
-import {
-  formatISTDateTime,
-  formatISTDate,
-  toDateTimeLocal,
-  formatISTTime
-} from "../../../utils/dateTime";
+import { formatISTDateTime, formatISTDate, toDateTimeLocal, formatISTTime} from "../../../utils/dateTime";
 import TimePicker12h from "@/components/common/TimePicker12h"
 import {
   // getActiveGuests,
@@ -141,7 +136,15 @@ function GuestTransportManagement() {
     async function load() {
       GuestTable.setLoading(true);
       try {
-        const res = await getGuestTransportTable(GuestTable.query);
+        const { entryDateFrom, entryDateTo, ...rest } = GuestTable.query;
+
+        const res = await getGuestTransportTable({
+          ...rest,
+          ...(entryDateFrom ? { entryDateFrom } : {}),
+          ...(entryDateTo ? { entryDateTo } : {}),
+        }); 
+
+        console.log("Guest Transport Table Response:", res);
         const adaptedRows: GuestTransportRow[] = res.data.map((guest: any) => ({
           guest,
           driver: null,
@@ -335,10 +338,12 @@ function GuestTransportManagement() {
             <button
               className="secondaryBtn"
               onClick={() => {
-                GuestTable.setStatus("All");
-                GuestTable.setEntryDateFrom("");
-                GuestTable.setEntryDateTo("");
-                GuestTable.setPage(1);
+                GuestTable.batchUpdate(() => ({
+                  page: 1,
+                  limit: GuestTable.query.limit,
+                  sortBy: "entry_date",
+                  sortOrder: "desc",
+                }));
               }}
             >
               Reset

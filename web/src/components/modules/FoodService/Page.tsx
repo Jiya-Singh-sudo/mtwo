@@ -3,19 +3,27 @@ import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2
 import "./FoodService.css";
 import { getFoodDashboard, updateFoodStatus, getTodayGuestOrders } from "@/api/guestFood.api";
 import { FoodDashboard, GuestMealUI } from "../../../types/guestFood";
-import { getActiveButlers, createButler, updateButler, softDeleteButler } from "@/api/butler.api";
+import { getActiveButlers, createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, softDeleteGuestButler } from "@/api/guestButler.api";
+import { useTableQuery } from "@/hooks/useTableQuery";
+import { Butler } from "@/types/butler";
+import { DataTable, type Column } from "@/components/ui/DataTable";
 
 /* ---------------- TYPES ---------------- */
-type Butler = {
-  butler_id: string;
-  butler_name: string;
-  shift: string;
-  is_active: boolean;
-};
+// type Butler = {
+//   butler_id: string;
+//   butler_name: string;
+//   shift: string;
+//   is_active: boolean;
+// };
 type ButlerMode = "add" | "view" | "edit";
 
 export function FoodService() {
+  const butlerTable = useTableQuery({
+    sortBy: "butler_name",
+    sortOrder: "asc",
+  });
+
   /* ---------------- TAB STATE ---------------- */
   const [activeTab, setActiveTab] =
     useState<"butler" | "food">("food");
@@ -27,7 +35,7 @@ export function FoodService() {
 
   /* ---------------- BUTLER MANAGEMENT STATE ---------------- */
   const [butlers, setButlers] = useState<Butler[]>([]);
-  const [loadingButlers, setLoadingButlers] = useState(false);
+  // const [loadingButlers, setLoadingButlers] = useState(false);
   const [guestOrders, setGuestOrders] = useState<any[]>([]);
   // const [collapsedMeals, setCollapsedMeals] = useState<string[]>([]);
 
@@ -82,16 +90,42 @@ export function FoodService() {
   }
 
   async function loadButlers() {
-    setLoadingButlers(true);
+    butlerTable.setLoading(true);
     try {
-      const res = await getActiveButlers();
-      setButlers(res);
+      const res = await getButlerTable({
+        page: butlerTable.query.page,
+        limit: butlerTable.query.limit,
+        search: butlerTable.query.search,
+        sortBy: butlerTable.query.sortBy,
+        sortOrder: butlerTable.query.sortOrder,
+        status: butlerTable.query.status,
+      });
+
+      setButlers(res.data);
+      butlerTable.setTotal(res.totalCount);
     } catch (err) {
       console.error("Failed to load butlers", err);
     } finally {
-      setLoadingButlers(false);
+      butlerTable.setLoading(false);
     }
   }
+  // async function loadButlers() {
+  //   setLoadingButlers(true);
+  //   try {
+  //     const res = await getActiveButlers();
+  //     setButlers(res);
+  //   } catch (err) {
+  //     console.error("Failed to load butlers", err);
+  //   } finally {
+  //     setLoadingButlers(false);
+  //   }
+  // }
+
+  useEffect(() => {
+    if (activeTab === "butler") {
+      loadButlers();
+    }
+  }, [butlerTable.query, activeTab]);
 
   useEffect(() => {
     loadFoodData();
@@ -138,14 +172,34 @@ export function FoodService() {
   function openViewButler(butler: Butler) {
     setButlerMode("view");
     setActiveButler(butler);
-    setButlerForm({ ...butler } as any);
+    setButlerForm({
+      butler_name: butler.butler_name,
+      butler_name_local_language: butler.butler_name_local_language ?? "",
+      butler_mobile: String(butler.butler_mobile ?? ""),
+      butler_alternate_mobile: butler.butler_alternate_mobile
+        ? String(butler.butler_alternate_mobile)
+        : "",
+      shift: butler.shift,
+      address: butler.address ?? "",
+      remarks: butler.remarks ?? "",
+    });
     setButlerModalOpen(true);
   }
 
   function openEditButler(butler: Butler) {
     setButlerMode("edit");
     setActiveButler(butler);
-    setButlerForm({ ...butler } as any);
+    setButlerForm({
+      butler_name: butler.butler_name,
+      butler_name_local_language: butler.butler_name_local_language ?? "",
+      butler_mobile: String(butler.butler_mobile ?? ""),
+      butler_alternate_mobile: butler.butler_alternate_mobile
+        ? String(butler.butler_alternate_mobile)
+        : "",
+      shift: butler.shift,
+      address: butler.address ?? "",
+      remarks: butler.remarks ?? "",
+    });
     setButlerModalOpen(true);
   }
   async function removeButler(butler: Butler) {
@@ -386,6 +440,49 @@ export function FoodService() {
   const dinnerGuests: GuestMealUI[] = guestOrders.filter((o) => o.meal === "Dinner").map(mapToGuestMealUI);
   const otherGuests: GuestMealUI[] = guestOrders.filter(o => o.meal === "Other").map(mapToGuestMealUI);
 
+  const butlerColumns: Column<Butler>[] = [
+    {
+      header: "Butler ID",
+      accessor: "butler_id",
+      sortable: true,
+      sortKey: "butler_id",
+    },
+    {
+      header: "Name",
+      accessor: "butler_name",
+      sortable: true,
+      sortKey: "butler_name",
+    },
+    {
+      header: "Shift",
+      accessor: "shift",
+      sortable: true,
+      sortKey: "shift",
+    },
+    {
+      header: "Status",
+      sortable: true,
+      sortKey: "is_active",
+      render: (b) => (b.is_active ? "Active" : "Inactive"),
+    },
+    {
+      header: "Actions",
+      render: (b) => (
+        <div className="actionCell">
+          <button className="iconBtn" onClick={() => openViewButler(b as any)}>
+            <Eye size={16} />
+          </button>
+          <button className="iconBtn edit" onClick={() => openEditButler(b as any)}>
+            <FileEdit size={16} />
+          </button>
+          <button className="iconBtn delete" onClick={() => removeButler(b as any)}>
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   /* ---------------- RENDER ---------------- */
   return (
     <div className="foodServicePage">
@@ -493,7 +590,21 @@ export function FoodService() {
               <Plus size={16} /> Add Butler
             </button>
           </div>
-          {loadingButlers && <p>Loading butlers…</p>}
+          <DataTable
+            data={butlers}
+            columns={butlerColumns}
+            keyField="butler_id"
+            page={butlerTable.query.page}
+            limit={butlerTable.query.limit}
+            totalCount={butlerTable.total}
+            sortBy={butlerTable.query.sortBy}
+            sortOrder={butlerTable.query.sortOrder}
+            loading={butlerTable.loading}
+            onPageChange={butlerTable.setPage}
+            onLimitChange={butlerTable.setLimit}
+            onSortChange={butlerTable.setSort}
+          />
+          {/* {loadingButlers && <p>Loading butlers…</p>}
 
           {!loadingButlers && (
             <table className="nicTable">
@@ -532,7 +643,7 @@ export function FoodService() {
                 ))}
               </tbody>
             </table>
-          )}
+          )} */}
         </div>
       )}
 
@@ -699,7 +810,7 @@ export function FoodService() {
                 >
                   <option value="">Select Butler</option>
                   {butlers.map((b) => (
-                    <option key={b.butler_id} value={b.butler_id}>
+                    <option key={b.butler_id} value={String(b.butler_id)}>
                       {b.butler_name} ({b.shift})
                     </option>
                   ))}

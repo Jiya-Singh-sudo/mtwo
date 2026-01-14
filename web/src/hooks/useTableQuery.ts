@@ -76,10 +76,10 @@ export function useTableQuery(
         if (query.search) params[key("search")] = query.search;
         if (query.status)
             params[key("status")] = query.status;
-        if (query.entryDateFrom)
-            params[key("entryDateFrom")] = query.entryDateFrom;
-        if (query.entryDateTo)
-            params[key("entryDateTo")] = query.entryDateTo;
+        // if (query.entryDateFrom)
+        //     params[key("entryDateFrom")] = query.entryDateFrom;
+        // if (query.entryDateTo)
+        //     params[key("entryDateTo")] = query.entryDateTo;
 
         setSearchParams(params, { replace: true });
     }, [query, setSearchParams]);

@@ -1,5 +1,5 @@
 export interface Butler {
-  butler_id: number;
+  butler_id: string;
 
   butler_name: string;
   butler_name_local_language?: string | null;
