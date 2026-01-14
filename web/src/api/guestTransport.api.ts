@@ -13,6 +13,7 @@ export async function getGuestTransportTable(query: TableQuery) {
   );
 
   const res = await api.get("/guest-transport/table", {
+  // const res = await api.get("/guests/active", {
     params: cleanParams,
   });
 

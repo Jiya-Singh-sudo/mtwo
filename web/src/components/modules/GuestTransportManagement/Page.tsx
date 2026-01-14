@@ -142,8 +142,12 @@ function GuestTransportManagement() {
       GuestTable.setLoading(true);
       try {
         const res = await getGuestTransportTable(GuestTable.query);
-        console.log("Guest Transport api response:", res);
-        setRows(res.data);
+        const adaptedRows: GuestTransportRow[] = res.data.map((guest: any) => ({
+          guest,
+          driver: null,
+          vehicle: null,
+        }));
+        setRows(adaptedRows);
         GuestTable.setTotal(res.totalCount);
       } finally {
         GuestTable.setLoading(false);
