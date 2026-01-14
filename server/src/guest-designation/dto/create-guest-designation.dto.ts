@@ -1,8 +1,25 @@
+import { IsOptional, IsString } from 'class-validator';
+
 export class CreateGuestDesignationDto {
-  guest_id!: number | string;
-  designation_id!: string;         // provided by frontend
-  designation_name?: string;       // if provided, create/upsert m_designation
+  @IsString()
+  guest_id!: string;
+
+  @IsString()
+  designation_id!: string; // provided by frontend
+
+  @IsOptional()
+  @IsString()
+  designation_name?: string; // triggers upsert in service
+
+  @IsOptional()
+  @IsString()
   department?: string;
+
+  @IsOptional()
+  @IsString()
   organization?: string;
+
+  @IsOptional()
+  @IsString()
   office_location?: string;
 }

@@ -1,9 +1,28 @@
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+} from 'class-validator';
+
 export class CreateDriverDto {
-driver_name: string;
-driver_name_ll:string;
-driver_contact: string;
-driver_alternate_contact: string;
-driver_license: string;
-driver_mail: string;
-address: string;
+  @IsString()
+  driver_name: string;
+
+  @IsString()
+  driver_name_ll: string;
+
+  @IsString()
+  driver_contact: string;
+
+  @IsString()
+  driver_alternate_contact: string;
+
+  @IsString()
+  driver_license: string;
+
+  @IsEmail()
+  driver_mail: string;
+
+  @IsString()
+  address: string;
 }

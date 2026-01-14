@@ -1,4 +1,4 @@
-export class CreateRoleDto {
+export class DeleteRoleDto {
   role_name: string;
   role_desc: string;
   is_active: number;
