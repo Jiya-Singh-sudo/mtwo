@@ -3,10 +3,12 @@ import { Edit, Trash2 } from 'lucide-react';
 import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
-import { getAllVehicles, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
-import { fetchDrivers, createDriver, softDeleteDriver } from '../../../api/driver.api';
+import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
+import { getDriversTable, createDriver, softDeleteDriver } from '../../../api/driver.api';
 import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { Column, DataTable } from '@/components/ui/DataTable';
 
 interface Vehicle {
   vehicle_no: string;
@@ -42,58 +44,36 @@ interface Driver {
 }
 
 export function VehicleManagement() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [vehicleLoading, setVehicleLoading] = useState(true);
-  useEffect(() => {
-    async function loadVehicles() {
-      try {
-        const data = await getAllVehicles();
-        setVehicles(data);
-      } catch (err) {
-        console.error('Failed to load vehicles', err);
-      } finally {
-        setVehicleLoading(false);
-      }
-    }
+  // useEffect(() => {
+  //   async function loadDrivers() {
+  //     try {
+  //       const data = await fetchDrivers();
 
-    loadVehicles();
-  }, []);
+  //       const normalized = data.map((d: any) => ({
+  //         driver_id: d.driver_id,
+  //         driver_name: d.driver_name,
+  //         driver_name_ll: d.driver_name_local_language,
+  //         driver_contact: d.driver_contact,
+  //         driver_alternate_contact: d.driver_alternate_mobile,
+  //         driver_license: d.driver_license,
+  //         address: d.address,
+  //         is_active: d.is_active,
+  //         inserted_at: d.inserted_at,
+  //       }));
 
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [driverLoading, setDriverLoading] = useState(true);
-  useEffect(() => {
-    async function loadDrivers() {
-      try {
-        const data = await fetchDrivers();
+  //       setDrivers(normalized);
+  //     } catch (err) {
+  //       console.error('Failed to load driver', err);
+  //     } finally {
+  //       setDriverLoading(false);
+  //     }
+  //   }
 
-        const normalized = data.map((d: any) => ({
-          driver_id: d.driver_id,
-          driver_name: d.driver_name,
-          driver_name_ll: d.driver_name_local_language,
-          driver_contact: d.driver_contact,
-          driver_alternate_contact: d.driver_alternate_mobile,
-          driver_license: d.driver_license,
-          address: d.address,
-          is_active: d.is_active,
-          inserted_at: d.inserted_at,
-        }));
+  //   loadDrivers();
+  // }, []);
 
-        setDrivers(normalized);
-      } catch (err) {
-        console.error('Failed to load driver', err);
-      } finally {
-        setDriverLoading(false);
-      }
-    }
-
-    loadDrivers();
-  }, []);
-
-  const [searchQuery, _setSearchQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-  const [vehicleFilter, setVehicleFilter] = useState<"ALL" | "ACTIVE">("ALL");
-  const [driverFilter, setDriverFilter] = useState<"ALL" | "ACTIVE">("ALL");
   const [activeTab, setActiveTab] = useState<"vehicles" | "drivers">("vehicles");
 
   // Vehicle modals
@@ -106,6 +86,52 @@ export function VehicleManagement() {
   const [showEditDriver, setShowEditDriver] = useState(false);
   const [showDeleteDriverConfirm, setShowDeleteDriverConfirm] = useState(false);
 
+  const vehicleTable = useTableQuery({
+    prefix: "vehicles",
+    sortBy: 'vehicle_name',
+    sortOrder: 'asc',
+    limit: 10,
+  });
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const driverTable = useTableQuery({
+    prefix: "drivers",
+    sortBy: 'driver_name',
+    sortOrder: 'asc',
+    limit: 10,
+  });
+
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+
+  useEffect(() => {
+    async function load() {
+      vehicleTable.setLoading(true);
+      try {
+        const res = await getVehiclesTable(vehicleTable.query);
+        setVehicles(res.data);
+        vehicleTable.setTotal(res.totalCount);
+      } finally {
+        vehicleTable.setLoading(false);
+      }
+    }
+
+    load();
+  }, [vehicleTable.query]);
+
+  useEffect(() => {
+    async function load() {
+      driverTable.setLoading(true);
+      try {
+        const res = await getDriversTable(driverTable.query);
+        setDrivers(res.data);
+        driverTable.setTotal(res.totalCount);
+      } finally {
+        driverTable.setLoading(false);
+      }
+    }
+
+    load();
+  }, [driverTable.query]);
 
   const [vehicleFormData, setVehicleFormData] = useState<{
     vehicle_no: string;
@@ -144,8 +170,8 @@ export function VehicleManagement() {
   // Vehicle handlers
   const handleAddVehicle = async () => {
     try {
-      const saved = await createVehicle(vehicleFormData);
-      setVehicles(prev => [...prev, saved]);
+      await createVehicle(vehicleFormData);
+      vehicleTable.setPage(1);
       setShowAddVehicle(false);
       resetVehicleForm();
     } catch (error) {
@@ -180,9 +206,7 @@ export function VehicleManagement() {
 
     await softDeleteVehicle(selectedVehicle.vehicle_no);
 
-    setVehicles(prev =>
-      prev.filter(v => v.vehicle_no !== selectedVehicle.vehicle_no)
-    );
+    vehicleTable.setPage(1);
 
     setShowDeleteVehicleConfirm(false);
   };
@@ -229,8 +253,8 @@ export function VehicleManagement() {
         address: driverFormData.address,
       };
 
-      const saved = await createDriver(payload);
-      setDrivers(prev => [...prev, saved]);
+      await createDriver(payload);
+      driverTable.setPage(1);
       setShowAddDriver(false);
       resetDriverForm();
     } catch (error) {
@@ -251,9 +275,7 @@ export function VehicleManagement() {
   const handleDeleteDriver = async () => {
     if (!selectedDriver) return;
     await softDeleteDriver(selectedDriver.driver_id);
-    setDrivers(prev =>
-      prev.filter(v => v.driver_id !== selectedDriver.driver_id)
-    );
+    driverTable.setPage(1);
     setShowDeleteDriverConfirm(false);
     setSelectedDriver(null);
   };
@@ -287,27 +309,107 @@ export function VehicleManagement() {
     });
   };
 
-  const filteredVehicles = vehicles
-    .filter(v =>
-      vehicleFilter === "ALL" ? true : v.is_active
-    )
-    .filter(v =>
-      v.vehicle_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.vehicle_name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  // const filteredVehicles = vehicles
+  //   .filter(v =>
+  //     vehicleFilter === "ALL" ? true : v.is_active
+  //   )
+  //   .filter(v =>
+  //     v.vehicle_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     v.vehicle_name.toLowerCase().includes(searchQuery.toLowerCase())
+  //   );
 
+  // const filteredDrivers = drivers
+  //   .filter(d =>
+  //     driverFilter === "ALL" ? true : d.is_active
+  //   )
+  //   .filter(driver =>
+  //     driver.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     driver.driver_contact.toLowerCase().includes(searchQuery.toLowerCase())
+  //   );
 
+  const vehicleColumns: Column<Vehicle>[] = [
+    {
+      header: 'Vehicle No',
+      accessor: 'vehicle_no',
+      sortable: true,
+      sortKey: 'vehicle_no',
+    },
+    {
+      header: 'Vehicle Name',
+      accessor: 'vehicle_name',
+      sortable: true,
+      sortKey: 'vehicle_name',
+    },
+    {
+      header: 'Model',
+      accessor: 'model',
+    },
+    {
+      header: 'Manufacturing',
+      accessor: 'manufacturing',
+      sortable: true,
+      sortKey: 'manufacturing',
+    },
+    {
+      header: 'Capacity',
+      accessor: 'capacity',
+    },
+    {
+      header: 'Actions',
+      render: (row: Vehicle) => (
+        <div className="flex gap-2">
+          <button onClick={() => openEditVehicleModal(row)}>
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => openDeleteVehicleDialog(row)}>
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
-  const filteredDrivers = drivers
-    .filter(d =>
-      driverFilter === "ALL" ? true : d.is_active
-    )
-    .filter(driver =>
-      driver.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      driver.driver_contact.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-
+  const driverColumns: Column<Driver>[] = [
+    {
+      header: 'Driver Name',
+      accessor: 'driver_name',
+      sortable: true,
+      sortKey: 'driver_name',
+    },
+    {
+      header: 'Name (Local)',
+      accessor: 'driver_name_ll',
+    },
+    {
+      header: 'Contact',
+      accessor: 'driver_contact',
+      sortable: true,
+      sortKey: 'driver_contact',
+    },
+    {
+      header: 'License',
+      accessor: 'driver_license',
+      sortable: true,
+      sortKey: 'driver_license',
+    },
+    {
+      header: 'Address',
+      accessor: 'address',
+    },
+    {
+      header: 'Actions',
+      render: (row: Driver) => (
+        <div className="flex gap-2">
+          <button onClick={() => openEditDriverModal(row)}>
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => openDeleteDriverDialog(row)}>
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -320,18 +422,18 @@ export function VehicleManagement() {
       <div className="statsGrid">
         <div
           className="statCard blue"
-          onClick={() => setVehicleFilter("ALL")}
+          onClick={() => {vehicleTable.setPage(1); vehicleTable.setSort('vehicle_name', 'asc');}}
         >
           <Car />
           <div>
             <p>Total Vehicles</p>
-            <h3>{vehicles.length}</h3>
+            <h3>{vehicleTable.total}</h3>
           </div>
         </div>
 
         <div
           className="statCard green"
-          onClick={() => setVehicleFilter("ACTIVE")}
+          onClick={() => {vehicleTable.setPage(1);}}
         >
           <CheckCircle />
           <div>
@@ -342,23 +444,28 @@ export function VehicleManagement() {
 
         <div
           className="statCard orange"
-          onClick={() => setDriverFilter("ALL")}
+          onClick={() => {
+            driverTable.setPage(1);
+            driverTable.setSort('driver_name', 'asc');
+          }}
         >
           <Users />
           <div>
             <p>Total Drivers</p>
-            <h3>{drivers.length}</h3>
+            <h3>{driverTable.total}</h3>
           </div>
         </div>
 
         <div
           className="statCard purple"
-          onClick={() => setDriverFilter("ACTIVE")}
+          onClick={() => {
+            driverTable.setPage(1);
+          }}
         >
           <AlertCircle />
           <div>
             <p>Active Drivers</p>
-            <h3>{drivers.filter(d => d.is_active).length}</h3>
+            <h3>-</h3>
           </div>
         </div>
       </div>
@@ -381,144 +488,64 @@ export function VehicleManagement() {
       {/* VEHICLES TAB */}
       {activeTab === "vehicles" && (
         <>
+          <div className="flex items-center justify-between mb-3">
+            <Input
+              placeholder="Search vehicle no or name…"
+              value={vehicleTable.searchInput}
+              onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
+              className="w-64"
+            />
+          </div>
           {/* Vehicle List Table */}
-          {vehicleLoading ? (
-            <div className="bg-white border border-gray-200 rounded-sm p-6 text-sm text-gray-500">
-              Loading vehicles…
-            </div>
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#F5A623] text-white">
-                      <th className="px-4 py-3 text-left text-sm">Vehicle No</th>
-                      <th className="px-4 py-3 text-left text-sm">Vehicle Name</th>
-                      <th className="px-4 py-3 text-left text-sm">Model</th>
-                      <th className="px-4 py-3 text-left text-sm">Manufacturing</th>
-                      <th className="px-4 py-3 text-left text-sm">Color</th>
-                      <th className="px-4 py-3 text-left text-sm">Capacity</th>
-                      <th className="px-4 py-3 text-left text-sm">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredVehicles.map((vehicle, index) => (
-                      <tr key={`${vehicle.vehicle_no ?? vehicle.vehicle_name}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
-                          {vehicle.vehicle_no}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {vehicle.vehicle_name}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {vehicle.model ?? '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {vehicle.manufacturing ?? '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {vehicle.capacity ?? '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {vehicle.color ?? '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditVehicleModal(vehicle)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openDeleteVehicleDialog(vehicle)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <DataTable
+            data={vehicles}
+            columns={vehicleColumns}
+            keyField="vehicle_no"
+
+            page={vehicleTable.query.page}
+            limit={vehicleTable.query.limit}
+            totalCount={vehicleTable.total}
+
+            sortBy={vehicleTable.query.sortBy}
+            sortOrder={vehicleTable.query.sortOrder}
+            loading={vehicleTable.loading}
+
+            onPageChange={vehicleTable.setPage}
+            onLimitChange={vehicleTable.setLimit}
+            onSortChange={vehicleTable.setSort}
+          />
+
         </>
       )}
 
       {/* DRIVERS TAB */}
       {activeTab === "drivers" && (
         <>
+        <Input
+          placeholder="Search name, contact or license…"
+          value={driverTable.searchInput}
+          onChange={(e) => driverTable.setSearchInput(e.target.value)}
+          className="w-64 mb-3"
+        />
+
           {/* Driver List Table */}
-          {driverLoading ? (
-            <div className="bg-white border border-gray-200 rounded-sm p-6 text-sm text-gray-500">
-              Loading drivers…
-            </div>
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#F5A623] text-white">
-                      <th className="px-4 py-3 text-left text-sm">Driver Name</th>
-                      <th className="px-4 py-3 text-left text-sm">Driver Name in Local Language</th>
-                      <th className="px-4 py-3 text-left text-sm">Contact</th>
-                      <th className="px-4 py-3 text-left text-sm">Alternate Contact</th>
-                      <th className="px-4 py-3 text-left text-sm">License No</th>
-                      <th className="px-4 py-3 text-left text-sm">Address</th>
-                      <th className="px-4 py-3 text-left text-sm">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredDrivers.map((driver, index) => (
-                      <tr key={`${driver.driver_id ?? 'tmp'}-${driver.driver_contact}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-900">
-                          {driver.driver_name}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_name_ll || '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_contact}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_alternate_contact || '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.driver_license}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200 text-sm text-gray-700">
-                          {driver.address || '-'}
-                        </td>
-                        <td className="px-4 py-3 border-t border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditDriverModal(driver)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openDeleteDriverDialog(driver)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+        <DataTable
+          data={drivers}
+          columns={driverColumns}
+          keyField="driver_id"
+
+          page={driverTable.query.page}
+          limit={driverTable.query.limit}
+          totalCount={driverTable.total}
+
+          sortBy={driverTable.query.sortBy}
+          sortOrder={driverTable.query.sortOrder}
+          loading={driverTable.loading}
+
+          onPageChange={driverTable.setPage}
+          onLimitChange={driverTable.setLimit}
+          onSortChange={driverTable.setSort}
+        />
         </>
       )}
 

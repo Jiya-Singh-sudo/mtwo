@@ -3,9 +3,28 @@ import { AssignGuestVehiclePayload } from "../types/guestVehicle";
 import { AssignGuestDriverPayload } from "../types/guestDriver";
 
 /* =======================
+   GUEST TRANSPORT — TABLE
+   ======================= */
+export async function getGuestTransportTable(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) {
+  const res = await api.get('/guest-transport/table', {
+    params,
+  });
+
+  return res.data as {
+    data: any[];
+    totalCount: number;
+  };
+}
+
+/* =======================
    READ — BASE GUEST LIST
    ======================= */
-
 export async function getActiveGuests(params?: {
   page?: number;
   limit?: number;
@@ -19,7 +38,6 @@ export async function getActiveGuests(params?: {
 /* =======================
    DRIVER — READ
    ======================= */
-
 // Active driver for a guest
 export async function getActiveDriverByGuest(guestId: string) {
   const res = await api.get(`/guest-driver/active/${guestId}`);
@@ -35,7 +53,6 @@ export async function getAssignableDrivers() {
 /* =======================
    DRIVER — WRITE
    ======================= */
-
 // Assign driver (creates trip)
 export async function assignDriverToGuest(payload: {
   guest_id: string;
@@ -51,7 +68,6 @@ export async function assignDriverToGuest(payload: {
   return res.data;
 }
 
-
 // Unassign driver
 export async function unassignDriver(guestDriverId: string) {
   const res = await api.delete(`/guest-driver/${guestDriverId}`);
@@ -61,7 +77,6 @@ export async function unassignDriver(guestDriverId: string) {
 /* =======================
    DRIVER — UPDATE
    ======================= */
-
 export async function updateDriverTrip(
   guestDriverId: string,
   payload: Partial<AssignGuestDriverPayload>
@@ -70,11 +85,9 @@ export async function updateDriverTrip(
   return res.data;
 }
 
-
 /* =======================
    VEHICLE — READ
    ======================= */
-
 // Vehicle assigned to a guest
 export async function getVehicleByGuest(guestId: string) {
   const res = await api.get(`/guest-vehicle/by-guest/${guestId}`);
@@ -90,7 +103,6 @@ export async function getAssignableVehicles() {
 /* =======================
    VEHICLE — WRITE
    ======================= */
-
 // Assign vehicle
 export async function assignVehicleToGuest(payload: {
   guest_id: string;
@@ -112,7 +124,6 @@ export async function unassignVehicle(guestVehicleId: string) {
 /* =======================
    VEHICLE — UPDATE
    ======================= */
-
 export async function updateVehicleAssignment(
   guestVehicleId: string,
   payload: Partial<AssignGuestVehiclePayload>

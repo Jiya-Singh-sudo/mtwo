@@ -2,6 +2,17 @@
 import api, { safeGet } from "./apiClient";
 import type { VehicleCreateDto, VehicleUpdateDto } from "../types/vehicles";
 
+export function getVehiclesTable(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}) {
+  return api.get('/vehicles/table', { params })
+    .then(res => res.data);
+}
+
 // GET /vehicles
 export async function getActiveVehicles() {
   return safeGet<any[]>("/vehicles");

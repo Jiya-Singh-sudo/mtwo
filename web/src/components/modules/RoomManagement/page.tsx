@@ -68,6 +68,15 @@ export function RoomManagement() {
     withGuest: 0,
     withHousekeeping: 0,
   });
+  type RoomCardFilter =
+    | "ALL"
+    | "AVAILABLE"
+    | "OCCUPIED"
+    | "WITH_GUEST"
+    | "WITH_HOUSEKEEPING";
+
+  const [activeCard, setActiveCard] = useState<RoomCardFilter>("ALL");
+
   // const [searchQuery, setSearchQuery] = useState("");
   /* ---------------- ASSIGN ROOM BOY ---------------- */
 
@@ -146,15 +155,17 @@ export function RoomManagement() {
   }, [
     roomTable.query.page,
     roomTable.query.limit,
-    roomTable.searchInput,
+    roomTable.query.search,
     roomTable.query.sortBy,
     roomTable.query.sortOrder,
     roomTable.query.status,
+    roomTable.query.entryDateFrom,
+    roomTable.query.entryDateTo,
   ]);
 
-  useEffect(() => {
-    roomTable.setSort("room_no", "asc");
-  }, []);
+  // useEffect(() => {
+  //   roomTable.setSort("room_no", "asc");
+  // }, []);
 
   // useEffect(() => {
   //   hkTable.setLoading(true);
@@ -166,10 +177,10 @@ export function RoomManagement() {
       const res = await getRoomManagementOverview({
         page: roomTable.query.page,
         limit: roomTable.query.limit,
-        search: roomTable.searchInput,
+        search: roomTable.query.search,
         sortBy: roomTable.query.sortBy,
         sortOrder: roomTable.query.sortOrder,
-        status: roomTable.query.status === "All" ? undefined : roomTable.query.status as "Available" | "Occupied" | undefined,
+        status: roomTable.query.status === "Available" || roomTable.query.status === "Occupied" ? roomTable.query.status : undefined,
         entryDateFrom: roomTable.query.entryDateFrom,
         entryDateTo: roomTable.query.entryDateTo,
       });
@@ -177,6 +188,7 @@ export function RoomManagement() {
       setRooms(res.data);
       roomTable.setTotal(res.totalCount);
       setRoomStats(res.stats);
+
     } finally {
       roomTable.setLoading(false);
     }
@@ -187,7 +199,7 @@ export function RoomManagement() {
       const res = await getActiveHousekeeping({
         page: hkTable.query.page,
         limit: hkTable.query.limit,
-        search: hkTable.searchInput,
+        search: hkTable.query.search,
         sortBy: hkTable.query.sortBy,
         sortOrder: hkTable.query.sortOrder,
       });
@@ -247,14 +259,13 @@ export function RoomManagement() {
     loadRoomBoysAndShifts();
   }, []);
 
-
   useEffect(() => {
     hkTable.setLoading(true);
     loadRoomBoys();
   }, [
     hkTable.query.page,
     hkTable.query.limit,
-    hkTable.searchInput,
+    hkTable.query.search,
     hkTable.query.sortBy,
     hkTable.query.sortOrder,
   ]);
@@ -499,6 +510,24 @@ export function RoomManagement() {
     setShowEditRoomBoy(true);
   };
 
+  function applyCardView(card: RoomCardFilter) {
+    setActiveCard(card);
+
+    roomTable.batchUpdate(prev => ({
+      ...prev,
+      page: 1,
+      status:
+        card === "AVAILABLE" ? "Available" :
+        card === "OCCUPIED" ? "Occupied" :
+        undefined,
+      sortBy:
+        card === "WITH_GUEST" ? "guest_name" :
+        card === "WITH_HOUSEKEEPING" ? "hk_name" :
+        "room_no",
+      sortOrder: "asc",
+    }));
+  }
+
   function validateField(
     schema: any,
     field: string,
@@ -655,36 +684,41 @@ export function RoomManagement() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
 
         <div
-          className={`statCard cursor-pointer ${!roomTable.query.status ? "ring-2 ring-blue-500" : ""
-            }`}
-          onClick={() => { roomTable.setStatus(undefined); roomTable.setPage(1); }}
+          className={`statCard cursor-pointer ${activeCard === "ALL" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => applyCardView("ALL")}
         >
           <p className="statLabel">All Rooms</p>
           <p className="statValue">{roomStats.total}</p>
         </div>
 
         <div
-          className="statCard bg-green-50 cursor-pointer"
-          onClick={() => { roomTable.setStatus("Available"); roomTable.setPage(1); }}
+          className={`statCard bg-green-50 cursor-pointer ${activeCard === "AVAILABLE" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => applyCardView("AVAILABLE")}
         >
           <p className="statLabel">Available</p>
           <p className="statValue">{roomStats.available}</p>
         </div>
 
         <div
-          className="statCard bg-red-50 cursor-pointer"
-          onClick={() => { roomTable.setStatus("Occupied"); roomTable.setPage(1); }}
+          className={`statCard bg-red-50 cursor-pointer ${activeCard === "OCCUPIED" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => applyCardView("OCCUPIED")}
         >
           <p className="statLabel">Occupied</p>
           <p className="statValue">{roomStats.occupied}</p>
         </div>
 
-        <div className="statCard bg-blue-50">
+        <div
+          className={`statCard bg-blue-50 cursor-pointer ${activeCard === "WITH_GUEST" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => applyCardView("WITH_GUEST")}
+        >
           <p className="statLabel">Guest Assigned</p>
           <p className="statValue">{roomStats.withGuest}</p>
         </div>
 
-        <div className="statCard bg-yellow-50">
+        <div
+          className={`statCard bg-yellow-50 cursor-pointer ${activeCard === "WITH_HOUSEKEEPING" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => applyCardView("WITH_HOUSEKEEPING")}
+        >
           <p className="statLabel">Housekeeping</p>
           <p className="statValue">{roomStats.withHousekeeping}</p>
         </div>
@@ -707,7 +741,7 @@ export function RoomManagement() {
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
                 placeholder="Search room, guest, residence..."
-                value={roomTable.searchInput ?? ""}
+                value={roomTable.query.search ?? ""}
                 onChange={(e) => roomTable.setSearchInput(e.target.value)}
               />
             </div>

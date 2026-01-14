@@ -8,6 +8,17 @@ export async function fetchDrivers() {
   return res.data;
 }
 
+export function getDriversTable(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}) {
+  return api.get('/drivers/table', { params })
+    .then(res => res.data);
+}
+
 /* WRITE: Add new driver */
 export async function createDriver(payload: {
   driver_name: string;
