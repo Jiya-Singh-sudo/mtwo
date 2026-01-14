@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock, Edit, X } from "lucide-react";
-
-import {
-  getDriverDutiesByRange,
-  updateDriverDuty,
-  createDriverDuty,
-} from "../../../api/driverDuty.api";
-
+import { getDriverDutiesByRange, updateDriverDuty, createDriverDuty } from "../../../api/driverDuty.api";
 import { DriverDuty, DriverWeeklyRow } from "@/types/driverDuty";
 import "./DriverDutyRoaster.css";
 

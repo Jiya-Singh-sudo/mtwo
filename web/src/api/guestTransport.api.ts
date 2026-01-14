@@ -6,17 +6,19 @@ import { TableQuery } from "@/types/table";
    GUEST TRANSPORT — TABLE
    ======================= */
 export async function getGuestTransportTable(query: TableQuery) {
+  const cleanParams = Object.fromEntries(
+    Object.entries(query).filter(
+      ([_, v]) => v !== "" && v !== undefined && v !== null
+    )
+  );
+
   const res = await api.get("/guest-transport/table", {
-    params: query,
+    params: cleanParams,
   });
 
   return {
-    data: res.data.data ?? [],
-    totalCount:
-      res.data.totalCount ??
-      res.data.count ??
-      res.data.total ??
-      0,
+    data: res.data.data,
+    totalCount: res.data.totalCount,
   };
 }
 
