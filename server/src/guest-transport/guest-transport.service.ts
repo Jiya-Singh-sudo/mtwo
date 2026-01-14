@@ -179,8 +179,8 @@ export class GuestTransportService {
 
     sqlParams.push(limit, offset);
     const dataRes = await this.db.query(dataSql, sqlParams);
-    console.log('WHERE:', where.join(' AND '));
-    console.log('PARAMS:', sqlParams);
+    // console.log('WHERE:', where.join(' AND '));
+    // console.log('PARAMS:', sqlParams);
 
 
     return {

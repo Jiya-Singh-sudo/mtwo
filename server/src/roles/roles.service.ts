@@ -105,8 +105,6 @@ export class RolesService {
 
     // 🔥 FIX: convert "1"/"0"/1/0/true/false → boolean
     const activeBool =
-      dto.is_active === "1" ||
-      dto.is_active === 1 ||
       dto.is_active === true;
 
     const sql = `

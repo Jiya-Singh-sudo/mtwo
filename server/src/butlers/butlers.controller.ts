@@ -1,9 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query, Headers, Ip } from '@nestjs/common';
 import { ButlersService } from './butlers.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
 import { ButlerTableQueryDto } from './dto/butler-table-query.dto';
-import { Headers, Ip } from '@nestjs/common/decorators/http/route-params.decorator';
 
 @Controller('butlers')
 export class ButlersController {
