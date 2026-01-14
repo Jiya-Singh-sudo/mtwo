@@ -23,9 +23,14 @@ type DriverDutyTableRow = {
 
 function getDateForDay(weekStart: string, offset: number): string {
   const [y, m, d] = weekStart.split("-").map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d));
-  base.setUTCDate(base.getUTCDate() + offset);
-  return base.toISOString().slice(0, 10);
+  const base = new Date(y, m - 1, d); // Use local date, not UTC
+  base.setDate(base.getDate() + offset);
+  
+  const yyyy = base.getFullYear();
+  const mm = String(base.getMonth() + 1).padStart(2, "0");
+  const dd = String(base.getDate()).padStart(2, "0");
+  
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function DriverDutyRoasterPage() {
@@ -54,7 +59,6 @@ export default function DriverDutyRoasterPage() {
   });
 
   /* ================= LOAD DATA ================= */
-
   const load = async () => {
     try {
       setLoading(true);
@@ -73,12 +77,21 @@ export default function DriverDutyRoasterPage() {
             duties: {},
           };
         }
-        if (d.duty_date) {
-          const dataKey = toISODateKey(d.duty_date);
-          grouped[d.driver_id].duties[dataKey] = d;
-        }
-      }
 
+        // if (typeof d.duty_date !== "string") {
+        //   console.error("NON-STRING duty_date FOUND", d.duty_date);
+        // }
+        // if (!/^\d{4}-\d{2}-\d{2}$/.test(d.duty_date)) {
+        //   console.error("INVALID duty_date FORMAT", d.duty_date);
+        // }
+
+        if (d.duty_date) {
+          const dataKey = normalizeDateKey(d.duty_date);
+          grouped[d.driver_id].duties[dataKey] = d;   
+        }
+      
+      }
+    
       setRosters(Object.values(grouped));
     } catch (err) {
       console.error(err);
@@ -133,42 +146,10 @@ export default function DriverDutyRoasterPage() {
       sun: getDateForDay(weekStartDate, 6),
     };
 
-
-    // const cells = dates.map((date) => {
-    //   const duty = row.duties[date];
-
-    //   return (
-    //     <div className={`dayCell ${duty ? "hasDuty" : ""} ${duty?.is_week_off ? "weekOff" : ""}`}>
-    //       {renderDay(
-    //         duty?.duty_in_time,
-    //         duty?.duty_out_time,
-    //         duty?.is_week_off
-    //       )}
-
-    //       <button
-    //         className="editBtn"
-    //         onClick={() =>
-    //           setEditForm(
-    //             duty ?? {
-    //               driver_id: row.driver_id,
-    //               duty_date: date,
-    //               shift: "morning",
-    //               duty_in_time: null,
-    //               duty_out_time: null,
-    //               is_week_off: false,
-    //             }
-    //           )
-    //         }
-    //       >
-    //         <Edit size={14} />
-    //       </button>
-    //     </div>
-    //   );
-    // });
     const cellsByDay = WEEK_DAYS.reduce((acc, day) => {
       const date = datesByDay[day];
       const duty = row.duties[date];
-      console.log("Sunday lookup:", {
+      console.log("Lookup:", {
         expected: getDateForDay(weekStartDate, 6),
         keys: Object.keys(row.duties),
       });
@@ -220,6 +201,14 @@ export default function DriverDutyRoasterPage() {
       sun: cellsByDay.sun,
     };
   });
+
+  function normalizeDateKey(value: string): string {
+    // If already YYYY-MM-DD, trust it
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+    // Extract date part ONLY, ignore timezone
+    return value.slice(0, 10);
+  }
 
   // function shiftWeek(weekStart: string, days: number) {
   //   const [y, m, d] = weekStart.split("-").map(Number);
