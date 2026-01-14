@@ -220,38 +220,31 @@ export default function DriverDutyRoasterPage() {
     },
     {
       header: "Mon",
-      accessor: "mon",
-      cell: ({ value }) => value,
+      render: (row) => row.mon,
     },
     {
       header: "Tue",
-      accessor: "tue",
-      cell: ({ value }) => value,
+      render: (row) => row.tue,
     },
     {
       header: "Wed",
-      accessor: "wed",
-      cell: ({ value }) => value,
+      render: (row) => row.wed,
     },
     {
       header: "Thu",
-      accessor: "thu",
-      cell: ({ value }) => value,
+      render: (row) => row.thu,
     },
     {
       header: "Fri",
-      accessor: "fri",
-      cell: ({ value }) => value,
+      render: (row) => row.fri,
     },
     {
       header: "Sat",
-      accessor: "sat",
-      cell: ({ value }) => value,
+      render: (row) => row.sat,
     },
     {
       header: "Sun",
-      accessor: "sun",
-      cell: ({ value }) => value,
+      render: (row) => row.sun,
     },
   ];
 
