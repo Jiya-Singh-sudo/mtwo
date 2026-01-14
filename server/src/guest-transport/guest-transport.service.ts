@@ -33,7 +33,7 @@ export class GuestTransportService {
     const where: string[] = [
         'io.is_active = TRUE',
         'g.is_active = TRUE',
-        "io.status IN ('Entered', 'Inside')",
+        "io.status IN ('Entered', 'Inside', 'Scheduled')",
     ];
 
     const params: any[] = [];
