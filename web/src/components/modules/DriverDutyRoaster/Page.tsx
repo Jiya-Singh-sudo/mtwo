@@ -20,17 +20,29 @@ type DriverDutyTableRow = {
 
 /* ================= DATE HELPERS ================= */
 
+// function getDateForDay(weekStart: string, dayIndex: number): string {
+//   const [y, m, d] = weekStart.split("-").map(Number);
+//   const date = new Date(y, m - 1, d); // LOCAL date
+//   date.setDate(date.getDate() + dayIndex);
+//   return date.toISOString().slice(0, 10);
+// }
 function getDateForDay(weekStart: string, dayIndex: number): string {
   const [y, m, d] = weekStart.split("-").map(Number);
-  const date = new Date(y, m - 1, d); // LOCAL date
-  date.setDate(date.getDate() + dayIndex);
-  return date.toISOString().slice(0, 10);
-}
 
+  // Manual day addition, no Date object
+  const base = new Date(y, m - 1, d);
+  base.setDate(base.getDate() + dayIndex);
+
+  const yyyy = base.getFullYear();
+  const mm = String(base.getMonth() + 1).padStart(2, "0");
+  const dd = String(base.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function DriverDutyRoasterPage() {
   /* ================= STATE ================= */
-
+  const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const [rosters, setRosters] = useState<DriverWeeklyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +50,19 @@ export default function DriverDutyRoasterPage() {
   const [editForm, setEditForm] = useState<DriverDuty | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   const [weekStartDate, setWeekStartDate] = useState<string>(() => {
     const today = new Date();
-    const day = today.getDay() || 7;
+    const day = today.getDay() === 0 ? 7 : today.getDay(); // Sun = 7
     today.setDate(today.getDate() - day + 1);
-    return today.toISOString().slice(0, 10);
+
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd}`;
   });
 
   /* ================= LOAD DATA ================= */
@@ -103,16 +123,71 @@ export default function DriverDutyRoasterPage() {
     );
   };
 
-  const tableData: DriverDutyTableRow[] = rosters.map((row) => {
-    const dates = [0, 1, 2, 3, 4, 5, 6].map((i) =>
-      getDateForDay(weekStartDate, i)
-    );
+  const filteredRosters = rosters
+    .filter((r) =>
+      r.driver_name?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const nameA = a.driver_name?.toLowerCase() ?? "";
+      const nameB = b.driver_name?.toLowerCase() ?? "";
+      return sortOrder === "asc"
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
+  });
 
-    const cells = dates.map((date) => {
+  const tableData: DriverDutyTableRow[] = filteredRosters.map((row) => {
+    const datesByDay = {
+      mon: getDateForDay(weekStartDate, 0),
+      tue: getDateForDay(weekStartDate, 1),
+      wed: getDateForDay(weekStartDate, 2),
+      thu: getDateForDay(weekStartDate, 3),
+      fri: getDateForDay(weekStartDate, 4),
+      sat: getDateForDay(weekStartDate, 5),
+      sun: getDateForDay(weekStartDate, 6),
+    };
+
+
+    // const cells = dates.map((date) => {
+    //   const duty = row.duties[date];
+
+    //   return (
+    //     <div className={`dayCell ${duty ? "hasDuty" : ""} ${duty?.is_week_off ? "weekOff" : ""}`}>
+    //       {renderDay(
+    //         duty?.duty_in_time,
+    //         duty?.duty_out_time,
+    //         duty?.is_week_off
+    //       )}
+
+    //       <button
+    //         className="editBtn"
+    //         onClick={() =>
+    //           setEditForm(
+    //             duty ?? {
+    //               driver_id: row.driver_id,
+    //               duty_date: date,
+    //               shift: "morning",
+    //               duty_in_time: null,
+    //               duty_out_time: null,
+    //               is_week_off: false,
+    //             }
+    //           )
+    //         }
+    //       >
+    //         <Edit size={14} />
+    //       </button>
+    //     </div>
+    //   );
+    // });
+    const cellsByDay = WEEK_DAYS.reduce((acc, day) => {
+      const date = datesByDay[day];
       const duty = row.duties[date];
 
-      return (
-        <div className={`dayCell ${duty ? "hasDuty" : ""} ${duty?.is_week_off ? "weekOff" : ""}`}>
+      acc[day] = (
+        <div
+          className={`dayCell ${duty ? "hasDuty" : ""} ${
+            duty?.is_week_off ? "weekOff" : ""
+          }`}
+        >
           {renderDay(
             duty?.duty_in_time,
             duty?.duty_out_time,
@@ -138,26 +213,41 @@ export default function DriverDutyRoasterPage() {
           </button>
         </div>
       );
-    });
+
+      return acc;
+    }, {} as Record<typeof WEEK_DAYS[number], React.ReactNode>);
 
     return {
       driver_id: row.driver_id,
       driver_name: row.driver_name ?? "",
-      mon: cells[0],
-      tue: cells[1],
-      wed: cells[2],
-      thu: cells[3],
-      fri: cells[4],
-      sat: cells[5],
-      sun: cells[6],
+      mon: cellsByDay.mon,
+      tue: cellsByDay.tue,
+      wed: cellsByDay.wed,
+      thu: cellsByDay.thu,
+      fri: cellsByDay.fri,
+      sat: cellsByDay.sat,
+      sun: cellsByDay.sun,
     };
   });
 
+  // function shiftWeek(weekStart: string, days: number) {
+  //   const [y, m, d] = weekStart.split("-").map(Number);
+  //   const date = new Date(Date.UTC(y, m - 1, d + days));
+  //   return date.toISOString().slice(0, 10);
+  // }
   function shiftWeek(weekStart: string, days: number) {
     const [y, m, d] = weekStart.split("-").map(Number);
-    const date = new Date(Date.UTC(y, m - 1, d + days));
-    return date.toISOString().slice(0, 10);
+
+    const base = new Date(Date.UTC(y, m - 1, d));
+    base.setUTCDate(base.getUTCDate() + days);
+
+    const yyyy = base.getUTCFullYear();
+    const mm = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(base.getUTCDate()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd}`;
   }
+
 
   /* ================= SAVE (CREATE / UPDATE) ================= */
 
@@ -211,12 +301,14 @@ export default function DriverDutyRoasterPage() {
   const limit = tableData.length || 1;
   const totalCount = tableData.length;
   const sortBy = "driver_name";
-  const sortOrder: "asc" | "desc" = "asc";
+  // const sortOrder: "asc" | "desc" = "asc";
 
   const driverColumns: Column<DriverDutyTableRow>[] = [
     {
       header: "Driver Name",
       accessor: "driver_name",
+      sortable: true,
+      sortKey: "driver_name",
     },
     {
       header: "Mon",
@@ -269,6 +361,15 @@ export default function DriverDutyRoasterPage() {
           Next Week →
         </button>
       </div>
+      <div className="flex justify-between items-center">
+        <input
+          type="text"
+          placeholder="Search driver name..."
+          className="border px-3 py-2 rounded w-64"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       <div className="rosterTableWrapper">
         <div className="rosterTable">
@@ -285,7 +386,11 @@ export default function DriverDutyRoasterPage() {
           sortBy={sortBy}
           sortOrder={sortOrder}
           onPageChange={() => {}}
-          onSortChange={() => {}}
+          onSortChange={(key, order) => {
+            if (key === "driver_name") {
+              setSortOrder(order);
+            }
+          }}
           onLimitChange={() => {}}
         />
         </div>

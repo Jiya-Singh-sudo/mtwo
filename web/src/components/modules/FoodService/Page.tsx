@@ -3,7 +3,7 @@ import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2
 import "./FoodService.css";
 import { getFoodDashboard, updateFoodStatus, getTodayGuestOrders } from "@/api/guestFood.api";
 import { FoodDashboard, GuestMealUI } from "../../../types/guestFood";
-import { getActiveButlers, createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
+import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, softDeleteGuestButler } from "@/api/guestButler.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { Butler } from "@/types/butler";

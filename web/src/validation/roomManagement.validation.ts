@@ -11,6 +11,7 @@ const MAX_REMARKS_LENGTH = 500;
 const MAX_ROOM_CAPACITY = 20;
 
 const roomNoRegex = /^[A-Za-z0-9-]+$/;
+// const nameRegex = /^[A-Za-z .\-]*$/;
 const safeTextRegex = /^[A-Za-z0-9 ,./()\-]*$/;
 const mobileRegex = /^[6-9]\d{9}$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -62,6 +63,7 @@ export const roomCreateEditSchema = z.object({
     .max(MAX_TEXT_LENGTH, "Room category too long"),
 
   room_capacity: z
+    .coerce
     .number()
     .int("Capacity must be a whole number")
     .min(1, "Minimum capacity is 1")
@@ -106,7 +108,7 @@ export const roomBoyManagementSchema = z
    ROOM BOY (ADD)
 ====================================================== */
 
-export const housekeepingCreateSchema = z.object({
+export const housekeepingCreateEditSchema = z.object({
   hk_name: z
     .string()
     .min(1, "Name is required")
@@ -147,9 +149,14 @@ export const guestRoomAssignSchema = z
     guest_id: z.string().min(1, "Guest is required"),
     room_id: z.string().min(1, "Room is required"),
 
-    check_in_date: z.string().min(1, "Check-in date required"),
+  check_in_date: z
+    .string()
+    .regex(dateRegex, "Invalid date format (YYYY-MM-DD)"),
 
-    check_out_date: z.string().optional(),
+  check_out_date: z
+    .string()
+    .regex(dateRegex, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.check_out_date) {
@@ -173,16 +180,53 @@ export const guestRoomAssignSchema = z
       }
     }
   });
+  
 
+export const roomBoyAssignmentSchema = z
+  .object({
+    room_boy_id: z.string().min(1, "Room boy is required"),
 
+    assignment_start_date: z
+      .string()
+      .regex(dateRegex, "Invalid date format (YYYY-MM-DD)"),
 
-export const housekeepingUpdateSchema = housekeepingCreateSchema;
+    shift: z.enum(["Morning", "Evening", "Night", "Full-Day"]),
+
+    remarks: z
+      .string()
+      .max(MAX_REMARKS_LENGTH, "Remarks cannot exceed 500 characters")
+      .regex(safeTextRegex, "Invalid characters in remarks")
+      .transform(v => v.replace(/[\r\n]+/g, " "))
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    const taskDate = parseDate(data.assignment_start_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (taskDate < today) {
+      ctx.addIssue({
+        path: ["assignment_start_date"],
+        message: "Task date cannot be in the past",
+        code: z.ZodIssueCode.custom,
+      });
+    }
+
+    if (diffDays(today, taskDate) > 7) {
+      ctx.addIssue({
+        path: ["assignment_start_date"],
+        message: "Task date cannot be more than 7 days ahead",
+        code: z.ZodIssueCode.custom,
+      });
+    }
+  });
+
 /* ======================================================
    TYPES
 ====================================================== */
 
 export type RoomCreateEditSchema = z.infer<typeof roomCreateEditSchema>;
-export type RoomBoyAssignmentSchema = z.infer<typeof roomBoyManagementSchema>;
-export type HousekeepingCreateSchema = z.infer<typeof housekeepingCreateSchema>;
-export type HousekeepingUpdateSchema = z.infer<typeof housekeepingUpdateSchema>;
+export type RoomBoyAssignmentSchema = z.infer<typeof roomBoyAssignmentSchema>;
+export type HousekeepingCreateEditSchema = z.infer<typeof housekeepingCreateEditSchema>;
 export type GuestRoomAssignSchema = z.infer<typeof guestRoomAssignSchema>;
+export type RoomBoyManagementSchema = z.infer<typeof roomBoyManagementSchema>;

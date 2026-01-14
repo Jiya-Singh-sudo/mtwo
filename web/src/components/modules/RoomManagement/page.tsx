@@ -19,9 +19,12 @@ import { getAssignableGuests } from "../../../api/roomManagement.api";
 import { ActiveGuestRow } from "@/types/guests";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { useTableQuery } from "@/hooks/useTableQuery";
-// roomManagementSchema import removed - unused
 import { roomBoyManagementSchema } from "@/validation/roomBoyManagement.validation";
-import { roomCreateEditSchema } from "@/validation/roomCreateEdit.validation";
+import { roomCreateEditSchema } from "@/validation/roomManagement.validation";
+import { housekeepingCreateEditSchema } from "@/validation/roomManagement.validation";
+// import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
+import { roomBoyAssignmentSchema } from "@/validation/roomManagement.validation";
+
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 
@@ -775,7 +778,6 @@ export function RoomManagement() {
               onLimitChange={roomTable.setLimit}
               onSortChange={roomTable.setSort}
             />
-
           </div>
         </TabsContent>
 
@@ -873,6 +875,8 @@ export function RoomManagement() {
                       roomBoyId: e.target.value,
                     })
                   }
+                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "room_boy_id", assignmentForm.roomBoyId, setFormErrors)}
+                  onBlur={() => validateField(roomBoyAssignmentSchema, "room_boy_id", assignmentForm.roomBoyId, setFormErrors)}
                 >
                   <option value="">Select</option>
                   {roomBoyOptions.map((rb) => (
@@ -894,6 +898,8 @@ export function RoomManagement() {
                       shift: e.target.value as ShiftType | "",
                     })
                   }
+                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "shift", assignmentForm.shift, setFormErrors)}
+                  onBlur={() => validateField(roomBoyAssignmentSchema, "shift", assignmentForm.shift, setFormErrors)}
                 >
                   <option value="">Select</option>
                   {hkShifts.map((s) => (
@@ -916,6 +922,8 @@ export function RoomManagement() {
                       taskDate: e.target.value,
                     })
                   }
+                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "assignment_start_date", assignmentForm.taskDate, setFormErrors)}
+                  onBlur={() => validateField(roomBoyAssignmentSchema, "assignment_start_date", assignmentForm.taskDate, setFormErrors)}
                 />
               </div>
 
@@ -931,6 +939,9 @@ export function RoomManagement() {
                       remarks: e.target.value,
                     })
                   }
+                  maxLength={300}
+                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "remarks", assignmentForm.remarks, setFormErrors)}
+                  onBlur={() => validateField(roomBoyAssignmentSchema, "remarks", assignmentForm.remarks, setFormErrors)}
                 />
               </div>
             </div>
@@ -981,6 +992,8 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomNo: e.target.value })
                   }
+                  maxLength={20}
+                  onBlur={() => validateField(roomCreateEditSchema, "room_no", editRoom.roomNo, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_no", editRoom.roomNo, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.room_no}</p>
@@ -995,6 +1008,8 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomName: e.target.value })
                   }
+                  maxLength={50}
+                  onBlur={() => validateField(roomCreateEditSchema, "room_name", editRoom.roomName, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_name", editRoom.roomName, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.room_name}</p>
@@ -1009,6 +1024,8 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, buildingName: e.target.value })
                   }
+                  maxLength={50}
+                  onBlur={() => validateField(roomCreateEditSchema, "building_name", editRoom.buildingName, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "building_name", editRoom.buildingName, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.building_name}</p>
@@ -1023,6 +1040,8 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, residenceType: e.target.value })
                   }
+                  maxLength={70}
+                  onBlur={() => validateField(roomCreateEditSchema, "residence_type", editRoom.residenceType, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", editRoom.residenceType, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.residence_type}</p>
@@ -1037,6 +1056,7 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomType: e.target.value })
                   }
+                  onBlur={() => validateField(roomCreateEditSchema, "room_type", editRoom.roomType, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_type", editRoom.roomType, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.room_type}</p>
@@ -1051,6 +1071,7 @@ export function RoomManagement() {
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomCategory: e.target.value })
                   }
+                  onBlur={() => validateField(roomCreateEditSchema, "room_category", editRoom.roomCategory, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_category", editRoom.roomCategory, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.room_category}</p>
@@ -1070,6 +1091,8 @@ export function RoomManagement() {
                       roomCapacity: Number(e.target.value),
                     })
                   }
+                  maxLength={100}
+                  onBlur={() => validateField(roomCreateEditSchema, "room_capacity", editRoom.roomCapacity, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", editRoom.roomCapacity, setFormErrors)}
                 />
                 <p className="errorText">{formErrors.room_capacity}</p>
@@ -1087,6 +1110,7 @@ export function RoomManagement() {
                       status: e.target.value as "Available" | "Occupied",
                     })
                   }
+                  onBlur={() => validateField(roomCreateEditSchema, "status", editRoom.status, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "status", editRoom.status, setFormErrors)}
                 >
                   <option value="Available">Available</option>
@@ -1117,6 +1141,7 @@ export function RoomManagement() {
                         : null,
                     })
                   }
+                  onBlur={() => validateField(roomCreateEditSchema, "guest", editRoom.guest?.guestId, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "guest", editRoom.guest?.guestId, setFormErrors)}
                 >
                   <option value="">— No Guest —</option>
@@ -1151,6 +1176,7 @@ export function RoomManagement() {
                         : null,
                     })
                   }
+                  onBlur={() => validateField(roomCreateEditSchema, "room_boy", editRoom.housekeeping?.hkId, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_boy", editRoom.housekeeping?.hkId, setFormErrors)}
                 >
                   <option value="">— Unassigned —</option>
@@ -1162,7 +1188,6 @@ export function RoomManagement() {
                 </select>
                 <p className="errorText">{formErrors.room_boy}</p>
               </div>
-
             </div>
 
             <div className="nicModalActions">
@@ -1173,7 +1198,6 @@ export function RoomManagement() {
                 Save Changes
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -1207,7 +1231,9 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_no: e.target.value })
                     }
+                    maxLength={15}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_no", roomForm.room_no, setFormErrors)}
+                    onBlur={() => validateField(roomCreateEditSchema, "room_no", roomForm.room_no, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.room_no}</p>
                 </div>
@@ -1221,7 +1247,9 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_name: e.target.value })
                     }
+                    maxLength={50}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
+                    onBlur={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.room_name}</p>
                 </div>
@@ -1235,6 +1263,8 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, building_name: e.target.value })
                     }
+                    maxLength={50}
+                    onBlur={() => validateField(roomCreateEditSchema, "building_name", roomForm.building_name, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "building_name", roomForm.building_name, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.building_name}</p>
@@ -1249,6 +1279,8 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, residence_type: e.target.value })
                     }
+                    maxLength={50}
+                    onBlur={() => validateField(roomCreateEditSchema, "residence_type", roomForm.residence_type, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", roomForm.residence_type, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.residence_type}</p>
@@ -1263,6 +1295,7 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_type: e.target.value })
                     }
+                    onBlur={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.room_type}</p>
@@ -1282,6 +1315,8 @@ export function RoomManagement() {
                         room_capacity: Number(e.target.value) || 1,
                       })
                     }
+                    maxLength={100}
+                    onBlur={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.room_capacity}</p>
@@ -1296,6 +1331,7 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_category: e.target.value })
                     }
+                    onBlur={() => validateField(roomCreateEditSchema, "room_category", roomForm.room_category, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_category", roomForm.room_category, setFormErrors)}
                   />
                   <p className="errorText">{formErrors.room_category}</p>
@@ -1312,6 +1348,7 @@ export function RoomManagement() {
                         status: e.target.value as "Available" | "Occupied",
                       })
                     }
+                    onBlur={() => validateField(roomCreateEditSchema, "status", roomForm.status, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "status", roomForm.status, setFormErrors)}
                   >
                     <option value="Available">Available</option>
@@ -1338,11 +1375,9 @@ export function RoomManagement() {
                 Save
               </button>
             </div>
-
           </div>
         </div>
       )}
-
 
       {assignGuestRoom && (
         <div className="modalOverlay">
@@ -1501,9 +1536,6 @@ export function RoomManagement() {
         </div>
       )}
 
-
-
-
       {/* ================= ADD ROOM BOY MODAL ================= */}
       {showAddRoomBoy && (
         <div className="modalOverlay">
@@ -1518,6 +1550,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
                 }
+                maxLength={50}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
               />
 
               <input
@@ -1539,6 +1574,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
                 }
+                maxLength={10}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
               />
 
               <input
@@ -1551,6 +1589,9 @@ export function RoomManagement() {
                     hk_alternate_contact: e.target.value,
                   })
                 }
+                maxLength={10}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
               />
 
               <select
@@ -1559,6 +1600,8 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day" })
                 }
+                onBlur={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
               >
                 <option value="Morning">Morning</option>
                 <option value="Evening">Evening</option>
@@ -1574,6 +1617,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
                 }
+                maxLength={500}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
               />
             </div>
 
@@ -1608,6 +1654,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
                 }
+                maxLength={50}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
               />
 
               <input
@@ -1627,6 +1676,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
                 }
+                maxLength={10}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
               />
 
               <input
@@ -1638,6 +1690,9 @@ export function RoomManagement() {
                     hk_alternate_contact: e.target.value,
                   })
                 }
+                maxLength={10}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
               />
 
               <select
@@ -1646,6 +1701,8 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day" })
                 }
+                onBlur={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
               >
                 <option value="Morning">Morning</option>
                 <option value="Evening">Evening</option>
@@ -1660,6 +1717,9 @@ export function RoomManagement() {
                 onChange={(e) =>
                   setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
                 }
+                maxLength={500}
+                onBlur={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
+                onKeyUp={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
               />
             </div>
 
