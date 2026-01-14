@@ -1,24 +1,22 @@
 import api from "./apiClient";
 import { AssignGuestVehiclePayload } from "../types/guestVehicle";
 import { AssignGuestDriverPayload } from "../types/guestDriver";
-
+import { TableQuery } from "@/types/table";
 /* =======================
    GUEST TRANSPORT — TABLE
    ======================= */
-export async function getGuestTransportTable(params: {
-  page: number;
-  limit: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}) {
-  const res = await api.get('/guest-transport/table', {
-    params,
+export async function getGuestTransportTable(query: TableQuery) {
+  const res = await api.get("/guest-transport/table", {
+    params: query,
   });
 
-  return res.data as {
-    data: any[];
-    totalCount: number;
+  return {
+    data: res.data.data ?? [],
+    totalCount:
+      res.data.totalCount ??
+      res.data.count ??
+      res.data.total ??
+      0,
   };
 }
 
@@ -46,7 +44,7 @@ export async function getActiveDriverByGuest(guestId: string) {
 
 // Drivers available for assignment
 export async function getAssignableDrivers() {
-  const res = await api.get("/drivers/available");
+  const res = await api.get("/drivers/assignable");
   return res.data;
 }
 

@@ -49,6 +49,10 @@ function GuestTransportManagement() {
     limit: 6, // cards per page
   });
   const [rows, setRows] = useState<GuestTransportRow[]>([]);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(GuestTable.total / GuestTable.query.limit)
+  );
 
   /* =======================
      ASSIGN DRIVER MODAL
@@ -138,6 +142,7 @@ function GuestTransportManagement() {
       GuestTable.setLoading(true);
       try {
         const res = await getGuestTransportTable(GuestTable.query);
+        console.log("Guest Transport api response:", res);
         setRows(res.data);
         GuestTable.setTotal(res.totalCount);
       } finally {
@@ -352,6 +357,16 @@ function GuestTransportManagement() {
           </div>
         </div>
         
+          {/* 2️⃣ Empty state */}
+          {/* {!GuestTable.loading && rows.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <p className="text-lg font-medium">No guests found</p>
+              <p className="text-sm mt-1">
+                Try adjusting search, filters, or date range
+              </p>
+            </div>
+          )} */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* 1️⃣ Loading */}
@@ -361,9 +376,9 @@ function GuestTransportManagement() {
             ))
           }
 
-          {/* 2️⃣ Empty state */}
+            {/* Empty */}
           {!GuestTable.loading && rows.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500">
+            <div className="md:col-span-2 text-center py-12 text-gray-500">
               <p className="text-lg font-medium">No guests found</p>
               <p className="text-sm mt-1">
                 Try adjusting search, filters, or date range
@@ -558,8 +573,7 @@ function GuestTransportManagement() {
 
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-600">
-            Page {GuestTable.query.page} of{" "}
-            {Math.ceil(GuestTable.total / GuestTable.query.limit)}
+            Page {GuestTable.query.page} of{totalPages}
           </div>
 
           <div className="flex gap-2">
@@ -574,7 +588,7 @@ function GuestTransportManagement() {
             <button
               className="secondaryBtn"
               disabled={
-                GuestTable.query.page * GuestTable.query.limit >= GuestTable.total
+                GuestTable.query.page >= totalPages
               }
               onClick={() => GuestTable.setPage(GuestTable.query.page + 1)}
             >

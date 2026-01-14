@@ -11,4 +11,4 @@ export type TableQuery = {
 
   entryDateFrom?: string;
   entryDateTo?: string;
-};
+}; 
