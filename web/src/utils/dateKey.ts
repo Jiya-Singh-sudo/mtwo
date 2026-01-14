@@ -1,4 +1,5 @@
 // utils/dateKey.ts
-export function toISODateKey(value: string): string {
-  return new Date(value).toISOString().slice(0, 10);
+export function toDateKey(value: string): string {
+  // Handles both YYYY-MM-DD and full ISO strings
+  return value.slice(0, 10);
 }
