@@ -1,26 +1,68 @@
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  Min,
+  IsIn,
+  IsBoolean,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
 export class CreateGuestFoodDto {
+  @IsString()
   guest_id: string;
+
+  @IsOptional()
+  @IsString()
   room_id?: string;
 
+  @IsString()
   food_id: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   quantity: number;
 
+  @IsOptional()
+  @IsIn([
+    'Room-Service',
+    'Dine-In',
+    'Buffet',
+    'Takeaway',
+    'Other',
+  ])
   request_type?:
-    | "Room-Service"
-    | "Dine-In"
-    | "Buffet"
-    | "Takeaway"
-    | "Other";
+    | 'Room-Service'
+    | 'Dine-In'
+    | 'Buffet'
+    | 'Takeaway'
+    | 'Other';
 
+  @IsOptional()
+  @IsIn([
+    'Requested',
+    'Preparing',
+    'Ready',
+    'Delivered',
+    'Cancelled',
+  ])
   delivery_status?:
-    | "Requested"
-    | "Preparing"
-    | "Ready"
-    | "Delivered"
-    | "Cancelled";
+    | 'Requested'
+    | 'Preparing'
+    | 'Ready'
+    | 'Delivered'
+    | 'Cancelled';
 
+  @IsOptional()
+  @IsString()
   order_datetime?: string;
+
+  @IsOptional()
+  @IsString()
   delivered_datetime?: string;
 
+  @IsOptional()
+  @IsString()
   remarks?: string;
 }

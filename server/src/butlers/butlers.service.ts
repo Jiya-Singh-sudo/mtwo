@@ -27,6 +27,86 @@ export class ButlersService {
     return `B_${nextNumber.toString().padStart(3, '0')}`;
   }
 
+  async getTable(query: any) {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = "butler_name",
+      sortOrder = "asc",
+      status,
+    } = query;
+
+    const offset = (page - 1) * limit;
+
+    const SORT_MAP: Record<string, string> = {
+      butler_id: "b.butler_id",
+      butler_name: "b.butler_name",
+      shift: "b.shift",
+      is_active: "b.is_active",
+      inserted_at: "b.inserted_at",
+    };
+
+    const orderColumn = SORT_MAP[sortBy] ?? SORT_MAP.butler_name;
+    const orderDir = sortOrder === "desc" ? "DESC" : "ASC";
+
+    const where: string[] = [];
+    const params: any[] = [];
+
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(
+        `(b.butler_name ILIKE $${params.length} OR b.butler_id ILIKE $${params.length})`
+      );
+    }
+
+    if (status === "Active") {
+      params.push(true);
+      where.push(`b.is_active = $${params.length}`);
+    }
+
+    if (status === "Inactive") {
+      params.push(false);
+      where.push(`b.is_active = $${params.length}`);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    // ---------- DATA ----------
+    const dataSql = `
+      SELECT
+        b.butler_id,
+        b.butler_name,
+        b.shift,
+        b.is_active,
+        b.butler_mobile
+      FROM m_butler b
+      ${whereSql}
+      ORDER BY ${orderColumn} ${orderDir}
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
+    `;
+
+    const data = await this.db.query(dataSql, [
+      ...params,
+      limit,
+      offset,
+    ]);
+
+    // ---------- COUNT ----------
+    const countSql = `
+      SELECT COUNT(*) AS count
+      FROM m_butler b
+      ${whereSql};
+    `;
+
+    const count = await this.db.query(countSql, params);
+
+    return {
+      data: data.rows,
+      totalCount: Number(count.rows[0].count),
+    };
+  }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly

@@ -1,17 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
+import { GuestTransportTableQueryDto } from './dto/guest-transport-table.dto';
 
 @Injectable()
 export class GuestTransportService {
     constructor(private readonly db: DatabaseService) {}
-    async getGuestTransportTable(query: {
-    page: number;
-    limit: number;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
+
+    async getGuestTransportTable(
+    params: GuestTransportTableQueryDto & {
+        entryDateFrom?: string;
+        entryDateTo?: string;
     }) {
-    const { page, limit, search, sortBy, sortOrder } = query;
+    const {
+        page,
+        limit,
+        search,
+        sortBy,
+        sortOrder,
+        status,
+        entryDateFrom,
+        entryDateTo,
+    } = params;
 
     const offset = (page - 1) * limit;
 
@@ -30,13 +39,19 @@ export class GuestTransportService {
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
     /* ---------------- WHERE ---------------- */
-    const where: string[] = [
-        'io.is_active = TRUE',
-        'g.is_active = TRUE',
-        "io.status IN ('Entered', 'Inside', 'Scheduled')",
-    ];
+    // const where: string[] = [
+    //     'io.is_active = TRUE',
+    //     'g.is_active = TRUE',
+    //     "io.status IN ('Entered', 'Inside', 'Scheduled')",
+    // ];
 
-    const params: any[] = [];
+    // const where: string[] = [
+    //     "io.entry_date IS NOT NULL"
+    // ];
+
+    const where: string[] = ["1=1"];
+
+    const sqlParams: any[] = [];
     let idx = 1;
 
     if (search) {
@@ -48,7 +63,27 @@ export class GuestTransportService {
             OR v.vehicle_no ILIKE $${idx}
         )
         `);
-        params.push(`%${search}%`);
+        sqlParams.push(`%${search}%`);
+        idx++;
+    }
+
+    /* ---------- STATUS FILTER ---------- */
+    if (status) {
+      where.push(`io.status = $${idx}`);
+      sqlParams.push(status);
+      idx++;
+    }
+
+    /* ---------- DATE RANGE ---------- */
+    if (entryDateFrom) {
+      where.push(`io.entry_date >= $${idx}`);
+      sqlParams.push(entryDateFrom);
+      idx++;
+    }
+
+    if (entryDateTo) {
+        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        sqlParams.push(entryDateTo);
         idx++;
     }
 
@@ -56,11 +91,19 @@ export class GuestTransportService {
 
     /* ---------------- COUNT ---------------- */
     const countSql = `
-        SELECT COUNT(*)::int AS total
-        FROM t_guest_inout io
-        JOIN m_guest g
+      SELECT COUNT(*)::int AS total
+      FROM t_guest_inout io
+      JOIN m_guest g
         ON g.guest_id = io.guest_id
-        ${whereSql};
+      LEFT JOIN t_guest_driver gd
+        ON gd.guest_id = g.guest_id AND gd.is_active = TRUE
+      LEFT JOIN m_driver d
+        ON d.driver_id = gd.driver_id
+      LEFT JOIN t_guest_vehicle gv
+        ON gv.guest_id = g.guest_id AND gv.is_active = TRUE
+      LEFT JOIN m_vehicle v
+        ON v.vehicle_no = gv.vehicle_no
+      ${whereSql};
     `;
 
     /* ---------------- DATA ---------------- */
@@ -132,10 +175,13 @@ export class GuestTransportService {
         LIMIT $${idx} OFFSET $${idx + 1};
     `;
 
-    const countRes = await this.db.query(countSql, params);
+    const countRes = await this.db.query(countSql, sqlParams);
 
-    params.push(limit, offset);
-    const dataRes = await this.db.query(dataSql, params);
+    sqlParams.push(limit, offset);
+    const dataRes = await this.db.query(dataSql, sqlParams);
+    console.log('WHERE:', where.join(' AND '));
+    console.log('PARAMS:', sqlParams);
+
 
     return {
         data: dataRes.rows,

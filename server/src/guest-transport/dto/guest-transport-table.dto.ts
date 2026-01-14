@@ -25,17 +25,25 @@ export class GuestTransportTableQueryDto {
     'vehicle_no',
     'trip_status',
   ])
-  sortBy?:
-    | 'entry_date'
-    | 'guest_name'
-    | 'driver_name'
-    | 'vehicle_no'
-    | 'trip_status';
+  sortBy?: 'entry_date' | 'guest_name' | 'driver_name' | 'vehicle_no' | 'trip_status';
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc';
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  entryDateFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  entryDateTo?: string;
 }
+
 
 // export class GuestTransportTableQueryDto {
 //   page: number;

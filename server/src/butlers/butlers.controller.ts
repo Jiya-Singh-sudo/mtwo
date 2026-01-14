@@ -1,10 +1,9 @@
-import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Req
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query} from '@nestjs/common';
 import { ButlersService } from './butlers.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
+import { ButlerTableQueryDto } from './dto/butler-table-query.dto';
+import { Headers, Ip } from '@nestjs/common/decorators/http/route-params.decorator';
 
 @Controller('butlers')
 export class ButlersController {
@@ -20,6 +19,15 @@ export class ButlersController {
     if (ip === '::1' || ip === '127.0.0.1') return '127.0.0.1';
     ip = ip.replace('::ffff:', '');
     return ip.includes(',') ? ip.split(',')[0].trim() : ip;
+  }
+
+  @Get("table")
+  async getButlerTable(
+    @Query() query: ButlerTableQueryDto,
+    @Headers("x-user") user = "system",
+    @Ip() ip: string
+  ) {
+    return this.service.getTable(query);
   }
 
   @Get()

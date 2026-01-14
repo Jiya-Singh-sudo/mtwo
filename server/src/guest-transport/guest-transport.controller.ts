@@ -7,16 +7,12 @@ export class GuestTransportController {
     constructor(private readonly service: GuestTransportService) {}
 
     @Get('table')
-    async getGuestTransportTable(
-    @Query() query: GuestTransportTableQueryDto
+    getTable(
+    @Query() query: GuestTransportTableQueryDto,
     ) {
     return this.service.getGuestTransportTable({
-        page: Number(query.page) || 1,
-        limit: Number(query.limit) || 10,
-        search: query.search,
-        sortBy: query.sortBy,
-        sortOrder: query.sortOrder,
+        ...query,
+        status: query.status === 'All' ? undefined : query.status,
     });
     }
-
 }
