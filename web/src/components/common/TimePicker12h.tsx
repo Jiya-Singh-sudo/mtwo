@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 interface TimePicker12hProps {
-  label?: string;
+  label?: React.ReactNode;
   value?: string; // HH:mm or HH:mm:ss
   name?: string;
   onChange: (value: string) => void;
@@ -36,32 +36,32 @@ export default function TimePicker12h({
   }, [value]);
 
   // 🔄 Convert to 24h and emit
-useEffect(() => {
-  if (!value) return;
+  useEffect(() => {
+    if (!value) return;
 
-  const [h, m] = value.split(":").map(Number);
-  const isPM = h >= 12;
-  const normalizedHour = h % 12 === 0 ? 12 : h % 12;
-  const normalizedMinute = String(m).padStart(2, "0");
-  const normalizedMeridiem = isPM ? "PM" : "AM";
+    const [h, m] = value.split(":").map(Number);
+    const isPM = h >= 12;
+    const normalizedHour = h % 12 === 0 ? 12 : h % 12;
+    const normalizedMinute = String(m).padStart(2, "0");
+    const normalizedMeridiem = isPM ? "PM" : "AM";
 
-  setHour((prev) => (prev !== normalizedHour ? normalizedHour : prev));
-  setMinute((prev) => (prev !== normalizedMinute ? normalizedMinute : prev));
-  setMeridiem((prev) =>
-    prev !== normalizedMeridiem ? normalizedMeridiem : prev
-  );
-}, [value]);
+    setHour((prev) => (prev !== normalizedHour ? normalizedHour : prev));
+    setMinute((prev) => (prev !== normalizedMinute ? normalizedMinute : prev));
+    setMeridiem((prev) =>
+      prev !== normalizedMeridiem ? normalizedMeridiem : prev
+    );
+  }, [value]);
 
-const emitChange = (
-  newHour = hour,
-  newMinute = minute,
-  newMeridiem = meridiem
-) => {
-  let h = newHour % 12;
-  if (newMeridiem === "PM") h += 12;
+  const emitChange = (
+    newHour = hour,
+    newMinute = minute,
+    newMeridiem = meridiem
+  ) => {
+    let h = newHour % 12;
+    if (newMeridiem === "PM") h += 12;
 
-  onChange(`${String(h).padStart(2, "0")}:${newMinute}`);
-};
+    onChange(`${String(h).padStart(2, "0")}:${newMinute}`);
+  };
 
   return (
     <div className="timePicker12h">
@@ -69,22 +69,22 @@ const emitChange = (
 
       <div className="timeRow">
         <select
-            name={name}                 // ✅ focus anchor
-            className="nicInput"
-            value={hour}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setHour(v);
-              emitChange(v, minute, meridiem);
-            }}
-            onBlur={onBlur}
-          >
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </select>
+          name={name}                 // ✅ focus anchor
+          className="nicInput"
+          value={hour}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setHour(v);
+            emitChange(v, minute, meridiem);
+          }}
+          onBlur={onBlur}
+        >
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
 
         <select
           name={name}

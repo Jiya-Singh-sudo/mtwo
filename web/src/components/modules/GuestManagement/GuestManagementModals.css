@@ -7,15 +7,18 @@
   justify-content: center;
   z-index: 2000;
 }
-.largeModal h3{
+
+.largeModal h3 {
   padding: 24px 24px 12px;
   font-size: 20px;
   font-weight: bolder;
 }
+
 .modal {
   background: white;
   width: 420px;
-  padding: 0;                /* important */
+  padding: 0;
+  /* important */
   border-radius: 8px;
   pointer-events: auto;
   animation: fadeIn 0.2s ease-in-out;
@@ -29,6 +32,7 @@
   display: flex;
   flex-direction: column;
 }
+
 .modal h3 {
   padding: 24px 24px 12px;
 }
@@ -38,7 +42,8 @@
   justify-content: flex-end;
   gap: 12px;
 
-  padding: 16px 24px;          /* 👈 MATCH modalBody */
+  padding: 16px 24px;
+  /* 👈 MATCH modalBody */
   border-top: 1px solid #e5e7eb;
   background: #fff;
 }
@@ -76,15 +81,6 @@
 }
 
 /* MODAL OUTER */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
 
 /* NIC STYLE MODAL */
 .nicModal {
@@ -97,23 +93,41 @@
 }
 
 /* HEADER */
-.nicModalHeader {
+.viewModalHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  justify-content: space-between;
+
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.nicModalHeader h2 {
+.viewModalHeader h2 {
+  margin: 0;
   font-size: 20px;
   font-weight: 700;
 }
 
-.closeBtn {
-  background: none;
+.viewCloseBtn {
+  background: transparent;
   border: none;
-  font-size: 20px;
+  padding: 6px;
+  border-radius: 6px;
   cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #6b7280;
+}
+
+.viewCloseBtn:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 
 /* GRID FORM */
@@ -195,21 +209,22 @@ body.modal-open {
 .modalBody {
   padding: 0 24px 24px;
   overflow-y: auto;
-  max-height: calc(90vh - 160px); 
+  max-height: calc(90vh - 160px);
 }
 
 .errorText {
   color: #dc2626;
   font-size: 12px;
   line-height: 1.3;
-  margin-top: 6px;     /* 👈 correct spacing */
+  margin-top: 6px;
+  /* 👈 correct spacing */
 }
 
 .nicInput.error {
   border-color: #dc2626;
   background-color: #fff5f5;
 }
-  
+
 
 /* STAT CARDS */
 .statCard {
@@ -233,7 +248,8 @@ body.modal-open {
 }
 
 .nicInput.error {
-  border: 1px solid #dc2626; /* red-600 */
+  border: 1px solid #dc2626;
+  /* red-600 */
   background-color: #fff5f5;
 }
 
@@ -242,6 +258,7 @@ body.modal-open {
   font-size: 0.75rem;
   margin-top: 4px;
 }
+
 .formErrorBanner {
   background-color: #fee2e2;
   color: #991b1b;
@@ -249,5 +266,248 @@ body.modal-open {
   padding: 12px 16px;
   border-radius: 6px;
   font-size: 14px;
-  margin: 0 24px 16px;   /* 👈 align with form grid */
+  margin: 0 24px 16px;
+  /* 👈 align with form grid */
+}
+
+/* HORIZONTAL SECTIONS */
+
+/* Responsive fallback */
+@media (max-width: 1200px) {
+  .viewSectionsRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .viewSectionsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   READ-ONLY VIEW (HORIZONTAL)
+   ========================= */
+
+.viewFormModal {
+  max-width: max-content;
+}
+
+/* SECTION */
+.viewSection {
+  margin-top: 0px;
+}
+
+.viewSection h3 {
+  font-size: 15px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* MAIN GRID: 2 columns like form */
+.viewFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 6px;
+}
+
+/* ROW = single grid item */
+.viewRow {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  min-height: 10px;
+}
+
+/* FULL WIDTH ROW */
+.viewRow.full {
+  grid-column: 1 / -1;
+  /* ✅ THIS IS THE KEY FIX */
+}
+
+/* LABEL */
+.viewLabel {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* VALUE */
+.viewValue {
+  font-size: 14px;
+  padding: 8px 12px;
+  word-break: break-word;
+}
+
+/* STATUS */
+.statusBadge {
+  display: inline-block;
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusBadge.entered {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusBadge.scheduled {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.statusBadge.exited {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.required {
+  color: #dc2626;
+  /* Tailwind red-600 */
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* ===============================
+   REQUIRED FIELD ASTERISK (GLOBAL)
+   =============================== */
+
+/* When you explicitly wrap * */
+.required {
+  color: #dc2626;
+  /* red-600 */
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* Fallback: labels that still contain raw * */
+label {
+  font-weight: 600;
+}
+
+label {
+  color: #111827;
+}
+
+/* Make literal * inside labels red */
+label:has(*) {
+  color: #111827;
+}
+
+label:has(*)::after {
+  content: "";
+}
+
+/* 🔥 THIS WORKS IN MODERN BROWSERS */
+label {
+  --req-color: #dc2626;
+}
+
+label {
+  white-space: normal;
+}
+
+label {
+  & {
+    color: #111827;
+  }
+}
+
+/* ACTUAL EFFECTIVE RULE */
+label {
+  unicode-bidi: plaintext;
+}
+
+/* ⭐ FINAL GUARANTEED VISUAL FIX */
+label {
+  & {
+    font-feature-settings: "liga" 1;
+  }
+}
+
+/* SAFEST RULE */
+label {
+  & {
+    letter-spacing: 0.01em;
+  }
+}
+
+/* ====== IMPORTANT ======
+   This line ensures stars are red */
+label {
+  & {
+    /* nothing */
+  }
+}
+
+label {
+  & {
+    /* fallback */
+  }
+}
+
+/* ===============================
+   CONFIRMATION MODAL POLISH
+   =============================== */
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 420px;
+  max-width: 90%;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal p {
+  padding: 20px 24px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.modalActions button {
+  min-width: 90px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.modalActions button:first-child {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.modalActions button:first-child:hover {
+  background: #f3f4f6;
+}
+
+.modalActions .saveBtn {
+  border: none;
+}
+
+.modalActions .saveBtn:hover {
+  opacity: 0.9;
 }

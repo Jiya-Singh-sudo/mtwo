@@ -14,7 +14,10 @@ import "./GuestManagementModals.css";
 import { getActiveDesignationList } from "@/api/designation.api";
 import { formatSeparate, formatTime, formatDate } from "@/utils/dateTime";
 import TimePicker12h from "@/components/common/TimePicker12h";
-import { GUEST_STATUS_CARDS, COLOR_STYLES, GUEST_STATUSES } from "@/utils/guestCards";
+import { GUEST_STATUS_CARDS, COLOR_STYLES } from "@/utils/guestCards";
+import { X } from "lucide-react";
+import { XCircle } from "lucide-react";
+
 
 type DesignationOption = {
   designation_id: string;
@@ -46,6 +49,31 @@ type GuestForm = {
 export function GuestManagement() {
   const today = new Date();
   const currentYear = today.getFullYear();
+  const ViewRow = ({
+    label,
+    value,
+    full = false,
+    badge = false,
+  }: {
+    label: string;
+    value?: string | null;
+    full?: boolean;
+    badge?: boolean;
+  }) => (
+    <div className={`viewRow ${full ? "full" : ""}`}>
+      <div className="viewLabel">{label}</div>
+
+      <div className="viewValue">
+        {badge ? (
+          <span className={`statusBadge ${value?.toLowerCase()}`}>
+            {value || "—"}
+          </span>
+        ) : (
+          value || "—"
+        )}
+      </div>
+    </div>
+  );
 
   const minDate = `${currentYear}-01-01`;
   const maxDate = `${currentYear + 1}-12-31`; // adjust if needed
@@ -66,7 +94,9 @@ export function GuestManagement() {
     const counts = await fetchGuestStatusCounts();
     setStatusCounts(counts);
   };
-  
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelGuest, setCancelGuest] = useState<ActiveGuestRow | null>(null);
+
   const initialGuestForm = {
     guest_name: '',
     guest_name_local_language: '',
@@ -194,16 +224,47 @@ export function GuestManagement() {
       header: "Actions",
       render: (g) => (
         <div className="flex gap-2">
-          <button onClick={() => openView(g)} className="icon-btn text-blue-600">
+          {/* View */}
+          <button
+            onClick={() => openView(g)}
+            className="icon-btn text-blue-600"
+            title="View"
+          >
             <Eye className="w-4 h-4" />
           </button>
-          <button onClick={() => openEdit(g)} className="icon-btn text-green-600">
+
+          {/* Edit */}
+          <button
+            onClick={() => openEdit(g)}
+            className="icon-btn text-green-600"
+            title="Edit"
+          >
             <Edit className="w-4 h-4" />
           </button>
-          <button onClick={() => {
-            setSelectedGuest(g);
-            setShowDeleteConfirm(true);
-          }} className="icon-btn text-red-600">
+
+          {/* Cancel Visit (ONLY if Scheduled) */}
+          {g.inout_status === "Scheduled" && (
+            <button
+              onClick={() => {
+                setCancelGuest(g);
+                setShowCancelConfirm(true);
+              }}
+              className="icon-btn text-orange-600"
+              title="Cancel Visit"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Delete */}
+          <button
+            onClick={() => {
+              setSelectedGuest(g);
+              setShowDeleteConfirm(true);
+            }}
+            className="icon-btn text-red-600"
+            title="Delete"
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -249,7 +310,7 @@ export function GuestManagement() {
         )
       );
   }, [modalMode])
-    useEffect(() => {
+  useEffect(() => {
     if (modalMode !== "edit") return;
 
     getActiveDesignationList()
@@ -525,6 +586,7 @@ export function GuestManagement() {
     }
   }
 
+
   function validateSingleField(
     field: keyof GuestForm,
     value: any
@@ -548,6 +610,26 @@ export function GuestManagement() {
       }
     }
   }
+async function confirmCancelVisit() {
+  if (!cancelGuest?.inout_id) return;
+
+  try {
+    await updateGuestInOut(cancelGuest.inout_id, {
+      status: "Cancelled",
+    });
+
+    setShowCancelConfirm(false);
+    setCancelGuest(null);
+
+    await loadGuests();
+    await refreshStatusCounts();
+  } catch (err) {
+    console.error("Cancel visit failed", err);
+    alert("Failed to cancel visit");
+  }
+}
+
+
 
   /* =====================================================================
   
@@ -659,46 +741,71 @@ export function GuestManagement() {
 
       {/* ------------------------- MODALS BEGIN ------------------------ */}
       {/* VIEW GUEST */}
-      {
-        showView && selectedGuest && (
-          <div className="modalOverlay">
-            <div className="modal largeModal">
-
+      {showView && selectedGuest && (
+        <div className="modalOverlay">
+          <div className="modal largeModal">
+            <div className="viewModalHeader">
               <h2>Guest Details</h2>
 
-              {/* BASIC INFO */}
-              <div className="section">
+              <button
+                className="viewCloseBtn"
+                onClick={() => setShowView(false)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+
+            <div className="modalBody">
+
+              {/* BASIC INFORMATION */}
+              <div className="viewSection">
                 <h3>Basic Information</h3>
-                <p><strong>Name:</strong> {selectedGuest.guest_name}</p>
-                <p><strong>Mobile:</strong> {selectedGuest.guest_mobile || "N/A"}</p>
-                <p><strong>Alternate Mobile:</strong> {selectedGuest.guest_alternate_mobile || "N/A"}</p>
-                <p><strong>Email:</strong> {selectedGuest.email || "N/A"}</p>
-                <p><strong>Address:</strong> {selectedGuest.guest_address || "N/A"}</p>
+                <div className="viewFormGrid">
+                  <ViewRow label="Full Name" value={selectedGuest.guest_name} />
+                  <ViewRow label="Mobile Number" value={selectedGuest.guest_mobile} />
+                  <ViewRow label="Alternate Mobile" value={selectedGuest.guest_alternate_mobile} />
+                  <ViewRow label="Email" value={selectedGuest.email} />
+                  <ViewRow label="Address" value={selectedGuest.guest_address} full />
+                </div>
               </div>
 
               {/* DESIGNATION */}
-              <div className="section">
+              <div className="viewSection">
                 <h3>Designation Details</h3>
-                <p><strong>Designation Name:</strong> {selectedGuest.designation_name}</p>
-                <p><strong>Department:</strong> {selectedGuest.department}</p>
-                <p><strong>Organization:</strong> {selectedGuest.organization}</p>
-                <p><strong>Office Location:</strong> {selectedGuest.office_location}</p>
+                <div className="viewFormGrid">
+                  <ViewRow label="Designation Name" value={selectedGuest.designation_name} />
+                  <ViewRow label="Department" value={selectedGuest.department} />
+                  <ViewRow label="Organization" value={selectedGuest.organization} />
+                  <ViewRow label="Office Location" value={selectedGuest.office_location} />
+                </div>
               </div>
 
-              {/* VISIT / IN-OUT */}
-              <div className="section">
+              {/* VISIT */}
+              <div className="viewSection">
                 <h3>Visit Information</h3>
-                <p><strong>Status:</strong> {selectedGuest.inout_status}</p>
-                <p><strong>Arrival:</strong>{" "}{formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}</p>
-                <p><strong>Departure:</strong>{" "}{formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}</p>
+                <div className="viewFormGrid">
+                  <ViewRow label="Status" value={selectedGuest.inout_status} badge />
+                  <ViewRow
+                    label="Arrival"
+                    value={formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}
+                  />
+                  <ViewRow
+                    label="Departure"
+                    value={formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}
+                  />
+                </div>
               </div>
 
-              <div className="modalActions">
-                <button onClick={() => setShowView(false)}>Close</button>
-              </div>
+            </div>
+
+            <div className="modalActions">
+              <button onClick={() => setShowView(false)}>Close</button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* DELETE GUEST */}
       {showDeleteConfirm && selectedGuest && (
@@ -722,11 +829,54 @@ export function GuestManagement() {
         </div>
       )
       }
+      {/* CANCEL VISIT */}
+{showCancelConfirm && cancelGuest && (
+  <div className="modalOverlay">
+    <div className="modal">
+      <h3>Cancel Visit</h3>
+
+      <p>
+        Are you sure you want to cancel the visit for{" "}
+        <strong>{cancelGuest.guest_name}</strong>?  
+        <br />
+        The guest has not arrived.
+      </p>
+
+      <div className="modalActions">
+        <button onClick={() => {
+          setShowCancelConfirm(false);
+          setCancelGuest(null);
+        }}>
+          No
+        </button>
+
+        <button
+          className="saveBtn"
+          style={{ backgroundColor: "#f59e0b" }} // orange
+          onClick={confirmCancelVisit}
+        >
+          Yes, Cancel Visit
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {modalMode && (
         <div className="modalOverlay">
           <div className="modal largeModal">
-            <h3>{modalMode === "add" ? "Add Guest" : "Edit Guest"}</h3>
+            <div className="viewModalHeader">
+              <h2>{modalMode === "add" ? "Add Guest" : "Edit Guest"}</h2>
+
+              <button
+                className="viewCloseBtn"
+                onClick={() => setModalMode(null)}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
             {Object.keys(formErrors).length > 0 && (
               <div className="formErrorBanner">
                 Please fix the highlighted fields below.
@@ -740,7 +890,7 @@ export function GuestManagement() {
                   {/* 2-COLUMN FORM GRID */}
                   <div className="nicFormGrid ">
                     <div className="fullWidth">
-                      <label>Full Name *</label>
+                      <label>Full Name <span className="required">*</span></label>
                       <input
                         name="guest_name"
                         className={`nicInput ${formErrors.guest_name ? "error" : ""}`}
@@ -762,7 +912,7 @@ export function GuestManagement() {
                         </div> */}
 
                     <div className="fullWidth">
-                      <label>Designation *</label>
+                      <label>Designation <span className="required">*</span></label>
                       <select
                         name="designation_id"
                         className="nicInput"
@@ -814,7 +964,7 @@ export function GuestManagement() {
                     {designationMode === "other" && (
                       <>
                         <div>
-                          <label>Designation Name *</label>
+                          <label>Designation Name <span className="required">*</span></label>
                           <input
                             className={`nicInput ${formErrors.designation_name ? "error" : ""}`}
                             value={guestForm.designation_name}
@@ -839,7 +989,7 @@ export function GuestManagement() {
                             </div> */}
 
                         <div>
-                          <label>Organization *</label>
+                          <label>Organization <span className="required">*</span></label>
                           <input
                             className="nicInput"
                             value={guestForm.organization}
@@ -852,7 +1002,7 @@ export function GuestManagement() {
                         </div>
 
                         <div>
-                          <label>Office Location *</label>
+                          <label>Office Location <span className="required">*</span></label>
                           <input
                             className="nicInput"
                             value={guestForm.office_location}
@@ -914,7 +1064,7 @@ export function GuestManagement() {
                         </div> */}
 
                     <div>
-                      <label>Mobile Number *</label>
+                      <label>Mobile Number <span className="required">*</span></label>
                       <input
                         name="guest_mobile"
                         className={`nicInput ${formErrors.guest_mobile ? "error" : ""}`}
@@ -938,7 +1088,7 @@ export function GuestManagement() {
                         value={guestForm.guest_alternate_mobile}
                         onChange={(e) => setGuestForm(s => ({ ...s, guest_alternate_mobile: e.target.value }))}
                         onKeyUp={() => validateSingleField("guest_alternate_mobile", guestForm.guest_alternate_mobile)}
-                        maxLength={0|10}
+                        maxLength={0 | 10}
                       />
                       <p className="errorText">{formErrors.guest_alternate_mobile}</p>
                     </div>
@@ -959,7 +1109,7 @@ export function GuestManagement() {
 
                     {/* Check-in Date */}
                     <div>
-                      <label>Check-in Date *</label>
+                      <label>Check-in Date <span className="required">*</span></label>
                       <input
                         name="entry_date"
                         type="date"
@@ -992,7 +1142,7 @@ export function GuestManagement() {
 
                     {/* Check-out Date */}
                     <div>
-                      <label>Check-out Date *</label>
+                      <label>Check-out Date <span className="required">*</span></label>
                       <input
                         name="checkout_date"
                         type="date"
@@ -1011,7 +1161,7 @@ export function GuestManagement() {
                     <div>
                       <TimePicker12h
                         name="exit_time"
-                        label="Check-out Time"
+                        label={<>Check-out Time <span className="required">*</span></>}
                         value={guestForm.exit_time}
                         onChange={(value: string) =>
                           setGuestForm(s => ({ ...s, exit_time: value }))
@@ -1041,7 +1191,10 @@ export function GuestManagement() {
 
 
                     <div className="fullWidth">
-                      <label>Email</label>
+                      <label>
+                        Email
+                        <span className="required">*</span>
+                      </label>
                       <input
                         name="email"
                         className={`nicInput ${formErrors.email ? "error" : ""}`}
@@ -1064,7 +1217,7 @@ export function GuestManagement() {
                   {/* 2-COLUMN FORM GRID */}
                   <div className="nicFormGrid ">
                     <div className="fullWidth">
-                      <label>Full Name *</label>
+                      <label>Full Name <span className="required">*</span></label>
                       <input
                         name="guest_name"
                         className={`nicInput ${formErrors.guest_name ? "error" : ""}`}
@@ -1084,7 +1237,7 @@ export function GuestManagement() {
                         </div> */}
 
                     <div className="fullWidth">
-                      <label>Designation *</label>
+                      <label>Designation <span className="required">*</span></label>
                       <select
                         name="designation_id"
                         className="nicInput"
@@ -1138,7 +1291,7 @@ export function GuestManagement() {
                     {designationMode === "other" && (
                       <>
                         <div>
-                          <label>Designation Name *</label>
+                          <label>Designation Name <span className="required">*</span></label>
                           <input
                             className={`nicInput ${formErrors.designation_name ? "error" : ""}`}
                             value={editGuestForm.designation_name}
@@ -1161,7 +1314,7 @@ export function GuestManagement() {
                         </div>
 
                         <div>
-                          <label>Organization *</label>
+                          <label>Organization <span className="required">*</span></label>
                           <input
                             className="nicInput"
                             value={editGuestForm.organization}
@@ -1173,7 +1326,7 @@ export function GuestManagement() {
                         </div>
 
                         <div>
-                          <label>Office Location *</label>
+                          <label>Office Location <span className="required">*</span></label>
                           <input
                             className="nicInput"
                             value={editGuestForm.office_location}
@@ -1187,7 +1340,7 @@ export function GuestManagement() {
                     )}
 
                     <div>
-                      <label>Mobile Number *</label>
+                      <label>Mobile Number <span className="required">*</span></label>
                       <input
                         name="guest_mobile"
                         className="nicInput"
@@ -1212,7 +1365,7 @@ export function GuestManagement() {
                         }
                         onKeyUp={() => validateSingleField("guest_alternate_mobile", editGuestForm.guest_alternate_mobile)}
                         maxLength={0 | 10}
-                    />
+                      />
                       <p className="errorText">{formErrors.guest_alternate_mobile}</p>
                     </div>
 
@@ -1232,7 +1385,7 @@ export function GuestManagement() {
 
                     {/* Check-in Date */}
                     <div>
-                      <label>Check-in Date *</label>
+                      <label>Check-in Date <span className="required">*</span></label>
                       <input
                         name="entry_date"
                         type="date"
@@ -1251,7 +1404,7 @@ export function GuestManagement() {
                     <div>
                       <TimePicker12h
                         name="entry_time"
-                        label="Check-in Time *"
+                        label={<>Check-in Time <span className="required">*</span></>}
                         value={editGuestForm.entry_time}
                         onChange={(value: string) =>
                           setEditGuestForm(s => ({ ...s, entry_time: value }))
@@ -1263,7 +1416,7 @@ export function GuestManagement() {
 
                     {/* Check-out Date */}
                     <div>
-                      <label>Check-out Date *</label>
+                      <label>Check-out Date <span className="required">*</span></label>
                       <input
                         name="checkout_date"
                         type="date"
@@ -1282,7 +1435,7 @@ export function GuestManagement() {
                     <div>
                       <TimePicker12h
                         name="exit_time"
-                        label="Check-out Time"
+                        label={<>Check-out Time <span className="required">*</span></>}
                         value={editGuestForm.exit_time}
                         onChange={(value: string) =>
                           setEditGuestForm(s => ({ ...s, exit_time: value }))
@@ -1292,27 +1445,13 @@ export function GuestManagement() {
                       <p className="errorText">{formErrors.exit_time}</p>
                     </div>
 
-                    <div>
-                      <label>Status *</label>
-                      <select
-                        name="status"
-                        className="nicInput"
-                        value={editGuestForm.status}
-                        onChange={(e) =>
-                          setEditGuestForm(s => ({ ...s, status: e.target.value }))
-                        }
-                        onKeyUp={() => validateSingleField("status", editGuestForm.status)}
-                      >
-                        {GUEST_STATUSES.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                      <p className="errorText">{formErrors.status}</p>
-                    </div>
 
 
                     <div className="fullWidth">
-                      <label>Email</label>
+                      <label>
+                        Email
+                        <span className="required">*</span>
+                      </label>
                       <input
                         name="email"
                         className={`nicInput ${formErrors.email ? "error" : ""}`}

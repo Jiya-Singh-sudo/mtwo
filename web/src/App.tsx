@@ -114,8 +114,9 @@ function Layout() {
 
 export default function App() {
   return (
+    
       <AuthProvider>
-        <Layout />
-      </AuthProvider>
+          <Layout />
+        </AuthProvider>
   );
 }

@@ -200,3 +200,42 @@
 html {
   font-size: var(--font-size);
 }
+/* ===== GLOBAL MODAL HEADER ===== */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modalHeader h2,
+.modalHeader h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Close (X) button */
+.modalCloseBtn {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #6b7280;
+}
+
+.modalCloseBtn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
