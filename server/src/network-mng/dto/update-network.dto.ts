@@ -4,25 +4,22 @@ import {
   IsIn,
   IsInt,
   Min,
-  MaxLength,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateNetworkDto {
-  // @Type(() => String)
-  // @IsString()
-  // provider_id: string;
-
+export class UpdateNetworkDto {
+  @IsOptional()
   @IsString()
-  @MaxLength(100)
-  provider_name: string;
+  provider_name?: string;
 
   @IsOptional()
   @IsString()
   provider_name_local_language?: string;
 
+  @IsOptional()
   @IsIn(['WiFi', 'Broadband', 'Hotspot', 'Leased-Line'])
-  network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
+  network_type?: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
 
   @IsOptional()
   @Type(() => Number)
@@ -36,7 +33,7 @@ export class CreateNetworkDto {
 
   @IsOptional()
   @IsString()
-  password?: string; // SHA256 hex (validated elsewhere)
+  password?: string;
 
   @IsOptional()
   @IsString()
@@ -45,4 +42,8 @@ export class CreateNetworkDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

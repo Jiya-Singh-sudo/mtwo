@@ -6,6 +6,30 @@ import { UpdateNetworkDto } from './dto/update-network.dto';
 @Injectable()
 export class NetworksService {
   constructor(private readonly db: DatabaseService) {}
+  private async generateProviderId(): Promise<string> {
+    const sql = `
+      SELECT provider_id
+      FROM m_wifi_provider
+      WHERE provider_id ~ '^N[0-9]+$'
+      ORDER BY CAST(SUBSTRING(provider_id, 2) AS INT) DESC
+      LIMIT 1;
+    `;
+
+    const res = await this.db.query(sql);
+
+    if (res.rows.length === 0) {
+      return 'N001';
+    }
+
+    const lastId = res.rows[0].provider_id;
+    const nextNum = parseInt(lastId.substring(1), 10) + 1;
+    return `N${nextNum.toString().padStart(3, '0')}`;
+  }
+  async findOneById(id: string) {
+    const sql = `SELECT * FROM m_wifi_provider WHERE provider_id = $1`;
+    const res = await this.db.query(sql, [id]);
+    return res.rows[0];
+  }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -16,16 +40,17 @@ export class NetworksService {
     return res.rows;
   }
 
-  async findOneByName(name: string) {
-    const sql = `SELECT * FROM m_wifi_provider WHERE provider_name = $1`;
-    const res = await this.db.query(sql, [name]);
-    return res.rows[0];
-  }
+  // async findOneByName(name: string) {
+  //   const sql = `SELECT * FROM m_wifi_provider WHERE provider_name = $1`;
+  //   const res = await this.db.query(sql, [name]);
+  //   return res.rows[0];
+  // }
 
   async create(dto: CreateNetworkDto, user: string, ip: string) {
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
+    const providerId = await this.generateProviderId();
 
     const sql = `
       INSERT INTO m_wifi_provider (
@@ -47,7 +72,7 @@ export class NetworksService {
     `;
 
     const params = [
-      dto.provider_id,
+      providerId,
       dto.provider_name,
       dto.provider_name_local_language ?? null,
       dto.network_type,
@@ -65,9 +90,9 @@ export class NetworksService {
     return res.rows[0];
   }
 
-  async update(name: string, dto: UpdateNetworkDto, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Provider '${name}' not found`);
+  async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
+    const existing = await this.findOneById(id);
+    if (!existing) throw new Error(`Provider '${id}' not found`);
 
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
@@ -111,9 +136,9 @@ export class NetworksService {
     return res.rows[0];
   }
 
-  async softDelete(name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Provider '${name}' not found`);
+  async softDelete(id: string, user: string, ip: string) {
+    const existing = await this.findOneById(id);
+    if (!existing) throw new Error(`Provider '${id}' not found`);
 
     const now = new Date().toISOString();
 

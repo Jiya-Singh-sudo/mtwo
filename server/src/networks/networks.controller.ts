@@ -36,19 +36,19 @@ export class NetworksController {
     return this.service.create(dto, user, this.extractIp(req));
   }
 
-  @Put(':provider_name')
+  @Put(':provider_id')
   update(
-    @Param('provider_name') name: string,
+    @Param('provider_id') id: string,
     @Body() dto: UpdateNetworkDto,
     @Req() req: any
   ) {
     const user = req.headers['x-user'] || 'system';
-    return this.service.update(name, dto, user, this.extractIp(req));
+    return this.service.update(id, dto, user, this.extractIp(req));
   }
 
-  @Delete(':provider_name')
-  remove(@Param('provider_name') name: string, @Req() req: any) {
+  @Delete(':provider_id')
+  remove(@Param('provider_id') id: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
-    return this.service.softDelete(name, user, this.extractIp(req));
+    return this.service.softDelete(id, user, this.extractIp(req));
   }
 }

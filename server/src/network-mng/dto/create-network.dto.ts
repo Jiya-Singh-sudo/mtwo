@@ -4,17 +4,16 @@ import {
   IsIn,
   IsInt,
   Min,
-  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateNetworkDto {
-  // @Type(() => String)
-  // @IsString()
-  // provider_id: string;
+  @Type(() => String)
+  @IsInt()
+  @Min(1)
+  provider_id: string; // NOT SERIAL
 
   @IsString()
-  @MaxLength(100)
   provider_name: string;
 
   @IsOptional()
