@@ -1,5 +1,25 @@
 import api, { safeGet } from "../apiClient";
 import type { UserCreateDto, UserUpdateDto, UserLoginDto } from "../../types/users";
+import {
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
+} from '../../types/users';
+
+export const forgotPassword = async (
+  payload: ForgotPasswordRequest
+): Promise<ForgotPasswordResponse> => {
+  const { data } = await api.post('/users/forgot-password', payload);
+  return data;
+};
+
+export const resetPassword = async (
+  payload: ResetPasswordRequest
+): Promise<ResetPasswordResponse> => {
+  const { data } = await api.post('/users/reset-password', payload);
+  return data;
+};
 
 // GET active users
 export async function getActiveUsers() {

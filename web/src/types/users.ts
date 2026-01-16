@@ -64,3 +64,20 @@ export interface UserLoginDto {
   username: string;
   password: string; // plaintext → backend hashes & verifies
 }
+export interface ForgotPasswordRequest {
+  username: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
