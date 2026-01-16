@@ -30,8 +30,8 @@ import { DriverDutyModule } from './driver-duty/driver-duty.module';
 import { RoomManagementModule } from './room-management/room-management.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { GuestTransportModule } from './guest-transport/guest-transport.module';
-import { NetworkMngModule } from './network-mng/network-mng.module';
 import { MessengersModule } from './messengers/messengers.module';
+import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.module';
 
 @Module({
   imports: [
@@ -66,8 +66,8 @@ import { MessengersModule } from './messengers/messengers.module';
     RoomManagementModule,
     ActivityLogModule,
     GuestTransportModule,
-    NetworkMngModule,
     MessengersModule,
+    GuestMessenegerModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

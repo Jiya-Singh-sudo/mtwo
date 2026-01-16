@@ -1,50 +1,41 @@
-import api, { safeGet } from "./apiClient";
-import type {
+import api from '@/api/apiClient';
+import {
   GuestNetwork,
-  GuestNetworkCreateDto,
-  GuestNetworkUpdateDto
-} from "@/types/guestNetwork";
+  GuestNetworkTableQuery,
+  GuestNetworkTableResponse,
+  CreateGuestNetworkPayload,
+  UpdateGuestNetworkPayload,
+} from '@/types/guestNetwork';
 
-// GET active sessions
-export async function getActiveGuestNetwork() {
-  return safeGet<GuestNetwork[]>("/guest-network");
-}
-
-// GET all sessions
-export async function getAllGuestNetwork() {
-  return safeGet<GuestNetwork[]>("/guest-network/all");
-}
-
-// CREATE
-export async function createGuestNetwork(
-  data: GuestNetworkCreateDto,
-  user = "system"
-) {
-  const res = await api.post("/guest-network", data, {
-    headers: { "x-user": user }
-  });
+/* ---------- TABLE ---------- */
+export async function getGuestNetworkTable(
+  query: GuestNetworkTableQuery
+): Promise<GuestNetworkTableResponse> {
+  const res = await api.get('/guest-network/table', { params: query });
   return res.data;
 }
 
-// UPDATE
+/* ---------- CREATE ---------- */
+export async function createGuestNetwork(
+  payload: CreateGuestNetworkPayload
+): Promise<GuestNetwork> {
+  const res = await api.post('/guest-network', payload);
+  return res.data;
+}
+
+/* ---------- UPDATE ---------- */
 export async function updateGuestNetwork(
   id: string,
-  data: GuestNetworkUpdateDto,
-  user = "system"
-) {
-  const res = await api.put(
-    `/guest-network/${encodeURIComponent(id)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
+  payload: UpdateGuestNetworkPayload
+): Promise<GuestNetwork> {
+  const res = await api.put(`/guest-network/${id}`, payload);
   return res.data;
 }
 
-// SOFT DELETE
-export async function softDeleteGuestNetwork(id: string, user = "system") {
-  const res = await api.delete(
-    `/guest-network/${encodeURIComponent(id)}`,
-    { headers: { "x-user": user } }
-  );
+/* ---------- SOFT DELETE ---------- */
+export async function softDeleteGuestNetwork(
+  id: string
+): Promise<{ guest_network_id: string; is_active: boolean }> {
+  const res = await api.delete(`/guest-network/${id}`);
   return res.data;
 }

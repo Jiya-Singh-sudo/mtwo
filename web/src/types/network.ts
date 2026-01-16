@@ -1,57 +1,57 @@
-export interface WifiProvider {
-  provider_id: number;
+/* ======================================================
+   CORE ENTITY
+====================================================== */
 
+export type NetworkProvider = {
+  provider_id: string;
   provider_name: string;
-  provider_name_local_language?: string | null;
-
-  network_type: "WiFi" | "Broadband" | "Hotspot" | "Leased-Line";
-
-  bandwidth_mbps?: number | null;
-  username?: string | null;
-  password?: string | null;  // stored as SHA-256 hex in backend
-
-  static_ip?: string | null;
-  address?: string | null;
-
+  provider_name_local_language?: string;
+  network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
+  bandwidth_mbps?: number;
+  username?: string;
+  static_ip?: string;
+  address?: string;
   is_active: boolean;
-
   inserted_at: string;
-  inserted_by?: string | null;
-  inserted_ip?: string | null;
+  updated_at?: string;
+};
 
-  updated_at?: string | null;
-  updated_by?: string | null;
-  updated_ip?: string | null;
-}
+/* ======================================================
+   CREATE / UPDATE
+====================================================== */
 
-export interface WifiProviderCreateDto {
+export type CreateNetworkPayload = {
   provider_name: string;
   provider_name_local_language?: string;
-
-  network_type: "WiFi" | "Broadband" | "Hotspot" | "Leased-Line";
-
+  network_type: NetworkProvider['network_type'];
   bandwidth_mbps?: number;
-
   username?: string;
-  password: string; // plaintext — backend will hash
-
+  password?: string;
   static_ip?: string;
   address?: string;
-}
+};
 
-export interface WifiProviderUpdateDto {
-  provider_name?: string;
-  provider_name_local_language?: string;
-
-  network_type?: "WiFi" | "Broadband" | "Hotspot" | "Leased-Line";
-
-  bandwidth_mbps?: number;
-
-  username?: string;
-  password?: string; // plaintext → backend hashes
-
-  static_ip?: string;
-  address?: string;
-
+export type UpdateNetworkPayload = Partial<CreateNetworkPayload> & {
   is_active?: boolean;
-}
+};
+
+/* ======================================================
+   TABLE QUERY + RESPONSE
+====================================================== */
+
+export type NetworkTableQuery = {
+  page: number;
+  limit: number;
+
+  search?: string;
+
+  sortBy?: 'provider_name' | 'network_type' | 'bandwidth_mbps' | 'inserted_at';
+  sortOrder?: 'asc' | 'desc';
+
+  status?: 'active' | 'inactive';
+};
+
+export type NetworkTableResponse = {
+  data: NetworkProvider[];
+  totalCount: number;
+};
