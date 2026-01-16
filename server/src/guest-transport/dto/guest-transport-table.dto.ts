@@ -1,22 +1,7 @@
-import { IsInt, IsOptional, IsString, IsIn, Min,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsIn } from 'class-validator';
+import { BaseTableQueryDto } from '../../../common/dto/table-query.dto';
 
-export class GuestTransportTableQueryDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit: number;
-
-  @IsOptional()
-  @IsString()
-  search?: string;
-
+export class GuestTransportTableQueryDto extends BaseTableQueryDto {
   @IsOptional()
   @IsIn([
     'entry_date',
@@ -25,11 +10,12 @@ export class GuestTransportTableQueryDto {
     'vehicle_no',
     'trip_status',
   ])
-  sortBy?: 'entry_date' | 'guest_name' | 'driver_name' | 'vehicle_no' | 'trip_status';
-
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: 
+    | 'entry_date'
+    | 'guest_name'
+    | 'driver_name'
+    | 'vehicle_no'
+    | 'trip_status';
 
   @IsOptional()
   @IsString()
@@ -43,20 +29,3 @@ export class GuestTransportTableQueryDto {
   @IsString()
   entryDateTo?: string;
 }
-
-
-// export class GuestTransportTableQueryDto {
-//   page: number;
-//   limit: number;
-
-//   search?: string;
-
-//   sortBy?: 
-//     | 'entry_date'
-//     | 'guest_name'
-//     | 'driver_name'
-//     | 'vehicle_no'
-//     | 'trip_status';
-
-//   sortOrder?: 'asc' | 'desc';
-// }

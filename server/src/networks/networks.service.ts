@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateNetworkDto } from './dto/create-network.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
+import { NetworkTableQueryDto } from './dto/network-table-query.dto';
+import { sha256 } from '../../common/utlis/hash.util';
 
 @Injectable()
 export class NetworksService {
@@ -25,6 +27,84 @@ export class NetworksService {
     const nextNum = parseInt(lastId.substring(1), 10) + 1;
     return `N${nextNum.toString().padStart(3, '0')}`;
   }
+
+  async getNetworkTable(query: NetworkTableQueryDto) {
+    const page = query.page;
+    const limit = query.limit;
+    const offset = (page - 1) * limit;
+
+    /* ---------- SORT WHITELIST ---------- */
+    const SORT_MAP: Record<string, string> = {
+      provider_name: 'provider_name',
+      network_type: 'network_type',
+      bandwidth_mbps: 'bandwidth_mbps',
+      inserted_at: 'inserted_at',
+    };
+
+    const sortColumn =
+      SORT_MAP[query.sortBy ?? 'provider_name'] ?? 'provider_name';
+
+    const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+    /* ---------- FILTERS ---------- */
+    const where: string[] = [];
+    const params: any[] = [];
+
+    // status → is_active
+    if (query.status === 'active') {
+      where.push('is_active = true');
+    } else if (query.status === 'inactive') {
+      where.push('is_active = false');
+    }
+
+    // search → provider_name
+    if (query.search) {
+      params.push(`%${query.search}%`);
+      where.push(`provider_name ILIKE $${params.length}`);
+    }
+
+    const whereClause =
+      where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    /* ---------- DATA QUERY ---------- */
+    const dataSql = `
+      SELECT
+        provider_id,
+        provider_name,
+        provider_name_local_language,
+        network_type,
+        bandwidth_mbps,
+        username,
+        static_ip,
+        address,
+        is_active,
+        inserted_at,
+        updated_at
+      FROM m_wifi_provider
+      ${whereClause}
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
+    `;
+
+    const dataParams = [...params, limit, offset];
+
+    /* ---------- COUNT QUERY ---------- */
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM m_wifi_provider
+      ${whereClause};
+    `;
+
+    const dataRes = await this.db.query(dataSql, dataParams);
+    const countRes = await this.db.query(countSql, params);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].count,
+    };
+  }
+
   async findOneById(id: string) {
     const sql = `SELECT * FROM m_wifi_provider WHERE provider_id = $1`;
     const res = await this.db.query(sql, [id]);
@@ -51,6 +131,9 @@ export class NetworksService {
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
     const providerId = await this.generateProviderId();
+    const hashedPassword = dto.password
+      ? sha256(dto.password)
+      : null;
 
     const sql = `
       INSERT INTO m_wifi_provider (
@@ -68,7 +151,18 @@ export class NetworksService {
         updated_at, updated_by, updated_ip
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12,NULL,NULL,NULL)
-      RETURNING *;
+      RETURNING
+        provider_id,
+        provider_name,
+        provider_name_local_language,
+        network_type,
+        bandwidth_mbps,
+        username,
+        static_ip,
+        address,
+        is_active,
+        inserted_at,
+        updated_at;
     `;
 
     const params = [
@@ -78,7 +172,7 @@ export class NetworksService {
       dto.network_type,
       dto.bandwidth_mbps ?? null,
       dto.username ?? null,
-      dto.password ?? null,
+      hashedPassword,
       dto.static_ip ?? null,
       dto.address ?? null,
       now,
@@ -97,6 +191,10 @@ export class NetworksService {
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
+    const passwordToStore =
+      dto.password !== undefined
+        ? sha256(dto.password)
+        : existing.password;
 
     const sql = `
       UPDATE m_wifi_provider SET
@@ -113,8 +211,19 @@ export class NetworksService {
         updated_by = $11,
         updated_ip = $12
       WHERE provider_id = $13
-      RETURNING *;
-    `;
+      RETURNING
+        provider_id,
+        provider_name,
+        provider_name_local_language,
+        network_type,
+        bandwidth_mbps,
+        username,
+        static_ip,
+        address,
+        is_active,
+        inserted_at,
+        updated_at;
+      `;
 
     const params = [
       dto.provider_name ?? existing.provider_name,
@@ -122,7 +231,7 @@ export class NetworksService {
       dto.network_type ?? existing.network_type,
       dto.bandwidth_mbps ?? existing.bandwidth_mbps,
       dto.username ?? existing.username,
-      dto.password ?? existing.password,
+      passwordToStore,
       dto.static_ip ?? existing.static_ip,
       dto.address ?? existing.address,
       dto.is_active ?? existing.is_active,

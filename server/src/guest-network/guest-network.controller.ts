@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query } from "@nestjs/common";
 import { GuestNetworkService } from "./guest-network.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
+import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
 
 @Controller("guest-network")
 export class GuestNetworkController {
@@ -18,6 +19,11 @@ export class GuestNetworkController {
     if (ip.includes(",")) ip = ip.split(",")[0].trim();
     if (ip === "::1") ip = "127.0.0.1";
     return ip;
+  }
+
+  @Get('table')
+  getTable(@Query() query: GuestNetworkTableQueryDto) {
+    return this.service.getGuestNetworkTable(query);
   }
 
   @Get()

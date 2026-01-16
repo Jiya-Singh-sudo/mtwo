@@ -3,11 +3,13 @@ import {
   IsOptional,
   IsIn,
   IsBoolean,
+  Matches,
+  MaxLength,
 } from 'class-validator';
 
 export class UpdateGuestNetworkDto {
   @IsOptional()
-  @IsString()
+  @Matches(/^N[0-9]+$/)
   provider_id?: string;
 
   @IsOptional()
@@ -16,26 +18,28 @@ export class UpdateGuestNetworkDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   network_zone_from?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   network_zone_to?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   start_date?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
   start_time?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   end_date?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{2}:\d{2}$/)
   end_time?: string;
 
   @IsOptional()
@@ -55,20 +59,16 @@ export class UpdateGuestNetworkDto {
     'Resolved',
     'Cancelled',
   ])
-  network_status?:
-    | 'Requested'
-    | 'Connected'
-    | 'Disconnected'
-    | 'Issue-Reported'
-    | 'Resolved'
-    | 'Cancelled';
+  network_status?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   description?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   remarks?: string;
 
   @IsOptional()

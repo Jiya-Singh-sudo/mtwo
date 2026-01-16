@@ -1,10 +1,8 @@
-import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Req
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query} from '@nestjs/common';
 import { NetworksService } from './networks.service';
 import { CreateNetworkDto } from './dto/create-network.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
+import { NetworkTableQueryDto } from './dto/network-table-query.dto';
 
 @Controller('wifi-providers')
 export class NetworksController {
@@ -18,6 +16,10 @@ export class NetworksController {
       req.ip || '';
     ip = ip.replace('::ffff:', '');
     return ip.includes(',') ? ip.split(',')[0].trim() : ip;
+  }
+  @Get('table')
+  getNetworkTable(@Query() query: NetworkTableQueryDto) {
+    return this.service.getNetworkTable(query);
   }
 
   @Get()

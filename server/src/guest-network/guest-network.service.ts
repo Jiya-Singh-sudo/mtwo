@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
+import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
 
 @Injectable()
 export class GuestNetworkService {
@@ -14,6 +15,99 @@ export class GuestNetworkService {
     const last = res.rows[0].guest_network_id.replace("GN", "");
     const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
     return `GN${next}`;
+  }
+  async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
+    const page = query.page;
+    const limit = query.limit;
+    const offset = (page - 1) * limit;
+
+    /* ---------- SORT WHITELIST ---------- */
+    const SORT_MAP: Record<string, string> = {
+      start_date: 'gn.start_date',
+      guest_name: 'g.guest_name',
+      provider_name: 'wp.provider_name',
+      network_status: 'gn.network_status',
+    };
+
+    const sortColumn =
+      SORT_MAP[query.sortBy ?? 'start_date'] ?? 'gn.start_date';
+    const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    const where: string[] = ['gn.is_active = true'];
+    const params: any[] = [];
+
+    /* ---------- SEARCH ---------- */
+    if (query.search) {
+      params.push(`%${query.search}%`);
+      where.push(`
+        (
+          g.guest_name ILIKE $${params.length}
+          OR wp.provider_name ILIKE $${params.length}
+        )
+      `);
+    }
+
+    /* ---------- STATUS FILTER ---------- */
+    if (query.network_status) {
+      params.push(query.network_status);
+      where.push(`gn.network_status = $${params.length}`);
+    }
+
+    /* ---------- DATE RANGE ---------- */
+    if (query.startDateFrom) {
+      params.push(query.startDateFrom);
+      where.push(`gn.start_date >= $${params.length}`);
+    }
+
+    if (query.startDateTo) {
+      params.push(query.startDateTo);
+      where.push(`gn.start_date <= $${params.length}`);
+    }
+
+    const whereClause = `WHERE ${where.join(' AND ')}`;
+
+    /* ---------- DATA QUERY ---------- */
+    const dataSql = `
+      SELECT
+        gn.guest_network_id,
+        g.guest_id,
+        g.guest_name,
+        wp.provider_name,
+        r.room_no,
+        gn.start_date,
+        gn.start_time,
+        gn.end_date,
+        gn.end_time,
+        gn.network_status,
+        gn.start_status,
+        gn.end_status,
+        gn.description,
+        gn.remarks
+      FROM t_guest_network gn
+      JOIN m_guest g ON g.guest_id = gn.guest_id
+      LEFT JOIN m_wifi_provider wp ON wp.provider_id = gn.provider_id
+      LEFT JOIN m_rooms r ON r.room_id = gn.room_id
+      ${whereClause}
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
+    `;
+
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM t_guest_network gn
+      JOIN m_guest g ON g.guest_id = gn.guest_id
+      LEFT JOIN m_wifi_provider wp ON wp.provider_id = gn.provider_id
+      ${whereClause};
+    `;
+
+    const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
+    const countRes = await this.db.query(countSql, params);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].count,
+    };
   }
 
   async findAll(activeOnly = true) {
