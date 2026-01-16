@@ -1,4 +1,4 @@
-import * as puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer';
 
 export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     const browser = await puppeteer.launch({

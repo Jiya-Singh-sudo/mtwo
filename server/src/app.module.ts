@@ -33,6 +33,7 @@ import { GuestTransportModule } from './guest-transport/guest-transport.module';
 import { MessengersModule } from './messengers/messengers.module';
 import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.module';
 import { InfoPackageModule } from './info-package/info-package.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { InfoPackageModule } from './info-package/info-package.module';
     MessengersModule,
     GuestMessenegerModule,
     InfoPackageModule,
+    ReportsModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
