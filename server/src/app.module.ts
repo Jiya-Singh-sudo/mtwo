@@ -31,6 +31,7 @@ import { RoomManagementModule } from './room-management/room-management.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { GuestTransportModule } from './guest-transport/guest-transport.module';
 import { NetworkMngModule } from './network-mng/network-mng.module';
+import { MessengersModule } from './messengers/messengers.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { NetworkMngModule } from './network-mng/network-mng.module';
     ActivityLogModule,
     GuestTransportModule,
     NetworkMngModule,
+    MessengersModule,
   ],
   controllers: [AppController], 
   providers: [AppService],
