@@ -4,6 +4,8 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -38,6 +40,21 @@ export class UsersController {
     const ip = this.extractIp(req);
     return this.service.create(dto, user, ip);
   }
+  @Post('forgot-password')
+    async forgotPassword(
+      @Body() dto: ForgotPasswordDto,
+      @Req() req: any,
+    ) {
+      return this.service.forgotPassword(dto, req.ip);
+    }
+
+    @Post('reset-password')
+    async resetPassword(
+      @Body() dto: ResetPasswordDto,
+      @Req() req: any,
+    ) {
+      return this.service.resetPassword(dto, req.ip);
+    }
 
   // Update by username (frontend should pass username in URL)
   @Put(':username')

@@ -32,6 +32,7 @@ import { ActivityLogModule } from './activity-log/activity-log.module';
 import { GuestTransportModule } from './guest-transport/guest-transport.module';
 import { MessengersModule } from './messengers/messengers.module';
 import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.module';
+import { InfoPackageModule } from './info-package/info-package.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.modul
     GuestTransportModule,
     MessengersModule,
     GuestMessenegerModule,
+    InfoPackageModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

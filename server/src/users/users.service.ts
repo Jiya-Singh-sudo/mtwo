@@ -2,11 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly db: DatabaseService) { }
+
+  private generateResetToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
 
   private async generateUserId(): Promise<string> {
     const sql = `SELECT user_id FROM m_user ORDER BY user_id DESC LIMIT 1`;
@@ -90,6 +96,76 @@ export class UsersService {
 
     const res = await this.db.query(sql, params);
     return res.rows[0];
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto, ip: string) {
+    const user = await this.findOneByUsername(dto.username);
+    if (!user) {
+      // IMPORTANT: do NOT reveal user existence
+      return { message: 'If the user exists, a reset link has been sent.' };
+    }
+
+    const token = this.generateResetToken();
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    const sql = `
+      UPDATE m_user
+      SET
+        reset_token = $1,
+        reset_token_expires = $2,
+        updated_at = $3,
+        updated_ip = $4
+      WHERE user_id = $5
+    `;
+
+    await this.db.query(sql, [
+      token,
+      expires,
+      new Date().toISOString(),
+      ip,
+      user.user_id,
+    ]);
+
+    // 🔌 Email hook (stub)
+    // await this.mailService.sendResetLink(user.email, token);
+
+    return { message: 'If the user exists, a reset link has been sent.' };
+  }
+  async resetPassword(dto: ResetPasswordDto, ip: string) {
+    const sql = `
+      SELECT user_id
+      FROM m_user
+      WHERE reset_token = $1
+        AND reset_token_expires > NOW()
+        AND is_active = true
+    `;
+
+    const res = await this.db.query(sql, [dto.token]);
+    if (res.rows.length === 0) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const userId = res.rows[0].user_id;
+    const hashed = this.hashPassword(dto.new_password);
+
+    const updateSql = `
+      UPDATE m_user SET
+        password = $1,
+        reset_token = NULL,
+        reset_token_expires = NULL,
+        updated_at = $2,
+        updated_ip = $3
+      WHERE user_id = $4
+    `;
+
+    await this.db.query(updateSql, [
+      hashed,
+      new Date().toISOString(),
+      ip,
+      userId,
+    ]);
+
+    return { message: 'Password reset successfully' };
   }
 
   async update(username: string, dto: UpdateUserDto, user: string, ip: string) {
