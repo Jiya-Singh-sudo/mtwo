@@ -49,17 +49,17 @@ export class UpdateGuestDriverDto {
   @IsString()
   drop_time?: string;
 
-  @IsOptional()
-  @IsIn(['Waiting', 'Success'])
-  pickup_status?: 'Waiting' | 'Success';
+  // @IsOptional()
+  // @IsIn(['Waiting', 'Success'])
+  // pickup_status?: 'Waiting' | 'Success';
 
-  @IsOptional()
-  @IsIn(['Waiting', 'Success'])
-  drop_status?: 'Waiting' | 'Success';
+  // @IsOptional()
+  // @IsIn(['Waiting', 'Success'])
+  // drop_status?: 'Waiting' | 'Success';
 
-  @IsOptional()
-  @IsIn(['Scheduled', 'Ongoing', 'Completed', 'Cancelled'])
-  trip_status?: 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled';
+  // @IsOptional()
+  // @IsIn(['Scheduled', 'Ongoing', 'Completed', 'Cancelled'])
+  // trip_status?: 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled';
 
   @IsOptional()
   @IsString()

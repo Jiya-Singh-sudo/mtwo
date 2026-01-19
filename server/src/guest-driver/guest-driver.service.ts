@@ -30,20 +30,22 @@ export class GuestDriverService {
     user = "system",
     ip = "0.0.0.0"
   ) {
-    const now = new Date();
     return this.createTrip(
       {
         guest_id: dto.guest_id,
         driver_id: dto.driver_id,
-        pickup_location: "Guest Location",
-        trip_date: now.toISOString().split("T")[0],
-        start_time: now.toTimeString().slice(0, 8),
-        trip_status: "Scheduled"
+        pickup_location: dto.pickup_location,
+        drop_location: dto.drop_location,
+        trip_date: dto.trip_date,
+        start_time: dto.start_time,
+        end_time: dto.end_time,
+        // trip_status: dto.trip_status ?? "Scheduled",
       },
       user,
       ip
     );
   }
+
 
   // ---------- CREATE TRIP ----------
   async createTrip(
@@ -60,7 +62,7 @@ export class GuestDriverService {
         from_location, to_location, pickup_location, drop_location,
         trip_date, start_time, end_time,
         drop_date, drop_time,
-        pickup_status, drop_status, trip_status,
+
         remarks,
         is_active,
         inserted_at, inserted_by, inserted_ip
@@ -70,10 +72,9 @@ export class GuestDriverService {
         $6,$7,$8,$9,
         $10,$11,$12,
         $13,$14,
-        $15,$16,$17,
-        $18,
+        $15,
         TRUE,
-        $19,$20,$21
+        $16,$17,$18
       )
       RETURNING *;
     `;
@@ -93,9 +94,9 @@ export class GuestDriverService {
       dto.end_time ?? null,
       dto.drop_date ?? null,
       dto.drop_time ?? null,
-      dto.pickup_status ?? "Waiting",
-      dto.drop_status ?? "Waiting",
-      dto.trip_status ?? "Scheduled",
+      // dto.pickup_status ?? "Waiting",
+      // dto.drop_status ?? "Waiting",
+      // dto.trip_status ?? "Scheduled",
       dto.remarks ?? null,
       now,
       user,
@@ -166,7 +167,7 @@ async findActiveByGuest(guestId: string) {
         from_location, to_location, pickup_location, drop_location,
         trip_date, start_time, end_time,
         drop_date, drop_time,
-        pickup_status, drop_status, trip_status,
+
         remarks,
         is_active,
         inserted_at, inserted_by, inserted_ip
@@ -176,10 +177,9 @@ async findActiveByGuest(guestId: string) {
         $6,$7,$8,$9,
         $10,$11,$12,
         $13,$14,
-        $15,$16,$17,
-        $18,
+        $15,
         true,
-        $19,$20,$21
+        $16,$17,$18
       )
       RETURNING *;
     `;
@@ -203,9 +203,9 @@ async findActiveByGuest(guestId: string) {
       dto.drop_date ?? null,
       dto.drop_time ?? null,
 
-      dto.pickup_status ?? "Waiting",
-      dto.drop_status ?? "Waiting",
-      dto.trip_status ?? "Scheduled",
+      // dto.pickup_status ?? "Waiting",
+      // dto.drop_status ?? "Waiting",
+      // dto.trip_status ?? "Scheduled",
 
       dto.remarks ?? null,
 
@@ -242,17 +242,13 @@ async findActiveByGuest(guestId: string) {
         drop_date = $11,
         drop_time = $12,
 
-        pickup_status = $13,
-        drop_status = $14,
-        trip_status = $15,
+        remarks = $13,
+        is_active = $14,
 
-        remarks = $16,
-        is_active = $17,
-
-        updated_at = $18,
-        updated_by = $19,
-        updated_ip = $20
-      WHERE guest_driver_id = $21
+        updated_at = $15,
+        updated_by = $16,
+        updated_ip = $17
+      WHERE guest_driver_id = $18
       RETURNING *;
     `;
 
@@ -273,9 +269,9 @@ async findActiveByGuest(guestId: string) {
       dto.drop_date ?? existing.drop_date,
       dto.drop_time ?? existing.drop_time,
 
-      dto.pickup_status ?? existing.pickup_status,
-      dto.drop_status ?? existing.drop_status,
-      dto.trip_status ?? existing.trip_status,
+      // dto.pickup_status ?? existing.pickup_status,
+      // dto.drop_status ?? existing.drop_status,
+      // dto.trip_status ?? existing.trip_status,
 
       dto.remarks ?? existing.remarks,
       dto.is_active ?? existing.is_active,
