@@ -10,10 +10,10 @@ export async function sendWhatsappDocument(payload: {
    * - Send document message
    */
 
-  console.log('Sending WhatsApp message:', {
-    to: payload.to,
-    fileName: payload.fileName,
-  });
+  // console.log('Sending WhatsApp message:', {
+  //   to: payload.to,
+  //   fileName: payload.fileName,
+  // });
 
   // Simulated provider response
   return {

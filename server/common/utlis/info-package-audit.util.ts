@@ -21,7 +21,7 @@ export async function logInfoPackageAudit(
       inserted_by,
       inserted_ip
     )
-    VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, TRUE, CURRENT_TIMESTAMP, $3, $4)
+    VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4::inet, TRUE, CURRENT_TIMESTAMP, $3, $4)
   `;
 
   await db.query(sql, [

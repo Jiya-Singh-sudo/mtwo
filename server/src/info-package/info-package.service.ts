@@ -6,6 +6,7 @@ import { generatePdfFromHtml } from '../../common/utlis/pdf.utils';
 import { sendWhatsappDocument } from '../../common/utlis/whatsapp.util';
 import { logInfoPackageAudit } from '../../common/utlis/info-package-audit.util';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { formatDateTime } from '../../common/utlis/date-utlis';
 
 
 @Injectable()
@@ -205,12 +206,13 @@ console.log('DB RESULT KEYS:', Object.keys(result));
         },
 
         stay: {
-          arrivalDate: row.entry_date,
-          departureDate: row.exit_date,
-          status: row.inout_status,
-          roomNo: row.room_no,
-          roomType: row.room_type,
+          arrivalDate: formatDateTime(row.entry_date),
+          departureDate: formatDateTime(row.exit_date),
+          status: row.inout_status || '-',
+          roomNo: row.room_no || '-',
+          roomType: row.room_type || '-',
         },
+
 
         transport: {
           vehicleNo: row.vehicle_no,

@@ -63,8 +63,8 @@ export function infoPackageTemplate(data: any) {
 <table>
   <tr><td class="label">Room No</td><td>${stay.roomNo || '-'}</td></tr>
   <tr><td class="label">Room Type</td><td>${stay.roomType || '-'}</td></tr>
-  <tr><td class="label">Check-In</td><td>${stay.checkInDate}</td></tr>
-  <tr><td class="label">Check-Out</td><td>${stay.checkOutDate}</td></tr>
+  <tr><td class="label">Check-In</td><td>${stay.arrivalDate}</td></tr>
+  <tr><td class="label">Check-Out</td><td>${stay.departureDate}</td></tr>
 </table>
 
 <h2>Transport Details</h2>
