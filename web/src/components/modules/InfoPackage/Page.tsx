@@ -46,8 +46,12 @@ export default function InfoPackage() {
         limit,
       });
 
-      setGuests(res.data);
-      setTotalCount(res.total);
+    setGuests(Array.isArray(res?.data) ? res.data : []);
+    setTotalCount(typeof res?.total === 'number' ? res.total : 0);
+    console.log('InfoPackage API response:', res);
+    console.log('Guests state:', res?.data);
+    console.log('Guests state:', res?.total);
+
     } finally {
       setLoading(false);
     }
@@ -149,7 +153,7 @@ export default function InfoPackage() {
 
       {/* ===== CARD VIEW (UNCHANGED UI) ===== */}
       <div className="bg-white border rounded-sm p-6 space-y-4">
-        {guests.map((guest) => (
+        {Array.isArray(guests) && guests.map((guest) => (
           <div
             key={guest.guest_id}
             className="border rounded-sm p-6"
