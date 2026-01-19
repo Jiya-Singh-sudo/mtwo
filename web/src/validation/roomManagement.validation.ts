@@ -104,6 +104,8 @@ export const roomBoyManagementSchema = z
       });
     }
   });
+
+  
 /* ======================================================
    ROOM BOY (ADD)
 ====================================================== */
@@ -149,18 +151,31 @@ export const guestRoomAssignSchema = z
     guest_id: z.string().min(1, "Guest is required"),
     room_id: z.string().min(1, "Room is required"),
 
-  check_in_date: z
-    .string()
-    .regex(dateRegex, "Invalid date format (YYYY-MM-DD)"),
+    check_in_date: z
+      .string()
+      .regex(dateRegex, "Invalid date format (YYYY-MM-DD)"),
 
-  check_out_date: z
-    .string()
-    .regex(dateRegex, "Invalid date format (YYYY-MM-DD)")
-    .optional(),
+    check_out_date: z
+      .string()
+      .regex(dateRegex, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
   })
   .superRefine((data, ctx) => {
+    const inDate = parseDate(data.check_in_date);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    /* ---------- CHECK-IN DATE RULE ---------- */
+    if (inDate < today) {
+      ctx.addIssue({
+        path: ["check_in_date"],
+        message: "Check-in date cannot be before today",
+        code: z.ZodIssueCode.custom,
+      });
+    }
+
     if (data.check_out_date) {
-      const inDate = parseDate(data.check_in_date);
       const outDate = parseDate(data.check_out_date);
 
       if (outDate < inDate) {
@@ -180,7 +195,6 @@ export const guestRoomAssignSchema = z
       }
     }
   });
-  
 
 export const roomBoyAssignmentSchema = z
   .object({

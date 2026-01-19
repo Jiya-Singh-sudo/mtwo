@@ -587,6 +587,10 @@ export function RoomManagement() {
       render: (row) => row.guest?.guestName || "—",
     },
     {
+      header: "Room Boy",
+      render: (row) => row.housekeeping?.hkName || "—",
+    },
+    {
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-3">
@@ -796,6 +800,7 @@ export function RoomManagement() {
                 placeholder="Search room, guest, residence..."
                 value={roomTable.query.search ?? ""}
                 onChange={(e) => roomTable.setSearchInput(e.target.value)}
+                maxLength={300}
               />
             </div>
 
@@ -839,6 +844,7 @@ export function RoomManagement() {
                 placeholder="Search room boys..."
                 value={hkTable.searchInput ?? ""}
                 onChange={(e) => hkTable.setSearchInput(e.target.value)}
+                maxLength={300}
               />
             </div>
 
@@ -1021,7 +1027,7 @@ export function RoomManagement() {
               </button>
               <button
                 className="saveBtn"
-                onClick={submitRoomBoyAssignment}
+                onClick={() => {submitRoomBoyAssignment(); setIsRoomBoyModalOpen(false)}}
                 disabled={assigning}
               >
                 {assigning ? (

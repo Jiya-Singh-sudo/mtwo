@@ -163,16 +163,77 @@ export const guestManagementSchema = z
 
     /* ---------- DATE RULES ---------- */
 
-    const inDate = parseDate(entry_date);
-    // const today = new Date();
+  //   const inDate = parseDate(entry_date);
+  //   // const today = new Date();
 
-    // if (inDate > today) {
-    //   ctx.addIssue({
-    //     path: ["entry_date"],
-    //     message: "Future date not allowed",
-    //     code: z.ZodIssueCode.custom,
-    //   });
-    // }
+  //   // if (inDate > today) {
+  //   //   ctx.addIssue({
+  //   //     path: ["entry_date"],
+  //   //     message: "Future date not allowed",
+  //   //     code: z.ZodIssueCode.custom,
+  //   //   });
+  //   // }
+
+  //   const inYear = inDate.getFullYear();
+  //   if (inYear < MIN_YEAR || inYear > MAX_YEAR) {
+  //     ctx.addIssue({
+  //       path: ["entry_date"],
+  //       message: "Date outside allowed year range",
+  //       code: z.ZodIssueCode.custom,
+  //     });
+  //   }
+
+  //   if (exit_date) {
+  //     const outDate = parseDate(exit_date);
+
+  //     if (outDate < inDate) {
+  //       ctx.addIssue({
+  //         path: ["exit_date"],
+  //         message: "Check-out cannot be before check-in",
+  //         code: z.ZodIssueCode.custom,
+  //       });
+  //     }
+
+  //     const stayDays = diffDays(inDate, outDate);
+  //     if (stayDays > MAX_STAY_DAYS) {
+  //       ctx.addIssue({
+  //         path: ["exit_date"],
+  //         message: "Stay period cannot exceed 90 days",
+  //         code: z.ZodIssueCode.custom,
+  //       });
+  //     }
+  //   }
+
+  //   /* ---------- TIME ORDER RULE ---------- */
+
+  //   if (exit_date && exit_time) {
+  //     const inDT = new Date(`${entry_date}T${entry_time}`);
+  //     const outDT = new Date(`${exit_date}T${exit_time}`);
+
+  //     if (outDT <= inDT) {
+  //       ctx.addIssue({
+  //         path: ["exit_time"],
+  //         message: "Exit time must be after entry time",
+  //         code: z.ZodIssueCode.custom,
+  //       });
+  //     }
+  //   }
+  // })
+      /* ---------- DATE RULES ---------- */
+
+    const inDate = parseDate(entry_date);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // ❌ past date not allowed
+    if (inDate < today) {
+      ctx.addIssue({
+        path: ["entry_date"],
+        message: "Check-in date cannot be before today",
+        code: z.ZodIssueCode.custom,
+      });
+    }
 
     const inYear = inDate.getFullYear();
     if (inYear < MIN_YEAR || inYear > MAX_YEAR) {
@@ -199,21 +260,6 @@ export const guestManagementSchema = z
         ctx.addIssue({
           path: ["exit_date"],
           message: "Stay period cannot exceed 90 days",
-          code: z.ZodIssueCode.custom,
-        });
-      }
-    }
-
-    /* ---------- TIME ORDER RULE ---------- */
-
-    if (exit_date && exit_time) {
-      const inDT = new Date(`${entry_date}T${entry_time}`);
-      const outDT = new Date(`${exit_date}T${exit_time}`);
-
-      if (outDT <= inDT) {
-        ctx.addIssue({
-          path: ["exit_time"],
-          message: "Exit time must be after entry time",
           code: z.ZodIssueCode.custom,
         });
       }
