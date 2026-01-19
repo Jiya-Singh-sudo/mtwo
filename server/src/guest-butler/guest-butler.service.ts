@@ -43,26 +43,22 @@ export class GuestButlerService {
         guest_butler_id,
         guest_id, butler_id, room_id,
 
-        check_in_date, check_in_time, 
-        check_out_date, check_out_time,
+        // check_in_date, check_in_time, 
+        // check_out_date, check_out_time,
 
-        service_type, service_description,
-        service_date, service_time,
+        // service_type, service_description,
+        // service_date, service_time,
 
-        remarks,
+        specialRequest,
 
         is_active,
         inserted_at, inserted_by, inserted_ip
       )
       VALUES (
         $1, $2, $3, $4,
-        $5, $6,
-        $7, $8,
-        $9, $10,
-        $11, $12,
-        $13,
+        $5,
         true,
-        $14, $15, $16
+        $6, $7, $8
       )
       RETURNING *;
     `;
@@ -74,18 +70,18 @@ export class GuestButlerService {
       dto.butler_id,
       dto.room_id ?? null,
 
-      dto.check_in_date ?? null,
-      dto.check_in_time ?? null,
-      dto.check_out_date ?? null,
-      dto.check_out_time ?? null,
+      // dto.check_in_date ?? null,
+      // dto.check_in_time ?? null,
+      // dto.check_out_date ?? null,
+      // dto.check_out_time ?? null,
 
-      dto.service_type,
-      dto.service_description ?? null,
+      // dto.service_type,
+      // dto.service_description ?? null,
 
-      dto.service_date ?? null,
-      dto.service_time ?? null,
+      // dto.service_date ?? null,
+      // dto.service_time ?? null,
 
-      dto.remarks ?? null,
+      dto.specialRequest ?? null,
 
       now,
       user,
@@ -108,24 +104,24 @@ export class GuestButlerService {
         butler_id = $2,
         room_id = $3,
 
-        check_in_date = $4,
-        check_in_time = $5,
-        check_out_date = $6,
-        check_out_time = $7,
+        // check_in_date = $4,
+        // check_in_time = $5,
+        // check_out_date = $6,
+        // check_out_time = $7,
 
-        service_type = $8,
-        service_description = $9,
+        // service_type = $8,
+        // service_description = $9,
 
-        service_date = $10,
-        service_time = $11,
+        // service_date = $10,
+        // service_time = $11,
 
-        remarks = $12,
-        is_active = $13,
+        specialRequest = $4,
+        is_active = $5,
 
-        updated_at = $14,
-        updated_by = $15,
-        updated_ip = $16
-      WHERE guest_butler_id = $17
+        updated_at = $6,
+        updated_by = $7,
+        updated_ip = $8
+      WHERE guest_butler_id = $9
       RETURNING *;
     `;
 
@@ -134,18 +130,18 @@ export class GuestButlerService {
       dto.butler_id ?? existing.butler_id,
       dto.room_id ?? existing.room_id,
 
-      dto.check_in_date ?? existing.check_in_date,
-      dto.check_in_time ?? existing.check_in_time,
-      dto.check_out_date ?? existing.check_out_date,
-      dto.check_out_time ?? existing.check_out_time,
+      // dto.check_in_date ?? existing.check_in_date,
+      // dto.check_in_time ?? existing.check_in_time,
+      // dto.check_out_date ?? existing.check_out_date,
+      // dto.check_out_time ?? existing.check_out_time,
 
-      dto.service_type ?? existing.service_type,
-      dto.service_description ?? existing.service_description,
+      // dto.service_type ?? existing.service_type,
+      // dto.service_description ?? existing.service_description,
 
-      dto.service_date ?? existing.service_date,
-      dto.service_time ?? existing.service_time,
+      // dto.service_date ?? existing.service_date,
+      // dto.service_time ?? existing.service_time,
 
-      dto.remarks ?? existing.remarks,
+      dto.specialRequest ?? existing.remarks,
       dto.is_active ?? existing.is_active,
 
       now,
