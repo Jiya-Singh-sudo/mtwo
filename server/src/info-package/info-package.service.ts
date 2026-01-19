@@ -5,6 +5,8 @@ import { infoPackageTemplate } from './templates/info-package.template';
 import { generatePdfFromHtml } from '../../common/utlis/pdf.utils';
 import { sendWhatsappDocument } from '../../common/utlis/whatsapp.util';
 import { logInfoPackageAudit } from '../../common/utlis/info-package-audit.util';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
+
 
 @Injectable()
 export class InfoPackageService {
@@ -17,66 +19,100 @@ export class InfoPackageService {
     const search = `%${query.search || ''}%`;
 
     const dataSql = `
-        SELECT
-        g.guest_id,
-        g.guest_name,
-        g.designation,
-        g.department,
-        g.vip_type,
-        r.room_no,
-        r.room_type,
-        s.check_in_date AS arrival_date,
-        s.check_out_date AS departure_date,
-        s.status AS stay_status,
-        v.vehicle_no,
-        v.vehicle_name,
-        d.driver_name
-        FROM m_guest g
-        JOIN t_guest_stay s
-        ON s.guest_id = g.guest_id
-        AND s.is_active = 1
-        LEFT JOIN m_room r
-        ON r.room_id = s.room_id
-        LEFT JOIN t_guest_transport gt
-        ON gt.guest_id = g.guest_id
-        AND gt.is_active = 1
-        LEFT JOIN m_vehicle v
-        ON v.vehicle_id = gt.vehicle_id
-        LEFT JOIN m_driver d
-        ON d.driver_id = gt.driver_id
-        WHERE
-        g.is_active = 1
-        AND s.check_out_date >= CURRENT_DATE
-        AND (
-            g.guest_name ILIKE $1
-            OR r.room_no ILIKE $1
-            OR v.vehicle_no ILIKE $1
-        )
-        ORDER BY s.check_in_date DESC
-        LIMIT $2 OFFSET $3
+    SELECT DISTINCT
+      g.guest_id,
+      g.guest_name,
+
+      md.designation_name,
+
+      r.room_no,
+
+      ti.entry_date AS arrival_date,
+      ti.exit_date  AS departure_date,
+
+      gv.vehicle_no,
+      d.driver_name
+
+    FROM m_guest g
+
+    -- active stay
+    JOIN t_guest_inout ti
+      ON ti.guest_id = g.guest_id
+      AND ti.is_active IS TRUE
+
+    -- current designation
+    LEFT JOIN t_guest_designation gd
+      ON gd.guest_id = g.guest_id
+      AND gd.is_active IS TRUE
+      AND gd.is_current IS TRUE
+
+    LEFT JOIN m_guest_designation md
+      ON md.designation_id = gd.designation_id
+
+    -- room assignment
+    LEFT JOIN t_guest_room gr
+      ON gr.guest_id = g.guest_id
+      AND gr.is_active IS TRUE
+
+    LEFT JOIN m_rooms r
+      ON r.room_id = gr.room_id
+
+    -- vehicle + driver
+    LEFT JOIN t_guest_driver gv
+      ON gv.guest_id = g.guest_id
+      AND gv.is_active IS TRUE
+
+    LEFT JOIN m_driver d
+      ON d.driver_id = gv.driver_id
+
+    WHERE
+      g.is_active IS TRUE
+      AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
+      AND (
+        g.guest_name ILIKE $1
+        OR r.room_no ILIKE $1
+        OR gv.vehicle_no ILIKE $1
+      )
+
+    ORDER BY ti.entry_date DESC
+    LIMIT $2 OFFSET $3;
     `;
 
     const countSql = `
-        SELECT COUNT(DISTINCT g.guest_id) AS total
-        FROM m_guest g
-        JOIN t_guest_stay s
-        ON s.guest_id = g.guest_id
-        AND s.is_active = 1
-        LEFT JOIN m_room r
-        ON r.room_id = s.room_id
-        LEFT JOIN t_guest_transport gt
-        ON gt.guest_id = g.guest_id
-        AND gt.is_active = 1
-        LEFT JOIN m_vehicle v
-        ON v.vehicle_id = gt.vehicle_id
-        WHERE
-        g.is_active = 1
-        AND s.check_out_date >= CURRENT_DATE
-        AND (
-            g.guest_name ILIKE $1
-            OR r.room_no ILIKE $1
-            OR v.vehicle_no ILIKE $1
-        )
+    SELECT COUNT(DISTINCT g.guest_id) AS total
+    FROM m_guest g
+
+    JOIN t_guest_inout ti
+      ON ti.guest_id = g.guest_id
+      AND ti.is_active IS TRUE
+
+    LEFT JOIN t_guest_designation gd
+      ON gd.guest_id = g.guest_id
+      AND gd.is_active IS TRUE
+      AND gd.is_current IS TRUE
+
+    LEFT JOIN m_guest_designation md
+      ON md.designation_id = gd.designation_id
+
+    LEFT JOIN t_guest_room gr
+      ON gr.guest_id = g.guest_id
+      AND gr.is_active IS TRUE
+
+    LEFT JOIN m_rooms r
+      ON r.room_id = gr.room_id
+
+    LEFT JOIN t_guest_driver gv
+      ON gv.guest_id = g.guest_id
+      AND gv.is_active IS TRUE
+
+    WHERE
+      g.is_active IS TRUE
+      AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
+      AND (
+        g.guest_name ILIKE $1
+        OR r.room_no ILIKE $1
+        OR gv.vehicle_no ILIKE $1
+      );
     `;
 
     const data = await this.db.query(dataSql, [search, limit, offset]);
@@ -91,79 +127,107 @@ export class InfoPackageService {
     }
 
     async getGuestInfo(guestId: string) {
-    const sql = `
+      const sql = `
         SELECT
-        g.guest_id,
-        g.guest_name,
-        g.designation,
-        g.department,
-        g.vip_type,
-        g.contact_no,
-        s.guest_stay_id,
-        s.check_in_date,
-        s.check_out_date,
-        s.status AS stay_status,
-        r.room_no,
-        r.room_type,
-        v.vehicle_no,
-        v.vehicle_name,
-        d.driver_name,
-        d.driver_contact
+          g.guest_id,
+          g.guest_name,
+          g.guest_mobile,
+          g.email,
+
+          md.designation_name,
+          gd.department,
+          gd.organization,
+          gd.office_location,
+
+          ti.entry_date,
+          ti.exit_date,
+          ti.status AS inout_status,
+
+          r.room_no,
+          r.room_type,
+
+          gv.vehicle_no,
+          d.driver_name,
+          d.driver_contact
+
         FROM m_guest g
-        JOIN t_guest_stay s
-        ON s.guest_id = g.guest_id
-        AND s.is_active = 1
-        LEFT JOIN m_room r
-        ON r.room_id = s.room_id
-        LEFT JOIN t_guest_transport gt
-        ON gt.guest_id = g.guest_id
-        AND gt.is_active = 1
-        LEFT JOIN m_vehicle v
-        ON v.vehicle_id = gt.vehicle_id
+
+        -- active in/out (stay)
+        JOIN t_guest_inout ti
+          ON ti.guest_id = g.guest_id
+          AND ti.is_active IS TRUE
+
+        -- current designation
+        LEFT JOIN t_guest_designation gd
+          ON gd.guest_id = g.guest_id
+          AND gd.is_active IS TRUE
+          AND gd.is_current IS TRUE
+
+        LEFT JOIN m_guest_designation md
+          ON md.designation_id = gd.designation_id
+
+        -- room
+        LEFT JOIN t_guest_room gr
+          ON gr.guest_id = g.guest_id
+          AND gr.is_active IS TRUE
+
+        LEFT JOIN m_rooms r
+          ON r.room_id = gr.room_id
+
+        -- vehicle + driver
+        LEFT JOIN t_guest_driver gv
+          ON gv.guest_id = g.guest_id
+          AND gv.is_active IS TRUE
+
         LEFT JOIN m_driver d
-        ON d.driver_id = gt.driver_id
+          ON d.driver_id = gv.driver_id
+
         WHERE
-        g.guest_id = $1
-        AND g.is_active = 1
-        ORDER BY s.check_in_date DESC
-        LIMIT 1
-    `;
+          g.guest_id = $1
+          AND g.is_active IS TRUE
 
-    const result = await this.db.query(sql, [guestId]);
+        ORDER BY ti.entry_date DESC
+        LIMIT 1;
+      `;
 
-    if (!result.length) {
-        throw new Error('Guest not found or no active stay');
-    }
+      const result = await this.db.query(sql, [guestId]);
 
-    const row = result[0];
+      if (!result.length) {
+        throw new NotFoundException('Guest not found or inactive');
+      }
 
-    return {
+      const row = result[0];
+
+      return {
         guest: {
-        guestId: row.guest_id,
-        name: row.guest_name,
-        designation: row.designation,
-        department: row.department,
-        vipType: row.vip_type,
-        contactNo: row.contact_no,
+          guestId: row.guest_id,
+          name: row.guest_name,
+          designation: row.designation_name,
+          department: row.department,
+          organization: row.organization,
+          officeLocation: row.office_location,
+          mobile: row.guest_mobile,
+          email: row.email,
         },
+
         stay: {
-        stayId: row.guest_stay_id,
-        checkInDate: row.check_in_date,
-        checkOutDate: row.check_out_date,
-        status: row.stay_status,
-        roomNo: row.room_no,
-        roomType: row.room_type,
+          arrivalDate: row.entry_date,
+          departureDate: row.exit_date,
+          status: row.inout_status,
+          roomNo: row.room_no,
+          roomType: row.room_type,
         },
+
         transport: {
-        vehicleNo: row.vehicle_no,
-        vehicleName: row.vehicle_name,
-        driverName: row.driver_name,
-        driverContact: row.driver_contact,
+          vehicleNo: row.vehicle_no,
+          driverName: row.driver_name,
+          driverContact: row.driver_contact,
         },
+
         meta: {
-        generatedAt: new Date().toISOString(),
+          generatedAt: new Date().toISOString(),
         },
-    };
+      };
     }
 
     async generatePdf(guestId: string) {
@@ -171,54 +235,60 @@ export class InfoPackageService {
 
         const html = infoPackageTemplate(data);
         const pdfBuffer = await generatePdfFromHtml(html);
+        await logInfoPackageAudit(this.db, {
+            guestId,
+            actionType: 'PDF_GENERATED',
+            performedBy: 'system',
+        });
+
 
         return {
-            fileName: `Guest_Info_${guestId}.pdf`,
+            fileName: `Guest_Info_${guestId.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
             buffer: pdfBuffer,
         };
     }
 
     async sendWhatsapp(
-    guestId: string,
-    context?: { performedBy: string; ipAddress?: string },
+      guestId: string,
+      context?: { performedBy: string; ipAddress?: string },
     ) {
-    // 1️⃣ Get data
-    const data = await this.getGuestInfo(guestId);
+      // 1️⃣ Get aggregated guest info
+      const data = await this.getGuestInfo(guestId);
 
-    if (!data.guest.contactNo) {
-        throw new Error('Guest contact number not available');
-    }
+      // 2️⃣ Validate mobile number
+      if (!data.guest.mobile) {
+        throw new BadRequestException('Guest mobile number not available');
+      }
 
-    // 2️⃣ Generate PDF (reuse logic)
-    const html = infoPackageTemplate(data);
-    const pdfBuffer = await generatePdfFromHtml(html);
+      // 3️⃣ Generate PDF
+      const html = infoPackageTemplate(data);
+      const pdfBuffer = await generatePdfFromHtml(html);
 
-    const fileName = `Guest_Info_${guestId}.pdf`;
+      const fileName = `Guest_Info_${guestId}.pdf`;
 
-    // 3️⃣ Send WhatsApp
-    const response = await sendWhatsappDocument({
-        to: data.guest.contactNo,
+      // 4️⃣ Send WhatsApp document
+      const response = await sendWhatsappDocument({
+        to: data.guest.mobile,
         caption: 'Guest Information Package',
         fileName,
         fileBuffer: pdfBuffer,
-    });
+      });
 
-    if (!response.success) {
-        throw new Error('WhatsApp sending failed');
-    }
+      if (!response?.success) {
+        throw new BadRequestException('WhatsApp sending failed');
+      }
 
-    // 4️⃣ Audit log
-    await logInfoPackageAudit(this.db, {
+      // 5️⃣ Audit log
+      await logInfoPackageAudit(this.db, {
         guestId,
         actionType: 'WHATSAPP_SENT',
         performedBy: context?.performedBy || 'system',
         ipAddress: context?.ipAddress,
-    });
+      });
 
-    return {
+      return {
         status: 'sent',
         messageId: response.providerMessageId,
-    };
+      };
     }
-
 }

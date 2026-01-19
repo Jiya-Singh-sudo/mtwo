@@ -4,7 +4,7 @@ export async function logInfoPackageAudit(
   db: DatabaseService,
   payload: {
     guestId: string;
-    actionType: 'PDF_GENERATED' | 'WHATSAPP_SENT';
+    actionType: 'PDF_GENERATED' | 'PDF_DOWNLOADED' | 'WHATSAPP_SENT';
     performedBy: string;
     ipAddress?: string;
   },
