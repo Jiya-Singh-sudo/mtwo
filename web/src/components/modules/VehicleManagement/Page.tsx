@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Edit, Trash2, Eye, Plus, Search } from 'lucide-react';
 import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
-import { Input } from '../../ui/input';
+// import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
 import { getDriversTable, createDriver, softDeleteDriver } from '../../../api/driver.api';
@@ -88,7 +88,7 @@ export function VehicleManagement() {
   const [showEditDriver, setShowEditDriver] = useState(false);
   const [showDeleteDriverConfirm, setShowDeleteDriverConfirm] = useState(false);
   const [viewDriver, setViewDriver] = useState<Driver | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const vehicleTable = useTableQuery({
@@ -539,6 +539,7 @@ export function VehicleManagement() {
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
                 placeholder="Search vehicle no or name…"
+                maxLength={50}
                 value={vehicleTable.searchInput}
                 onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
               />
@@ -583,6 +584,7 @@ export function VehicleManagement() {
               <input
                 className="pl-10 pr-3 py-2 w-full border rounded-sm"
                 placeholder="Search name, contact or license…"
+                maxLength={50}
                 value={driverTable.searchInput}
                 onChange={(e) => driverTable.setSearchInput(e.target.value)}
               />
