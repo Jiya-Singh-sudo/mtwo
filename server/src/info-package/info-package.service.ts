@@ -19,28 +19,21 @@ export class InfoPackageService {
     const search = `%${query.search || ''}%`;
 
     const dataSql = `
-    SELECT DISTINCT
+    SELECT DISTINCT ON (g.guest_id)
       g.guest_id,
       g.guest_name,
-
       md.designation_name,
-
       r.room_no,
-
       ti.entry_date AS arrival_date,
       ti.exit_date  AS departure_date,
-
       gv.vehicle_no,
       d.driver_name
 
     FROM m_guest g
-
-    -- active stay
     JOIN t_guest_inout ti
       ON ti.guest_id = g.guest_id
       AND ti.is_active IS TRUE
 
-    -- current designation
     LEFT JOIN t_guest_designation gd
       ON gd.guest_id = g.guest_id
       AND gd.is_active IS TRUE
@@ -49,7 +42,6 @@ export class InfoPackageService {
     LEFT JOIN m_guest_designation md
       ON md.designation_id = gd.designation_id
 
-    -- room assignment
     LEFT JOIN t_guest_room gr
       ON gr.guest_id = g.guest_id
       AND gr.is_active IS TRUE
@@ -57,7 +49,6 @@ export class InfoPackageService {
     LEFT JOIN m_rooms r
       ON r.room_id = gr.room_id
 
-    -- vehicle + driver
     LEFT JOIN t_guest_driver gv
       ON gv.guest_id = g.guest_id
       AND gv.is_active IS TRUE
@@ -74,7 +65,7 @@ export class InfoPackageService {
         OR gv.vehicle_no ILIKE $1
       )
 
-    ORDER BY ti.entry_date DESC
+    ORDER BY g.guest_id, ti.entry_date DESC
     LIMIT $2 OFFSET $3;
     `;
 
@@ -115,15 +106,16 @@ export class InfoPackageService {
       );
     `;
 
-    const data = await this.db.query(dataSql, [search, limit, offset]);
+    const dataResult = await this.db.query(dataSql, [search, limit, offset]);
     const countResult = await this.db.query(countSql, [search]);
 
     return {
-        data,
-        total: Number(countResult[0]?.total || 0),
-        page,
-        limit,
+      data: dataResult.rows,   // ✅ THIS IS THE KEY
+      total: Number(countResult.rows[0]?.total || 0),
+      page,
+      limit,
     };
+
     }
 
     async getGuestInfo(guestId: string) {
@@ -190,13 +182,15 @@ export class InfoPackageService {
         LIMIT 1;
       `;
 
-      const result = await this.db.query(sql, [guestId]);
+const result = await this.db.query(sql, [guestId]);
 
-      if (!result.length) {
-        throw new NotFoundException('Guest not found or inactive');
-      }
+if (!result.rows || result.rows.length === 0) {
+  throw new NotFoundException('Guest not found or inactive');
+}
 
-      const row = result[0];
+const row = result.rows[0];
+console.log('DB RESULT KEYS:', Object.keys(result));
+
 
       return {
         guest: {
