@@ -267,16 +267,45 @@ export class GuestsService {
     return r.rows[0];
   }
 
+  // async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
+  //   const sql = `
+  //     UPDATE m_guest
+  //     SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
+  //     WHERE guest_id = $1
+  //     RETURNING *;
+  //   `;
+  //   const r = await this.db.query(sql, [guestId, user, ip]);
+  //   return r.rows[0];
+  // }
+
   async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
-    const sql = `
-      UPDATE m_guest
-      SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
-      WHERE guest_id = $1
-      RETURNING *;
-    `;
-    const r = await this.db.query(sql, [guestId, user, ip]);
-    return r.rows[0];
+    await this.db.query('BEGIN');
+    try {
+      // 1. Deactivate guest
+      const sql = `
+        UPDATE m_guest
+        SET is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+        WHERE guest_id = $1
+        RETURNING *;
+      `;
+      const r = await this.db.query(sql, [guestId, user, ip]);
+
+      // 2. Cascade exit
+      await this.cascadeGuestExit(guestId, this.db, user, ip);
+
+      await this.db.query('COMMIT');
+      return r.rows[0];
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw new BadRequestException(
+        err?.message || 'Guest deletion failed'
+      );
+    }
   }
+
 
   async findActiveGuestsWithInOut(params: {
     page: number;
@@ -481,6 +510,107 @@ export class GuestsService {
     const res = await this.db.query(sql);
     return res.rows;
   }
+  private async cascadeGuestExit(
+    guestId: string,
+    trx = this.db,
+    user = 'system',
+    ip = '0.0.0.0'
+  ) {
+    /* ================= ROOMS ================= */
 
+    const guestRooms = await trx.query(
+      `
+      SELECT guest_room_id, room_id
+      FROM t_guest_room
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId]
+    );
 
+    await trx.query(
+      `
+      UPDATE t_guest_room
+      SET is_active = FALSE,
+          action_type = 'Room-Released',
+          action_description = 'Auto-released on guest exit',
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId, user, ip]
+    );
+
+    /* ================= HOUSEKEEPING ================= */
+
+    await trx.query(
+      `
+      UPDATE t_guest_hk
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId, user, ip]
+    );
+
+    /* ================= VEHICLES ================= */
+
+    await trx.query(
+      `
+      UPDATE t_guest_vehicle
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId, user, ip]
+    );
+
+    /* ================= DRIVERS ================= */
+
+    await trx.query(
+      `
+      UPDATE t_guest_driver
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId, user, ip]
+    );
+
+    /* ================= BUTLER ================= */
+
+    await trx.query(
+      `
+      UPDATE t_guest_butler
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+      `,
+      [guestId, user, ip]
+    );
+
+    /* ================= FREE ROOMS ================= */
+
+    for (const gr of guestRooms.rows) {
+      await trx.query(
+        `
+        UPDATE t_room
+        SET status = 'Available',
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+        WHERE room_id = $1
+        `,
+        [gr.room_id, user, ip]
+      );
+    }
+  }
 }
