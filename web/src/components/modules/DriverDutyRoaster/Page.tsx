@@ -336,6 +336,7 @@ export default function DriverDutyRoasterPage() {
           className="border px-3 py-2 rounded w-64"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          maxLength={50}
         />
       </div>
 

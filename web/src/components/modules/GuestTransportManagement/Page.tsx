@@ -160,10 +160,52 @@ function GuestTransportManagement() {
         });
 
         console.log("Guest Transport Table Response:", res);
-        const adaptedRows: GuestTransportRow[] = res.data.map((guest: any) => ({
-          guest,
-          driver: null,
-          vehicle: null,
+        // const adaptedRows: GuestTransportRow[] = res.data.map((guest: any) => ({
+        //   guest,
+        //   driver: null,
+        //   vehicle: null,
+        // }));
+        const adaptedRows: GuestTransportRow[] = res.data.map((row: any) => ({
+          guest: {
+            guest_id: row.guest_id,
+            guest_name: row.guest_name,
+            guest_name_local_language: row.guest_name_local_language,
+            guest_mobile: row.guest_mobile,
+            room_id: row.room_id,
+            entry_date: row.entry_date,
+            exit_date: row.exit_date,
+            inout_status: row.inout_status,
+          },
+
+          driver: row.driver_id
+            ? {
+                guest_driver_id: row.guest_driver_id,
+                driver_id: row.driver_id,
+                driver_name: row.driver_name,
+                driver_contact: row.driver_contact,
+                pickup_location: row.pickup_location,
+                drop_location: row.drop_location,
+                trip_date: row.trip_date,
+                start_time: row.start_time,
+                end_time: row.end_time,
+                drop_date: row.drop_date,
+                drop_time: row.drop_time,
+                trip_status: row.trip_status,
+              }
+            : null,
+
+          vehicle: row.vehicle_no
+            ? {
+                guest_vehicle_id: row.guest_vehicle_id,
+                vehicle_no: row.vehicle_no,
+                vehicle_name: row.vehicle_name,
+                model: row.model,
+                color: row.color,
+                location: row.location,
+                assigned_at: row.assigned_at,
+                released_at: row.released_at,
+              }
+            : null,
         }));
         setRows(adaptedRows);
         GuestTable.setTotal(res.totalCount);
