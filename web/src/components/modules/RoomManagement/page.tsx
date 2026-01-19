@@ -379,7 +379,7 @@ export function RoomManagement() {
     setFormErrors({});
 
     try {
-      const parsed = roomBoyManagementSchema.parse({
+      const parsed = roomBoyAssignmentSchema.parse({
         room_boy_id: assignmentForm.roomBoyId,
         assignment_start_date: assignmentForm.taskDate,
         shift: assignmentForm.shift,
@@ -1027,7 +1027,7 @@ export function RoomManagement() {
               </button>
               <button
                 className="saveBtn"
-                onClick={() => {submitRoomBoyAssignment(); setIsRoomBoyModalOpen(false)}}
+                onClick={submitRoomBoyAssignment}
                 disabled={assigning}
               >
                 {assigning ? (

@@ -9,7 +9,8 @@ import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { Column, DataTable } from '@/components/ui/DataTable';
-
+import { driverCreateEditSchema as driverSchema, vehicleCreateEditSchema as vehicleSchema } from '@/validation/transportManagement.validation';
+import { validateSingleField } from '@/utils/validateSingleField';
 interface Vehicle {
   vehicle_no: string;
   vehicle_name: string;
@@ -87,6 +88,8 @@ export function VehicleManagement() {
   const [showEditDriver, setShowEditDriver] = useState(false);
   const [showDeleteDriverConfirm, setShowDeleteDriverConfirm] = useState(false);
   const [viewDriver, setViewDriver] = useState<Driver | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const vehicleTable = useTableQuery({
     prefix: "vehicles",
@@ -648,8 +651,16 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, vehicle_no: e.target.value })
                     }
+                    maxLength={15}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
                     placeholder="MH-01-XX-XXXX"
                   />
+                  {formErrors.vehicle_number && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.vehicle_number}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -662,6 +673,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
                     placeholder="e.g., Toyota Fortuner"
                   />
                 </div>
@@ -674,6 +688,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
                     placeholder="e.g., ZX"
                   />
                 </div>
@@ -686,6 +703,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })
                     }
+                    maxLength={30}
+                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
                     placeholder="e.g., 2024"
                   />
                 </div>
@@ -702,6 +722,9 @@ export function VehicleManagement() {
                         capacity: e.target.value ? Number(e.target.value) : undefined,
                       })
                     }
+                    maxLength={20}
+                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
                     placeholder="e.g., 5"
                   />
                 </div>
@@ -715,6 +738,9 @@ export function VehicleManagement() {
                       setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })
                     }
                     placeholder="e.g., White"
+                    maxLength={50}
+                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
                   />
                 </div>
 
@@ -771,7 +797,10 @@ export function VehicleManagement() {
                   <input
                     className="nicInput bg-gray-100"
                     value={vehicleFormData.vehicle_no}
-                    disabled
+                    // disabled
+                    maxLength={50}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
                   />
                 </div>
 
@@ -785,6 +814,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
                   />
                 </div>
 
@@ -796,6 +828,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
                   />
                 </div>
 
@@ -807,6 +842,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
                   />
                 </div>
 
@@ -822,6 +860,9 @@ export function VehicleManagement() {
                         capacity: e.target.value ? Number(e.target.value) : undefined,
                       })
                     }
+                    maxLength={20}
+                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
                   />
                 </div>
 
@@ -833,6 +874,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
                   />
                 </div>
 
@@ -892,6 +936,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_name: e.target.value })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
                     placeholder="Enter full name"
                   />
                 </div>
@@ -904,6 +951,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name_local", driverFormData.driver_name_ll, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name_local", driverFormData.driver_name_ll, setFormErrors)}
                     placeholder="Enter full name in local language"
                   />
                 </div>
@@ -919,6 +969,9 @@ export function VehicleManagement() {
                       setDriverFormData({ ...driverFormData, driver_contact: e.target.value })
                     }
                     placeholder="+91 XXXXX XXXXX"
+                    maxLength={10}
+                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
                   />
                 </div>
 
@@ -930,8 +983,16 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })
                     }
+                    maxLength={10}
+                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
                     placeholder="+91 XXXXX XXXXX"
                   />
+                  {formErrors.alternate_contact_number && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.alternate_contact_number}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -944,8 +1005,16 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_license: e.target.value })
                     }
+                    maxLength={50}
+                    onBlur={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
                     placeholder="MH-XXXXXXXXXXXX"
                   />
+                  {formErrors.license_number && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.license_number}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -957,6 +1026,9 @@ export function VehicleManagement() {
                       setDriverFormData({ ...driverFormData, address: e.target.value || undefined })
                     }
                     placeholder="Enter address"
+                    maxLength={200}
+                    onBlur={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                 </div>
 
@@ -1027,6 +1099,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })
                     }
+                    maxLength={100}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
                   />
                 </div>
 
@@ -1040,7 +1115,15 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_contact: e.target.value })
                     }
+                    maxLength={10}
+                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
                   />
+                  {formErrors.contact_number && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.contact_number}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1051,6 +1134,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })
                     }
+                    maxLength={10}
+                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
                   />
                 </div>
 
@@ -1064,6 +1150,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, driver_license: e.target.value })
                     }
+                    maxLength={20}
+                    onBlur={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
                   />
                 </div>
 
@@ -1075,6 +1164,9 @@ export function VehicleManagement() {
                     onChange={(e) =>
                       setDriverFormData({ ...driverFormData, address: e.target.value || undefined })
                     }
+                    maxLength={250}
+                    onBlur={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                 </div>
 

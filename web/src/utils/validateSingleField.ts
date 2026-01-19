@@ -11,15 +11,15 @@ export function validateSingleField<T extends ZodRawShape>(
             .pick({ [field]: true } as any)
             .parse({ [field]: value });
 
-        // ✅ clear error if valid
-        setErrors((prev) => {
+        // clear error if valid
+        setErrors(prev => {
             const next = { ...prev };
             delete next[field as string];
             return next;
         });
     } catch (err) {
         if (err instanceof ZodError) {
-            setErrors((prev) => ({
+            setErrors(prev => ({
                 ...prev,
                 [field as string]: err.issues[0]?.message,
             }));

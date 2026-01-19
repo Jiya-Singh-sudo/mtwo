@@ -93,7 +93,7 @@ export function GuestManagement() {
   const [designationMode, setDesignationMode] = useState<"existing" | "other">("existing");
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const refreshStatusCounts = async () => {
-    const counts = await fetchGuestStatusCounts();
+  const counts = await fetchGuestStatusCounts();
     setStatusCounts(counts);
   };
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
