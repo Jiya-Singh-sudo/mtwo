@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-  FileText,
-  Download,
-  Send,
-  User,
-  BedDouble,
-  Car,
-  Calendar,
-  X,
-} from "lucide-react";
-
+import { FileText, Download, Send, User, BedDouble, Car, Calendar, X,} from "lucide-react";
+import { formatDateTime } from "@/utils/dateTime";
 import {
   getInfoPackageGuests,
   downloadInfoPackagePdf,
@@ -32,11 +23,22 @@ export default function InfoPackage() {
   const [loading, setLoading] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     loadGuests();
-  }, [page, limit, sortBy, sortOrder]);
+  }, [page, limit, sortBy, sortOrder, debouncedSearch]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // reset pagination on search
+    }, 400);
+
+    return () => clearTimeout(t);
+  }, [search]);
 
   async function loadGuests() {
     setLoading(true);
@@ -44,13 +46,14 @@ export default function InfoPackage() {
       const res = await getInfoPackageGuests({
         page,
         limit,
+        search: debouncedSearch,
       });
 
     setGuests(Array.isArray(res?.data) ? res.data : []);
     setTotalCount(typeof res?.total === 'number' ? res.total : 0);
-    console.log('InfoPackage API response:', res);
-    console.log('Guests state:', res?.data);
-    console.log('Guests state:', res?.total);
+    // console.log('InfoPackage API response:', res);
+    // console.log('Guests state:', res?.data);
+    // console.log('Guests state:', res?.total);
 
     } finally {
       setLoading(false);
@@ -112,10 +115,14 @@ export default function InfoPackage() {
       accessor: "arrival_date",
       sortable: true,
       sortKey: "arrival_date",
+      render: (g) => formatDateTime(g.arrival_date),
     },
     {
       header: "Departure",
       accessor: "departure_date",
+      sortable: true,
+      sortKey: "departure_date",
+      render: (g) => formatDateTime(g.departure_date),
     },
     {
       header: "Actions",
@@ -150,7 +157,26 @@ export default function InfoPackage() {
   return (
     <div className="space-y-6">
       <h2 className="text-[#00247D]">Guest Info Package Generator</h2>
+      <div className="bg-white border rounded-sm p-4 flex items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search by guest name, room or vehicle"
+          value={search}
+          maxLength={50}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-10 px-3 border rounded-sm focus:outline-none focus:ring-2 focus:ring-[#00247D]"
+        />
 
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="text-gray-500 hover:text-black"
+            title="Clear"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
       {/* ===== CARD VIEW (UNCHANGED UI) ===== */}
       <div className="bg-white border rounded-sm p-6 space-y-4">
         {Array.isArray(guests) && guests.map((guest) => (
@@ -177,10 +203,10 @@ export default function InfoPackage() {
                 <Car className="w-4 h-4" /> {guest.vehicle_no || "Pending"}
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Arrival: {guest.arrival_date}
+                <Calendar className="w-4 h-4" /> Arrival: {formatDateTime(guest.arrival_date)}
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Departure: {guest.departure_date}
+                <Calendar className="w-4 h-4" /> Departure: {formatDateTime(guest.departure_date)}
               </div>
               {guest.driver_name && (
                 <div className="flex items-center gap-2">
