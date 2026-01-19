@@ -55,19 +55,40 @@ export async function getAssignableDrivers() {
    DRIVER — WRITE
    ======================= */
 // Assign driver (creates trip)
+// export async function assignDriverToGuest(payload: {
+//   guest_id: string;
+//   driver_id: string;
+//   pickup_location: string;
+//   drop_location: string;
+//   trip_date: string;
+//   start_time: string;
+//   end_time?: string | null;
+//   trip_status?: string;
+// }) {
+//   const res = await api.post("/guest-driver/assign", payload);
+//   return res.data;
+// }
+
 export async function assignDriverToGuest(payload: {
   guest_id: string;
   driver_id: string;
-  pickup_location: string;
-  drop_location: string;
+  pickup_location?: string;
+  drop_location?: string;
   trip_date: string;
   start_time: string;
-  end_time?: string | null;
+  end_time?: string;
   trip_status?: string;
 }) {
-  const res = await api.post("/guest-driver/assign", payload);
+  const cleanPayload = {
+    ...payload,
+    drop_location: payload.drop_location || undefined,
+    end_time: payload.end_time || undefined,
+  };
+
+  const res = await api.post("/guest-driver/assign", cleanPayload);
   return res.data;
 }
+
 
 // Unassign driver
 export async function unassignDriver(guestDriverId: string) {

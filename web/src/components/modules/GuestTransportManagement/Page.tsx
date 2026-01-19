@@ -215,13 +215,14 @@ function GuestTransportManagement() {
     await assignDriverToGuest({
       guest_id: driverForm.guest_id,
       driver_id: driverForm.driver_id,
-      pickup_location: driverForm.pickup_location,
-      drop_location: driverForm.drop_location,
+      pickup_location: driverForm.pickup_location || undefined,
+      drop_location: driverForm.drop_location || undefined,
       trip_date: driverForm.trip_date,
       start_time: driverForm.start_time,
-      end_time: driverForm.end_time,
+      end_time: driverForm.end_time || undefined,
       trip_status: driverForm.trip_status,
     });
+
 
 
     setDriverModalOpen(false);
