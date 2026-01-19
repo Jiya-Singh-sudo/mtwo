@@ -1,23 +1,52 @@
 import { z } from "zod";
 
-// const dateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/;
+/* ======================================================
+   CONSTANTS
+====================================================== */
+
+const MAX_REMARKS_LENGTH = 500;
+const safeTextRegex = /^[A-Za-z0-9 ,./()\-]*$/;
+
+/* ======================================================
+   MAIN SCHEMA
+====================================================== */
 
 export const guestFoodSchema = z.object({
-  guest_id: z.string().min(1, "guest_id is required"),
+  guest_id: z.string().min(1, "Guest is required"),
+  food_id: z.string().min(1, "Food item is required"),
+
   room_id: z.string().optional(),
-  food_id: z.string().min(1, "food_id is required"),
 
-  quantity: z.number().int().positive().default(1),
+  quantity: z
+    .number()
+    .int("Quantity must be a whole number")
+    .positive("Quantity must be greater than zero")
+    .default(1),
 
-  request_type: z.enum(["Room-Service", "Dine-In", "Buffet", "Takeaway", "Other"]).optional(),
-  delivery_status: z.enum(["Requested", "Preparing", "Ready", "Delivered", "Cancelled"]).optional(),
+  request_type: z
+    .enum(["Room-Service", "Dine-In", "Buffet", "Takeaway", "Other"])
+    .optional(),
+
+  delivery_status: z
+    .enum(["Requested", "Preparing", "Ready", "Delivered", "Cancelled"])
+    .optional(),
 
   order_datetime: z.string().optional(),
   delivered_datetime: z.string().optional(),
 
-  remarks: z.string().optional()
+  remarks: z
+    .string()
+    .max(MAX_REMARKS_LENGTH, "Remarks too long")
+    .regex(safeTextRegex, "Invalid characters in remarks")
+    .optional(),
+
+  is_active: z.boolean().optional(),
 });
 
-export const guestFoodUpdateSchema = guestFoodSchema.partial().extend({
-  is_active: z.boolean().optional()
-});
+/* ======================================================
+   TYPE
+====================================================== */
+
+export type GuestFoodSchema = z.infer<
+  typeof guestFoodSchema
+>;

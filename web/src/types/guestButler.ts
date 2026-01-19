@@ -6,19 +6,19 @@ export interface GuestButler {
 
   room_id?: string | null;
 
-  check_in_date?: string | null;
-  check_in_time?: string | null;
+  // check_in_date?: string | null;
+  // check_in_time?: string | null;
 
-  check_out_date?: string | null;
-  check_out_time?: string | null;
+  // check_out_date?: string | null;
+  // check_out_time?: string | null;
 
-  service_type: string;
-  service_description?: string | null;
+  // service_type: string;
+  // service_description?: string | null;
 
-  service_date: string;
-  service_time: string;
+  // service_date: string;
+  // service_time: string;
 
-  remarks?: string | null;
+  specialRequest?: string | null;
 
   is_active: boolean;
 
@@ -36,36 +36,36 @@ export interface GuestButlerCreateDto {
   butler_id: string;
   room_id?: string;
 
-  check_in_date?: string;
-  check_in_time?: string;
+  // check_in_date?: string;
+  // check_in_time?: string;
 
-  check_out_date?: string;
-  check_out_time?: string;
+  // check_out_date?: string;
+  // check_out_time?: string;
 
-  service_type: string;
-  service_description?: string;
+  // service_type: string;
+  // service_description?: string;
 
-  service_date?: string;
-  service_time?: string;
+  // service_date?: string;
+  // service_time?: string;
 
-  remarks?: string;
+  specialRequest?: string;
 }
 
 export interface GuestButlerUpdateDto {
   room_id?: string;
 
-  check_in_date?: string;
-  check_in_time?: string;
+  // check_in_date?: string;
+  // check_in_time?: string;
 
-  check_out_date?: string;
-  check_out_time?: string;
+  // check_out_date?: string;
+  // check_out_time?: string;
 
-  service_type?: string;
-  service_description?: string;
+  // service_type?: string;
+  // service_description?: string;
 
-  service_date?: string;
-  service_time?: string;
+  // service_date?: string;
+  // service_time?: string;
 
-  remarks?: string;
+  specialRequest?: string;
   is_active?: boolean;
 }

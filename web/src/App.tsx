@@ -24,9 +24,7 @@ function Layout() {
           {/* Top bar with dark background */}
           <div className="bg-[#2C2C2C] px-8 py-2">
             <div className="flex items-center justify-end gap-4">
-              <button className="text-white text-sm hover:text-gray-300" onClick={() => setLanguage(language === 'english' ? 'hindi' : 'english')}>
-                {language === 'english' ? 'HINDI' : 'ENGLISH'}
-              </button>
+            
               <button className="text-white" onClick={logout}>
                 Logout
               </button>
@@ -67,34 +65,7 @@ function Layout() {
               </div>
             </div>
           </div>
-          {/* Search bar and tabs section */}
-          <div className="bg-[#F2F2F2] px-8 py-3 border-t border-gray-300">
-            <div className="flex items-center justify-between gap-4">
-              {/* Search Bar */}
-              <div className="flex-1 max-w-xl">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search guests, rooms, vehicles..."
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-[#F5A623] focus:border-transparent"
-                  />
-                </div>
-              </div>
-              {/* Language Preferences */}
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-gray-600" />
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value as 'english' | 'hindi')}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-[#F5A623] focus:border-transparent cursor-pointer"
-                >
-                  <option value="english">English</option>
-                  <option value="hindi">हिन्दी (Hindi)</option>
-                </select>
-              </div>
-            </div>
-          </div>
+        
         </header>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50">

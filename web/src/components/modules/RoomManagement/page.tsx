@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from "react";
-import { Search, Plus, Loader2, Eye, FileEdit, UserPlus, UserMinus, User } from 'lucide-react';
+import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog } from 'lucide-react';
+import { StatCard } from "@/components/ui/StatCard";
 import "./RoomManagement.css";
 import { ZodError } from "zod";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping } from "../../../api/housekeeping.api";
 import { getRoomBoyOptions } from "../../../api/housekeeping.api";
 import { Button } from "../../ui/button";
@@ -79,6 +79,7 @@ export function RoomManagement() {
     | "WITH_HOUSEKEEPING";
 
   const [activeCard, setActiveCard] = useState<RoomCardFilter>("ALL");
+  const [activeTab, setActiveTab] = useState<"rooms" | "roomBoys">("rooms");
 
   // const [searchQuery, setSearchQuery] = useState("");
   /* ---------------- ASSIGN ROOM BOY ---------------- */
@@ -124,6 +125,7 @@ export function RoomManagement() {
   const [selectedRoomBoy, setSelectedRoomBoy] = useState<Housekeeping | null>(null);
 
   // Modals
+  const [viewRoomBoy, setViewRoomBoy] = useState<Housekeeping | null>(null);
   const [showAddRoomBoy, setShowAddRoomBoy] = useState(false);
   const [showEditRoomBoy, setShowEditRoomBoy] = useState(false);
   const [showDeleteRoomBoyConfirm, setShowDeleteRoomBoyConfirm] = useState(false);
@@ -196,7 +198,7 @@ export function RoomManagement() {
       roomTable.setLoading(false);
     }
   }
-  
+
   async function loadRoomBoys() {
     try {
       const res = await getActiveHousekeeping({
@@ -210,7 +212,7 @@ export function RoomManagement() {
       setRoomBoys(res.data);
       hkTable.setTotal(res.totalCount);
     } finally {
-      hkTable.setLoading(false); 
+      hkTable.setLoading(false);
     }
   }
 
@@ -521,12 +523,12 @@ export function RoomManagement() {
       page: 1,
       status:
         card === "AVAILABLE" ? "Available" :
-        card === "OCCUPIED" ? "Occupied" :
-        undefined,
+          card === "OCCUPIED" ? "Occupied" :
+            undefined,
       sortBy:
         card === "WITH_GUEST" ? "guest_name" :
-        card === "WITH_HOUSEKEEPING" ? "hk_name" :
-        "room_no",
+          card === "WITH_HOUSEKEEPING" ? "hk_name" :
+            "room_no",
       sortOrder: "asc",
     }));
   }
@@ -570,9 +572,15 @@ export function RoomManagement() {
     },
     {
       header: "Status",
-      accessor: "status",
       sortable: true,
       sortKey: "status",
+      render: (row) => {
+        const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+        if (row.status === "Available") {
+          return <span className={`${base} bg-green-100 text-green-800`}>Available</span>;
+        }
+        return <span className={`${base} bg-red-100 text-red-800`}>Occupied</span>;
+      },
     },
     {
       header: "Guest",
@@ -581,31 +589,40 @@ export function RoomManagement() {
     {
       header: "Actions",
       render: (row) => (
-        <div className="flex gap-2">
-          <button onClick={() => setViewRoom(row)}><Eye size={16} /></button>
-          <button onClick={() => setEditRoom(row)}><FileEdit size={16} /></button>
+        <div className="flex items-center gap-3">
+          {/* View */}
+          <button className="icon-btn text-blue-600" title="View" onClick={() => setViewRoom(row)}>
+            <Eye />
+          </button>
 
+          {/* Edit */}
+          <button className="icon-btn text-green-600" title="Edit" onClick={() => setEditRoom(row)}>
+            <Edit />
+          </button>
+
+          {/* Assign / Remove Guest */}
           {row.guest ? (
-            <button onClick={() => vacateGuest(row.guest!.guestRoomId)}>
-              <UserMinus size={16} />
+            <button className="icon-btn text-orange-600" title="Remove Guest" onClick={() => vacateGuest(row.guest!.guestRoomId)}>
+              <XCircle />
             </button>
           ) : (
-            <button onClick={() => openAssignGuest(row)}>
-              <UserPlus size={16} />
+            <button className="icon-btn text-blue-600" title="Assign Guest" onClick={() => openAssignGuest(row)}>
+              <Plus />
             </button>
           )}
 
+          {/* Assign / Remove Room Boy */}
           {row.housekeeping ? (
-            <button onClick={() => {
+            <button className="icon-btn text-orange-600" title="Unassign Room Boy" onClick={() => {
               if (row.housekeeping?.guestHkId) {
                 unassignHousekeeping(row.housekeeping.guestHkId);
               }
             }}>
-              <UserMinus size={16} />
+              <XCircle />
             </button>
           ) : (
-            <button onClick={() => openAssignRoomBoyModal(row)}>
-              <User size={16} />
+            <button className="icon-btn text-purple-600" title="Assign Room Boy" onClick={() => openAssignRoomBoyModal(row)}>
+              <User />
             </button>
           )}
         </div>
@@ -653,15 +670,35 @@ export function RoomManagement() {
     {
       header: "Actions",
       render: (rb) => (
-        <div className="flex gap-2">
-          <button onClick={() => openEditRoomBoyModal(rb)}>✏️</button>
+        <div className="flex items-center gap-3">
+          {/* View */}
           <button
+            className="icon-btn text-blue-600"
+            title="View"
+            onClick={() => setViewRoomBoy(rb)}
+          >
+            <Eye />
+          </button>
+
+          {/* Edit */}
+          <button
+            className="icon-btn text-green-600"
+            title="Edit"
+            onClick={() => openEditRoomBoyModal(rb)}
+          >
+            <Edit />
+          </button>
+
+          {/* Delete */}
+          <button
+            className="icon-btn text-red-600"
+            title="Delete"
             onClick={() => {
               setSelectedRoomBoy(rb);
               setShowDeleteRoomBoyConfirm(true);
             }}
           >
-            🗑
+            <Trash2 />
           </button>
         </div>
       ),
@@ -684,61 +721,74 @@ export function RoomManagement() {
       </div>
 
       {/* ================= ROOM STATS GRID =================*/}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-
-        <div
-          className={`statCard cursor-pointer ${activeCard === "ALL" ? "ring-2 ring-blue-500" : ""}`}
+      <div className="statsGrid">
+        <StatCard
+          title="All Rooms"
+          value={roomStats.total}
+          icon={Layers}
+          variant="blue"
+          active={activeCard === "ALL"}
           onClick={() => applyCardView("ALL")}
-        >
-          <p className="statLabel">All Rooms</p>
-          <p className="statValue">{roomStats.total}</p>
-        </div>
+        />
 
-        <div
-          className={`statCard bg-green-50 cursor-pointer ${activeCard === "AVAILABLE" ? "ring-2 ring-blue-500" : ""}`}
+        <StatCard
+          title="Available"
+          value={roomStats.available}
+          icon={CheckCircle}
+          variant="green"
+          active={activeCard === "AVAILABLE"}
           onClick={() => applyCardView("AVAILABLE")}
-        >
-          <p className="statLabel">Available</p>
-          <p className="statValue">{roomStats.available}</p>
-        </div>
+        />
 
-        <div
-          className={`statCard bg-red-50 cursor-pointer ${activeCard === "OCCUPIED" ? "ring-2 ring-blue-500" : ""}`}
+        <StatCard
+          title="Occupied"
+          value={roomStats.occupied}
+          icon={XCircle}
+          variant="orange"
+          active={activeCard === "OCCUPIED"}
           onClick={() => applyCardView("OCCUPIED")}
-        >
-          <p className="statLabel">Occupied</p>
-          <p className="statValue">{roomStats.occupied}</p>
-        </div>
+        />
 
-        <div
-          className={`statCard bg-blue-50 cursor-pointer ${activeCard === "WITH_GUEST" ? "ring-2 ring-blue-500" : ""}`}
+        <StatCard
+          title="Guest Assigned"
+          value={roomStats.withGuest}
+          icon={UserCheck}
+          variant="blue"
+          active={activeCard === "WITH_GUEST"}
           onClick={() => applyCardView("WITH_GUEST")}
-        >
-          <p className="statLabel">Guest Assigned</p>
-          <p className="statValue">{roomStats.withGuest}</p>
-        </div>
+        />
 
-        <div
-          className={`statCard bg-yellow-50 cursor-pointer ${activeCard === "WITH_HOUSEKEEPING" ? "ring-2 ring-blue-500" : ""}`}
+        <StatCard
+          title="Housekeeping"
+          value={roomStats.withHousekeeping}
+          icon={UserCog}
+          variant="purple"
+          active={activeCard === "WITH_HOUSEKEEPING"}
           onClick={() => applyCardView("WITH_HOUSEKEEPING")}
-        >
-          <p className="statLabel">Housekeeping</p>
-          <p className="statValue">{roomStats.withHousekeeping}</p>
-        </div>
-
+        />
       </div>
 
-      <Tabs defaultValue="rooms" className="space-y-6">
-        <TabsList className="bg-white border border-gray-200">
-          <TabsTrigger value="rooms">Rooms</TabsTrigger>
-          <TabsTrigger value="roomBoys">Room Boys</TabsTrigger>
-        </TabsList>
+      {/* TABS */}
+      <div className="nicTabs">
+        <button
+          className={`nicTab ${activeTab === "rooms" ? "active" : ""}`}
+          onClick={() => setActiveTab("rooms")}
+        >
+          Rooms
+        </button>
+        <button
+          className={`nicTab ${activeTab === "roomBoys" ? "active" : ""}`}
+          onClick={() => setActiveTab("roomBoys")}
+        >
+          Room Boys
+        </button>
+      </div>
 
-        {/* ---------------- ROOMS TAB ---------------- */}
-        <TabsContent value="rooms" className="space-y-6">
-          {/* SEARCH */}
+      {/* ---------------- ROOMS TAB ---------------- */}
+      {activeTab === "rooms" && (
+        <>
+          {/* SEARCH + ADD ROOM */}
           <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-            {/* SEARCH */}
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
@@ -749,12 +799,11 @@ export function RoomManagement() {
               />
             </div>
 
-            {/* ADD ROOM BUTTON */}
             <Button
-              className="bg-[#00247D] text-white whitespace-nowrap"
+              className="bg-[#00247D] text-white btn-icon-text"
               onClick={() => setShowAddRoom(true)}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4" />
               Add Room
             </Button>
           </div>
@@ -765,25 +814,23 @@ export function RoomManagement() {
               data={rooms}
               columns={roomColumns}
               keyField="roomId"
-
               page={roomTable.query.page}
               limit={roomTable.query.limit}
               totalCount={roomTable.total}
-
               sortBy={roomTable.query.sortBy}
               sortOrder={roomTable.query.sortOrder}
               loading={roomTable.loading}
-
               onPageChange={roomTable.setPage}
               onLimitChange={roomTable.setLimit}
               onSortChange={roomTable.setSort}
             />
           </div>
-        </TabsContent>
+        </>
+      )}
 
-        {/* ---------------- ROOM BOYS TAB ---------------- */}
-        <TabsContent value="roomBoys" className="space-y-6">
-          {/* SEARCH */}
+      {/* ---------------- ROOM BOYS TAB ---------------- */}
+      {activeTab === "roomBoys" && (
+        <>
           <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -795,28 +842,14 @@ export function RoomManagement() {
               />
             </div>
 
-            {/* <Button
-            onClick={() => {
-              resetRoomBoyForm();
-              setShowAddRoomBoy(true);
-            }}
-            className="bg-[#00247D] hover:bg-[#003399] text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Room Boy
-          </Button> */}
-          </div>
-
-          {/* Add Button */}
-          <div className="flex justify-end">
             <Button
               onClick={() => {
                 resetRoomBoyForm();
                 setShowAddRoomBoy(true);
               }}
-              className="bg-[#00247D] hover:bg-[#003399] text-white"
+              className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4" />
               Add Room Boy
             </Button>
           </div>
@@ -826,22 +859,19 @@ export function RoomManagement() {
               data={roomBoys}
               columns={roomBoyColumns}
               keyField="hk_id"
-
               page={hkTable.query.page}
               limit={hkTable.query.limit}
               totalCount={hkTable.total}
-
               sortBy={hkTable.query.sortBy}
               sortOrder={hkTable.query.sortOrder}
               loading={hkTable.loading}
-
               onPageChange={hkTable.setPage}
               onLimitChange={hkTable.setLimit}
               onSortChange={hkTable.setSort}
             />
           </div>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
 
       {/* ================= ASSIGN ROOM BOY MODAL ================= */}
       {isRoomBoyModalOpen && activeRoom && (
@@ -865,7 +895,10 @@ export function RoomManagement() {
               </div>
 
               <div>
-                <label>Room Boy *</label>
+                <label className="nicLabel">
+                  Room Boy
+                  <span className="nicRequired">*</span>
+                </label>
                 <select
                   className="nicInput"
                   value={assignmentForm.roomBoyId}
@@ -875,8 +908,14 @@ export function RoomManagement() {
                       roomBoyId: e.target.value,
                     })
                   }
-                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "room_boy_id", assignmentForm.roomBoyId, setFormErrors)}
-                  onBlur={() => validateField(roomBoyAssignmentSchema, "room_boy_id", assignmentForm.roomBoyId, setFormErrors)}
+                  onBlur={() =>
+                    validateField(
+                      roomBoyAssignmentSchema,
+                      "room_boy_id",
+                      assignmentForm.roomBoyId,
+                      setFormErrors
+                    )
+                  }
                 >
                   <option value="">Select</option>
                   {roomBoyOptions.map((rb) => (
@@ -885,10 +924,16 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
+                {formErrors.room_boy_id && (
+                  <p className="errorText">{formErrors.room_boy_id}</p>
+                )}
               </div>
 
               <div>
-                <label>Shift *</label>
+                <label className="nicLabel">
+                  Shift
+                  <span className="nicRequired">*</span>
+                </label>
                 <select
                   className="nicInput"
                   value={assignmentForm.shift}
@@ -898,8 +943,14 @@ export function RoomManagement() {
                       shift: e.target.value as ShiftType | "",
                     })
                   }
-                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "shift", assignmentForm.shift, setFormErrors)}
-                  onBlur={() => validateField(roomBoyAssignmentSchema, "shift", assignmentForm.shift, setFormErrors)}
+                  onBlur={() =>
+                    validateField(
+                      roomBoyAssignmentSchema,
+                      "shift",
+                      assignmentForm.shift,
+                      setFormErrors
+                    )
+                  }
                 >
                   <option value="">Select</option>
                   {hkShifts.map((s) => (
@@ -908,10 +959,16 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
+                {formErrors.shift && (
+                  <p className="errorText">{formErrors.shift}</p>
+                )}
               </div>
 
               <div>
-                <label>Task Date *</label>
+                <label className="nicLabel">
+                  Task Date
+                  <span className="nicRequired">*</span>
+                </label>
                 <input
                   type="date"
                   className="nicInput"
@@ -922,9 +979,18 @@ export function RoomManagement() {
                       taskDate: e.target.value,
                     })
                   }
-                  onKeyUp={() => validateField(roomBoyAssignmentSchema, "assignment_start_date", assignmentForm.taskDate, setFormErrors)}
-                  onBlur={() => validateField(roomBoyAssignmentSchema, "assignment_start_date", assignmentForm.taskDate, setFormErrors)}
+                  onBlur={() =>
+                    validateField(
+                      roomBoyAssignmentSchema,
+                      "assignment_start_date",
+                      assignmentForm.taskDate,
+                      setFormErrors
+                    )
+                  }
                 />
+                {formErrors.assignment_start_date && (
+                  <p className="errorText">{formErrors.assignment_start_date}</p>
+                )}
               </div>
 
               <div className="fullWidth">
@@ -1336,27 +1402,6 @@ export function RoomManagement() {
                   />
                   <p className="errorText">{formErrors.room_category}</p>
                 </div>
-
-                <div>
-                  <label>Status</label>
-                  <select
-                    className="nicInput"
-                    value={roomForm.status}
-                    onChange={(e) =>
-                      setRoomForm({
-                        ...roomForm,
-                        status: e.target.value as "Available" | "Occupied",
-                      })
-                    }
-                    onBlur={() => validateField(roomCreateEditSchema, "status", roomForm.status, setFormErrors)}
-                    onKeyUp={() => validateField(roomCreateEditSchema, "status", roomForm.status, setFormErrors)}
-                  >
-                    <option value="Available">Available</option>
-                    <option value="Occupied">Occupied</option>
-                  </select>
-                  <p className="errorText">{formErrors.status}</p>
-                </div>
-
               </div>
             </div>
 
@@ -1381,75 +1426,98 @@ export function RoomManagement() {
 
       {assignGuestRoom && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Assign Guest</h3>
+          <div className="nicModal">
 
-            <p className="mb-2">
-              <b>Room:</b> {assignGuestRoom.roomNo}
-            </p>
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Assign Guest</h2>
+              <button
+                className="closeBtn"
+                onClick={() => setAssignGuestRoom(null)}
+              >
+                ✕
+              </button>
+            </div>
 
-            <div className="nicFormStack">
-              <div>
-                <label>Guest *</label>
-                <select
-                  className="nicInput"
-                  value={selectedGuestId ?? ""}
-                  onChange={(e) => {
-                    const guestId = String(e.target.value);
-                    setSelectedGuestId(guestId);
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormStack">
 
-                    const guest = guestOptions.find(
-                      g => g.guest_id.toString() === guestId
-                    );
+                {/* Room (read-only info) */}
+                <div className="text-sm text-gray-700">
+                  <strong>Room:</strong> {assignGuestRoom.roomNo}
+                </div>
 
-                    setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
-                    setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
-                  }}
-                >
-                  <option value="">Select Guest</option>
-                  {guestOptions.map((g) => (
-                    <option key={g.guest_id} value={g.guest_id}>
-                      {g.guest_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Guest (REQUIRED) */}
+                <div>
+                  <label className="nicLabel">
+                    Guest <span className="nicRequired">*</span>
+                  </label>
+                  <select
+                    className="nicInput"
+                    value={selectedGuestId ?? ""}
+                    onChange={(e) => {
+                      const guestId = String(e.target.value);
+                      setSelectedGuestId(guestId);
 
-              <div>
-                <label>Check-in Date</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={assignCheckInDate}
-                  readOnly
-                />
-              </div>
+                      const guest = guestOptions.find(
+                        g => g.guest_id.toString() === guestId
+                      );
 
-              <div>
-                <label>Check-out Date</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={assignCheckOutDate}
-                  readOnly
-                />
+                      setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
+                      setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
+                    }}
+                  >
+                    <option value="">Select Guest</option>
+                    {guestOptions.map((g) => (
+                      <option key={g.guest_id} value={g.guest_id}>
+                        {g.guest_name}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.guest && (
+                    <p className="errorText">{formErrors.guest}</p>
+                  )}
+                </div>
+
+                {/* Check-in Date (derived, read-only) */}
+                <div>
+                  <label className="nicLabel">Check-in Date</label>
+                  <input
+                    type="date"
+                    className="nicInput"
+                    value={assignCheckInDate}
+                    readOnly
+                  />
+                </div>
+
+                {/* Check-out Date (derived, read-only) */}
+                <div>
+                  <label className="nicLabel">Check-out Date</label>
+                  <input
+                    type="date"
+                    className="nicInput"
+                    value={assignCheckOutDate}
+                    readOnly
+                  />
+                </div>
+
               </div>
             </div>
 
-            <div className="modalActions">
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                className="linkBtn"
+                className="cancelBtn"
                 onClick={() => setAssignGuestRoom(null)}
               >
                 Cancel
               </button>
-              <button
-                className="primaryBtn"
-                onClick={submitAssignGuest}
-              >
+              <button className="saveBtn" onClick={submitAssignGuest}>
                 Assign
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -1457,7 +1525,7 @@ export function RoomManagement() {
       {/* ================= VIEW ROOM ================= */}
       {viewRoom && (
         <div className="modalOverlay">
-          <div className="nicModal">
+          <div className="nicModal wide">
 
             {/* HEADER */}
             <div className="nicModalHeader">
@@ -1472,7 +1540,7 @@ export function RoomManagement() {
 
             {/* BODY */}
             <div className="nicModalBody">
-              <div className="detailGrid">
+              <div className="detailGridHorizontal">
 
                 {/* ROOM INFO */}
                 <div className="detailSection">
@@ -1539,93 +1607,142 @@ export function RoomManagement() {
       {/* ================= ADD ROOM BOY MODAL ================= */}
       {showAddRoomBoy && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Add Room Boy</h3>
+          <div className="nicModal">
 
-            <div className="space-y-4">
-              <input
-                className="nicInput"
-                placeholder="Name *"
-                value={roomBoyForm.hk_name}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
-                }
-                maxLength={50}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
-              />
-
-              <input
-                className="nicInput"
-                placeholder="Local Name"
-                value={roomBoyForm.hk_name_local_language || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({
-                    ...roomBoyForm,
-                    hk_name_local_language: e.target.value,
-                  })
-                }
-              />
-
-              <input
-                className="nicInput"
-                placeholder="Contact *"
-                value={roomBoyForm.hk_contact}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
-                }
-                maxLength={10}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
-              />
-
-              <input
-                className="nicInput"
-                placeholder="Alternate Contact"
-                value={roomBoyForm.hk_alternate_contact || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({
-                    ...roomBoyForm,
-                    hk_alternate_contact: e.target.value,
-                  })
-                }
-                maxLength={10}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
-              />
-
-              <select
-                className="nicInput"
-                value={roomBoyForm.shift}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day" })
-                }
-                onBlur={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Add Room Boy</h2>
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setShowAddRoomBoy(false);
+                  resetRoomBoyForm();
+                }}
               >
-                <option value="Morning">Morning</option>
-                <option value="Evening">Evening</option>
-                <option value="Night">Night</option>
-                <option value="Full-Day">Full-Day</option>
-              </select>
-
-              <textarea
-                className="nicInput"
-                placeholder="Address"
-                rows={3}
-                value={roomBoyForm.address || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
-                }
-                maxLength={500}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
-              />
+                ✕
+              </button>
             </div>
 
-            <div className="modalActions">
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormStack">
+
+                {/* Name */}
+                <div>
+                  <label className="nicLabel">
+                    Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_name}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
+                    }
+                    maxLength={50}
+                    onBlur={() =>
+                      validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)
+                    }
+                  />
+                  {formErrors.hk_name && (
+                    <p className="errorText">{formErrors.hk_name}</p>
+                  )}
+                </div>
+
+                {/* Local Name */}
+                <div>
+                  <label className="nicLabel">Local Name</label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_name_local_language || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        hk_name_local_language: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* Contact */}
+                <div>
+                  <label className="nicLabel">
+                    Contact <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_contact}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
+                    }
+                    maxLength={10}
+                    onBlur={() =>
+                      validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)
+                    }
+                  />
+                  {formErrors.hk_contact && (
+                    <p className="errorText">{formErrors.hk_contact}</p>
+                  )}
+                </div>
+
+                {/* Alternate Contact */}
+                <div>
+                  <label className="nicLabel">Alternate Contact</label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_alternate_contact || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        hk_alternate_contact: e.target.value,
+                      })
+                    }
+                    maxLength={10}
+                  />
+                </div>
+
+                {/* Shift */}
+                <div>
+                  <label className="nicLabel">
+                    Shift <span className="nicRequired">*</span>
+                  </label>
+                  <select
+                    className="nicInput"
+                    value={roomBoyForm.shift}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day",
+                      })
+                    }
+                  >
+                    <option value="Morning">Morning</option>
+                    <option value="Evening">Evening</option>
+                    <option value="Night">Night</option>
+                    <option value="Full-Day">Full-Day</option>
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="nicLabel">Address</label>
+                  <textarea
+                    className="nicInput"
+                    rows={3}
+                    value={roomBoyForm.address || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
+                    }
+                    maxLength={500}
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                className="linkBtn"
+                className="cancelBtn"
                 onClick={() => {
                   setShowAddRoomBoy(false);
                   resetRoomBoyForm();
@@ -1633,10 +1750,11 @@ export function RoomManagement() {
               >
                 Cancel
               </button>
-              <button className="primaryBtn" onClick={handleAddRoomBoy}>
+              <button className="saveBtn" onClick={handleAddRoomBoy}>
                 Add
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -1644,96 +1762,197 @@ export function RoomManagement() {
       {/* ================= EDIT ROOM BOY MODAL ================= */}
       {showEditRoomBoy && selectedRoomBoy && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Edit Room Boy</h3>
+          <div className="nicModal">
 
-            <div className="space-y-4">
-              <input
-                className="nicInput"
-                value={roomBoyForm.hk_name}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
-                }
-                maxLength={50}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)}
-              />
-
-              <input
-                className="nicInput"
-                value={roomBoyForm.hk_name_local_language || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({
-                    ...roomBoyForm,
-                    hk_name_local_language: e.target.value,
-                  })
-                }
-              />
-
-              <input
-                className="nicInput"
-                value={roomBoyForm.hk_contact}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
-                }
-                maxLength={10}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)}
-              />
-
-              <input
-                className="nicInput"
-                value={roomBoyForm.hk_alternate_contact || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({
-                    ...roomBoyForm,
-                    hk_alternate_contact: e.target.value,
-                  })
-                }
-                maxLength={10}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "hk_alternate_contact", roomBoyForm.hk_alternate_contact, setFormErrors)}
-              />
-
-              <select
-                className="nicInput"
-                value={roomBoyForm.shift}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day" })
-                }
-                onBlur={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "shift", roomBoyForm.shift, setFormErrors)}
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Edit Room Boy</h2>
+              <button
+                className="closeBtn"
+                onClick={() => setShowEditRoomBoy(false)}
               >
-                <option value="Morning">Morning</option>
-                <option value="Evening">Evening</option>
-                <option value="Night">Night</option>
-                <option value="Full-Day">Full-Day</option>
-              </select>
-
-              <textarea
-                className="nicInput"
-                rows={3}
-                value={roomBoyForm.address || ""}
-                onChange={(e) =>
-                  setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
-                }
-                maxLength={500}
-                onBlur={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
-                onKeyUp={() => validateField(housekeepingCreateEditSchema, "address", roomBoyForm.address, setFormErrors)}
-              />
+                ✕
+              </button>
             </div>
 
-            <div className="modalActions">
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormStack">
+
+                {/* Name */}
+                <div>
+                  <label className="nicLabel">
+                    Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_name}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, hk_name: e.target.value })
+                    }
+                    maxLength={50}
+                    onBlur={() =>
+                      validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)
+                    }
+                  />
+                  {formErrors.hk_name && (
+                    <p className="errorText">{formErrors.hk_name}</p>
+                  )}
+                </div>
+
+                {/* Local Name */}
+                <div>
+                  <label className="nicLabel">Local Name</label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_name_local_language || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        hk_name_local_language: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* Contact */}
+                <div>
+                  <label className="nicLabel">
+                    Contact <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_contact}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
+                    }
+                    maxLength={10}
+                    onBlur={() =>
+                      validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)
+                    }
+                  />
+                  {formErrors.hk_contact && (
+                    <p className="errorText">{formErrors.hk_contact}</p>
+                  )}
+                </div>
+
+                {/* Alternate Contact */}
+                <div>
+                  <label className="nicLabel">Alternate Contact</label>
+                  <input
+                    className="nicInput"
+                    value={roomBoyForm.hk_alternate_contact || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        hk_alternate_contact: e.target.value,
+                      })
+                    }
+                    maxLength={10}
+                  />
+                </div>
+
+                {/* Shift */}
+                <div>
+                  <label className="nicLabel">
+                    Shift <span className="nicRequired">*</span>
+                  </label>
+                  <select
+                    className="nicInput"
+                    value={roomBoyForm.shift}
+                    onChange={(e) =>
+                      setRoomBoyForm({
+                        ...roomBoyForm,
+                        shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day",
+                      })
+                    }
+                  >
+                    <option value="Morning">Morning</option>
+                    <option value="Evening">Evening</option>
+                    <option value="Night">Night</option>
+                    <option value="Full-Day">Full-Day</option>
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="nicLabel">Address</label>
+                  <textarea
+                    className="nicInput"
+                    rows={3}
+                    value={roomBoyForm.address || ""}
+                    onChange={(e) =>
+                      setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
+                    }
+                    maxLength={500}
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                className="linkBtn"
+                className="cancelBtn"
                 onClick={() => setShowEditRoomBoy(false)}
               >
                 Cancel
               </button>
-              <button className="primaryBtn" onClick={handleEditRoomBoy}>
+              <button className="saveBtn" onClick={handleEditRoomBoy}>
                 Save
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ================= VIEW ROOM BOY MODAL ================= */}
+      {viewRoomBoy && (
+        <div className="modalOverlay">
+          <div className="nicModal wide">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Room Boy Details</h2>
+              <button className="closeBtn" onClick={() => setViewRoomBoy(null)}>
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="detailGridHorizontal">
+
+                <div className="detailSection">
+                  <h4>Basic Information</h4>
+                  <p><b>Name:</b> {viewRoomBoy.hk_name}</p>
+                  <p><b>Local Name:</b> {viewRoomBoy.hk_name_local_language || "—"}</p>
+                  <p><b>Shift:</b> {viewRoomBoy.shift}</p>
+                </div>
+
+                <div className="detailSection">
+                  <h4>Contact</h4>
+                  <p><b>Contact:</b> {viewRoomBoy.hk_contact}</p>
+                  <p><b>Alt Contact:</b> {viewRoomBoy.hk_alternate_contact || "—"}</p>
+                </div>
+
+                <div className="detailSection">
+                  <h4>Address</h4>
+                  <p>{viewRoomBoy.address || "—"}</p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
+              <button className="cancelBtn" onClick={() => setViewRoomBoy(null)}>
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

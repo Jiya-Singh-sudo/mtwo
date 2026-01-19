@@ -16,6 +16,7 @@ type ModuleType =
   | 'guest-management'
   | 'room-management'
   | 'vehicle-management'
+  | 'guest-transport-management'
   | 'driver-management'
   | 'food-service'
   | 'duty-roster'

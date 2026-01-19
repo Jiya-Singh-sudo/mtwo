@@ -14,7 +14,8 @@ import "./GuestManagementModals.css";
 import { getActiveDesignationList } from "@/api/designation.api";
 import { formatSeparate, formatTime, formatDate } from "@/utils/dateTime";
 import TimePicker12h from "@/components/common/TimePicker12h";
-import { GUEST_STATUS_CARDS, COLOR_STYLES } from "@/utils/guestCards";
+import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
+import { StatCard } from "@/components/ui/StatCard";
 import { X } from "lucide-react";
 import { XCircle } from "lucide-react";
 
@@ -610,24 +611,24 @@ export function GuestManagement() {
       }
     }
   }
-async function confirmCancelVisit() {
-  if (!cancelGuest?.inout_id) return;
+  async function confirmCancelVisit() {
+    if (!cancelGuest?.inout_id) return;
 
-  try {
-    await updateGuestInOut(cancelGuest.inout_id, {
-      status: "Cancelled",
-    });
+    try {
+      await updateGuestInOut(cancelGuest.inout_id, {
+        status: "Cancelled",
+      });
 
-    setShowCancelConfirm(false);
-    setCancelGuest(null);
+      setShowCancelConfirm(false);
+      setCancelGuest(null);
 
-    await loadGuests();
-    await refreshStatusCounts();
-  } catch (err) {
-    console.error("Cancel visit failed", err);
-    alert("Failed to cancel visit");
+      await loadGuests();
+      await refreshStatusCounts();
+    } catch (err) {
+      console.error("Cancel visit failed", err);
+      alert("Failed to cancel visit");
+    }
   }
-}
 
 
 
@@ -639,71 +640,55 @@ async function confirmCancelVisit() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[#00247D]">Guest Management</h2>
-          <p className="text-sm text-gray-600">Manage all guest information and visits</p>
-        </div>
-
-        <button
-          className="px-6 py-3 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center gap-2"
-          onClick={() => { setGuestForm(initialGuestForm); setModalMode("add"); }}
-        >
-          <Plus className="w-5 h-5" />
-          Add New Guest
-        </button>
+      <div>
+        <h2 className="text-[#00247D] font-semibold text-xl">Guest Management</h2>
+        <p className="text-gray-600 text-sm">Manage all guest information and visits</p>
       </div>
 
-      {/* SEARCH PANEL */}
-      {/* SEARCH + STATUS CARDS */}
-      <div className="bg-white border rounded-sm p-6 space-y-4">
-        {/* Search stays */}
-        <div>
-          <label className="text-sm mb-2 block">Search Guest</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, department or ID..."
-              className="w-full pl-10 pr-4 py-2 border rounded-sm"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
+      {/* STATUS CARDS */}
+      <div className="statsGrid">
+        {GUEST_STATUS_CARDS.map((card) => (
+          <StatCard
+            key={card.key}
+            title={card.label}
+            value={
+              card.key === "All"
+                ? statusCounts?.All ?? 0
+                : statusCounts?.[card.key] ?? 0
+            }
+            icon={card.icon}
+            variant={card.color}
+            active={query.status === card.key}
+            onClick={() => setStatus(card.key)}
+          />
+        ))}
+      </div>
+
+      {/* SEARCH + ADD GUEST (SAME AS ROOM / ROOM BOY) */}
+      <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+        {/* Search */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search by name, department or ID..."
+            className="pl-10 pr-3 py-2 w-full border rounded-sm"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
         </div>
 
-        {/* Status cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {GUEST_STATUS_CARDS.map((card) => {
-            const Icon = card.icon;
-            const active = query.status === card.key;
-
-            return (
-              <button
-                key={card.key}
-                onClick={() => setStatus(card.key)}
-                aria-pressed={active}
-                className={`
-                  border rounded-lg p-4 flex items-center gap-3 transition-all
-                  ${active ? "ring-2 ring-blue-600 bg-blue-50" : "hover:bg-gray-50"}
-                `}
-              >
-                <div className={`p-2 rounded-full ${COLOR_STYLES[card.color]}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-
-                <div className="text-left">
-                  <p className="text-sm text-gray-600">{card.label}</p>
-                  <p className="text-lg font-semibold">
-                    {card.key === "All"
-                      ? statusCounts?.All ?? 0
-                      : statusCounts?.[card.key] ?? 0}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {/* Add Guest Button */}
+        <button
+          className="bg-[#00247D] text-white btn-icon-text hover:bg-blue-900"
+          onClick={() => {
+            setGuestForm(initialGuestForm);
+            setModalMode("add");
+          }}
+        >
+          <Plus className="w-4 h-4" />
+          Add New Guest
+        </button>
       </div>
 
       {
@@ -743,7 +728,7 @@ async function confirmCancelVisit() {
       {/* VIEW GUEST */}
       {showView && selectedGuest && (
         <div className="modalOverlay">
-          <div className="modal largeModal">
+          <div className="modal largeModal wide">
             <div className="viewModalHeader">
               <h2>Guest Details</h2>
 
@@ -758,46 +743,48 @@ async function confirmCancelVisit() {
 
 
             <div className="modalBody">
+              <div className="detailGridHorizontal">
 
-              {/* BASIC INFORMATION */}
-              <div className="viewSection">
-                <h3>Basic Information</h3>
-                <div className="viewFormGrid">
-                  <ViewRow label="Full Name" value={selectedGuest.guest_name} />
-                  <ViewRow label="Mobile Number" value={selectedGuest.guest_mobile} />
-                  <ViewRow label="Alternate Mobile" value={selectedGuest.guest_alternate_mobile} />
-                  <ViewRow label="Email" value={selectedGuest.email} />
-                  <ViewRow label="Address" value={selectedGuest.guest_address} full />
+                {/* BASIC INFORMATION */}
+                <div className="viewSection">
+                  <h3>Basic Information</h3>
+                  <div className="viewFormGrid">
+                    <ViewRow label="Full Name" value={selectedGuest.guest_name} />
+                    <ViewRow label="Mobile Number" value={selectedGuest.guest_mobile} />
+                    <ViewRow label="Alternate Mobile" value={selectedGuest.guest_alternate_mobile} />
+                    <ViewRow label="Email" value={selectedGuest.email} />
+                    <ViewRow label="Address" value={selectedGuest.guest_address} full />
+                  </div>
                 </div>
-              </div>
 
-              {/* DESIGNATION */}
-              <div className="viewSection">
-                <h3>Designation Details</h3>
-                <div className="viewFormGrid">
-                  <ViewRow label="Designation Name" value={selectedGuest.designation_name} />
-                  <ViewRow label="Department" value={selectedGuest.department} />
-                  <ViewRow label="Organization" value={selectedGuest.organization} />
-                  <ViewRow label="Office Location" value={selectedGuest.office_location} />
+                {/* DESIGNATION */}
+                <div className="viewSection">
+                  <h3>Designation Details</h3>
+                  <div className="viewFormGrid">
+                    <ViewRow label="Designation Name" value={selectedGuest.designation_name} />
+                    <ViewRow label="Department" value={selectedGuest.department} />
+                    <ViewRow label="Organization" value={selectedGuest.organization} />
+                    <ViewRow label="Office Location" value={selectedGuest.office_location} />
+                  </div>
                 </div>
-              </div>
 
-              {/* VISIT */}
-              <div className="viewSection">
-                <h3>Visit Information</h3>
-                <div className="viewFormGrid">
-                  <ViewRow label="Status" value={selectedGuest.inout_status} badge />
-                  <ViewRow
-                    label="Arrival"
-                    value={formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}
-                  />
-                  <ViewRow
-                    label="Departure"
-                    value={formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}
-                  />
+                {/* VISIT */}
+                <div className="viewSection">
+                  <h3>Visit Information</h3>
+                  <div className="viewFormGrid">
+                    <ViewRow label="Status" value={selectedGuest.inout_status} badge />
+                    <ViewRow
+                      label="Arrival"
+                      value={formatSeparate(selectedGuest.entry_date, selectedGuest.entry_time)}
+                    />
+                    <ViewRow
+                      label="Departure"
+                      value={formatSeparate(selectedGuest.exit_date, selectedGuest.exit_time)}
+                    />
+                  </div>
                 </div>
-              </div>
 
+              </div>
             </div>
 
             <div className="modalActions">
@@ -830,42 +817,42 @@ async function confirmCancelVisit() {
       )
       }
       {/* CANCEL VISIT */}
-{showCancelConfirm && cancelGuest && (
-  <div className="modalOverlay">
-    <div className="modal">
-      <h3>Cancel Visit</h3>
+      {showCancelConfirm && cancelGuest && (
+        <div className="modalOverlay">
+          <div className="modal">
+            <h3>Cancel Visit</h3>
 
-      <p>
-        Are you sure you want to cancel the visit for{" "}
-        <strong>{cancelGuest.guest_name}</strong>?  
-        <br />
-        The guest has not arrived.
-      </p>
+            <p>
+              Are you sure you want to cancel the visit for{" "}
+              <strong>{cancelGuest.guest_name}</strong>?
+              <br />
+              The guest has not arrived.
+            </p>
 
-      <div className="modalActions">
-        <button onClick={() => {
-          setShowCancelConfirm(false);
-          setCancelGuest(null);
-        }}>
-          No
-        </button>
+            <div className="modalActions">
+              <button onClick={() => {
+                setShowCancelConfirm(false);
+                setCancelGuest(null);
+              }}>
+                No
+              </button>
 
-        <button
-          className="saveBtn"
-          style={{ backgroundColor: "#f59e0b" }} // orange
-          onClick={confirmCancelVisit}
-        >
-          Yes, Cancel Visit
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <button
+                className="saveBtn"
+                style={{ backgroundColor: "#f59e0b" }} // orange
+                onClick={confirmCancelVisit}
+              >
+                Yes, Cancel Visit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {modalMode && (
         <div className="modalOverlay">
-          <div className="modal largeModal">
+          <div className="modal largeModal wide">
             <div className="viewModalHeader">
               <h2>{modalMode === "add" ? "Add Guest" : "Edit Guest"}</h2>
 

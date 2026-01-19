@@ -18,8 +18,9 @@
   background: white;
   width: 420px;
   padding: 0;
-  /* important */
-  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  /* 🔥 clips children to match rounded corners */
   pointer-events: auto;
   animation: fadeIn 0.2s ease-in-out;
   display: flex;
@@ -41,11 +42,11 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-
   padding: 16px 24px;
-  /* 👈 MATCH modalBody */
   border-top: 1px solid #e5e7eb;
   background: #fff;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .modalInput {
@@ -64,8 +65,71 @@
 }
 
 .icon-btn {
-  padding: 6px;
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   border-radius: 6px;
+  background: transparent;
+  border: none;
+
+  /* 🔒 FORCE COLOR TO WIN */
+  color: inherit !important;
+
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+
+  /* 🔒 FORCE SVG TO USE BUTTON COLOR */
+  stroke: currentColor !important;
+}
+
+.icon-btn:hover {
+  background-color: #f3f4f6;
+}
+
+/* ============================
+   WIDE MODAL (landscape)
+=============================== */
+.modal.wide,
+.nicModal.wide {
+  width: 90vw;
+  max-width: 1300px;
+}
+
+/* ============================
+   GUEST FORM HORIZONTAL (3-column)
+=============================== */
+.guestFormHorizontal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .guestFormHorizontal {
+    grid-template-columns: 1fr;
+  }
+}
+
+.guestFormSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+
+.guestFormSection h3 {
+  font-weight: 600;
+  color: #00247d;
+  margin-bottom: 12px;
+  font-size: 16px;
 }
 
 @keyframes fadeIn {
@@ -510,4 +574,83 @@ label {
 
 .modalActions .saveBtn:hover {
   opacity: 0.9;
+}
+
+/* ============================
+   VIEW MODAL TEXT FIX
+=============================== */
+.viewValue {
+  white-space: normal;
+  word-break: normal;
+  /* 🔥 CRITICAL FIX */
+  overflow-wrap: break-word;
+  /* allows wrap by words only */
+  line-height: 1.4;
+}
+
+.viewRow {
+  min-width: 0;
+  display: contents;
+}
+
+.viewRow.full {
+  grid-column: 1 / -1;
+}
+
+.viewRow.full .viewValue {
+  max-width: 100%;
+}
+
+/* ============================
+   VIEW FORM GRID (label: value)
+=============================== */
+.viewFormGrid {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 1fr;
+  column-gap: 12px;
+  row-gap: 10px;
+}
+
+/* ============================
+   VIEW SECTION (rounded cards)
+=============================== */
+.viewSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.viewSection h3 {
+  font-weight: 600;
+  color: #00247d;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+/* ============================
+   HORIZONTAL DETAIL GRID (3-column)
+=============================== */
+.detailGridHorizontal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .detailGridHorizontal {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================
+   BUTTON WITH ICON + TEXT
+=============================== */
+.btn-icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  padding: 10px 16px;
 }

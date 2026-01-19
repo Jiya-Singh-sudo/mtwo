@@ -107,13 +107,13 @@ export function SystemSettings() {
       const updated = [...emergencyContacts];
       modal.index !== null
         ? (updated[modal.index] = {
-            name: modal.value,
-            phone: modal.phone || "",
-          })
+          name: modal.value,
+          phone: modal.phone || "",
+        })
         : updated.push({
-            name: modal.value,
-            phone: modal.phone || "",
-          });
+          name: modal.value,
+          phone: modal.phone || "",
+        });
       setEmergencyContacts(updated);
     }
 

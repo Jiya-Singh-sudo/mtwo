@@ -103,3 +103,24 @@ export type GuestMealUI = {
   };
 };
 
+/**
+ * UI-only type for guest food planning.
+ * Wraps backend guest data for the new guest-centric UI.
+ * This does NOT replace backend types.
+ */
+export type GuestFoodPlan = {
+  guestId: string;
+  guestName: string;
+  roomNumber: string;
+  roomId: string;
+
+  plannedMenu: string[];        // INTERNAL ONLY - not sent to backend
+  foodType?: "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg";
+
+  butler?: {
+    id: string;
+    name: string;
+    guestButlerId?: string;
+  };
+};
+

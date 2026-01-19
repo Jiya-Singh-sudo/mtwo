@@ -206,7 +206,7 @@ export function DashboardStats() {
         </a>
       </div>
 
-     
+
       {/* ================= ALERTS ================= */}
       <div className="bg-orange-50 border-l-4 border-[#FF9933] p-4 rounded-sm">
         <div className="flex gap-3">

@@ -1,0 +1,115 @@
+/* ================= STATS GRID ================= */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* ================= STAT CARD ================= */
+
+.statCard {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px 20px;
+  border: 1px solid #e5e7eb;
+  border-left: 5px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.statCard:hover {
+  background: #f9fafb;
+}
+
+.statCard h3 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.statCard p {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.statCard svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+/* ================= COLOR VARIANTS ================= */
+
+.statCard.blue {
+  border-left-color: #2563eb;
+}
+
+.statCard.blue svg {
+  color: #2563eb;
+}
+
+.statCard.blue h3 {
+  color: #1e40af;
+}
+
+.statCard.green {
+  border-left-color: #16a34a;
+}
+
+.statCard.green svg {
+  color: #16a34a;
+}
+
+.statCard.green h3 {
+  color: #166534;
+}
+
+.statCard.orange {
+  border-left-color: #ea580c;
+}
+
+.statCard.orange svg {
+  color: #ea580c;
+}
+
+.statCard.orange h3 {
+  color: #9a3412;
+}
+
+.statCard.purple {
+  border-left-color: #7c3aed;
+}
+
+.statCard.purple svg {
+  color: #7c3aed;
+}
+
+.statCard.purple h3 {
+  color: #6b21a8;
+}
+
+.statCard.indigo {
+  border-left-color: #6366f1;
+}
+
+.statCard.indigo svg {
+  color: #6366f1;
+}
+
+.statCard.indigo h3 {
+  color: #4338ca;
+}
+
+/* ================= ACTIVE STATE ================= */
+
+.statCard.activeStat,
+.statCard.active {
+  background: #f0f6ff;
+  box-shadow: 0 0 0 2px #00247d;
+}

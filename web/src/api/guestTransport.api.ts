@@ -47,7 +47,7 @@ export async function getActiveDriverByGuest(guestId: string) {
 
 // Drivers available for assignment
 export async function getAssignableDrivers() {
-  const res = await api.get("/drivers/assignable");
+  const res = await api.get("/drivers/available");
   return res.data;
 }
 

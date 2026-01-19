@@ -66,7 +66,7 @@ export function Sidebar() {
     {
       id: 'guest-transport-management',
       label: 'Guest Transport Management',
-      labelHi: 'अतिथि ट्रांसपोर्ट प्रबंधन',
+      labelHi: 'ट्रांसपोर्ट प्रबंधन',
       icon: UserCog,
       path: '/guest-transport-management',
       permission: 'transport.view',
@@ -89,7 +89,7 @@ export function Sidebar() {
       path: '/food-service',
       permission: 'food.view',
     },
-
+/*
     {
       id: 'duty-roster',
       label: 'Duty Roster',
@@ -97,7 +97,7 @@ export function Sidebar() {
       icon: Calendar,
       path: '/duty-roster',
       permission: 'duty.view',
-    },
+    },*/
 
     {
       id: 'info-package',
@@ -135,14 +135,14 @@ export function Sidebar() {
       permission: 'user.view',
     },
 
-    {
+   /* {
       id: 'settings',
       label: 'System Settings',
       labelHi: 'सेटिंग्स',
       icon: Settings,
       path: '/settings',
       permission: 'settings.view',
-    },
+    },*/
   ];
 
   return (

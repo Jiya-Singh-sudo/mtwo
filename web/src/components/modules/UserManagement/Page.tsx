@@ -111,14 +111,14 @@ export default function UserManagement() {
       prev.map((u) =>
         u.id === selectedUser.id
           ? {
-              ...u,
-              username: form.username,
-              fullName: form.fullName,
-              fullNameLocal: form.fullNameLocal,
-              role: form.role,
-              mobile: form.mobile,
-              email: form.email,
-            }
+            ...u,
+            username: form.username,
+            fullName: form.fullName,
+            fullNameLocal: form.fullNameLocal,
+            role: form.role,
+            mobile: form.mobile,
+            email: form.email,
+          }
           : u
       )
     );

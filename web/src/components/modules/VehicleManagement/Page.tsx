@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Eye, Plus, Search } from 'lucide-react';
 import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
 import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
+import { Button } from '../../ui/button';
 import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
 import { getDriversTable, createDriver, softDeleteDriver } from '../../../api/driver.api';
 import { VehicleUpdateDto } from '../../../types/vehicles';
@@ -80,11 +80,13 @@ export function VehicleManagement() {
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [showDeleteVehicleConfirm, setShowDeleteVehicleConfirm] = useState(false);
+  const [viewVehicle, setViewVehicle] = useState<Vehicle | null>(null);
 
   // Driver modals
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [showEditDriver, setShowEditDriver] = useState(false);
   const [showDeleteDriverConfirm, setShowDeleteDriverConfirm] = useState(false);
+  const [viewDriver, setViewDriver] = useState<Driver | null>(null);
 
   const vehicleTable = useTableQuery({
     prefix: "vehicles",
@@ -357,11 +359,31 @@ export function VehicleManagement() {
     {
       header: 'Actions',
       render: (row: Vehicle) => (
-        <div className="flex gap-2">
-          <button onClick={() => openEditVehicleModal(row)}>
+        <div className="flex items-center gap-3">
+          {/* View */}
+          <button
+            className="icon-btn text-blue-600"
+            title="View"
+            onClick={() => setViewVehicle(row)}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+
+          {/* Edit */}
+          <button
+            className="icon-btn text-green-600"
+            title="Edit"
+            onClick={() => openEditVehicleModal(row)}
+          >
             <Edit className="w-4 h-4" />
           </button>
-          <button onClick={() => openDeleteVehicleDialog(row)}>
+
+          {/* Delete */}
+          <button
+            className="icon-btn text-red-600"
+            title="Delete"
+            onClick={() => openDeleteVehicleDialog(row)}
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -399,11 +421,31 @@ export function VehicleManagement() {
     {
       header: 'Actions',
       render: (row: Driver) => (
-        <div className="flex gap-2">
-          <button onClick={() => openEditDriverModal(row)}>
+        <div className="flex items-center gap-3">
+          {/* View */}
+          <button
+            className="icon-btn text-blue-600"
+            title="View"
+            onClick={() => setViewDriver(row)}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+
+          {/* Edit */}
+          <button
+            className="icon-btn text-green-600"
+            title="Edit"
+            onClick={() => openEditDriverModal(row)}
+          >
             <Edit className="w-4 h-4" />
           </button>
-          <button onClick={() => openDeleteDriverDialog(row)}>
+
+          {/* Delete */}
+          <button
+            className="icon-btn text-red-600"
+            title="Delete"
+            onClick={() => openDeleteDriverDialog(row)}
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -416,13 +458,13 @@ export function VehicleManagement() {
       {/* Page Header */}
       <div>
         <h2 className="text-[#00247D]">Vehicle & Driver Management</h2>
-        <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन औ�� चालक प्रबंधन</p>
+        <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन और चालक प्रबंधन</p>
       </div>
       {/* STATS */}
       <div className="statsGrid">
         <div
           className="statCard blue"
-          onClick={() => {vehicleTable.setPage(1); vehicleTable.setSort('vehicle_name', 'asc');}}
+          onClick={() => { vehicleTable.setPage(1); vehicleTable.setSort('vehicle_name', 'asc'); }}
         >
           <Car />
           <div>
@@ -433,7 +475,7 @@ export function VehicleManagement() {
 
         <div
           className="statCard green"
-          onClick={() => {vehicleTable.setPage(1);}}
+          onClick={() => { vehicleTable.setPage(1); }}
         >
           <CheckCircle />
           <div>
@@ -488,13 +530,24 @@ export function VehicleManagement() {
       {/* VEHICLES TAB */}
       {activeTab === "vehicles" && (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <Input
-              placeholder="Search vehicle no or name…"
-              value={vehicleTable.searchInput}
-              onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
-              className="w-64"
-            />
+          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                className="pl-10 pr-3 py-2 w-full border rounded-sm"
+                placeholder="Search vehicle no or name…"
+                value={vehicleTable.searchInput}
+                onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
+              />
+            </div>
+
+            <Button
+              className="bg-[#00247D] text-white btn-icon-text"
+              onClick={() => setShowAddVehicle(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Add Vehicle
+            </Button>
           </div>
           {/* Vehicle List Table */}
           <DataTable
@@ -521,104 +574,157 @@ export function VehicleManagement() {
       {/* DRIVERS TAB */}
       {activeTab === "drivers" && (
         <>
-        <Input
-          placeholder="Search name, contact or license…"
-          value={driverTable.searchInput}
-          onChange={(e) => driverTable.setSearchInput(e.target.value)}
-          className="w-64 mb-3"
-        />
+          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                className="pl-10 pr-3 py-2 w-full border rounded-sm"
+                placeholder="Search name, contact or license…"
+                value={driverTable.searchInput}
+                onChange={(e) => driverTable.setSearchInput(e.target.value)}
+              />
+            </div>
+
+            <Button
+              className="bg-[#00247D] text-white btn-icon-text"
+              onClick={() => setShowAddDriver(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Add Driver
+            </Button>
+          </div>
 
           {/* Driver List Table */}
-        <DataTable
-          data={drivers}
-          columns={driverColumns}
-          keyField="driver_id"
+          <DataTable
+            data={drivers}
+            columns={driverColumns}
+            keyField="driver_id"
 
-          page={driverTable.query.page}
-          limit={driverTable.query.limit}
-          totalCount={driverTable.total}
+            page={driverTable.query.page}
+            limit={driverTable.query.limit}
+            totalCount={driverTable.total}
 
-          sortBy={driverTable.query.sortBy}
-          sortOrder={driverTable.query.sortOrder}
-          loading={driverTable.loading}
+            sortBy={driverTable.query.sortBy}
+            sortOrder={driverTable.query.sortOrder}
+            loading={driverTable.loading}
 
-          onPageChange={driverTable.setPage}
-          onLimitChange={driverTable.setLimit}
-          onSortChange={driverTable.setSort}
-        />
+            onPageChange={driverTable.setPage}
+            onLimitChange={driverTable.setLimit}
+            onSortChange={driverTable.setSort}
+          />
         </>
       )}
 
       {/* Add Vehicle Modal */}
       {showAddVehicle && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Add Vehicle</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number *</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.vehicle_no}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, vehicle_no: e.target.value })}
-                  placeholder="MH-01-XX-XXXX"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Name *</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.vehicle_name}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })}
-                  placeholder="e.g., Toyota Fortuner"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.model ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })}
-                  placeholder="e.g., ZX"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturing Year</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.manufacturing ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })}
-                  placeholder="e.g., 2024"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
-                <input
-                  type="number"
-                  value={vehicleFormData.capacity ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, capacity: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="e.g., 5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.color ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })}
-                  placeholder="e.g., White"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Add Vehicle</h2>
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setShowAddVehicle(false);
+                  resetVehicleForm();
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormGrid">
+
+                <div>
+                  <label className="nicLabel">
+                    Vehicle Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.vehicle_no}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, vehicle_no: e.target.value })
+                    }
+                    placeholder="MH-01-XX-XXXX"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    Vehicle Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.vehicle_name}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })
+                    }
+                    placeholder="e.g., Toyota Fortuner"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Model</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.model ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })
+                    }
+                    placeholder="e.g., ZX"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Manufacturing Year</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.manufacturing ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })
+                    }
+                    placeholder="e.g., 2024"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Capacity</label>
+                  <input
+                    type="number"
+                    className="nicInput"
+                    value={vehicleFormData.capacity ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({
+                        ...vehicleFormData,
+                        capacity: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder="e.g., 5"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Color</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.color ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })
+                    }
+                    placeholder="e.g., White"
+                  />
+                </div>
+
               </div>
             </div>
-            <div className="modalActions">
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                className="linkBtn"
+                className="cancelBtn"
                 onClick={() => {
                   setShowAddVehicle(false);
                   resetVehicleForm();
@@ -626,11 +732,11 @@ export function VehicleManagement() {
               >
                 Cancel
               </button>
-
-              <button className="primaryBtn" onClick={handleAddVehicle}>
+              <button className="saveBtn" onClick={handleAddVehicle}>
                 Add Vehicle
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -638,79 +744,117 @@ export function VehicleManagement() {
       {/* Edit Vehicle Modal */}
       {showEditVehicle && selectedVehicle && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Edit Vehicle</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number *</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.vehicle_no}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, vehicle_no: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                  disabled
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Name *</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.vehicle_name}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.model ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturing Year</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.manufacturing ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
-                <input
-                  type="number"
-                  value={vehicleFormData.capacity ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, capacity: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                <input
-                  type="text"
-                  value={vehicleFormData.color ?? ''}
-                  onChange={(e) => setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00247D]"
-                />
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Edit Vehicle</h2>
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setShowEditVehicle(false);
+                  resetVehicleForm();
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormGrid">
+
+                <div>
+                  <label className="nicLabel">
+                    Vehicle Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput bg-gray-100"
+                    value={vehicleFormData.vehicle_no}
+                    disabled
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    Vehicle Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.vehicle_name}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, vehicle_name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Model</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.model ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, model: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Manufacturing Year</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.manufacturing ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, manufacturing: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Capacity</label>
+                  <input
+                    type="number"
+                    className="nicInput"
+                    value={vehicleFormData.capacity ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({
+                        ...vehicleFormData,
+                        capacity: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Color</label>
+                  <input
+                    className="nicInput"
+                    value={vehicleFormData.color ?? ""}
+                    onChange={(e) =>
+                      setVehicleFormData({ ...vehicleFormData, color: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
               </div>
             </div>
-            <div className="modalActions">
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                onClick={() => { setShowEditVehicle(false); resetVehicleForm(); }}
-                className="linkBtn"
+                className="cancelBtn"
+                onClick={() => {
+                  setShowEditVehicle(false);
+                  resetVehicleForm();
+                }}
               >
                 Cancel
               </button>
-              <button
-                onClick={handleEditVehicle}
-                className="primaryBtn"
-              >
+              <button className="saveBtn" onClick={handleEditVehicle}>
                 Save Changes
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -718,78 +862,123 @@ export function VehicleManagement() {
       {/* Add Driver Modal */}
       {showAddDriver && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Add Driver</h3>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="driverName">Full Name *</Label>
-                <Input
-                  id="driverName"
-                  value={driverFormData.driver_name}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name: e.target.value })}
-                  placeholder="Enter full name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="driverNameLocal">Full Name (Local)</Label>
-                <Input
-                  id="driverNameLocal"
-                  value={driverFormData.driver_name_ll ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })}
-                  placeholder="Enter full name in local language"
-                />
-              </div>
-              <div>
-                <Label htmlFor="driverContact">Contact Number *</Label>
-                <Input
-                  id="driverContact"
-                  value={driverFormData.driver_contact}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_contact: e.target.value })}
-                  placeholder="+91 XXXXX XXXXX"
-                />
-              </div>
-              <div>
-                <Label htmlFor="driverAlternateContact">Alternate Contact Number</Label>
-                <Input
-                  id="driverAlternateContact"
-                  value={driverFormData.driver_alternate_contact ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })}
-                  placeholder="+91 XXXXX XXXXX"
-                />
-              </div>
-              <div>
-                <Label htmlFor="licenseNo">License Number *</Label>
-                <Input
-                  id="licenseNo"
-                  value={driverFormData.driver_license}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_license: e.target.value })}
-                  placeholder="MH-XXXXXXXXXXXX"
-                />
-              </div>
-              <div>
-                <Label htmlFor="driverAddress">Address</Label>
-                <Input
-                  id="driverAddress"
-                  value={driverFormData.address ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, address: e.target.value || undefined })}
-                  placeholder="Enter address"
-                />
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Add Driver</h2>
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setShowAddDriver(false);
+                  resetDriverForm();
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormGrid">
+
+                <div>
+                  <label className="nicLabel">
+                    Full Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_name}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_name: e.target.value })
+                    }
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Full Name (Local)</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_name_ll ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })
+                    }
+                    placeholder="Enter full name in local language"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    Contact Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_contact}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_contact: e.target.value })
+                    }
+                    placeholder="+91 XXXXX XXXXX"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Alternate Contact Number</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_alternate_contact ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })
+                    }
+                    placeholder="+91 XXXXX XXXXX"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    License Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_license}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_license: e.target.value })
+                    }
+                    placeholder="MH-XXXXXXXXXXXX"
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Address</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.address ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, address: e.target.value || undefined })
+                    }
+                    placeholder="Enter address"
+                  />
+                </div>
+
               </div>
             </div>
-            <div className="modalActions">
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                onClick={() => { setShowAddDriver(false); resetDriverForm(); }}
-                className="linkBtn"
+                className="cancelBtn"
+                onClick={() => {
+                  setShowAddDriver(false);
+                  resetDriverForm();
+                }}
               >
                 Cancel
               </button>
-              <button
-                onClick={handleAddDriver}
-                className="primaryBtn"
-              >
+              <button className="saveBtn" onClick={handleAddDriver}>
                 Add Driver
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -797,72 +986,117 @@ export function VehicleManagement() {
       {/* Edit Driver Modal */}
       {showEditDriver && selectedDriver && (
         <div className="modalOverlay">
-          <div className="modal">
-            <h3>Edit Driver</h3>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-driverName">Full Name *</Label>
-                <Input
-                  id="edit-driverName"
-                  value={driverFormData.driver_name}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-driverNameLocal">Full Name (Local)</Label>
-                <Input
-                  id="edit-driverNameLocal"
-                  value={driverFormData.driver_name_ll ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-driverContact">Contact Number *</Label>
-                <Input
-                  id="edit-driverContact"
-                  value={driverFormData.driver_contact}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_contact: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-driverAlternateMobile">Alternate Contact Number</Label>
-                <Input
-                  id="edit-driverAlternateMobile"
-                  value={driverFormData.driver_alternate_contact ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-licenseNo">License Number *</Label>
-                <Input
-                  id="edit-licenseNo"
-                  value={driverFormData.driver_license}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, driver_license: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-driverAddress">Address</Label>
-                <Input
-                  id="edit-driverAddress"
-                  value={driverFormData.address ?? ''}
-                  onChange={(e) => setDriverFormData({ ...driverFormData, address: e.target.value || undefined })}
-                />
+          <div className="nicModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Edit Driver</h2>
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setShowEditDriver(false);
+                  resetDriverForm();
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="nicFormGrid">
+
+                <div>
+                  <label className="nicLabel">
+                    Full Name <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_name}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Full Name (Local)</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_name_ll ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_name_ll: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    Contact Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_contact}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_contact: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Alternate Contact Number</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_alternate_contact ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_alternate_contact: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">
+                    License Number <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.driver_license}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, driver_license: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="nicLabel">Address</label>
+                  <input
+                    className="nicInput"
+                    value={driverFormData.address ?? ""}
+                    onChange={(e) =>
+                      setDriverFormData({ ...driverFormData, address: e.target.value || undefined })
+                    }
+                  />
+                </div>
+
               </div>
             </div>
-            <div className="modalActions">
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
               <button
-                onClick={() => { setShowEditDriver(false); resetDriverForm(); }}
-                className="linkBtn"
+                className="cancelBtn"
+                onClick={() => {
+                  setShowEditDriver(false);
+                  resetDriverForm();
+                }}
               >
                 Cancel
               </button>
-              <button
-                onClick={handleEditDriver}
-                className="primaryBtn"
-              >
+              <button className="saveBtn" onClick={handleEditDriver}>
                 Save Changes
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -915,6 +1149,92 @@ export function VehicleManagement() {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Vehicle Modal */}
+      {viewVehicle && (
+        <div className="modalOverlay">
+          <div className="nicModal wide">
+
+            <div className="nicModalHeader">
+              <h2>Vehicle Details</h2>
+              <button className="closeBtn" onClick={() => setViewVehicle(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="nicModalBody">
+              <div className="detailGridHorizontal">
+
+                <div className="detailSection">
+                  <h4>Vehicle Information</h4>
+                  <p><b>Vehicle No:</b> {viewVehicle.vehicle_no}</p>
+                  <p><b>Name:</b> {viewVehicle.vehicle_name}</p>
+                  <p><b>Status:</b> {viewVehicle.is_active ? "Active" : "Inactive"}</p>
+                </div>
+
+                <div className="detailSection">
+                  <h4>Specifications</h4>
+                  <p><b>Model:</b> {viewVehicle.model || "—"}</p>
+                  <p><b>Manufacturing Year:</b> {viewVehicle.manufacturing || "—"}</p>
+                  <p><b>Capacity:</b> {viewVehicle.capacity || "—"}</p>
+                  <p><b>Color:</b> {viewVehicle.color || "—"}</p>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="nicModalActions">
+              <button className="cancelBtn" onClick={() => setViewVehicle(null)}>
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* View Driver Modal */}
+      {viewDriver && (
+        <div className="modalOverlay">
+          <div className="nicModal wide">
+
+            <div className="nicModalHeader">
+              <h2>Driver Details</h2>
+              <button className="closeBtn" onClick={() => setViewDriver(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="nicModalBody">
+              <div className="detailGridHorizontal">
+
+                <div className="detailSection">
+                  <h4>Driver Information</h4>
+                  <p><b>Name:</b> {viewDriver.driver_name}</p>
+                  <p><b>Name (Local):</b> {viewDriver.driver_name_ll || "—"}</p>
+                  <p><b>Status:</b> {viewDriver.is_active ? "Active" : "Inactive"}</p>
+                </div>
+
+                <div className="detailSection">
+                  <h4>Contact Details</h4>
+                  <p><b>Contact:</b> {viewDriver.driver_contact}</p>
+                  <p><b>Alternate Contact:</b> {viewDriver.driver_alternate_contact || "—"}</p>
+                  <p><b>License No:</b> {viewDriver.driver_license}</p>
+                  <p><b>Address:</b> {viewDriver.address || "—"}</p>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="nicModalActions">
+              <button className="cancelBtn" onClick={() => setViewDriver(null)}>
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

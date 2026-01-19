@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   Send,
-  MessageSquare,
-  Mail,
   Bell,
   Clock,
   CheckCircle,
@@ -287,13 +285,12 @@ export function Notifications() {
                 <td className="px-6 py-3">{n.message}</td>
                 <td className="px-6 py-3">{n.sentAt}</td>
                 <td className="px-6 py-3">
-                  <span className={`px-3 py-1 rounded-full text-xs ${
-                    n.status === 'Delivered'
+                  <span className={`px-3 py-1 rounded-full text-xs ${n.status === 'Delivered'
                       ? 'bg-green-100 text-green-700'
                       : n.status === 'Pending'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
                     {n.status}
                   </span>
                 </td>

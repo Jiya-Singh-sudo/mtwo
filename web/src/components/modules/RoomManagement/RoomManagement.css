@@ -395,3 +395,143 @@ th {
   font-weight: 700;
   color: #00247D;
 }
+
+/* ============================
+   ICON BUTTON (ACTION ICONS)
+=============================== */
+.icon-btn {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-btn:hover {
+  background-color: #f3f4f6;
+}
+
+/* 🔥 FORCE ACTION ICON COLORS */
+td .icon-btn {
+  color: inherit !important;
+}
+
+td .icon-btn.text-blue-600 {
+  color: #2563eb !important;
+}
+
+td .icon-btn.text-green-600 {
+  color: #16a34a !important;
+}
+
+td .icon-btn.text-orange-600 {
+  color: #ea580c !important;
+}
+
+td .icon-btn.text-red-600 {
+  color: #dc2626 !important;
+}
+
+td .icon-btn.text-purple-600 {
+  color: #9333ea !important;
+}
+
+/* ============================
+   REQUIRED FIELD INDICATORS
+=============================== */
+.nicLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.nicRequired {
+  color: #dc2626;
+  /* red-600 */
+  margin-left: 2px;
+}
+
+.errorText {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 4px;
+}
+
+/* ============================
+   HORIZONTAL DETAIL GRID (3-column)
+=============================== */
+.detailGridHorizontal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+/* Responsive fallback */
+@media (max-width: 1024px) {
+  .detailGridHorizontal {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Detail section cards */
+.detailSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.detailSection h4 {
+  color: #00247d;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.detailSection p {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.detailSection b {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ============================
+   WIDE MODAL (landscape)
+=============================== */
+.nicModal.wide {
+  width: 90vw;
+  max-width: 1200px;
+}
+
+/* Fix horizontal overflow */
+.nicModalBody {
+  overflow-x: hidden;
+}
+
+/* ============================
+   BUTTON WITH ICON + TEXT
+=============================== */
+.btn-icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* space between + and text */
+  border-radius: 10px;
+  /* rounded rectangle */
+  white-space: nowrap;
+  padding: 10px 16px;
+}
