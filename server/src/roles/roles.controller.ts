@@ -39,12 +39,17 @@ export class RolesController {
 
   @Get()
   findAll() {
-    return this.service.findAll(true);  // only active roles
+    return this.service.findAll(true);
   }
 
   @Get('all')
   findAllIncludingInactive() {
-    return this.service.findAll(false); // active + inactive
+    return this.service.findAll(false);
+  }
+
+  @Get(':role_id')
+  findOne(@Param('role_id') role_id: string) {
+    return this.service.findOne(role_id);
   }
 
   @Post()

@@ -29,19 +29,29 @@ export class RolesService {
   }
 
 
+  
   async findAll(activeOnly = true) {
     const sql = activeOnly
-      ? `SELECT * FROM m_roles WHERE is_active = $1 ORDER BY role_id`
-      : `SELECT * FROM m_roles ORDER BY role_id`;
+      ? `SELECT role_id, role_name, role_desc 
+         FROM m_roles 
+         WHERE is_active = true 
+         ORDER BY role_name`
+      : `SELECT role_id, role_name, role_desc 
+         FROM m_roles 
+         ORDER BY role_name`;
 
-    const result = await this.db.query(sql, activeOnly ? [true] : []);
-    return result.rows;
+    const res = await this.db.query(sql);
+    return res.rows;
   }
 
-  async findOne(id: string) {
-    const sql = `SELECT * FROM m_roles WHERE role_id = $1`;
-    const result = await this.db.query(sql, [id]);
-    return result.rows[0];
+  async findOne(role_id: string) {
+    const sql = `
+      SELECT role_id, role_name, role_desc, is_active
+      FROM m_roles
+      WHERE role_id = $1
+    `;
+    const res = await this.db.query(sql, [role_id]);
+    return res.rows[0];
   }
 
   async create(dto: CreateRoleDto, user: string, ip: string) {

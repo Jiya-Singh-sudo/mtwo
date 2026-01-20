@@ -34,6 +34,8 @@ import { MessengersModule } from './messengers/messengers.module';
 import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.module';
 import { InfoPackageModule } from './info-package/info-package.module';
 import { ReportsPkgModule } from './reports-pkg/reports-pkg.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { RolePermissionModule } from './role-permission/role-permission.module';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { ReportsPkgModule } from './reports-pkg/reports-pkg.module';
     GuestMessenegerModule,
     InfoPackageModule,
     ReportsPkgModule,
+    PermissionsModule,
+    RolePermissionModule,
   ],
   controllers: [AppController], 
   providers: [AppService],

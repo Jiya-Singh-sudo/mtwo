@@ -13,6 +13,7 @@ export class CreateUserDto {
   full_name_local_language?: string;
 
   @IsString()
+  @IsNotEmpty()
   role_id: string;
 
   @IsString()

@@ -86,7 +86,7 @@ export class AuthService {
     return hmac.digest('hex');
   }
 
-  private async createRefreshTokenRow(userId: number, ip: string | null, familyId?: string) {
+  private async createRefreshTokenRow(userId: string, ip: string | null, familyId?: string) {
     const plain = this.generateRandomToken();
     const tokenHash = this.hashRefreshToken(plain);
     const family = familyId ?? uuidv4();
@@ -129,7 +129,7 @@ export class AuthService {
       SELECT p.permission_name
       FROM t_role_permissions rp
       JOIN m_permissions p ON p.permission_id = rp.permission_id
-      WHERE rp.role_id = $1 AND p.is_active = TRUE
+      WHERE rp.role_id = $1 AND p.is_active = TRUE AND rp.is_active = TRUE
     `;
     const result = await this.db.query(sql, [roleId]);
     return result.rows.map((r) => r.permission_name);

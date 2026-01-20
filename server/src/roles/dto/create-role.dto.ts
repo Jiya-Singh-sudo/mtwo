@@ -2,14 +2,17 @@ import {
   IsString,
   IsInt,
   Min,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateRoleDto {
   @IsString()
+  @IsNotEmpty()
   role_name: string;
 
   @IsString()
+  @IsNotEmpty()
   role_desc: string;
 
   @Type(() => Number)
