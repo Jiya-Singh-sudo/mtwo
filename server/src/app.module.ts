@@ -36,12 +36,20 @@ import { InfoPackageModule } from './info-package/info-package.module';
 import { ReportsPkgModule } from './reports-pkg/reports-pkg.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,        // time window in seconds
+        limit: 100,     // global fallback
+      },
+    ]),
     DatabaseModule,
     RolesModule,
     VehiclesModule,
@@ -77,7 +85,7 @@ import { RolePermissionModule } from './role-permission/role-permission.module';
     PermissionsModule,
     RolePermissionModule,
   ],
-  controllers: [AppController], 
+  controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

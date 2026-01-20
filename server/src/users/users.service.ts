@@ -5,10 +5,16 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as crypto from 'crypto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
+
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly activityLog: ActivityLogService,
+  ) {}
 
   private generateResetToken(): string {
     return crypto.randomBytes(32).toString('hex');
@@ -95,7 +101,18 @@ export class UsersService {
     ];
 
     const res = await this.db.query(sql, params);
-    return res.rows[0];
+    const created = res.rows[0];
+
+    await this.activityLog.log({
+      message: `User ${created.username} created`,
+      module: 'USER',
+      action: 'USER_CREATE',
+      referenceId: created.user_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return created;
   }
 
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
@@ -212,7 +229,19 @@ export class UsersService {
     ];
 
     const res = await this.db.query(sql, params);
-    return res.rows[0];
+    const updated = res.rows[0];
+
+    await this.activityLog.log({
+      message: `User ${updated.username} updated`,
+      module: 'USER',
+      action: 'USER_UPDATE',
+      referenceId: updated.user_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return updated;
+
   }
 
   async softDelete(username: string, user: string, ip: string) {
@@ -232,7 +261,19 @@ export class UsersService {
     `;
 
     const res = await this.db.query(sql, [now, user, ip, existing.user_id]);
-    return res.rows[0];
+    const deleted = res.rows[0];
+
+    await this.activityLog.log({
+      message: `User ${deleted.username} deactivated`,
+      module: 'USER',
+      action: 'USER_DELETE',
+      referenceId: deleted.user_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return deleted;
+
   }
 
   // Login: accepts plaintext password, hashes and compares, updates last_login on success

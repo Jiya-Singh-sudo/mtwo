@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dto/login.dto';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +18,10 @@ export class AuthService {
   private refreshTokenLength: number;
   private refreshPepper: string;
 
-  constructor(private readonly db: DatabaseService) {
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly activityLog: ActivityLogService,
+  ) {
     // Token settings
     this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
     this.refreshExpiresDays = Number(process.env.JWT_REFRESH_EXPIRES_DAYS ?? 30);
@@ -145,12 +148,28 @@ export class AuthService {
     );
 
     if (!result.rows.length) {
+      await this.activityLog.log({
+        message: `Invalid login attempt for username ${dto.username}`,
+        module: 'AUTH',
+        action: 'LOGIN_FAILED',
+        referenceId: dto.username,
+        ipAddress: ip,
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const user = result.rows[0];
 
     if (user.password !== hashedPassword) {
+      await this.activityLog.log({
+        message: `Invalid login attempt for username ${dto.username}`,
+        module: 'AUTH',
+        action: 'LOGIN_FAILED',
+        referenceId: dto.username,
+        ipAddress: ip,
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -162,6 +181,14 @@ export class AuthService {
       WHERE user_id = $2`,
       [ip, user.user_id]
     );
+    await this.activityLog.log({
+      message: 'User logged in successfully',
+      module: 'AUTH',
+      action: 'LOGIN_SUCCESS',
+      referenceId: user.user_id,
+      performedBy: user.user_id,
+      ipAddress: ip,
+    });
 
     // ✅ Load role
     const role = await this.loadRole(user.role_id);
@@ -175,9 +202,10 @@ export class AuthService {
     const payload = {
       sub: user.user_id,
       username: user.username,
-      role: role?.role_name ?? user.role_id,
+      role_id: user.role_id,
       permissions,
     };
+
 
     // ✅ Access token
     const accessToken = this.signAccessToken(payload);
@@ -249,6 +277,14 @@ export class AuthService {
     };
 
     const accessToken = this.signAccessToken(payload);
+    await this.activityLog.log({
+      message: 'Access token refreshed',
+      module: 'AUTH',
+      action: 'TOKEN_REFRESH',
+      referenceId: user.user_id,
+      performedBy: user.user_id,
+      ipAddress: ip,
+    });
 
     return {
       accessToken,
@@ -270,5 +306,12 @@ export class AuthService {
     await this.db.query(`UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE id = $1`, [
       row.id,
     ]);
+    await this.activityLog.log({
+      message: 'User logged out',
+      module: 'AUTH',
+      action: 'LOGOUT',
+      referenceId: row.user_id,
+      performedBy: row.user_id,
+    });
   }
 }

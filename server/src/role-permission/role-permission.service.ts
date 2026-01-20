@@ -1,10 +1,16 @@
 // server/src/role-permissions/role-permissions.service.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
+
 
 @Injectable()
 export class RolePermissionService {
-  constructor(private readonly db: DatabaseService) {}
+    constructor(
+    private readonly db: DatabaseService,
+    private readonly activityLog: ActivityLogService,
+    ) {}
 
   async getPermissionsByRole(role_id: string) {
     const sql = `
@@ -43,6 +49,15 @@ export class RolePermissionService {
         updated_ip = $4
     `;
     await this.db.query(sql, [role_id, permission_id, user, ip]);
+    await this.activityLog.log({
+    message: `Permission ${permission_id} assigned to role ${role_id}`,
+    module: 'ROLE_PERMISSION',
+    action: 'ROLE_PERMISSION_ASSIGN',
+    referenceId: `${role_id}:${permission_id}`,
+    performedBy: user,
+    ipAddress: ip,
+    });
+
   }
 
   async revokePermissionFromRole(
@@ -61,5 +76,13 @@ export class RolePermissionService {
       WHERE role_id = $1 AND permission_id = $2
     `;
     await this.db.query(sql, [role_id, permission_id, user, ip]);
+    await this.activityLog.log({
+    message: `Permission ${permission_id} revoked from role ${role_id}`,
+    module: 'ROLE_PERMISSION',
+    action: 'ROLE_PERMISSION_REVOKE',
+    referenceId: `${role_id}:${permission_id}`,
+    performedBy: user,
+    ipAddress: ip,
+    });
   }
 }

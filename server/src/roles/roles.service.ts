@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class RolesService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly activityLog: ActivityLogService,
+  ) {}
 
   // generate role_id abbreviation
   private generateRoleId(name: string): string {
@@ -27,8 +31,6 @@ export class RolesService {
     // CASE 3: 3 or more words → take first 3 letters (first letters of 3 words)
     return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
   }
-
-
   
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -97,7 +99,19 @@ export class RolesService {
     ];
 
     const result = await this.db.query(sql, params);
-    return result.rows[0];
+    const role = result.rows[0];
+
+    await this.activityLog.log({
+      message: `Role ${role.role_name} created`,
+      module: 'ROLE',
+      action: 'ROLE_CREATE',
+      referenceId: role.role_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return role;
+
   }
 
   // UPDATE role (without touching inserted fields)
@@ -140,9 +154,20 @@ export class RolesService {
     ];
 
     const result = await this.db.query(sql, params);
-    return result.rows[0];
-  }
+    const updated = result.rows[0];
 
+    await this.activityLog.log({
+      message: `Role ${updated.role_name} updated`,
+      module: 'ROLE',
+      action: 'ROLE_UPDATE',
+      referenceId: updated.role_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return updated;
+
+  }
 
   // NO DELETE — Soft delete only
   async softDelete(role_id: string, user: string, ip: string) {
@@ -159,6 +184,18 @@ export class RolesService {
     `;
 
     const result = await this.db.query(sql, [false, now, user, ip, role_id]);
-    return result.rows[0];
+    const deleted = result.rows[0];
+
+    await this.activityLog.log({
+      message: `Role ${deleted.role_name} deactivated`,
+      module: 'ROLE',
+      action: 'ROLE_DELETE',
+      referenceId: deleted.role_id,
+      performedBy: user,
+      ipAddress: ip,
+    });
+
+    return deleted;
+
   }
 }
