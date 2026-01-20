@@ -2,8 +2,11 @@ import { Users, UserCheck, UserX, Clock, Building2, Car, Calendar, Bell, AlertCi
 import { getDashboardOverview } from '../../../api/dashboard.api';
 import { DashboardOverview } from '../../../types/dashboard';
 import { useEffect, useState } from 'react';
+import { RecentActivity } from '../../RecentActivity';
+import { useAuth } from '@/context/AuthContext';
 
 export function DashboardStats() {
+  const { hasPermission } = useAuth();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   useEffect(() => {
@@ -175,36 +178,7 @@ export function DashboardStats() {
       </div>
 
       {/* ================= RECENT ACTIVITY ================= */}
-      <div className="bg-white border rounded-sm p-6">
-        <h3 className="text-[#00247D] mb-4">Recent Activity</h3>
-
-        <div className="space-y-3">
-          {overview?.recentActivity.map((a, idx) => (
-            <div key={idx} className="flex gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 mt-1" />
-              <div>
-                <p className="text-sm">{a.message}</p>
-                <p className="text-xs text-gray-500">
-                  {new Date(a.timestamp).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          ))}
-
-          {!overview?.recentActivity.length && (
-            <p className="text-sm text-gray-500">No recent activity</p>
-          )}
-        </div>
-
-
-        {/* ✅ WORKING BUTTON */}
-        <a
-          href="/activity"
-          className="block w-full text-center mt-4 border border-[#00247D] text-[#00247D] py-2 rounded-sm hover:bg-[#00247D]/5"
-        >
-          View All Activity
-        </a>
-      </div>
+      {hasPermission('audit.view') && <RecentActivity />}
 
 
       {/* ================= ALERTS ================= */}

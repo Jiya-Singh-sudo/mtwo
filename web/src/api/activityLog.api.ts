@@ -16,3 +16,9 @@ export async function fetchActivityLogs(params: {
 
   return data;
 }
+export async function getRecentActivity(limit = 6) {
+  const res = await api.get('/activity-log', {
+    params: { limit },
+  });
+  return res.data;
+}

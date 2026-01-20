@@ -13,8 +13,7 @@ interface User {
   id: string; // frontend key
   username: string; // username
   fullName: string;
-  fullNameLocal?: string;
-  role: "Admin" | "Dept Head" | "Officer" | "Staff";
+  role_id: string;
   mobile?: string;
   email?: string;
 }
@@ -24,24 +23,7 @@ interface User {
 ====================================================== */
 export default function UserManagement() {
   /* ---------------- STATE ---------------- */
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      username: "USR001",
-      fullName: "Ramesh Sharma",
-      role: "Admin",
-      mobile: "9876543210",
-      email: "ramesh.sharma@rajbhavan.gov.in",
-    },
-    {
-      id: "2",
-      username: "USR002",
-      fullName: "Priya Kulkarni",
-      role: "Dept Head",
-      mobile: "9123456789",
-      email: "priya.kulkarni@rajbhavan.gov.in",
-    },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -64,16 +46,16 @@ export default function UserManagement() {
   /* ---------------- HELPERS ---------------- */
   const resetForm = () =>
     setForm({
-      username: form.username,
-      full_name: form.fullName,
-      role_id: form.role_id,
-      user_mobile: form.mobile || undefined,
-      email: form.email || undefined,
-      password: form.password,
+      username: "",
+      fullName: "",
+      role_id: "",
+      mobile: "",
+      email: "",
+      password: "",
     });
 
   const validate = (isEdit = false) => {
-    if (!form.username || !form.fullName || !form.role) {
+    if (!form.username || !form.fullName || !form.role_id) {
       alert("Username, Full Name and Role are required");
       return false;
     }
@@ -107,8 +89,7 @@ export default function UserManagement() {
         id: Date.now().toString(),
         username: form.username,
         fullName: form.fullName,
-        fullNameLocal: form.fullNameLocal,
-        role: form.role,
+        role_id: form.role_id,
         mobile: form.mobile,
         email: form.email,
       },
@@ -128,8 +109,7 @@ export default function UserManagement() {
             ...u,
             username: form.username,
             fullName: form.fullName,
-            fullNameLocal: form.fullNameLocal,
-            role: form.role,
+            role_id: form.role_id,
             mobile: form.mobile,
             email: form.email,
           }
@@ -194,8 +174,8 @@ export default function UserManagement() {
                   <p className="subText">{u.email}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`statusPill ${u.role.replace(" ", "")}`}>
-                    {u.role}
+                  <span className="statusPill">
+                    {roles.find((r) => r.role_id === u.role_id)?.role_name ?? u.role_id}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -204,7 +184,14 @@ export default function UserManagement() {
                       className="actionBtn"
                       onClick={() => {
                         setSelectedUser(u);
-                        setForm({ ...u, password: "" });
+                        setForm({
+                          username: u.username,
+                          fullName: u.fullName,
+                          role_id: u.role_id,
+                          mobile: u.mobile ?? "",
+                          email: u.email ?? "",
+                          password: "",
+                        });
                         setIsEditOpen(true);
                       }}
                     >

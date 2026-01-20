@@ -7,7 +7,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
-import { fetchActivityLogs } from '@/api/activityLog.api';
+import { fetchActivityLogs, getRecentActivity } from '@/api/activityLog.api';
 import type { ActivityLog } from '@/types/activity-log';
 
 const iconMap: Record<string, any> = {
@@ -32,6 +32,9 @@ export function RecentActivity() {
   useEffect(() => {
     load();
   }, []);
+
+  if (loading) return <p>Loading activity…</p>;
+  if (!logs.length) return <p>No recent activity</p>;
 
   async function load() {
     setLoading(true);
