@@ -23,6 +23,5 @@ export interface GeneratedReport {
   report_name: string;
   report_type: string;
   generated_at: string;
-  generated_by?: string;
   file_path: string;
 }

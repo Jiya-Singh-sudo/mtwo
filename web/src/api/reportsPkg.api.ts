@@ -1,67 +1,41 @@
-import api from "./apiClient";
-import { ReportCode, ReportFormat } from '@/types/reports.types';
+import api from '@/api/apiClient';
+import {
+  ReportCode,
+  ReportFormat,
+  DashboardMetrics,
+  GeneratedReport,
+} from '@/types/reports.types';
 
-/* ---------- METRICS ---------- */
-export const getDashboardMetrics = async () => {
-  try {
-    const { data } = await api.get('/reports-pkg/metrics');
-    return data;
-  } catch (err) {
-    console.error('Failed to fetch metrics:', err);
-    return { occupancyRate: 0, vehicleUtilization: 0, staffEfficiency: 0, guestSatisfaction: 0 };
-  }
-};
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  const { data } = await api.get('/reports-pkg/metrics');
+  return data;
+}
 
-/* ---------- CATALOG ---------- */
-export const getReportCatalog = async () => {
-  try {
-    const { data } = await api.get('/reports-pkg/catalog');
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    console.error('Failed to fetch catalog:', err);
-    return [];
-  }
-};
+export async function getReportCatalog() {
+  const { data } = await api.get('/reports-pkg/catalog');
+  return data;
+}
 
-/* ---------- PREVIEW ---------- */
 export async function previewReport(params: {
   reportCode: ReportCode;
   fromDate?: string;
   toDate?: string;
 }) {
-  try {
-    const { data } = await api.get('/reports-pkg/preview', { params });
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    console.error('Preview failed:', params.reportCode, err);
-    return [];
-  }
+  const { data } = await api.get('/reports-pkg/preview', { params });
+  return data;
 }
 
-/* ---------- GENERATE ---------- */
-export const generateReport = async (payload: {
+export async function generateReport(params: {
   reportCode: ReportCode;
   format: ReportFormat;
-  from?: string;
-  to?: string;
-}) => {
-  try {
-    const { data } = await api.post('/reports-pkg/generate', payload);
-    return data;
-  } catch (err) {
-    console.error('Generate failed:', payload.reportCode, err);
-    return { filePath: null };
-  }
-};
+  fromDate?: string;
+  toDate?: string;
+}) {
+  const { data } = await api.post('/reports-pkg/generate', params);
+  return data;
+}
 
-/* ---------- HISTORY ---------- */
-export const getReportHistory = async () => {
-  try {
-    const { data } = await api.get('/reports-pkg/history');
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    console.error('Failed to fetch history:', err);
-    return [];
-  }
-};
-
+export async function getReportHistory(): Promise<GeneratedReport[]> {
+  const { data } = await api.get('/reports-pkg/history');
+  return data;
+}

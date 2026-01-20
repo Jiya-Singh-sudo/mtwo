@@ -1,28 +1,21 @@
 export function getDateRange(range: string) {
   const now = new Date();
-  const start = new Date();
+  const from = new Date(now);
 
-  switch (range) {
-    case 'Today':
-      start.setHours(0, 0, 0, 0);
-      break;
+  if (range === 'Today') {
+    from.setHours(0, 0, 0, 0);
+  }
 
-    case 'This Week':
-      start.setDate(now.getDate() - now.getDay());
-      start.setHours(0, 0, 0, 0);
-      break;
+  if (range === 'This Week') {
+    from.setDate(now.getDate() - 7);
+  }
 
-    case 'This Month':
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      break;
-
-    default:
-      start.setHours(0, 0, 0, 0);
+  if (range === 'This Month') {
+    from.setDate(1);
   }
 
   return {
-    fromDate: start.toISOString().slice(0, 10),
+    fromDate: from.toISOString().slice(0, 10),
     toDate: now.toISOString().slice(0, 10),
   };
 }

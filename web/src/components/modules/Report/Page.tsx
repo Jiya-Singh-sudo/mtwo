@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Download, FileText, TrendingUp, Eye } from 'lucide-react';
+
 import {
   getDashboardMetrics,
   getReportCatalog,
@@ -7,12 +8,14 @@ import {
   generateReport,
   getReportHistory,
 } from '@/api/reportsPkg.api';
+
 import {
   ReportCode,
   ReportFormat,
   DashboardMetrics,
   GeneratedReport,
 } from '@/types/reports.types';
+
 import { ReportPreviewModal } from './ReportPreviewModal';
 import { RoomOccupancyChart } from './charts/RoomOccupancyChart';
 import { VehicleUsageChart } from './charts/VehicleUsageChart';
@@ -23,15 +26,24 @@ export function Reports() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [history, setHistory] = useState<GeneratedReport[]>([]);
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState('');
   const [previewData, setPreviewData] = useState<any[]>([]);
+
   const [roomChart, setRoomChart] = useState<any[]>([]);
   const [vehicleChart, setVehicleChart] = useState<any[]>([]);
   const [roomTrend, setRoomTrend] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState('Today');
 
-  /* ---------- LOAD INITIAL DATA ---------- */
+  const [dateRange, setDateRange] = useState<'Today' | 'This Week' | 'This Month'>('Today');
+
+  /* ================= DERIVED FLAGS ================= */
+  const hasRoomData = roomChart.length > 0;
+  const hasVehicleData = vehicleChart.length > 0;
+  const hasTrendData = roomTrend.length > 0;
+
+  /* ================= INITIAL LOAD ================= */
+
   useEffect(() => {
     (async () => {
       const [m, c, h] = await Promise.all([
@@ -45,46 +57,28 @@ export function Reports() {
     })();
   }, []);
 
-  /* ---------- LOAD CHARTS (date-aware) ---------- */
-  async function loadCharts() {
+  /* ================= DATE-AWARE LOADERS ================= */
+
+  const loadCharts = useCallback(async () => {
     const { fromDate, toDate } = getDateRange(dateRange);
 
-    const [rooms, vehicles] = await Promise.all([
-      previewReport({
-        reportCode: ReportCode.ROOM_OCCUPANCY,
-        fromDate,
-        toDate,
-      }),
-      previewReport({
-        reportCode: ReportCode.VEHICLE_USAGE,
-        fromDate,
-        toDate,
-      }),
+    const [rooms, vehicles, trend] = await Promise.all([
+      previewReport({ reportCode: ReportCode.ROOM_OCCUPANCY, fromDate, toDate }),
+      previewReport({ reportCode: ReportCode.VEHICLE_USAGE, fromDate, toDate }),
+      previewReport({ reportCode: ReportCode.ROOM_OCCUPANCY_TREND, fromDate, toDate }),
     ]);
 
     setRoomChart(Array.isArray(rooms) ? rooms : []);
     setVehicleChart(Array.isArray(vehicles) ? vehicles : []);
-  }
+    setRoomTrend(Array.isArray(trend) ? trend : []);
+  }, [dateRange]);
 
   useEffect(() => {
     loadCharts();
-    loadTrends();
-  }, [dateRange]);
+  }, [loadCharts]);
 
-  /* ---------- LOAD TRENDS ---------- */
-  async function loadTrends() {
-    const { fromDate, toDate } = getDateRange(dateRange);
+  /* ================= ACTIONS ================= */
 
-    const data = await previewReport({
-      reportCode: ReportCode.ROOM_OCCUPANCY_TREND,
-      fromDate,
-      toDate,
-    });
-
-    setRoomTrend(Array.isArray(data) ? data : []);
-  }
-
-  /* ---------- ACTIONS ---------- */
   async function handlePreview(code: ReportCode, title: string) {
     const { fromDate, toDate } = getDateRange(dateRange);
     const data = await previewReport({ reportCode: code, fromDate, toDate });
@@ -94,10 +88,15 @@ export function Reports() {
   }
 
   async function handleGenerate(code: ReportCode, format: ReportFormat) {
-    const { filePath } = await generateReport({ reportCode: code, format });
-    if (filePath) window.open(filePath);
+    const res = await generateReport({ reportCode: code, format });
+
+    if (!res.filePath) return;
+
+    window.open(res.filePath);
     setHistory(await getReportHistory());
   }
+
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-6">
@@ -105,7 +104,7 @@ export function Reports() {
       <div>
         <h2 className="text-[#00247D]">Reports & Analytics</h2>
         <p className="text-sm text-gray-600">
-          रिपोर्ट और विश्लेषण - Generate comprehensive reports and analytics
+          रिपोर्ट और विश्लेषण – Generate comprehensive reports and analytics
         </p>
       </div>
 
@@ -119,14 +118,14 @@ export function Reports() {
 
       {/* DATE FILTER */}
       <div className="flex gap-2">
-        {['Today', 'This Week', 'This Month'].map((r) => (
+        {(['Today', 'This Week', 'This Month'] as const).map((r) => (
           <button
             key={r}
-            className={`px-4 py-2 border rounded-sm transition-colors ${dateRange === r
-              ? 'bg-[#00247D] text-white border-[#00247D]'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
             onClick={() => setDateRange(r)}
+            className={`px-4 py-2 border rounded-sm ${dateRange === r
+              ? 'bg-[#00247D] text-white border-[#00247D]'
+              : 'bg-white hover:bg-gray-50'
+              }`}
           >
             {r}
           </button>
@@ -139,12 +138,17 @@ export function Reports() {
         <VehicleUsageChart data={vehicleChart} />
       </div>
 
-      {/* TREND CHART */}
+      {/* TREND */}
       <div className="bg-white border rounded-sm p-6">
         <h3 className="text-[#00247D] mb-4">Room Occupancy Trend</h3>
-        <TrendLineChart data={roomTrend} label="Rooms Occupied" />
+        {hasTrendData ? (
+          <TrendLineChart data={roomTrend} label="Rooms Occupied" />
+        ) : (
+          <p className="text-gray-500 text-sm">No trend data available</p>
+        )}
       </div>
-      {/* REPORT CATALOG */}
+
+      {/* CATALOG */}
       {Array.isArray(catalog) && catalog.map((section, i) => (
         <div key={i} className="bg-white border rounded-sm">
           <div className="border-b px-6 py-4 bg-gray-50">
@@ -155,7 +159,7 @@ export function Reports() {
             {Array.isArray(section.reports) && section.reports.map((r: any) => (
               <div key={r.code} className="border rounded-sm p-4">
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-[#00247D]/10 flex items-center justify-center rounded-sm">
+                  <div className="w-10 h-10 bg-[#00247D]/10 flex items-center justify-center">
                     <FileText className="text-[#00247D]" />
                   </div>
                   <div className="flex-1">
@@ -164,22 +168,32 @@ export function Reports() {
 
                     <div className="flex gap-2">
                       <button
-                        className="bg-[#00247D] text-white px-3 py-1.5 rounded-sm text-sm"
+                        disabled={
+                          (r.code === ReportCode.ROOM_OCCUPANCY && !hasRoomData) ||
+                          (r.code === ReportCode.VEHICLE_USAGE && !hasVehicleData) ||
+                          (r.code === ReportCode.ROOM_OCCUPANCY_TREND && !hasTrendData)
+                        }
                         onClick={() => handleGenerate(r.code, ReportFormat.PDF)}
+                        className="bg-[#00247D] text-white px-3 py-1.5 text-sm rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Download size={12} /> PDF
                       </button>
 
                       <button
-                        className="bg-green-600 text-white px-3 py-1.5 rounded-sm text-sm"
+                        disabled={
+                          (r.code === ReportCode.ROOM_OCCUPANCY && !hasRoomData) ||
+                          (r.code === ReportCode.VEHICLE_USAGE && !hasVehicleData) ||
+                          (r.code === ReportCode.ROOM_OCCUPANCY_TREND && !hasTrendData)
+                        }
                         onClick={() => handleGenerate(r.code, ReportFormat.EXCEL)}
+                        className="bg-green-600 text-white px-3 py-1.5 text-sm rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Download size={12} /> Excel
                       </button>
 
                       <button
-                        className="border px-3 py-1.5 rounded-sm text-sm"
                         onClick={() => handlePreview(r.code, r.title)}
+                        className="border px-3 py-1.5 text-sm rounded-sm"
                       >
                         <Eye size={12} /> View
                       </button>
@@ -201,7 +215,7 @@ export function Reports() {
         <table className="w-full">
           <thead className="bg-[#F5A623] text-white">
             <tr>
-              <th className="px-6 py-3 text-left">Report Name</th>
+              <th className="px-6 py-3 text-left">Report</th>
               <th className="px-6 py-3 text-left">Type</th>
               <th className="px-6 py-3 text-left">Generated On</th>
               <th className="px-6 py-3 text-left">Actions</th>
@@ -212,9 +226,7 @@ export function Reports() {
               <tr key={r.report_id} className="border-t">
                 <td className="px-6 py-3">{r.report_name}</td>
                 <td className="px-6 py-3">{r.report_type}</td>
-                <td className="px-6 py-3">
-                  {new Date(r.generated_at).toLocaleString()}
-                </td>
+                <td className="px-6 py-3">{new Date(r.generated_at).toLocaleString()}</td>
                 <td className="px-6 py-3">
                   <button
                     className="text-blue-600"
@@ -239,9 +251,10 @@ export function Reports() {
   );
 }
 
-/* ---------- STAT CARD ---------- */
+/* ================= STAT CARD ================= */
+
 function Stat({ label, value, color }: any) {
-  const colors: any = {
+  const map: any = {
     blue: 'text-blue-600 border-blue-200',
     green: 'text-green-600 border-green-200',
     purple: 'text-purple-600 border-purple-200',
@@ -249,12 +262,12 @@ function Stat({ label, value, color }: any) {
   };
 
   return (
-    <div className={`bg-white border-2 ${colors[color]} rounded-sm p-6`}>
+    <div className={`bg-white border-2 ${map[color]} rounded-sm p-6`}>
       <div className="flex items-center gap-3">
-        <TrendingUp className={colors[color].split(' ')[0]} />
+        <TrendingUp className={map[color].split(' ')[0]} />
         <div>
           <p className="text-sm text-gray-600">{label}</p>
-          <p className={`text-3xl ${colors[color].split(' ')[0]}`}>{value}</p>
+          <p className={`text-3xl ${map[color].split(' ')[0]}`}>{value}</p>
         </div>
       </div>
     </div>

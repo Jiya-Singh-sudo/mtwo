@@ -17,19 +17,22 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function RoomOccupancyChart({ data }: { data: any[] }) {
   // Transform data to show count per status
-  const statusCounts = data.reduce((acc: Record<string, number>, room) => {
-    const status = room.status || 'VACANT';
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {});
 
-  const chartData = Object.entries(statusCounts).map(([status, count]) => ({
-    status,
-    count,
-  }));
+  // const chartData = Object.entries(statusCounts).map(([status, count]) => ({
+  //   status,
+  //   count,
+  // }));
+  // ✅ ADD THIS
+const chartData = Array.isArray(data)
+  ? data.map((d) => ({
+      status: d.label,
+      count: d.value,
+    }))
+  : [];
+
 
   return (
-    <div className="bg-white border rounded-sm p-4">
+    <div className="bg-white border rounded-sm p-4 h-[300px]">
       <h4 className="text-[#00247D] mb-3">Room Occupancy</h4>
 
       <ResponsiveContainer width="100%" height={250}>
