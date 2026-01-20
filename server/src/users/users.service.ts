@@ -6,8 +6,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as crypto from 'crypto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-
-
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 
 @Injectable()
 export class UsersService {
@@ -61,6 +60,7 @@ export class UsersService {
     const user_id = await this.generateUserId();
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
     const hashed = this.sha256Hex(dto.password);
+    const full_name_local_language = transliterateToDevanagari(dto.full_name);
 
     // server/src/users/users.service.ts (Inside the create method)
 
@@ -89,7 +89,7 @@ export class UsersService {
       user_id,                         // $1
       dto.username,                    // $2
       dto.full_name,                   // $3
-      dto.full_name_local_language ?? null, // $4
+      full_name_local_language, // $4
       dto.role_id,                     // $5
       dto.user_mobile ?? null,         // $6
       dto.user_alternate_mobile ?? null, // $7
@@ -193,6 +193,7 @@ export class UsersService {
 
     // If incoming password present, hash it; else preserve existing.password
     const passwordHash = dto.password ? this.hashPassword(dto.password) : existing.password;
+    const full_name_local_language = transliterateToDevanagari(dto.full_name);
 
     const sql = `
       UPDATE m_user SET
@@ -215,7 +216,7 @@ export class UsersService {
     const params = [
       dto.username ?? existing.username,
       dto.full_name ?? existing.full_name,
-      dto.full_name_local_language ?? existing.full_name_local_language,
+      full_name_local_language,
       dto.role_id ?? existing.role_id,
       dto.user_mobile ?? existing.user_mobile,
       dto.user_alternate_mobile ?? existing.user_alternate_mobile,

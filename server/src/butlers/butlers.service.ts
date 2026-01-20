@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
-
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 @Injectable()
 export class ButlersService {
   constructor(private readonly db: DatabaseService) {}
@@ -128,6 +128,7 @@ export class ButlersService {
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
+    const butler_name_local_language = transliterateToDevanagari(dto.butler_name);
 
     const sql = `
       INSERT INTO m_butler (
@@ -169,7 +170,7 @@ export class ButlersService {
   const params = [
     butlerId,                        // $1
     dto.butler_name,                // $2
-    dto.butler_name_local_language ?? null, // $3
+    butler_name_local_language, // $3
     dto.butler_mobile,              // $4
     dto.butler_alternate_mobile ?? null, // $5
     dto.address ?? null,            // $6
@@ -191,6 +192,8 @@ export class ButlersService {
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       .replace(',', '');
+    
+    const butler_name_local_language = transliterateToDevanagari(dto.butler_name);
 
     const sql = `
       UPDATE m_butler SET
@@ -211,7 +214,7 @@ export class ButlersService {
 
     const params = [
       dto.butler_name ?? existing.butler_name,
-      dto.butler_name_local_language ?? existing.butler_name_local_language,
+      butler_name_local_language,
       dto.butler_mobile ?? existing.butler_mobile,
       dto.butler_alternate_mobile ?? existing.butler_alternate_mobile,
       dto.address ?? existing.address,

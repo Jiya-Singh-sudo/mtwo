@@ -16,9 +16,9 @@ export class ReportGenerateDto {
 
     @IsOptional()
     @IsString()
-    from?: string;
+    fromDate?: string;
 
     @IsOptional()
     @IsString()
-    to?: string;
+    toDate?: string;
 }

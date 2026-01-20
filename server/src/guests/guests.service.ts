@@ -2,9 +2,8 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
-import Sanscript from '@indic-transliteration/sanscript';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
-
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 
 @Injectable()
 export class GuestsService {
@@ -115,7 +114,7 @@ export class GuestsService {
       // 1. Generate ID (seconds timestamp to fit integer)
       const guest_id = await this.generateGuestId();
       // Transliteration (NON-BLOCKING & SAFE)
-      const mr = Sanscript.t(g.guest_name, 'itrans', 'devanagari');
+      const mr = transliterateToDevanagari(g.guest_name);
 
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `

@@ -3,6 +3,7 @@ import { DatabaseService } from '../database/database.service';
 import { CreateMessengerDto } from './dto/create-messenger.dto';
 import { UpdateMessengerDto } from './dto/update-messenger.dto';
 import { MessengerTableQueryDto } from './dto/messenger-table-query.dto';
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 
 @Injectable()
 export class MessengerService {
@@ -39,6 +40,7 @@ export class MessengerService {
   async create(dto: CreateMessengerDto, user: string, ip: string) {
     const id = await this.generateMessengerId();
     const now = new Date().toISOString();
+    const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
 
     const sql = `
       INSERT INTO m_messenger (
@@ -69,7 +71,7 @@ export class MessengerService {
     const params = [
       id,
       dto.messenger_name,
-      dto.messenger_name_local_language ?? null,
+      messenger_name_local_language,
       dto.primary_mobile,
       dto.secondary_mobile ?? null,
       dto.email ?? null,
@@ -90,6 +92,7 @@ export class MessengerService {
     if (!existing) throw new Error(`Messenger '${id}' not found`);
 
     const now = new Date().toISOString();
+    const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
 
     const sql = `
       UPDATE m_messenger SET
@@ -116,7 +119,7 @@ export class MessengerService {
 
     const params = [
       dto.messenger_name ?? existing.messenger_name,
-      dto.messenger_name_local_language ?? existing.messenger_name_local_language,
+      messenger_name_local_language,
       dto.primary_mobile ?? existing.primary_mobile,
       dto.secondary_mobile ?? existing.secondary_mobile,
       dto.email ?? existing.email,

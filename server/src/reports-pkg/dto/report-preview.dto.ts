@@ -15,9 +15,9 @@ export class ReportPreviewDto {
 
   @IsOptional()
   @IsString()
-  from?: string;
+  fromDate?: string;
 
   @IsOptional()
   @IsString()
-  to?: string;
+  toDate?: string;
 }

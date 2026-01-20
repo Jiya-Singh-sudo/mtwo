@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateHousekeepingDto } from './dto/create-housekeeping.dto';
 import { UpdateHousekeepingDto } from './dto/update-housekeeping.dto';
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 
 @Injectable()
 export class HousekeepingService {
@@ -106,6 +107,7 @@ export class HousekeepingService {
 
   async create(dto: CreateHousekeepingDto, user: string, ip: string) {
     const hk_id = await this.generateId();
+    const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 
     const now = new Date().toISOString();
 
@@ -125,7 +127,7 @@ export class HousekeepingService {
     const params = [
       hk_id,
       dto.hk_name,
-      dto.hk_name_local_language ?? null,
+      hk_name_local_language,
       dto.hk_contact,
       dto.hk_alternate_contact ?? null,
       dto.address ?? null,
@@ -142,6 +144,7 @@ export class HousekeepingService {
   async update(name: string, dto: UpdateHousekeepingDto, user: string, ip: string) {
     const existing = await this.findOneByName(name);
     if (!existing) throw new Error(`Housekeeping '${name}' not found`);
+    const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 
     const now = new Date().toISOString();
 
@@ -163,7 +166,7 @@ export class HousekeepingService {
 
     const params = [
       dto.hk_name ?? existing.hk_name,
-      dto.hk_name_local_language ?? existing.hk_name_local_language,
+      hk_name_local_language,
       dto.hk_contact ?? existing.hk_contact,
       dto.hk_alternate_contact ?? existing.hk_alternate_contact,
       dto.address ?? existing.address,

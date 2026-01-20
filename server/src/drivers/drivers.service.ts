@@ -3,7 +3,7 @@ import { DatabaseService } from '../database/database.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
 import { translate } from '@vitalets/google-translate-api';
-
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 
 @Injectable()
 export class DriversService {
@@ -169,8 +169,7 @@ export class DriversService {
   }
 
   async create(dto: CreateDriverDto, user: string, ip: string) {
-    const translated = await translate(dto.driver_name, { to: 'mr' });
-    dto.driver_name_ll = translated.text;
+    const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
 
     const sql = `
     INSERT INTO m_driver
@@ -187,7 +186,7 @@ export class DriversService {
     const res = await this.db.query(sql, [
       driverId,
       dto.driver_name,
-      dto.driver_name_ll,
+      driver_name_local_language,
       dto.driver_contact,
       dto.driver_alternate_contact,
       dto.driver_license || null,
@@ -253,6 +252,7 @@ export class DriversService {
     if (!existing) {
       throw new Error(`Driver '${driver_id}' not found`);
     }
+    const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
 
     const now = new Date().toLocaleString('en-GB', {
       timeZone: 'Asia/Kolkata',
@@ -277,7 +277,7 @@ export class DriversService {
 
     const params = [
       dto.driver_name ?? existing.driver_name,
-      dto.driver_name_ll ?? existing.driver_name_local_language,
+      driver_name_local_language,
       dto.driver_contact ?? existing.driver_contact,
       dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
       dto.driver_license ?? existing.driver_license,
