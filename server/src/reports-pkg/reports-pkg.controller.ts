@@ -1,59 +1,39 @@
-import { Controller, Get, Post, Body, Query, Req, Param } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body } from '@nestjs/common';
 import { ReportsPkgService } from './reports-pkg.service';
-import { REPORT_CATALOG } from './registry/report.catalog';
 import { ReportPreviewDto } from './dto/report-preview.dto';
-import { ReportRequestDto } from './dto/report-request.dto';
+import { ReportGenerateDto } from './dto/report-generate.dto';
 
 @Controller('reports-pkg')
 export class ReportsPkgController {
-  constructor(private readonly reportsService: ReportsPkgService) {}
+  constructor(private readonly service: ReportsPkgService) {}
 
-  /* ================= REPORT CATALOG ================= */
-
-  @Get('catalog')
-  getCatalog() {
-    return REPORT_CATALOG;
-  }
-
-  /* ================= KPI METRICS ================= */
-
+  /* ---------- DASHBOARD METRICS ---------- */
   @Get('metrics')
   getMetrics() {
-    return this.reportsService.getDashboardMetrics();
+    return this.service.getDashboardMetrics();
   }
 
-  /* ================= PREVIEW ================= */
+  /* ---------- REPORT CATALOG ---------- */
+  @Get('catalog')
+  getCatalog() {
+    return this.service.getCatalog();
+  }
 
+  /* ---------- PREVIEW ---------- */
   @Get('preview')
-  previewReport(@Query() dto: ReportPreviewDto) {
-    return this.reportsService.previewReport(dto.reportCode, dto);
+  preview(@Query() dto: ReportPreviewDto) {
+    return this.service.previewReport(dto);
   }
 
-  /* ================= GENERATE ================= */
-
+  /* ---------- GENERATE ---------- */
   @Post('generate')
-  generateReport(@Body() dto: ReportRequestDto, @Req() req: any) {
-    const userId = req?.user?.user_id ?? null;
-    return this.reportsService.generateReport(dto, userId);
+  generate(@Body() dto: ReportGenerateDto) {
+    return this.service.generateReport(dto);
   }
 
-  /* ================= HISTORY ================= */
-
+  /* ---------- HISTORY ---------- */
   @Get('history')
-  getHistory() {
-    return this.reportsService.getGeneratedReports();
+  history() {
+    return this.service.getHistory();
   }
-  @Post('jobs')
-    createJob(@Body() dto: ReportRequestDto, @Req() req: any) {
-    return this.reportsService.createReportJob(
-        dto,
-        req?.user?.user_id ?? null,
-    );
-    }
-
-    @Get('jobs/:jobId')
-    getJob(@Param('jobId') jobId: string) {
-    return this.reportsService.getReportJob(jobId);
-    }
-
 }

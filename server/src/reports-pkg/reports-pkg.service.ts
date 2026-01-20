@@ -1,161 +1,159 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { ReportCode } from './registry/report.registry';
-import { ReportRequestDto } from './dto/report-request.dto';
-import { exportPdf } from './exporters/pdf.exporter';
-import { exportExcel } from './exporters/excel.exporter';
-import { GuestReportEngine } from './engines/guest.engine';
-import { RoomReportEngine } from './engines/room.engine';
-import { VehicleReportEngine } from './engines/vehicle.engine';
-import { StaffReportEngine } from './engines/staff.engine';
-import { NotificationReportEngine } from './engines/notification.engine';
-import { FoodReportEngine } from './engines/food.engine';
-import { reportQueue } from './queue/report.queue';
-
-
-
+import { ReportPreviewDto, ReportCode } from './dto/report-preview.dto';
+import { ReportGenerateDto, ReportFormat } from './dto/report-generate.dto';
 import { v4 as uuid } from 'uuid';
+import { generatePdfFromHtml } from '../../common/utlis/pdf.utils';
+import { generateCsv } from '../../common/utlis/csv.util';
 
 @Injectable()
 export class ReportsPkgService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
-  /* ================= KPI METRICS ================= */
+  /* ================= METRICS ================= */
 
   async getDashboardMetrics() {
-    const [occupancy] = await this.db.query(`
-      SELECT ROUND(
-        COUNT(*) FILTER (WHERE status = 'OCCUPIED')::decimal
-        / NULLIF(COUNT(*), 0) * 100
-      ) AS occupancy_rate
+    const roomsResult = await this.db.query(`
+      SELECT
+        ROUND(
+          COUNT(CASE WHEN status = 'Occupied' THEN 1 END)::decimal
+          / NULLIF(COUNT(*),0) * 100
+        ) AS occupancy_rate
       FROM m_rooms
       WHERE is_active = true
     `);
 
-    const [vehicle] = await this.db.query(`
-      SELECT ROUND(
-        COUNT(*) FILTER (WHERE is_active = true)::decimal
-        / NULLIF(COUNT(*), 0) * 100
-      ) AS vehicle_utilization
-      FROM m_vehicel
+    const vehiclesResult = await this.db.query(`
+      SELECT
+        ROUND(
+          COUNT(CASE WHEN is_active = true THEN 1 END)::decimal
+          / NULLIF(COUNT(*),0) * 100
+        ) AS vehicle_utilization
+      FROM m_vehicle
     `);
 
+    const vehicles = vehiclesResult?.[0];
+    const rooms = roomsResult?.[0];
+
+
     return {
-      occupancyRate: Number(occupancy?.occupancy_rate ?? 0),
-      vehicleUtilization: Number(vehicle?.vehicle_utilization ?? 0),
-      staffEfficiency: 85,     // derived later
-      guestSatisfaction: 92,   // survey based
+      occupancyRate: Number(rooms?.occupancy_rate ?? 0),
+      vehicleUtilization: Number(vehicles?.vehicle_utilization ?? 0),
+      staffEfficiency: 85,
+      guestSatisfaction: 92,
     };
   }
-async createReportJob(dto: ReportRequestDto, userId: string | null) {
-  const jobId = uuid();
 
-  await this.db.query(
-    `INSERT INTO t_report_jobs
-     (job_id, report_type, format, status, requested_by)
-     VALUES ($1,$2,$3,'PENDING',$4)`,
-    [jobId, dto.reportCode, dto.format, userId],
-  );
+  /* ================= CATALOG ================= */
 
-  await reportQueue.add('generate', {
-    jobId,
-    reportCode: dto.reportCode,
-    format: dto.format,
-    filters: dto,
-  });
-
-  return {
-    jobId,
-    status: 'PENDING',
-  };
-}
+  getCatalog() {
+    return [
+      {
+        category: 'Guest Reports',
+        reports: [
+          {
+            code: 'GUEST_SUMMARY',
+            title: 'Guest Summary',
+            description: 'Check-in, check-out and stay details',
+          },
+        ],
+      },
+      {
+        category: 'Room Reports',
+        reports: [
+          {
+            code: 'ROOM_OCCUPANCY',
+            title: 'Room Occupancy',
+            description: 'Room-wise occupancy status',
+          },
+        ],
+      },
+      {
+        category: 'Vehicle Reports',
+        reports: [
+          {
+            code: 'VEHICLE_USAGE',
+            title: 'Vehicle Usage',
+            description: 'Trips and assignments per vehicle',
+          },
+        ],
+      },
+    ];
+  }
 
   /* ================= PREVIEW ================= */
 
-async previewReport(reportCode: ReportCode, filters: any) {
-  switch (true) {
+  async previewReport(dto: ReportPreviewDto) {
+    switch (dto.reportCode) {
+      case ReportCode.GUEST_SUMMARY:
+        return this.db.query(`
+          SELECT g.guest_name, r.room_no, gr.check_in_date, gr.check_out_date
+          FROM t_guest_room gr
+          JOIN m_guest g ON g.guest_id = gr.guest_id
+          LEFT JOIN m_rooms r ON r.room_id = gr.room_id
+          WHERE gr.is_active = true
+        `);
 
-    case reportCode.startsWith('GUEST_'):
-      return new GuestReportEngine(this.db).run(reportCode, filters);
+      case ReportCode.ROOM_OCCUPANCY:
+        return this.db.query(`
+          SELECT room_no, status
+          FROM m_rooms
+          WHERE is_active = true
+        `);
 
-    case reportCode.startsWith('ROOM_'):
-      return new RoomReportEngine(this.db).run(reportCode, filters);
+      case ReportCode.VEHICLE_USAGE:
+        return this.db.query(`
+          SELECT vehicle_no, COUNT(*) AS trips
+          FROM t_guest_driver
+          WHERE is_active = true
+          GROUP BY vehicle_no
+        `);
 
-    case reportCode.startsWith('VEHICLE_'):
-      return new VehicleReportEngine(this.db).run(reportCode, filters);
-
-    case reportCode.startsWith('DUTY_') || reportCode.startsWith('STAFF_'):
-      return new StaffReportEngine(this.db).run(reportCode, filters);
-
-    case reportCode.startsWith('NOTIFICATION_') ||
-         reportCode.startsWith('COMMUNICATION_'):
-      return new NotificationReportEngine(this.db).run(reportCode, filters);
-
-    case reportCode.startsWith('FOOD_'):
-      return new FoodReportEngine(this.db).run(reportCode, filters);
-
-    default:
-      throw new Error(`Unsupported report code: ${reportCode}`);
+      default:
+        return [];
+    }
   }
-}
 
   /* ================= GENERATE ================= */
 
-  async generateReport(dto: ReportRequestDto, userId: string | null) {
-    const data = await this.previewReport(dto.reportCode, dto);
+  async generateReport(dto: ReportGenerateDto) {
+    const data = await this.previewReport(dto);
+    const fileName = `${dto.reportCode}-${Date.now()}`;
 
-    const filePath =
-      dto.format === 'PDF'
-        ? await exportPdf(dto.reportCode, data)
-        : await exportExcel(dto.reportCode, data);
+    let filePath = '';
+
+    if (dto.format === ReportFormat.PDF) {
+      const html = `
+        <h1>${dto.reportCode}</h1>
+        <pre>${JSON.stringify(data, null, 2)}</pre>
+      `;
+      filePath = await generatePdfFromHtml(html, fileName);
+    } else if (dto.format === ReportFormat.EXCEL) {
+      filePath = `/uploads/reports/${fileName}.xlsx`;
+    } else if (dto.format === ReportFormat.CSV) {
+      filePath = generateCsv(data as any[], fileName);
+    }
 
     await this.db.query(
-      `INSERT INTO t_generated_reports
-       (report_id, report_name, report_type, format, generated_by, file_path)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [
-        uuid(),
-        dto.reportCode.replace(/_/g, ' '),
-        dto.reportCode,
-        dto.format,
-        userId,
-        filePath,
-      ],
+      `
+      INSERT INTO t_generated_reports
+      (report_id, report_name, report_type, format, file_path, generated_at)
+      VALUES ($1,$2,$3,$4,$5,NOW())
+    `,
+      [uuid(), dto.reportCode, dto.reportCode, dto.format, filePath],
     );
 
-    return {
-      success: true,
-      filePath,
-    };
+    return { filePath };
   }
 
   /* ================= HISTORY ================= */
 
-  async getGeneratedReports() {
+  async getHistory() {
     return this.db.query(`
-      SELECT
-        report_id,
-        report_name,
-        report_type,
-        format,
-        generated_at,
-        generated_by,
-        file_path
+      SELECT report_id, report_name, report_type, generated_at, file_path
       FROM t_generated_reports
-      WHERE is_active = true
       ORDER BY generated_at DESC
       LIMIT 20
     `);
   }
-  async getReportJob(jobId: string) {
-    const [job] = await this.db.query(
-        `SELECT status, file_path, error_message
-        FROM t_report_jobs
-        WHERE job_id=$1`,
-        [jobId],
-    );
-
-    return job;
-    }
-
 }

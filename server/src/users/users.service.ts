@@ -91,8 +91,8 @@ export class UsersService {
       dto.full_name,                   // $3
       dto.full_name_local_language ?? null, // $4
       dto.role_id,                     // $5
-      dto.mobile ?? null,         // $6
-      dto.alternate_mobile ?? null, // $7
+      dto.user_mobile ?? null,         // $6
+      dto.user_alternate_mobile ?? null, // $7
       hashed,                          // $8
       dto.email ?? null,               // $9
       now,                             // $10

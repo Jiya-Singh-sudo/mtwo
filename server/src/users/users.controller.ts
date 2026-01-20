@@ -6,6 +6,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../gaurds/jwt/jwt.guard';
+import { PermissionsGuard } from '../gaurds/permissions/permissions.guard';
+import { Permissions } from '../decorators/permissions/permissions.decorator';
+
 
 @Controller('users')
 export class UsersController {
@@ -23,17 +28,20 @@ export class UsersController {
     if (ip.includes(',')) ip = ip.split(',')[0].trim();
     return ip;
   }
-
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('user.view')
   @Get()
   findAll() {
     return this.service.findAll(true);
   }
-
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('user.view')
   @Get('all')
   findAllIncludingInactive() {
     return this.service.findAll(false);
   }
-
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('user.create')
   @Post()
   create(@Body() dto: CreateUserDto, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
@@ -55,7 +63,8 @@ export class UsersController {
     ) {
       return this.service.resetPassword(dto, req.ip);
     }
-
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('user.update')
   // Update by username (frontend should pass username in URL)
   @Put(':username')
   update(@Param('username') username: string, @Body() dto: UpdateUserDto, @Req() req: any) {
@@ -63,7 +72,9 @@ export class UsersController {
     const ip = this.extractIp(req);
     return this.service.update(username, dto, user, ip);
   }
-
+  
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('user.delete')
   @Delete(':username')
   softDelete(@Param('username') username: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';

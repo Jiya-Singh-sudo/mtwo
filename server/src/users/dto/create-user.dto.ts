@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsNumber,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsString()
@@ -7,8 +14,9 @@ export class CreateUserDto {
 
   @IsString()
   @IsNotEmpty()
-  full_name: string;   // 🔴 REQUIRED
+  full_name: string;
 
+  @IsOptional()
   @IsString()
   full_name_local_language?: string;
 
@@ -20,7 +28,17 @@ export class CreateUserDto {
   @IsNotEmpty()
   password: string;
 
-  mobile?: number;
-  alternate_mobile?: number;
+  @IsOptional()
+@Type(() => Number)
+@IsNumber()
+  user_mobile?: number;
+
+  @IsOptional()
+@Type(() => Number)
+@IsNumber()
+  user_alternate_mobile?: number;
+
+  @IsOptional()
+  @IsEmail()
   email?: string;
 }

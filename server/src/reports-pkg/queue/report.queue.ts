@@ -1,8 +1,13 @@
-import { Queue } from 'bullmq';
+// ❌ DISABLED - Requires Redis
+// Uncomment when Redis is configured
 
-export const reportQueue = new Queue('report-generation', {
-  connection: {
-    // host: 'localhost',
-    // port: 6379,
-  },
-});
+// import { Queue } from 'bullmq';
+// 
+// export const reportQueue = new Queue('report-generation', {
+//   connection: {
+//     host: 'localhost',
+//     port: 6379,
+//   },
+// });
+
+export const reportQueue = null; // Placeholder to prevent import errors

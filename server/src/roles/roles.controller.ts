@@ -1,14 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Delete,
-  Req,
-} from '@nestjs/common';
-
+import { Controller, Get, Post, Put, Body, Param, Delete, Req,} from '@nestjs/common';
+import { Permissions } from 'src/decorators/permissions/permissions.decorator';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -37,6 +28,7 @@ export class RolesController {
     return ip;
   }
 
+  @Permissions('USER_MANAGE')
   @Get()
   findAll() {
     return this.service.findAll(true);

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { InfoPackageSearchDto } from './dto/info-package-search.dto';
 import { infoPackageTemplate } from './templates/info-package.template';
-import { generatePdfFromHtml } from '../../common/utlis/pdf.utils';
+import { generatePdfBuffer } from '../../common/utlis/pdf.utils';
 import { sendWhatsappDocument } from '../../common/utlis/whatsapp.util';
 import { logInfoPackageAudit } from '../../common/utlis/info-package-audit.util';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
@@ -11,9 +11,9 @@ import { formatDateTime } from '../../common/utlis/date-utlis';
 
 @Injectable()
 export class InfoPackageService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
-    async searchGuests(query: InfoPackageSearchDto) {
+  async searchGuests(query: InfoPackageSearchDto) {
     const page = Number(query.page || 1);
     const limit = Number(query.limit || 10);
     const offset = (page - 1) * limit;
@@ -117,10 +117,10 @@ export class InfoPackageService {
       limit,
     };
 
-    }
+  }
 
-    async getGuestInfo(guestId: string) {
-      const sql = `
+  async getGuestInfo(guestId: string) {
+    const sql = `
         SELECT
           g.guest_id,
           g.guest_name,
@@ -183,108 +183,108 @@ export class InfoPackageService {
         LIMIT 1;
       `;
 
-const result = await this.db.query(sql, [guestId]);
+    const result = await this.db.query(sql, [guestId]);
 
-if (!result.rows || result.rows.length === 0) {
-  throw new NotFoundException('Guest not found or inactive');
-}
-
-const row = result.rows[0];
-console.log('DB RESULT KEYS:', Object.keys(result));
-
-
-      return {
-        guest: {
-          guestId: row.guest_id,
-          name: row.guest_name,
-          designation: row.designation_name,
-          department: row.department,
-          organization: row.organization,
-          officeLocation: row.office_location,
-          mobile: row.guest_mobile,
-          email: row.email,
-        },
-
-        stay: {
-          arrivalDate: formatDateTime(row.entry_date),
-          departureDate: formatDateTime(row.exit_date),
-          status: row.inout_status || '-',
-          roomNo: row.room_no || '-',
-          roomType: row.room_type || '-',
-        },
-
-
-        transport: {
-          vehicleNo: row.vehicle_no,
-          driverName: row.driver_name,
-          driverContact: row.driver_contact,
-        },
-
-        meta: {
-          generatedAt: new Date().toISOString(),
-        },
-      };
+    if (!result.rows || result.rows.length === 0) {
+      throw new NotFoundException('Guest not found or inactive');
     }
 
-    async generatePdf(guestId: string) {
-        const data = await this.getGuestInfo(guestId);
-
-        const html = infoPackageTemplate(data);
-        const pdfBuffer = await generatePdfFromHtml(html);
-        await logInfoPackageAudit(this.db, {
-            guestId,
-            actionType: 'PDF_GENERATED',
-            performedBy: 'system',
-        });
+    const row = result.rows[0];
+    console.log('DB RESULT KEYS:', Object.keys(result));
 
 
-        return {
-            fileName: `Guest_Info_${guestId.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
-            buffer: pdfBuffer,
-        };
+    return {
+      guest: {
+        guestId: row.guest_id,
+        name: row.guest_name,
+        designation: row.designation_name,
+        department: row.department,
+        organization: row.organization,
+        officeLocation: row.office_location,
+        mobile: row.guest_mobile,
+        email: row.email,
+      },
+
+      stay: {
+        arrivalDate: formatDateTime(row.entry_date),
+        departureDate: formatDateTime(row.exit_date),
+        status: row.inout_status || '-',
+        roomNo: row.room_no || '-',
+        roomType: row.room_type || '-',
+      },
+
+
+      transport: {
+        vehicleNo: row.vehicle_no,
+        driverName: row.driver_name,
+        driverContact: row.driver_contact,
+      },
+
+      meta: {
+        generatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  async generatePdf(guestId: string) {
+    const data = await this.getGuestInfo(guestId);
+
+    const html = infoPackageTemplate(data);
+    const pdfBuffer = await generatePdfBuffer(html);
+    await logInfoPackageAudit(this.db, {
+      guestId,
+      actionType: 'PDF_GENERATED',
+      performedBy: 'system',
+    });
+
+
+    return {
+      fileName: `Guest_Info_${guestId.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
+      buffer: pdfBuffer,
+    };
+  }
+
+  async sendWhatsapp(
+    guestId: string,
+    context?: { performedBy: string; ipAddress?: string },
+  ) {
+    // 1️⃣ Get aggregated guest info
+    const data = await this.getGuestInfo(guestId);
+
+    // 2️⃣ Validate mobile number
+    if (!data.guest.mobile) {
+      throw new BadRequestException('Guest mobile number not available');
     }
 
-    async sendWhatsapp(
-      guestId: string,
-      context?: { performedBy: string; ipAddress?: string },
-    ) {
-      // 1️⃣ Get aggregated guest info
-      const data = await this.getGuestInfo(guestId);
+    // 3️⃣ Generate PDF
+    const html = infoPackageTemplate(data);
+    const pdfBuffer = await generatePdfBuffer(html);
 
-      // 2️⃣ Validate mobile number
-      if (!data.guest.mobile) {
-        throw new BadRequestException('Guest mobile number not available');
-      }
+    const fileName = `Guest_Info_${guestId}.pdf`;
 
-      // 3️⃣ Generate PDF
-      const html = infoPackageTemplate(data);
-      const pdfBuffer = await generatePdfFromHtml(html);
+    // 4️⃣ Send WhatsApp document
+    const response = await sendWhatsappDocument({
+      to: data.guest.mobile,
+      caption: 'Guest Information Package',
+      fileName,
+      fileBuffer: pdfBuffer,
+    });
 
-      const fileName = `Guest_Info_${guestId}.pdf`;
-
-      // 4️⃣ Send WhatsApp document
-      const response = await sendWhatsappDocument({
-        to: data.guest.mobile,
-        caption: 'Guest Information Package',
-        fileName,
-        fileBuffer: pdfBuffer,
-      });
-
-      if (!response?.success) {
-        throw new BadRequestException('WhatsApp sending failed');
-      }
-
-      // 5️⃣ Audit log
-      await logInfoPackageAudit(this.db, {
-        guestId,
-        actionType: 'WHATSAPP_SENT',
-        performedBy: context?.performedBy || 'system',
-        ipAddress: context?.ipAddress,
-      });
-
-      return {
-        status: 'sent',
-        messageId: response.providerMessageId,
-      };
+    if (!response?.success) {
+      throw new BadRequestException('WhatsApp sending failed');
     }
+
+    // 5️⃣ Audit log
+    await logInfoPackageAudit(this.db, {
+      guestId,
+      actionType: 'WHATSAPP_SENT',
+      performedBy: context?.performedBy || 'system',
+      ipAddress: context?.ipAddress,
+    });
+
+    return {
+      status: 'sent',
+      messageId: response.providerMessageId,
+    };
+  }
 }
