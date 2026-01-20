@@ -10,6 +10,9 @@ export async function fetchActivityLogs(params: {
   page?: number;
   limit?: number;
 }): Promise<ActivityLogResponse> {
-  const { data } = await api.get('/activity-log', { params });
+  const { data } = await api.get<ActivityLogResponse>('/activity-log', {
+    params,
+  });
+
   return data;
 }

@@ -2,9 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/api/apiClient';
 
 type UserPayload = {
-  sub: string;
+  sub: string;              // user_id
   username: string;
-  role: string;
+  role_id?: string;         // optional, stable identifier
   permissions: string[];
 };
 

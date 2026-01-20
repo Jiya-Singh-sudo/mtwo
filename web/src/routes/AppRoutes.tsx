@@ -20,6 +20,7 @@ import UserManagement from '@/components/modules/UserManagement/Page';
 import { SystemSettings } from '@/components/modules/SystemSettings/Page';
 import GuestTransportManagement from '@/components/modules/GuestTransportManagement/Page';
 import FoodService from '@/components/modules/FoodService/Page';
+import ActivityLogPage from '@/components/modules/ActivityLog/Page';
 
 // Common
 import Unauthorized from '@/components/common/Unauthorized';
@@ -148,6 +149,15 @@ export default function AppRoutes() {
                 element={
                     <ProtectedRoute permission="food.view">
                         <FoodService />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/activity-log"
+                element={
+                    <ProtectedRoute permission="audit.view">
+                        <ActivityLogPage />
                     </ProtectedRoute>
                 }
             />

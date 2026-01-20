@@ -1,101 +1,102 @@
-import { 
-  UserPlus, 
-  BedDouble, 
-  Car, 
-  Bell, 
-  CheckCircle, 
+import { useEffect, useState } from 'react';
+import {
+  UserPlus,
+  BedDouble,
+  Car,
+  Bell,
+  CheckCircle,
   AlertCircle,
 } from 'lucide-react';
+import { fetchActivityLogs } from '@/api/activityLog.api';
+import type { ActivityLog } from '@/types/activity-log';
+
+const iconMap: Record<string, any> = {
+  USER_CREATE: UserPlus,
+  USER_UPDATE: UserPlus,
+  USER_DELETE: AlertCircle,
+
+  ROLE_CREATE: CheckCircle,
+  ROLE_UPDATE: CheckCircle,
+
+  LOGIN_SUCCESS: CheckCircle,
+  LOGIN_FAILED: AlertCircle,
+
+  VEHICLE_ASSIGN: Car,
+  NOTIFICATION_SENT: Bell,
+};
 
 export function RecentActivity() {
-  const activities = [
-    {
-      type: 'guest',
-      icon: UserPlus,
-      title: 'New Guest Added',
-      description: 'Shri Rajesh Kumar (Joint Secretary, MoD) - VVIP Category',
-      time: '10 minutes ago',
-      color: 'text-blue-600 bg-blue-50'
-    },
-    {
-      type: 'room',
-      icon: BedDouble,
-      title: 'Room Allocated',
-      description: 'Room 201 (Deluxe Suite) assigned to Shri Rajesh Kumar',
-      time: '15 minutes ago',
-      color: 'text-green-600 bg-green-50'
-    },
-    {
-      type: 'vehicle',
-      icon: Car,
-      title: 'Vehicle Assigned',
-      description: 'Toyota Innova (DL-01-AB-1234) - Driver: Ram Singh',
-      time: '25 minutes ago',
-      color: 'text-purple-600 bg-purple-50'
-    },
-    {
-      type: 'notification',
-      icon: Bell,
-      title: 'WhatsApp Notification Sent',
-      description: 'Welcome package sent to guest and concerned officers',
-      time: '30 minutes ago',
-      color: 'text-orange-600 bg-orange-50'
-    },
-    {
-      type: 'checkout',
-      icon: CheckCircle,
-      title: 'Guest Checked Out',
-      description: 'Dr. Sharma (IAS) - Stay completed successfully',
-      time: '1 hour ago',
-      color: 'text-teal-600 bg-teal-50'
-    },
-    {
-      type: 'alert',
-      icon: AlertCircle,
-      title: 'Maintenance Alert',
-      description: 'Room 305 - AC servicing required',
-      time: '2 hours ago',
-      color: 'text-red-600 bg-red-50'
-    },
-  ];
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetchActivityLogs({ page: 1, limit: 5 });
+      setLogs(res.data);
+    } catch (err) {
+      console.error('Failed to load recent activity', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Recent Activity */}
       <div className="lg:col-span-2 bg-white border border-gray-200 rounded-sm">
         <div className="border-b border-gray-200 px-6 py-4">
           <h3 className="text-[#00247D]">Recent Activity</h3>
           <p className="text-sm text-gray-600">हाल की गतिविधि</p>
         </div>
-        
+
         <div className="p-6">
-          <div className="space-y-4">
-            {activities.map((activity, index) => {
-              const Icon = activity.icon;
-              return (
-                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                  <div className={`w-10 h-10 ${activity.color} rounded-sm flex items-center justify-center flex-shrink-0`}>
-                    <Icon className="w-5 h-5" />
+          {loading ? (
+            <p className="text-sm text-gray-500">Loading activity…</p>
+          ) : logs.length === 0 ? (
+            <p className="text-sm text-gray-500">No recent activity</p>
+          ) : (
+            <div className="space-y-4">
+              {logs.map((log) => {
+                const Icon =
+                  iconMap[log.action] ?? AlertCircle;
+
+                return (
+                  <div
+                    key={log.activity_id}
+                    className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-sm flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-5 h-5" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-900">
+                        {log.message}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(log.inserted_at).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-900">{activity.title}</p>
-                    <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <button className="w-full mt-4 py-2 text-sm text-[#00247D] border border-[#00247D] rounded-sm hover:bg-blue-50 transition-colors">
+                );
+              })}
+            </div>
+          )}
+
+          <button
+            className="w-full mt-4 py-2 text-sm text-[#00247D] border border-[#00247D] rounded-sm hover:bg-blue-50 transition-colors"
+            onClick={() => {
+              window.location.href = '/activity-log';
+            }}
+          >
             View All Activity
           </button>
         </div>
       </div>
-
-
     </div>
   );
 }
