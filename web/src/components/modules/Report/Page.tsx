@@ -62,8 +62,8 @@ export function Reports() {
       }),
     ]);
 
-    setRoomChart(rooms?.data || rooms || []);
-    setVehicleChart(vehicles?.data || vehicles || []);
+    setRoomChart(Array.isArray(rooms) ? rooms : []);
+    setVehicleChart(Array.isArray(vehicles) ? vehicles : []);
   }
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function Reports() {
       toDate,
     });
 
-    setRoomTrend(data?.data || data || []);
+    setRoomTrend(Array.isArray(data) ? data : []);
   }
 
   /* ---------- ACTIONS ---------- */
@@ -89,13 +89,13 @@ export function Reports() {
     const { fromDate, toDate } = getDateRange(dateRange);
     const data = await previewReport({ reportCode: code, fromDate, toDate });
     setPreviewTitle(title);
-    setPreviewData(data?.data || data || []);
+    setPreviewData(Array.isArray(data) ? data : []);
     setPreviewOpen(true);
   }
 
   async function handleGenerate(code: ReportCode, format: ReportFormat) {
     const { filePath } = await generateReport({ reportCode: code, format });
-    window.open(filePath);
+    if (filePath) window.open(filePath);
     setHistory(await getReportHistory());
   }
 
@@ -145,14 +145,14 @@ export function Reports() {
         <TrendLineChart data={roomTrend} label="Rooms Occupied" />
       </div>
       {/* REPORT CATALOG */}
-      {catalog.map((section, i) => (
+      {Array.isArray(catalog) && catalog.map((section, i) => (
         <div key={i} className="bg-white border rounded-sm">
           <div className="border-b px-6 py-4 bg-gray-50">
             <h3 className="text-[#00247D]">{section.category}</h3>
           </div>
 
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {section.reports.map((r: any) => (
+            {Array.isArray(section.reports) && section.reports.map((r: any) => (
               <div key={r.code} className="border rounded-sm p-4">
                 <div className="flex gap-3">
                   <div className="w-10 h-10 bg-[#00247D]/10 flex items-center justify-center rounded-sm">
@@ -208,7 +208,7 @@ export function Reports() {
             </tr>
           </thead>
           <tbody>
-            {history.map((r) => (
+            {Array.isArray(history) && history.map((r) => (
               <tr key={r.report_id} className="border-t">
                 <td className="px-6 py-3">{r.report_name}</td>
                 <td className="px-6 py-3">{r.report_type}</td>
