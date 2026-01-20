@@ -1,6 +1,10 @@
-import { useState } from "react";
 import { Plus, Edit, Trash2, X } from "lucide-react";
 import "./UserManagement.css";
+import { useEffect, useState } from "react";
+import { getActiveRoles } from "@/api/userManagement.api";
+import type { Role } from "@/types/userManagement.types";
+
+
 
 /* ======================================================
    Types – mapped to m_User table
@@ -45,26 +49,27 @@ export default function UserManagement() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState({
     username: "",
     fullName: "",
-    fullNameLocal: "",
-    role: "Staff",
+    role_id: "",
     mobile: "",
     email: "",
     password: "",
   });
 
+  const [roles, setRoles] = useState<Role[]>([]);
+
+
   /* ---------------- HELPERS ---------------- */
   const resetForm = () =>
     setForm({
-      username: "",
-      fullName: "",
-      fullNameLocal: "",
-      role: "Staff",
-      mobile: "",
-      email: "",
-      password: "",
+      username: form.username,
+      full_name: form.fullName,
+      role_id: form.role_id,
+      user_mobile: form.mobile || undefined,
+      email: form.email || undefined,
+      password: form.password,
     });
 
   const validate = (isEdit = false) => {
@@ -82,6 +87,15 @@ export default function UserManagement() {
     }
     return true;
   };
+
+  useEffect(() => {
+    async function loadRoles() {
+      const data = await getActiveRoles();
+      setRoles(data);
+    }
+    loadRoles();
+  }, []);
+
 
   /* ---------------- ACTIONS ---------------- */
   function addUser() {
@@ -294,15 +308,17 @@ export default function UserManagement() {
                 <label>Role *</label>
                 <select
                   className="nicInput"
-                  value={form.role}
+                  value={form.role_id}
                   onChange={(e) =>
-                    setForm({ ...form, role: e.target.value })
+                    setForm({ ...form, role_id: e.target.value })
                   }
                 >
-                  <option value="Admin">Admin</option>
-                  <option value="Dept Head">Dept Head</option>
-                  <option value="Officer">Officer</option>
-                  <option value="Staff">Staff</option>
+                  <option value="">Select role</option>
+                  {roles.map((r) => (
+                    <option key={r.role_id} value={r.role_id}>
+                      {r.role_name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
