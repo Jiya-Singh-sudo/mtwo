@@ -109,6 +109,20 @@ export class ReportsPkgService {
           GROUP BY vehicle_no
         `);
 
+      case ReportCode.ROOM_OCCUPANCY_TREND:
+        // Return mock trend data for now (can be replaced with real aggregation later)
+        const today = new Date();
+        const trendData: { date: string; count: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          trendData.push({
+            date: date.toISOString().slice(0, 10),
+            count: Math.floor(Math.random() * 20) + 10, // Mock data: 10-30 rooms
+          });
+        }
+        return trendData;
+
       default:
         return [];
     }
