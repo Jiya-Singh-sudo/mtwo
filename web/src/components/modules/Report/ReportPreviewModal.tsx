@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { ReportCode } from '@/types/reports.types';
-import { RoomOccupancyChart } from './RoomOccupancyChart';
-import { VehicleUsageChart } from './VehicleUsageChart';
+import { RoomOccupancyChart } from './charts/RoomOccupancyChart';
+import { VehicleUsageChart } from './charts/VehicleUsageChart';
 
 /* ---------- HELPERS ---------- */
 

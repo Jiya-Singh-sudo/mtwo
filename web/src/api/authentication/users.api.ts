@@ -1,11 +1,11 @@
 import api, { safeGet } from "../apiClient";
 import type { UserCreateDto, UserUpdateDto, UserLoginDto } from "../../types/users";
-import {
-  ForgotPasswordRequest,
-  ForgotPasswordResponse,
-  ResetPasswordRequest,
-  ResetPasswordResponse,
-} from '../../types/users';
+import { ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse,} from '../../types/users';
+import { Role } from "@/types/userManagement.types";
+
+export async function getActiveRoles() {
+  return safeGet<Role[]>("/roles");
+}
 
 export const forgotPassword = async (
   payload: ForgotPasswordRequest

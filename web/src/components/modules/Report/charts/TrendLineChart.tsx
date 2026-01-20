@@ -4,24 +4,26 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  CartesianGrid,
   ResponsiveContainer,
 } from 'recharts';
 
-export function RoomOccupancyChart({ data }: { data: any[] }) {
-  if (!data?.length) return null;
-
+export function TrendLineChart({
+  data,
+  label,
+}: {
+  data: any[];
+  label: string;
+}) {
   return (
-    <div className="h-64 w-full mb-6">
+    <div className="h-64 w-full">
       <ResponsiveContainer>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="report_date" />
+          <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
           <Line
             type="monotone"
-            dataKey="occupancy_percentage"
+            dataKey="count"
             stroke="#00247D"
             strokeWidth={2}
           />

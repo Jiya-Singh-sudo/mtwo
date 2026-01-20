@@ -1,9 +1,9 @@
 import { Plus, Edit, Trash2, X } from "lucide-react";
 import "./UserManagement.css";
 import { useEffect, useState } from "react";
-import { getActiveRoles } from "@/api/userManagement.api";
 import type { Role } from "@/types/userManagement.types";
-
+import { getActiveUsers, createUser, updateUser, softDeleteUser, getActiveRoles } from "@/api/authentication/users.api";
+import { useAuth } from "@/context/AuthContext";
 
 
 /* ======================================================
@@ -24,12 +24,14 @@ interface User {
 export default function UserManagement() {
   /* ---------------- STATE ---------------- */
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const { hasPermission } = useAuth();
 
   const [form, setForm] = useState({
     username: "",
@@ -71,27 +73,66 @@ export default function UserManagement() {
   };
 
   useEffect(() => {
-    async function loadRoles() {
-      const data = await getActiveRoles();
-      setRoles(data);
+    async function loadUsers() {
+      setLoading(true);
+      try {
+        const data = await getActiveUsers();
+        setUsers(
+          data.map((u) => ({
+            id: u.user_id,
+            username: u.username,
+            fullName: u.full_name,
+            role_id: u.role_id,
+            mobile: u.user_mobile,
+            email: u.email,
+          }))
+        );
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadUsers();
+  }, []);
+  
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const data = await getActiveRoles();
+        setRoles(data);
+      } catch (err) {
+        console.error("Failed to load roles", err);
+      }
+    }
+
     loadRoles();
   }, []);
 
 
   /* ---------------- ACTIONS ---------------- */
-  function addUser() {
+  async function addUser() {
     if (!validate()) return;
+
+    const payload = {
+      username: form.username,
+      full_name: form.fullName,
+      role_id: form.role_id,
+      password: form.password,
+      email: form.email || undefined,
+      user_mobile: form.mobile ? Number(form.mobile) : undefined,
+    };
+
+    const created = await createUser(payload);
 
     setUsers((prev) => [
       ...prev,
       {
-        id: Date.now().toString(),
-        username: form.username,
-        fullName: form.fullName,
-        role_id: form.role_id,
-        mobile: form.mobile,
-        email: form.email,
+        id: created.user_id,
+        username: created.username,
+        fullName: created.full_name,
+        role_id: created.role_id,
+        email: created.email,
+        mobile: created.user_mobile,
       },
     ]);
 
@@ -99,20 +140,31 @@ export default function UserManagement() {
     resetForm();
   }
 
-  function editUser() {
+
+  async function editUser() {
     if (!selectedUser || !validate(true)) return;
+
+    const payload = {
+      username: form.username,
+      full_name: form.fullName,
+      role_id: form.role_id,
+      email: form.email || undefined,
+      user_mobile: form.mobile ? Number(form.mobile) : undefined,
+    };
+
+    const updated = await updateUser(selectedUser.username, payload);
 
     setUsers((prev) =>
       prev.map((u) =>
         u.id === selectedUser.id
           ? {
-            ...u,
-            username: form.username,
-            fullName: form.fullName,
-            role_id: form.role_id,
-            mobile: form.mobile,
-            email: form.email,
-          }
+              ...u,
+              username: updated.username,
+              fullName: updated.full_name,
+              role_id: updated.role_id,
+              email: updated.email,
+              mobile: updated.user_mobile,
+            }
           : u
       )
     );
@@ -122,13 +174,20 @@ export default function UserManagement() {
     resetForm();
   }
 
-  function deleteUser() {
+
+  async function deleteUser() {
     if (!selectedUser) return;
 
-    setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
+    await softDeleteUser(selectedUser.username);
+
+    setUsers((prev) =>
+      prev.filter((u) => u.id !== selectedUser.id)
+    );
+
     setIsDeleteOpen(false);
     setSelectedUser(null);
   }
+
 
   /* ======================================================
      UI
@@ -143,6 +202,7 @@ export default function UserManagement() {
             Manage system users and roles | उपयोगकर्ता प्रबंधन
           </p>
         </div>
+        {hasPermission("user.create") && (
         <button
           className="nicPrimaryBtn"
           onClick={() => {
@@ -152,6 +212,7 @@ export default function UserManagement() {
         >
           <Plus size={16} /> Add New User
         </button>
+        )}
       </div>
 
       {/* TABLE */}
@@ -180,6 +241,7 @@ export default function UserManagement() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
+                    {hasPermission("user.update") && (
                     <button
                       className="actionBtn"
                       onClick={() => {
@@ -197,6 +259,8 @@ export default function UserManagement() {
                     >
                       <Edit size={16} />
                     </button>
+                    )}
+                    {hasPermission("user.delete") && (
                     <button
                       className="actionBtn delete"
                       onClick={() => {
@@ -206,6 +270,7 @@ export default function UserManagement() {
                     >
                       <Trash2 size={16} />
                     </button>
+                    )}
                   </div>
                 </td>
               </tr>

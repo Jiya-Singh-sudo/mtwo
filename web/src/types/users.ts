@@ -7,8 +7,8 @@ export interface User {
 
   role_id: string;
 
-  user_mobile?: string | null;
-  user_alternate_mobile?: string | null;
+  user_mobile?: number | null;
+  user_alternate_mobile?: number | null;
 
   email?: string | null;
 
@@ -33,8 +33,8 @@ export interface UserCreateDto {
 
   role_id: string;
 
-  user_mobile?: string;
-  user_alternate_mobile?: string;
+  user_mobile?: number;
+  user_alternate_mobile?: number;
 
   password: string; // plaintext → backend hashes to SHA256
 
@@ -49,8 +49,8 @@ export interface UserUpdateDto {
 
   role_id?: string;
 
-  user_mobile?: string;
-  user_alternate_mobile?: string;
+  user_mobile?: number;
+  user_alternate_mobile?: number;
 
   password?: string; // plaintext if provided
 
