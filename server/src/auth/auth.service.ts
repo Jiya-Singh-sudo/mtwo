@@ -137,6 +137,20 @@ export class AuthService {
     const result = await this.db.query(sql, [roleId]);
     return result.rows.map((r) => r.permission_name);
   }
+  async getUserPermissions(userId: string): Promise<string[]> {
+    const sql = `
+      SELECT p.permission_name
+      FROM m_user u
+      JOIN m_role r ON r.role_id = u.role_id
+      JOIN t_role_permission rp ON rp.role_id = r.role_id
+      JOIN m_permission p ON p.permission_id = rp.permission_id
+      WHERE u.user_id = $1
+        AND p.is_active = true
+    `;
+
+    const result = await this.db.query(sql, [userId]);
+    return result.rows.map(r => r.permission_name);
+  }
 
   // --------------------- LOGIN ---------------------
   async login(dto: LoginDto, ip: string) {
@@ -206,7 +220,6 @@ export class AuthService {
       permissions,
     };
 
-
     // ✅ Access token
     const accessToken = this.signAccessToken(payload);
 
@@ -224,7 +237,6 @@ export class AuthService {
       payload,
     };
   }
-
 
   // --------------------- REFRESH TOKEN ---------------------
   async refresh(receivedToken: string, ip: string | null) {

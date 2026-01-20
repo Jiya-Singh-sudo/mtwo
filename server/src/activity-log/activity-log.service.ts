@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import * as crypto from 'crypto';
 
 export interface ActivityLogInput {
   message: string;
@@ -14,6 +15,10 @@ export interface ActivityLogInput {
 export class ActivityLogService {
   constructor(private readonly db: DatabaseService) {}
 
+  private sha256(input: string) {
+    return crypto.createHash('sha256').update(input).digest('hex');
+  }
+
   /**
    * Insert a new activity log entry
    * NOTE:
@@ -22,38 +27,133 @@ export class ActivityLogService {
    * - Immutable audit record
    */
   async log(input: ActivityLogInput): Promise<void> {
-    const sql = `
-      INSERT INTO t_activity_log (
-        activity_id,
-        message,
-        module,
-        action,
-        reference_id,
-        performed_by,
-        is_active,
-        inserted_at,
-        inserted_by,
-        inserted_ip
-      )
-      VALUES (
-        gen_random_uuid()::text,
-        $1, $2, $3, $4, $5,
-        true,
-        NOW(),
-        $5,
-        $6
-      )
-    `;
+  // 1️⃣ Get previous hash
+  const prevRes = await this.db.query(`
+    SELECT hash
+    FROM t_activity_log
+    WHERE hash IS NOT NULL
+    ORDER BY inserted_at DESC
+    LIMIT 1
+  `);
 
-    await this.db.query(sql, [
-      input.message,
-      input.module,
-      input.action,
-      input.referenceId ?? null,
-      input.performedBy ?? null,
-      input.ipAddress ?? null,
-    ]);
+  const prevHash: string | null = prevRes.rows[0]?.hash ?? null;
+
+  // 2️⃣ Fixed timestamp (must be stable)
+  const insertedAt = new Date().toISOString();
+
+  // 3️⃣ Build deterministic hash input
+  const raw = [
+    input.message,
+    input.module,
+    input.action,
+    input.referenceId ?? '',
+    input.performedBy ?? '',
+    insertedAt,
+    prevHash ?? '',
+  ].join('|');
+
+  const hash = this.sha256(raw);
+
+  // 4️⃣ Insert log with hash chain
+  const sql = `
+    INSERT INTO t_activity_log (
+      activity_id,
+      message,
+      module,
+      action,
+      reference_id,
+      performed_by,
+      is_active,
+      inserted_at,
+      inserted_by,
+      inserted_ip,
+      prev_hash,
+      hash
+    )
+    VALUES (
+      gen_random_uuid()::text,
+      $1, $2, $3, $4, $5,
+      true,
+      $6,
+      $5,
+      $7,
+      $8,
+      $9
+    )
+  `;
+
+  await this.db.query(sql, [
+    input.message,
+    input.module,
+    input.action,
+    input.referenceId ?? null,
+    input.performedBy ?? null,
+    insertedAt,
+    input.ipAddress ?? null,
+    prevHash,
+    hash,
+  ]);
+}
+
+async verifyChain() {
+  const res = await this.db.query(`
+    SELECT
+      activity_id,
+      message,
+      module,
+      action,
+      reference_id,
+      performed_by,
+      inserted_at,
+      prev_hash,
+      hash
+    FROM t_activity_log
+    WHERE hash IS NOT NULL
+    ORDER BY inserted_at ASC
+  `);
+
+  const rows = res.rows;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
+    const expectedPrev =
+      i === 0 ? null : rows[i - 1].hash;
+
+    if (row.prev_hash !== expectedPrev) {
+      return {
+        valid: false,
+        brokenAt: row.activity_id,
+        reason: 'prev_hash mismatch',
+      };
+    }
+
+    const raw = [
+      row.message,
+      row.module,
+      row.action,
+      row.reference_id ?? '',
+      row.performed_by ?? '',
+      new Date(row.inserted_at).toISOString(),
+      row.prev_hash ?? '',
+    ].join('|');
+
+    const recalculated = this.sha256(raw);
+
+    if (recalculated !== row.hash) {
+      return {
+        valid: false,
+        brokenAt: row.activity_id,
+        reason: 'hash mismatch',
+      };
+    }
   }
+
+  return {
+    valid: true,
+    total: rows.length,
+  };
+}
 
   /**
    * Fetch recent activity logs (dashboard / admin view)
@@ -167,4 +267,17 @@ export class ActivityLogService {
       },
     };
   }
+  // async findRecent(limit: number) {
+  //   return this.db.query(`
+  //     SELECT 
+  //       id,
+  //       action,
+  //       entity,
+  //       description,
+  //       created_at
+  //     FROM activity_logs
+  //     ORDER BY created_at DESC
+  //     LIMIT $1
+  //   `, [limit]);
+  // }
 }
