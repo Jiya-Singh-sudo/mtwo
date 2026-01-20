@@ -2,7 +2,6 @@ import api, { safeGet } from "./apiClient";
 import type {
   GuestButler,
   GuestButlerCreateDto,
-  GuestButlerUpdateDto
 } from "../types/guestButler";
 
 // GET active
@@ -27,18 +26,18 @@ export async function createGuestButler(
 }
 
 // UPDATE
-export async function updateGuestButler(
-  id: string,
-  data: GuestButlerUpdateDto,
-  user = "system"
-) {
-  const res = await api.put(
-    `/guest-butler/${encodeURIComponent(id)}`,
-    data,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
-}
+// export async function updateGuestButler(
+//   id: string,
+//   data: GuestButlerUpdateDto,
+//   user = "system"
+// ) {
+//   const res = await api.put(
+//     `/guest-butler/${encodeURIComponent(id)}`,
+//     data,
+//     { headers: { "x-user": user } }
+//   );
+//   return res.data;
+// }
 
 // SOFT DELETE
 export async function softDeleteGuestButler(id: string, user = "system") {

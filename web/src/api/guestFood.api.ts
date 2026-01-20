@@ -33,6 +33,6 @@ export const updateFoodStatus = async (
   return res.data;
 };
 export const getTodayGuestOrders = async () => {
-  const res = await apiClient.get("/guest-food/orders/today");
+  const res = await apiClient.get("/guest-food/guests/today");
   return res.data;
 };

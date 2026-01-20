@@ -1,5 +1,5 @@
 export interface Meal {
-  food_id: number;
+  food_id: string;
   food_name: string;
   food_desc?: string | null;
   food_type: "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg";

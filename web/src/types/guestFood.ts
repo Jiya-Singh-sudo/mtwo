@@ -45,19 +45,11 @@ export interface GuestFoodCreateDto {
 }
 
 export interface GuestFoodUpdateDto {
-  room_id?: string;
-
-  quantity?: number;
-
-  request_type?: "Room-Service" | "Dine-In" | "Buffet" | "Takeaway" | "Other";
   delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
-
   delivered_datetime?: string;
-
   remarks?: string;
-
-  is_active?: boolean;
 }
+
 
 
 export interface FoodDashboard {

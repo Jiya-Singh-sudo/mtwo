@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Search, Pencil, AlertTriangle, XCircle } from "lucide-react";
 import "./FoodService.css";
-import { getFoodDashboard } from "@/api/guestFood.api";
+import { getFoodDashboard, getTodayGuestOrders, updateFoodStatus } from "@/api/guestFood.api";
 import { getActiveGuests } from "@/api/guest.api";
 import { FoodDashboard } from "../../../types/guestFood";
 import { ActiveGuestRow } from "@/types/guests";
@@ -15,6 +15,7 @@ import { butlerManagementSchema } from "@/validation/butler.validation";
 // import { guestFoodSchema } from "@/validation/guestFood.validation";
 // import { mealManagementSchema } from "@/validation/meals.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
+import { getActiveMeals, createMeal } from "@/api/meals.api";
 
 /* ---------------- TYPES ---------------- */
 type ButlerMode = "add" | "view" | "edit";
@@ -26,13 +27,43 @@ type DailyMealPlan = {
   dinner: string[];
 };
 
+export type TodayGuestOrderRow = {
+  guest_food_id: string;
+  guest_id: string;
+  room_id: string;
+
+  guest_name: string;
+  room_number: string;
+
+  food_id: string;
+  food_name: string;
+  food_type: string;
+
+  meal: "Breakfast" | "Lunch" | "Dinner";
+  delivery_status: string;
+
+  order_datetime: string;
+  delivered_datetime?: string | null;
+
+  butler_id?: string | null;
+  butler_name?: string | null;
+};
+
 type GuestWithButler = ActiveGuestRow & {
   butler?: {
     id: string;
     name: string;
     guestButlerId?: string;
   };
-  foodStatus?: "Served" | "Not Served";
+
+  foodItems: {
+    guest_food_id: string;
+    food_name: string;
+    food_type: string;
+    delivery_status: string;
+  }[];
+
+  foodStatus: "Served" | "Not Served";
   specialRequest?: string;
 };
 
@@ -52,16 +83,17 @@ export function FoodService() {
   const [guests, setGuests] = useState<GuestWithButler[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statsFilter, setStatsFilter] = useState<"ALL" | "SERVED" | "SPECIAL" | "MENU">("ALL");
+  const [dailyPlan, setDailyPlan] = useState<DailyMealPlan>({
+    breakfast: [],
+    lunch: [],
+    highTea: [],
+    dinner: [],
+  });
 
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
-  const [dailyPlan, setDailyPlan] = useState<DailyMealPlan>(() => {
-    // Load from localStorage on init
-    const saved = localStorage.getItem("dailyMealPlan");
-    return saved
-      ? JSON.parse(saved)
-      : { breakfast: [], lunch: [], highTea: [], dinner: [] };
-  });
+  const [foodItems, setFoodItems] = useState<any[]>([]);
+
 
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<keyof DailyMealPlan>("breakfast");
@@ -105,27 +137,65 @@ export function FoodService() {
     }
   }
 
-  async function loadGuests() {
-    try {
-      // Fetch ALL active guests (not food orders)
-      const res = await getActiveGuests({
-        page: 1,
-        limit: 1000, // Get all for now
-        status: "Entered", // Only guests who have entered
+async function loadGuests() {
+  try {
+    const baseGuests = await loadGuestsBase();
+    const todayOrders = await getTodayGuestOrders();
+
+    const guestMap = new Map<string, GuestWithButler>();
+
+    // 1️⃣ Seed with active guests
+    for (const g of baseGuests) {
+      guestMap.set(g.guest_id, g);
+    }
+
+    // 2️⃣ Merge food + butler
+    for (const row of todayOrders) {
+      const guest = guestMap.get(row.guest_id);
+      if (!guest) continue;
+
+      // Food
+      guest.foodItems.push({
+        guest_food_id: row.guest_food_id,
+        food_name: row.food_name,
+        food_type: row.food_type,
+        delivery_status: row.delivery_status,
       });
 
-      // Map to our type with optional butler info
-      const guestsWithButler: GuestWithButler[] = res.data.map((g: ActiveGuestRow) => ({
-        ...g,
-        butler: undefined,
-        foodStatus: "Not Served" as const,
-        specialRequest: "",
-      }));
+      if (row.delivery_status === "Delivered") {
+        guest.foodStatus = "Served";
+      }
 
-      setGuests(guestsWithButler);
-    } catch (err) {
-      console.error("Failed to load guests", err);
+
+      // Butler (once)
+      if (!guest.butler && row.butler_id) {
+        guest.butler = {
+          id: row.butler_id,
+          name: row.butler_name,
+        };
+      }
     }
+
+    setGuests(Array.from(guestMap.values()));
+  } catch (err) {
+    console.error("Failed to load guests", err);
+  }
+}
+
+  async function loadGuestsBase(): Promise<GuestWithButler[]> {
+    const res = await getActiveGuests({
+      page: 1,
+      limit: 1000,
+      status: "Entered",
+    });
+
+    return res.data.map((g: ActiveGuestRow) => ({
+      ...g,
+      foodItems: [],
+      butler: undefined,
+      foodStatus: "Not Served",
+      specialRequest: "",
+    }));
   }
 
   async function loadButlers() {
@@ -148,6 +218,9 @@ export function FoodService() {
       butlerTable.setLoading(false);
     }
   }
+  useEffect(() => {
+    getActiveMeals().then(setFoodItems);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "butler") {
@@ -161,10 +234,6 @@ export function FoodService() {
     loadGuests(); // Now loading from getActiveGuests!
   }, []);
 
-  // Persist dailyPlan to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("dailyMealPlan", JSON.stringify(dailyPlan));
-  }, [dailyPlan]);
 
   /* ---------------- GUEST FILTERING ---------------- */
   const hasMealPlan = Object.values(dailyPlan).some((items) => items.length > 0);
@@ -245,15 +314,20 @@ export function FoodService() {
   }
 
   /* ---------------- DAILY MEAL PLANNING (UI-ONLY) ---------------- */
-  function handleAddMenuItem() {
+  async function handleAddMenuItem() {
     if (!menuInput.trim()) return;
 
-    setDailyPlan((prev) => ({
-      ...prev,
-      [selectedMeal]: [...prev[selectedMeal], menuInput.trim()],
-    }));
+    await createMeal({
+      food_name: menuInput.trim(),
+      food_type:
+        selectedMeal === "highTea"
+          ? "High-Tea"
+          : selectedMeal.charAt(0).toUpperCase() + selectedMeal.slice(1),
+    });
 
     setMenuInput("");
+    const updated = await getMeals();
+    setFoodItems(updated);
   }
 
   function handleRemoveMenuItem(meal: keyof DailyMealPlan, index: number) {
@@ -264,13 +338,24 @@ export function FoodService() {
   }
 
   /* ---------------- GUEST CARD ACTIONS ---------------- */
-  function handleToggleFoodStatus(guestId: string, status: "Served" | "Not Served") {
-    setGuests((prev) =>
-      prev.map((g) =>
-        g.guest_id === guestId ? { ...g, foodStatus: status } : g
-      )
-    );
+  async function handleToggleFoodStatus(
+    guestFoodId: string,
+    status: "Served" | "Not Served"
+  ) {
+    try {
+      await updateFoodStatus(guestFoodId, {
+        delivery_status: status === "Served" ? "Delivered" : "Preparing",
+        delivered_datetime:
+          status === "Served" ? new Date().toISOString() : undefined,
+      });
+
+      await loadGuests();
+    } catch (err) {
+      console.error("Failed to update food status", err);
+      alert("Failed to update food status");
+    }
   }
+
 
   function handleDeleteGuestPlan(guestId: string) {
     if (!confirm("Clear today's meal plan for this guest?")) return;
@@ -455,7 +540,7 @@ export function FoodService() {
     onSpecialRequest,
     onEditMenu,
   }: GuestFoodCardProps) {
-    const hasMealPlan = Object.values(dailyMealPlan).some((items) => items.length > 0);
+    // const hasMealPlan = Object.values(dailyMealPlan).some((items) => items.length > 0);
 
     return (
       <div className="guestFoodCard">
@@ -505,7 +590,12 @@ export function FoodService() {
                 <button
                   className="iconBtn danger"
                   title="Mark not served"
-                  onClick={() => onToggleFoodStatus(guest.guest_id, "Not Served")}
+                  onClick={() =>
+                    onToggleFoodStatus(
+                      guest.foodItems[0].guest_food_id,
+                      "Not Served"
+                    )
+                  }
                 >
                   <XCircle size={14} />
                 </button>
@@ -513,7 +603,12 @@ export function FoodService() {
                 <button
                   className="iconBtn success"
                   title="Mark served"
-                  onClick={() => onToggleFoodStatus(guest.guest_id, "Served")}
+                  onClick={() =>
+                    onToggleFoodStatus(
+                      guest.foodItems[0].guest_food_id,
+                      "Served"
+                    )
+                  }
                 >
                   <CheckCircle size={14} />
                 </button>
@@ -542,6 +637,27 @@ export function FoodService() {
         {/* Today's Meal Plan (READ-ONLY from daily plan) */}
         <div className="menuSection">
           <div className="sectionHeader">
+            <strong>Today's Food</strong>
+          </div>
+
+          {!guest.foodItems || guest.foodItems.length === 0 ? (
+            <p className="emptyText">No food ordered yet</p>
+          ) : (
+            <ul className="menuList">
+              {guest.foodItems.map((f) => (
+                <li key={f.guest_food_id}>
+                  {f.food_name}
+                  <span className={`statusTag ${f.delivery_status}`}>
+                    {f.delivery_status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* <div className="menuSection">
+          <div className="sectionHeader">
             <strong>Today's Meal Plan</strong>
           </div>
           {!hasMealPlan ? (
@@ -563,7 +679,7 @@ export function FoodService() {
               )}
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Butler Assignment */}
         <div className="butlerSection">
@@ -706,9 +822,7 @@ export function FoodService() {
           <UtensilsCrossed />
           <div>
             <p>Menu Items</p>
-            <h3>{
-              Object.values(dailyPlan).reduce((sum, items) => sum + items.length, 0)
-            }</h3>
+            <h3>{stats?.menuItems ?? 0}</h3>
           </div>
         </div>
       </div>
