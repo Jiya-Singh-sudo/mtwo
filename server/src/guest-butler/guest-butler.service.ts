@@ -21,8 +21,8 @@ export class GuestButlerService {
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
-      ? `SELECT * FROM t_guest_butler WHERE is_active = $1 ORDER BY service_date DESC, service_time DESC`
-      : `SELECT * FROM t_guest_butler ORDER BY service_date DESC, service_time DESC`;
+      ? `SELECT * FROM t_guest_butler WHERE is_active = $1 ORDER BY inserted_at DESC`
+      : `SELECT * FROM t_guest_butler ORDER BY inserted_at DESC`;
 
     const res = await this.db.query(sql, activeOnly ? [true] : []);
     return res.rows;
@@ -35,125 +35,155 @@ export class GuestButlerService {
   }
 
   async create(dto: CreateGuestButlerDto, user: string, ip: string) {
+    // 🔒 ENFORCE BUTLER CAPACITY (MAX 3)
+    const countSql = `
+      SELECT COUNT(*) AS count
+      FROM t_guest_butler
+      WHERE butler_id = $1 AND is_active = TRUE
+    `;
+    const countRes = await this.db.query(countSql, [dto.butler_id]);
+
+    if (Number(countRes.rows[0].count) >= 3) {
+      throw new Error("Butler already assigned to 3 active guests");
+    }
+
     const id = await this.generateId();
     const now = new Date().toISOString();
 
     const sql = `
-      INSERT INTO t_guest_butler(
+      INSERT INTO t_guest_butler (
         guest_butler_id,
-        guest_id, butler_id, room_id,
-
-        // check_in_date, check_in_time, 
-        // check_out_date, check_out_time,
-
-        // service_type, service_description,
-        // service_date, service_time,
-
-        specialRequest,
-
+        guest_id,
+        butler_id,
+        room_id,
+        specialrequest,
         is_active,
-        inserted_at, inserted_by, inserted_ip
+        inserted_at,
+        inserted_by,
+        inserted_ip
       )
-      VALUES (
-        $1, $2, $3, $4,
-        $5,
-        true,
-        $6, $7, $8
-      )
+      VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7,$8)
       RETURNING *;
     `;
 
     const params = [
       id,
-
       dto.guest_id,
       dto.butler_id,
       dto.room_id ?? null,
-
-      // dto.check_in_date ?? null,
-      // dto.check_in_time ?? null,
-      // dto.check_out_date ?? null,
-      // dto.check_out_time ?? null,
-
-      // dto.service_type,
-      // dto.service_description ?? null,
-
-      // dto.service_date ?? null,
-      // dto.service_time ?? null,
-
       dto.specialRequest ?? null,
-
-      now,
-      user,
-      ip
-    ];
-
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
-
-  async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Butler Entry '${id}' not found`);
-
-    const now = new Date().toISOString();
-
-    const sql = `
-      UPDATE t_guest_butler SET
-        guest_id = $1,
-        butler_id = $2,
-        room_id = $3,
-
-        // check_in_date = $4,
-        // check_in_time = $5,
-        // check_out_date = $6,
-        // check_out_time = $7,
-
-        // service_type = $8,
-        // service_description = $9,
-
-        // service_date = $10,
-        // service_time = $11,
-
-        specialRequest = $4,
-        is_active = $5,
-
-        updated_at = $6,
-        updated_by = $7,
-        updated_ip = $8
-      WHERE guest_butler_id = $9
-      RETURNING *;
-    `;
-
-    const params = [
-      dto.guest_id ?? existing.guest_id,
-      dto.butler_id ?? existing.butler_id,
-      dto.room_id ?? existing.room_id,
-
-      // dto.check_in_date ?? existing.check_in_date,
-      // dto.check_in_time ?? existing.check_in_time,
-      // dto.check_out_date ?? existing.check_out_date,
-      // dto.check_out_time ?? existing.check_out_time,
-
-      // dto.service_type ?? existing.service_type,
-      // dto.service_description ?? existing.service_description,
-
-      // dto.service_date ?? existing.service_date,
-      // dto.service_time ?? existing.service_time,
-
-      dto.specialRequest ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
-
       now,
       user,
       ip,
-
-      id
     ];
 
     const res = await this.db.query(sql, params);
     return res.rows[0];
   }
+
+  // async create(dto: CreateGuestButlerDto, user: string, ip: string) {
+  //   const id = await this.generateId();
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     INSERT INTO t_guest_butler(
+  //       guest_butler_id,
+  //       guest_id, butler_id, room_id,
+
+  //       specialRequest,
+
+  //       is_active,
+  //       inserted_at, inserted_by, inserted_ip
+  //     )
+  //     VALUES (
+  //       $1, $2, $3, $4,
+  //       $5,
+  //       true,
+  //       $6, $7, $8
+  //     )
+  //     RETURNING *;
+  //   `;
+
+  //   const params = [
+  //     id,
+
+  //     dto.guest_id,
+  //     dto.butler_id,
+  //     dto.room_id ?? null,
+
+  //     // dto.check_in_date ?? null,
+  //     // dto.check_in_time ?? null,
+  //     // dto.check_out_date ?? null,
+  //     // dto.check_out_time ?? null,
+
+  //     // dto.service_type,
+  //     // dto.service_description ?? null,
+
+  //     // dto.service_date ?? null,
+  //     // dto.service_time ?? null,
+
+  //     dto.specialRequest ?? null,
+
+  //     now,
+  //     user,
+  //     ip
+  //   ];
+
+  //   const res = await this.db.query(sql, params);
+  //   return res.rows[0];
+  // }
+
+  // async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
+  //   const existing = await this.findOne(id);
+  //   if (!existing) throw new Error(`Guest Butler Entry '${id}' not found`);
+
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     UPDATE t_guest_butler SET
+  //       guest_id = $1,
+  //       butler_id = $2,
+  //       room_id = $3,
+
+  //       specialRequest = $4,
+  //       is_active = $5,
+
+  //       updated_at = $6,
+  //       updated_by = $7,
+  //       updated_ip = $8
+  //     WHERE guest_butler_id = $9
+  //     RETURNING *;
+  //   `;
+
+  //   const params = [
+  //     dto.guest_id ?? existing.guest_id,
+  //     dto.butler_id ?? existing.butler_id,
+  //     dto.room_id ?? existing.room_id,
+
+  //     // dto.check_in_date ?? existing.check_in_date,
+  //     // dto.check_in_time ?? existing.check_in_time,
+  //     // dto.check_out_date ?? existing.check_out_date,
+  //     // dto.check_out_time ?? existing.check_out_time,
+
+  //     // dto.service_type ?? existing.service_type,
+  //     // dto.service_description ?? existing.service_description,
+
+  //     // dto.service_date ?? existing.service_date,
+  //     // dto.service_time ?? existing.service_time,
+
+  //     dto.specialRequest ?? existing.remarks,
+  //     dto.is_active ?? existing.is_active,
+
+  //     now,
+  //     user,
+  //     ip,
+
+  //     id
+  //   ];
+
+  //   const res = await this.db.query(sql, params);
+  //   return res.rows[0];
+  // }
 
   async softDelete(id: string, user: string, ip: string) {
     const now = new Date().toISOString();

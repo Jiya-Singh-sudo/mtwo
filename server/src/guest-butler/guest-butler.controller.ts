@@ -36,11 +36,11 @@ export class GuestButlerController {
     return this.service.create(dto, user, this.extractIp(req));
   }
 
-  @Put(":id")
-  update(@Param("id") id: string, @Body() dto: UpdateGuestButlerDto, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.update(id, dto, user, this.extractIp(req));
-  }
+  // @Put(":id")
+  // update(@Param("id") id: string, @Body() dto: UpdateGuestButlerDto, @Req() req: any) {
+  //   const user = req.headers["x-user"] || "system";
+  //   return this.service.update(id, dto, user, this.extractIp(req));
+  // }
 
   @Delete(":id")
   softDelete(@Param("id") id: string, @Req() req: any) {

@@ -67,4 +67,9 @@ export class MealsController {
     const ip = this.extractIp(req);
     return this.service.softDelete(name, user, ip);
   }
+
+  @Get("guests/today")
+  getTodayGuests() {
+    return this.service.getTodayGuests();
+  }
 }
