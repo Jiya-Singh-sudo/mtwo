@@ -20,7 +20,7 @@ export class GuestDriverController {
     return raw.replace("::ffff:", "").split(",")[0];
   }
 
-    // ASSIGN DRIVER
+  // ASSIGN DRIVER
   @Post("assign")
   assign(@Body() dto: AssignGuestDriverDto, @Req() req: any) {
     return this.service.assignDriver(dto, req.headers["x-user"], this.extractIp(req));
@@ -37,16 +37,16 @@ export class GuestDriverController {
   active(@Param("guestId") guestId: string) {
     return this.service.findActiveByGuest(guestId);
   }
-  @Patch('editTripStatus/:id')
-updateTrip(
-  @Param('id') id: string,
-  @Body() dto: UpdateGuestDriverDto,
-  @Req() req: any
-) {
-  const user = req.user?.username || 'system';
-  const ip = req.ip || '0.0.0.0';
-  return this.service.updateTrip(id, dto, user, ip);
-}
+  //   @Patch('editTripStatus/:id')
+  // updateTrip(
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateGuestDriverDto,
+  //   @Req() req: any
+  // ) {
+  //   const user = req.user?.username || 'system';
+  //   const ip = req.ip || '0.0.0.0';
+  //   return this.service.updateTrip(id, dto, user, ip);
+  // }
 
 
   @Get()
@@ -63,15 +63,33 @@ updateTrip(
     return this.service.findAll(false);
   }
 
-  @Put(":id")
-  update(@Param("id") id: string, @Body() dto: UpdateGuestDriverDto, @Req() req: any) {
+  // @Put(":id")
+  // update(@Param("id") id: string, @Body() dto: UpdateGuestDriverDto, @Req() req: any) {
+  //   const user = req.headers["x-user"] || "system";
+  //   return this.service.update(id, dto, user, this.extractIp(req));
+  // }
+
+  // Revise trip (CLOSE + INSERT)
+  @Post('revise/:guestDriverId')
+  async reviseTrip(
+    @Param('guestDriverId') oldGuestDriverId: string,
+    @Body() dto: Partial<CreateGuestDriverDto>,
+    @Req() req: any
+  ) {
     const user = req.headers["x-user"] || "system";
-    return this.service.update(id, dto, user, this.extractIp(req));
+    const ip = this.extractIp(req);
+
+    return this.service.reviseTrip(
+      oldGuestDriverId,
+      dto,
+      user,
+      ip
+    );
   }
 
   @Delete(":id")
-  softDelete(@Param("id") id: string, @Req() req: any) {
+  closeTrip(@Param("id") id: string, @Req() req: any) {
     const user = req.headers["x-user"] || "system";
-    return this.service.softDelete(id, user, this.extractIp(req));
+    return this.service.closeTrip(id, user, this.extractIp(req));
   }
 }

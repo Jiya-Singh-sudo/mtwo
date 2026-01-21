@@ -17,16 +17,16 @@ export class GuestVehicleController {
     return this.service.findActiveByGuest(guestId);
   }
 
-  @Patch('editVehicleAssignment/:id')
-  updateAssignment(
-    @Param('id') id: string,
-    @Body() dto: UpdateGuestVehicleDto,
-    @Req() req: any
-  ) {
-    const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
-    return this.service.updateVehicleAssignment(id, dto, user, ip);
-  }
+  // @Patch('editVehicleAssignment/:id')
+  // updateAssignment(
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateGuestVehicleDto,
+  //   @Req() req: any
+  // ) {
+  //   const user = req.user?.username || 'system';
+  //   const ip = req.ip || '0.0.0.0';
+  //   return this.service.updateVehicleAssignment(id, dto, user, ip);
+  // }
 
   @Get('vehicles/assignable')
   findAssignableVehicles() {
@@ -54,5 +54,22 @@ export class GuestVehicleController {
   @Get('without-driver')
   getGuestVehiclesWithoutDriver() {
     return this.service.getWithoutDriver();
+  }
+    // Reassign vehicle (CLOSE + INSERT)
+  @Post('reassign/:guestVehicleId')
+  async reassignVehicle(
+    @Param('guestVehicleId') oldGuestVehicleId: string,
+    @Body() dto: CreateGuestVehicleDto,
+    @Req() req: any
+  ) {
+    const user = req.user?.username ?? 'system';
+    const ip = req.ip ?? '0.0.0.0';
+
+    return this.service.reassignVehicle(
+      oldGuestVehicleId,
+      dto,
+      user,
+      ip
+    );
   }
 }

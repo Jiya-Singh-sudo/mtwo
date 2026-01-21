@@ -198,37 +198,89 @@ export class GuestVehicleService {
     const res = await this.db.query(sql);
     return res.rows;
   }
-  async updateVehicleAssignment(
-  guestVehicleId: string,
-  payload: {
-    location?: string;
-    released_at?: string;
-  },
-  user: string,
-  ip: string
-) {
-  const sql = `
-    UPDATE t_guest_vehicle
-    SET
-      location = COALESCE($2, location),
-      released_at = COALESCE($3, released_at),
-      updated_at = NOW(),
-      updated_by = $4,
-      updated_ip = $5
-    WHERE guest_vehicle_id = $1
-      AND is_active = TRUE
-    RETURNING *;
-  `;
+  //   async updateVehicleAssignment(
+  //   guestVehicleId: string,
+  //   payload: {
+  //     location?: string;
+  //     released_at?: string;
+  //   },
+  //   user: string,
+  //   ip: string
+  // ) {
+  //   const sql = `
+  //     UPDATE t_guest_vehicle
+  //     SET
+  //       location = COALESCE($2, location),
+  //       released_at = COALESCE($3, released_at),
+  //       updated_at = NOW(),
+  //       updated_by = $4,
+  //       updated_ip = $5
+  //     WHERE guest_vehicle_id = $1
+  //       AND is_active = TRUE
+  //     RETURNING *;
+  //   `;
 
-  const res = await this.db.query(sql, [
-    guestVehicleId,
-    payload.location,
-    payload.released_at,
-    user,
-    ip,
-  ]);
+  //   const res = await this.db.query(sql, [
+  //     guestVehicleId,
+  //     payload.location,
+  //     payload.released_at,
+  //     user,
+  //     ip,
+  //   ]);
 
-  return res.rows[0];
-}
+  //   return res.rows[0];
+  // }
+  /**
+     * Reassign a vehicle: close the old assignment and create a new one in a transaction.
+     * If the new assignment fails, the old assignment remains active (rollback).
+     */
+  async reassignVehicle(
+    oldGuestVehicleId: string,
+    dto: CreateGuestVehicleDto,
+    user = 'system',
+    ip = '0.0.0.0'
+  ) {
+    await this.db.query('BEGIN');
 
+    try {
+      // 1️⃣ Close old assignment
+      await this.db.query(
+        `
+        UPDATE t_guest_vehicle
+        SET
+          is_active = FALSE,
+          released_at = NOW(),
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+        WHERE guest_vehicle_id = $1
+        `,
+        [oldGuestVehicleId, user, ip]
+      );
+
+      // 2️⃣ Create new assignment (assignVehicle has its own transaction, so we inline the insert)
+      const guestVehicleId = await this.generateGuestVehicleId();
+
+      await this.db.query(`
+        INSERT INTO t_guest_vehicle
+            (guest_vehicle_id, guest_id, vehicle_no, location,
+            is_active, inserted_by, inserted_ip)
+        VALUES
+            ($1,$2,$3,$4, TRUE,$5,$6)
+        `, [
+        guestVehicleId,
+        dto.guest_id,
+        dto.vehicle_no,
+        dto.location || null,
+        user,
+        ip
+      ]);
+
+      await this.db.query('COMMIT');
+      return { guest_vehicle_id: guestVehicleId };
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
+  }
 }

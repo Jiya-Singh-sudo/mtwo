@@ -37,10 +37,11 @@ import { ReportsPkgModule } from './reports-pkg/reports-pkg.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { ThrottlerModule } from '@nestjs/throttler';
-
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

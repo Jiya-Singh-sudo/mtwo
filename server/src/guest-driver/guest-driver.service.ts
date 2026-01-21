@@ -12,7 +12,7 @@ export class GuestDriverService {
     // private readonly notifications: NotificationsService,
   ) { }
 
-  private async generateId(): Promise<string> {
+  private async generateId(retries = 3): Promise<string> {
     const sql = `SELECT guest_driver_id FROM t_guest_driver ORDER BY guest_driver_id DESC LIMIT 1`;
     const res = await this.db.query(sql);
 
@@ -24,7 +24,31 @@ export class GuestDriverService {
     return "GD" + next;
   }
 
-    // ---------- ASSIGN DRIVER ----------
+  /**
+   * Insert helper with retry logic to handle race conditions on ID generation.
+   * If a unique constraint violation occurs, it regenerates the ID and retries.
+   */
+  private async insertWithRetry(
+    sql: string,
+    paramsBuilder: (id: string) => any[],
+    retries = 3
+  ): Promise<any> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const id = await this.generateId();
+      try {
+        const res = await this.db.query(sql, paramsBuilder(id));
+        return res.rows[0];
+      } catch (err: any) {
+        // Check for unique constraint violation (PostgreSQL error code 23505)
+        if (err.code === '23505' && attempt < retries) {
+          continue; // Retry with a new ID
+        }
+        throw err;
+      }
+    }
+  }
+
+  // ---------- ASSIGN DRIVER ----------
   async assignDriver(
     dto: AssignGuestDriverDto,
     user = "system",
@@ -107,8 +131,8 @@ export class GuestDriverService {
     return res.rows[0];
   }
 
-async findActiveByGuest(guestId: string) {
-  const sql = `
+  async findActiveByGuest(guestId: string) {
+    const sql = `
     SELECT
       gd.guest_driver_id,
       gd.guest_id,
@@ -133,15 +157,15 @@ async findActiveByGuest(guestId: string) {
       ON d.driver_id = gd.driver_id
     WHERE gd.guest_id = $1
       AND gd.is_active = TRUE
-    ORDER BY gd.trip_date DESC, gd.start_time DESC
+    ORDER BY gd.inserted_at DESC
     LIMIT 1;
   `;
 
-  const res = await this.db.query(sql, [guestId]);
-  return res.rows[0] || null;
-}
+    const res = await this.db.query(sql, [guestId]);
+    return res.rows[0] || null;
+  }
 
-  
+
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_driver WHERE is_active = $1 ORDER BY trip_date DESC`
@@ -218,76 +242,80 @@ async findActiveByGuest(guestId: string) {
     return res.rows[0];
   }
 
-  async update(id: string, dto: UpdateGuestDriverDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Driver Entry '${id}' not found`);
+  // async update(id: string, dto: UpdateGuestDriverDto, user: string, ip: string) {
+  //   const existing = await this.findOne(id);
+  //   if (!existing) throw new Error(`Guest Driver Entry '${id}' not found`);
 
-    const now = new Date().toISOString();
+  //   const now = new Date().toISOString();
 
-    const sql = `
-      UPDATE t_guest_driver SET
-        driver_id = $1,
-        vehicle_no = $2,
-        room_id = $3,
+  //   const sql = `
+  //     UPDATE t_guest_driver SET
+  //       driver_id = $1,
+  //       vehicle_no = $2,
+  //       room_id = $3,
 
-        from_location = $4,
-        to_location = $5,
-        pickup_location = $6,
-        drop_location = $7,
+  //       from_location = $4,
+  //       to_location = $5,
+  //       pickup_location = $6,
+  //       drop_location = $7,
 
-        trip_date = $8,
-        start_time = $9,
-        end_time = $10,
+  //       trip_date = $8,
+  //       start_time = $9,
+  //       end_time = $10,
 
-        drop_date = $11,
-        drop_time = $12,
+  //       drop_date = $11,
+  //       drop_time = $12,
 
-        remarks = $13,
-        is_active = $14,
+  //       remarks = $13,
+  //       is_active = $14,
 
-        updated_at = $15,
-        updated_by = $16,
-        updated_ip = $17
-      WHERE guest_driver_id = $18
-      RETURNING *;
-    `;
+  //       updated_at = $15,
+  //       updated_by = $16,
+  //       updated_ip = $17
+  //     WHERE guest_driver_id = $18
+  //     RETURNING *;
+  //   `;
 
-    const params = [
-      dto.driver_id ?? existing.driver_id,
-      dto.vehicle_no ?? existing.vehicle_no,
-      dto.room_id ?? existing.room_id,
+  //   const params = [
+  //     dto.driver_id ?? existing.driver_id,
+  //     dto.vehicle_no ?? existing.vehicle_no,
+  //     dto.room_id ?? existing.room_id,
 
-      dto.from_location ?? existing.from_location,
-      dto.to_location ?? existing.to_location,
-      dto.pickup_location ?? existing.pickup_location,
-      dto.drop_location ?? existing.drop_location,
+  //     dto.from_location ?? existing.from_location,
+  //     dto.to_location ?? existing.to_location,
+  //     dto.pickup_location ?? existing.pickup_location,
+  //     dto.drop_location ?? existing.drop_location,
 
-      dto.trip_date ?? existing.trip_date,
-      dto.start_time ?? existing.start_time,
-      dto.end_time ?? existing.end_time,
+  //     dto.trip_date ?? existing.trip_date,
+  //     dto.start_time ?? existing.start_time,
+  //     dto.end_time ?? existing.end_time,
 
-      dto.drop_date ?? existing.drop_date,
-      dto.drop_time ?? existing.drop_time,
+  //     dto.drop_date ?? existing.drop_date,
+  //     dto.drop_time ?? existing.drop_time,
 
-      // dto.pickup_status ?? existing.pickup_status,
-      // dto.drop_status ?? existing.drop_status,
-      // dto.trip_status ?? existing.trip_status,
+  //     // dto.pickup_status ?? existing.pickup_status,
+  //     // dto.drop_status ?? existing.drop_status,
+  //     // dto.trip_status ?? existing.trip_status,
 
-      dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
+  //     dto.remarks ?? existing.remarks,
+  //     dto.is_active ?? existing.is_active,
 
-      now,
-      user,
-      ip,
+  //     now,
+  //     user,
+  //     ip,
 
-      id
-    ];
+  //     id
+  //   ];
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
+  //   const res = await this.db.query(sql, params);
+  //   return res.rows[0];
+  // }
 
-  async softDelete(id: string, user: string, ip: string) {
+  /**
+   * Closes a trip by setting is_active = false.
+   * Note: This is NOT a delete - the record remains for audit/history.
+   */
+  async closeTrip(id: string, user: string, ip: string) {
     const now = new Date().toISOString();
 
     const sql = `
@@ -303,54 +331,118 @@ async findActiveByGuest(guestId: string) {
     const res = await this.db.query(sql, [now, user, ip, id]);
     return res.rows[0];
   }
-  async updateTrip(
-  guestDriverId: string,
-  payload: {
-    trip_status?: string;
-    start_time?: string;
-    end_time?: string;
-    pickup_location?: string;
-    drop_location?: string;
-  },
-  user: string,
-  ip: string
-) {
-  // 🔑 Normalize empty strings → null
-  const cleanPayload = {
-    trip_status: payload.trip_status ?? null,
-    start_time: payload.start_time === "" ? null : payload.start_time,
-    end_time: payload.end_time === "" ? null : payload.end_time,
-    pickup_location: payload.pickup_location === "" ? null : payload.pickup_location,
-    drop_location: payload.drop_location === "" ? null : payload.drop_location,
-  };
+  //   async updateTrip(
+  //   guestDriverId: string,
+  //   payload: {
+  //     trip_status?: string;
+  //     start_time?: string;
+  //     end_time?: string;
+  //     pickup_location?: string;
+  //     drop_location?: string;
+  //   },
+  //   user: string,
+  //   ip: string
+  // ) {
+  //   // 🔑 Normalize empty strings → null
+  //   const cleanPayload = {
+  //     trip_status: payload.trip_status ?? null,
+  //     start_time: payload.start_time === "" ? null : payload.start_time,
+  //     end_time: payload.end_time === "" ? null : payload.end_time,
+  //     pickup_location: payload.pickup_location === "" ? null : payload.pickup_location,
+  //     drop_location: payload.drop_location === "" ? null : payload.drop_location,
+  //   };
 
-  const sql = `
-    UPDATE t_guest_driver
-    SET
-      trip_status = COALESCE($2, trip_status),
-      start_time = COALESCE($3, start_time),
-      end_time = COALESCE($4, end_time),
-      pickup_location = COALESCE($5, pickup_location),
-      drop_location = COALESCE($6, drop_location),
-      updated_at = NOW(),
-      updated_by = $7,
-      updated_ip = $8
-    WHERE guest_driver_id = $1
-      AND is_active = TRUE
-    RETURNING *;
-  `;
+  //   const sql = `
+  //     UPDATE t_guest_driver
+  //     SET
+  //       trip_status = COALESCE($2, trip_status),
+  //       start_time = COALESCE($3, start_time),
+  //       end_time = COALESCE($4, end_time),
+  //       pickup_location = COALESCE($5, pickup_location),
+  //       drop_location = COALESCE($6, drop_location),
+  //       updated_at = NOW(),
+  //       updated_by = $7,
+  //       updated_ip = $8
+  //     WHERE guest_driver_id = $1
+  //       AND is_active = TRUE
+  //     RETURNING *;
+  //   `;
 
-  const res = await this.db.query(sql, [
-    guestDriverId,
-    cleanPayload.trip_status,
-    cleanPayload.start_time,
-    cleanPayload.end_time,
-    cleanPayload.pickup_location,
-    cleanPayload.drop_location,
-    user,
-    ip,
-  ]);
+  //   const res = await this.db.query(sql, [
+  //     guestDriverId,
+  //     cleanPayload.trip_status,
+  //     cleanPayload.start_time,
+  //     cleanPayload.end_time,
+  //     cleanPayload.pickup_location,
+  //     cleanPayload.drop_location,
+  //     user,
+  //     ip,
+  //   ]);
 
-  return res.rows[0];
-}
+  //   return res.rows[0];
+  // }
+  /**
+     * Revise a trip: close the old one and insert a new one in a transaction.
+     * If the insert fails, the old trip remains active (rollback).
+     */
+  async reviseTrip(
+    oldGuestDriverId: string,
+    dto: Partial<CreateGuestDriverDto>,
+    user: string,
+    ip: string
+  ) {
+    const old = await this.findOne(oldGuestDriverId);
+    if (!old) throw new Error('Trip not found');
+
+    // Use transaction to ensure atomic operation
+    await this.db.query('BEGIN');
+
+    try {
+      // 1️⃣ Close old trip
+      await this.db.query(
+        `
+        UPDATE t_guest_driver
+        SET is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+        WHERE guest_driver_id = $1
+        `,
+        [oldGuestDriverId, user, ip]
+      );
+
+      // 2️⃣ Insert revised trip as NEW ROW
+      const newTrip = await this.create(
+        {
+          guest_id: old.guest_id,
+          driver_id: dto.driver_id ?? old.driver_id,
+          vehicle_no: dto.vehicle_no ?? old.vehicle_no,
+          room_id: dto.room_id ?? old.room_id,
+
+          from_location: dto.from_location ?? old.from_location,
+          to_location: dto.to_location ?? old.to_location,
+          pickup_location: dto.pickup_location ?? old.pickup_location,
+          drop_location: dto.drop_location ?? old.drop_location,
+
+          trip_date: dto.trip_date ?? old.trip_date,
+          start_time: dto.start_time ?? old.start_time,
+          end_time: dto.end_time ?? old.end_time,
+
+          drop_date: dto.drop_date ?? old.drop_date,
+          drop_time: dto.drop_time ?? old.drop_time,
+
+          remarks: dto.remarks ?? old.remarks,
+        } as CreateGuestDriverDto,
+        user,
+        ip
+      );
+
+      await this.db.query('COMMIT');
+      return newTrip;
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
+  }
+
 }
