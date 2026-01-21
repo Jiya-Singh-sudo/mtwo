@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req,} from '@nestjs/common';
 import { GuestMessengerService } from './guest-messeneger.service';
 import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
-import { UpdateGuestMessengerDto } from './dto/update-guest-messenger.dto';
+import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
 import { GuestMessengerTableQueryDto } from './dto/guest-messenger-table-query.dto';
+import { GuestNetworkTableQueryDto } from './dto/guest-network-table.dto';
 
 @Controller('guest-messenger')
 export class GuestMessengerController {
@@ -16,6 +17,12 @@ export class GuestMessengerController {
       '';
     return ip.replace('::ffff:', '').split(',')[0];
   }
+  @Get('network-table')
+  async getGuestNetworkTable(
+    @Query() query: GuestNetworkTableQueryDto,
+  ) {
+    return this.service.getGuestNetworkTable(query);
+  }
 
   @Post()
   create(@Body() dto: CreateGuestMessengerDto, @Req() req: any) {
@@ -26,17 +33,31 @@ export class GuestMessengerController {
     );
   }
 
-  @Put(':id')
-  update(
+  // @Put(':id')
+  // update(
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateGuestMessengerDto,
+  //   @Req() req: any,
+  // ) {
+  //   return this.service.update(
+  //     id,
+  //     dto,
+  //     req.headers['x-user'] || 'system',
+  //     this.extractIp(req),
+  //   );
+  // }
+
+  @Post(':id/unassign')
+  unassign(
     @Param('id') id: string,
-    @Body() dto: UpdateGuestMessengerDto,
-    @Req() req: any,
+    @Body() dto: UnassignGuestMessengerDto,
+    @Req() req: any
   ) {
-    return this.service.update(
+    return this.service.unassign(
       id,
-      dto,
       req.headers['x-user'] || 'system',
       this.extractIp(req),
+      dto.remarks
     );
   }
 

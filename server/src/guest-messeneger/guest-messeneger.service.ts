@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
-import { UpdateGuestMessengerDto } from './dto/update-guest-messenger.dto';
+import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
 import { GuestMessengerTableQueryDto } from './dto/guest-messenger-table-query.dto';
+import { GuestNetworkTableQueryDto } from './dto/guest-network-table.dto';
 
 @Injectable()
 export class GuestMessengerService {
@@ -23,6 +24,128 @@ export class GuestMessengerService {
     const last = res.rows[0].guest_messenger_id.substring(2);
     const next = parseInt(last, 10) + 1;
     return `GM${next.toString().padStart(3, '0')}`;
+  }
+  async getGuestNetworkTable(params: GuestNetworkTableQueryDto) {
+    const { page, limit, search, sortBy, sortOrder } = params;
+
+    const offset = (page - 1) * limit;
+
+    /* ---------------- SORT MAP ---------------- */
+    const SORT_MAP: Record<string, string> = {
+      guest_name: 'g.guest_name',
+      network_status: 'gn.status',
+      messenger_status: 'gm.status',
+      requested_at: 'COALESCE(gn.requested_at, gm.requested_at)',
+    };
+
+    const sortColumn =
+      SORT_MAP[sortBy ?? 'requested_at'] ??
+      SORT_MAP.requested_at;
+
+    const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    /* ---------------- WHERE ---------------- */
+    const where: string[] = [
+      'g.is_active = TRUE',
+      '(gn.guest_network_id IS NOT NULL OR gm.guest_messenger_id IS NOT NULL)',
+    ];
+
+    const sqlParams: any[] = [];
+    let idx = 1;
+
+    /* ---------------- SEARCH ---------------- */
+    if (search) {
+      where.push(`
+        (
+          g.guest_name ILIKE $${idx}
+          OR n.network_name ILIKE $${idx}
+          OR m.messenger_name ILIKE $${idx}
+        )
+      `);
+      sqlParams.push(`%${search}%`);
+      idx++;
+    }
+
+    const whereSql = `WHERE ${where.join(' AND ')}`;
+
+    /* ---------------- COUNT ---------------- */
+    const countSql = `
+      SELECT COUNT(DISTINCT g.guest_id)::int AS total
+      FROM m_guest g
+
+      LEFT JOIN t_guest_network gn
+        ON gn.guest_id = g.guest_id
+       AND gn.is_active = TRUE
+
+      LEFT JOIN t_guest_messenger gm
+        ON gm.guest_id = g.guest_id
+       AND gm.is_active = TRUE
+
+      LEFT JOIN m_network n
+        ON n.network_id = gn.network_id
+
+      LEFT JOIN m_messenger m
+        ON m.messenger_id = gm.messenger_id
+
+      ${whereSql};
+    `;
+
+    /* ---------------- DATA ---------------- */
+    const dataSql = `
+      SELECT DISTINCT
+        g.guest_id,
+        g.guest_name,
+
+        io.room_id,
+
+        -- Network
+        gn.guest_network_id,
+        gn.status AS network_status,
+        n.network_id,
+        n.network_name,
+
+        -- Messenger
+        gm.guest_messenger_id,
+        gm.status AS messenger_status,
+        m.messenger_id,
+        m.messenger_name,
+
+        COALESCE(gn.requested_at, gm.requested_at) AS requested_at
+
+      FROM m_guest g
+
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+       AND io.is_active = TRUE
+
+      LEFT JOIN t_guest_network gn
+        ON gn.guest_id = g.guest_id
+       AND gn.is_active = TRUE
+
+      LEFT JOIN m_network n
+        ON n.network_id = gn.network_id
+
+      LEFT JOIN t_guest_messenger gm
+        ON gm.guest_id = g.guest_id
+       AND gm.is_active = TRUE
+
+      LEFT JOIN m_messenger m
+        ON m.messenger_id = gm.messenger_id
+
+      ${whereSql}
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $${idx} OFFSET $${idx + 1};
+    `;
+
+    const countRes = await this.db.query(countSql, sqlParams);
+
+    sqlParams.push(limit, offset);
+    const dataRes = await this.db.query(dataSql, sqlParams);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0]?.total ?? 0,
+    };
   }
 
   async findOne(id: string) {
@@ -70,40 +193,66 @@ export class GuestMessengerService {
   }
 
   /* ---------- UPDATE ---------- */
-  async update(id: string, dto: UpdateGuestMessengerDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Messenger '${id}' not found`);
+  // async update(id: string, dto: UpdateGuestMessengerDto, user: string, ip: string) {
+  //   const existing = await this.findOne(id);
+  //   if (!existing) throw new Error(`Guest Messenger '${id}' not found`);
 
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     UPDATE t_guest_messenger SET
+  //       guest_id = $1,
+  //       messenger_id = $2,
+  //       assignment_date = $3,
+  //       remarks = $4,
+  //       is_active = $5,
+  //       updated_at = $6,
+  //       updated_by = $7,
+  //       updated_ip = $8
+  //     WHERE guest_messenger_id = $9
+  //     RETURNING *;
+  //   `;
+
+  //   const res = await this.db.query(sql, [
+  //     dto.guest_id,
+  //     dto.messenger_id,
+  //     dto.assignment_date,
+  //     dto.remarks ?? existing.remarks,
+  //     dto.is_active ?? existing.is_active,
+  //     now,
+  //     user,
+  //     ip,
+  //     id,
+  //   ]);
+
+  //   return res.rows[0];
+  // }
+
+  async unassign(
+    id: string,
+    user: string,
+    ip: string,
+    remarks?: string
+  ) {
     const now = new Date().toISOString();
 
-    const sql = `
+    const res = await this.db.query(
+      `
       UPDATE t_guest_messenger SET
-        guest_id = $1,
-        messenger_id = $2,
-        assignment_date = $3,
-        remarks = $4,
-        is_active = $5,
-        updated_at = $6,
-        updated_by = $7,
-        updated_ip = $8
-      WHERE guest_messenger_id = $9
+        is_active = false,
+        remarks = COALESCE($1, remarks),
+        updated_at = $2,
+        updated_by = $3,
+        updated_ip = $4
+      WHERE guest_messenger_id = $5
       RETURNING *;
-    `;
-
-    const res = await this.db.query(sql, [
-      dto.guest_id,
-      dto.messenger_id,
-      dto.assignment_date,
-      dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      id,
-    ]);
+      `,
+      [remarks ?? null, now, user, ip, id]
+    );
 
     return res.rows[0];
   }
+
 
   /* ---------- SOFT DELETE ---------- */
   async softDelete(id: string, user: string, ip: string) {

@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
-import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
+import { CloseGuestNetworkDto } from "./dto/close-guest-network.dto";
 
 @Injectable()
 export class GuestNetworkService {
@@ -16,99 +16,148 @@ export class GuestNetworkService {
     const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
     return `GN${next}`;
   }
-  async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
-    const page = query.page;
-    const limit = query.limit;
-    const offset = (page - 1) * limit;
+async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
+  const page = query.page;
+  const limit = query.limit;
+  const offset = (page - 1) * limit;
 
-    /* ---------- SORT WHITELIST ---------- */
-    const SORT_MAP: Record<string, string> = {
-      start_date: 'gn.start_date',
-      guest_name: 'g.guest_name',
-      provider_name: 'wp.provider_name',
-      network_status: 'gn.network_status',
-    };
+  /* ---------- SORT WHITELIST ---------- */
+  const SORT_MAP: Record<string, string> = {
+    entry_date: 'io.entry_date',
+    guest_name: 'g.guest_name',
+    network_status: 'gn.network_status',
+  };
 
-    const sortColumn =
-      SORT_MAP[query.sortBy ?? 'start_date'] ?? 'gn.start_date';
-    const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+  const sortColumn =
+    SORT_MAP[query.sortBy ?? 'entry_date'] ?? 'io.entry_date';
 
-    const where: string[] = ['gn.is_active = true'];
-    const params: any[] = [];
+  const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-    /* ---------- SEARCH ---------- */
-    if (query.search) {
-      params.push(`%${query.search}%`);
-      where.push(`
-        (
-          g.guest_name ILIKE $${params.length}
-          OR wp.provider_name ILIKE $${params.length}
-        )
-      `);
-    }
+  const where: string[] = [
+    'io.is_active = TRUE',
+    'g.is_active = TRUE',
+    `
+    (
+      /* Scheduled */
+      (io.status = 'Scheduled' AND io.entry_date >= CURRENT_DATE)
 
-    /* ---------- STATUS FILTER ---------- */
-    if (query.network_status) {
-      params.push(query.network_status);
-      where.push(`gn.network_status = $${params.length}`);
-    }
+      /* Entered / Inside */
+      OR io.status IN ('Entered', 'Inside')
 
-    /* ---------- DATE RANGE ---------- */
-    if (query.startDateFrom) {
-      params.push(query.startDateFrom);
-      where.push(`gn.start_date >= $${params.length}`);
-    }
+      /* Exited within 24 hours */
+      OR (
+        io.status = 'Exited'
+        AND NOW() <= (
+          io.exit_date + COALESCE(io.exit_time, TIME '00:00')
+        ) + INTERVAL '24 hours'
+      )
+    )
+    `,
+  ];
 
-    if (query.startDateTo) {
-      params.push(query.startDateTo);
-      where.push(`gn.start_date <= $${params.length}`);
-    }
+  const params: any[] = [];
+  let idx = 1;
 
-    const whereClause = `WHERE ${where.join(' AND ')}`;
-
-    /* ---------- DATA QUERY ---------- */
-    const dataSql = `
-      SELECT
-        gn.guest_network_id,
-        g.guest_id,
-        g.guest_name,
-        wp.provider_name,
-        r.room_no,
-        gn.start_date,
-        gn.start_time,
-        gn.end_date,
-        gn.end_time,
-        gn.network_status,
-        gn.start_status,
-        gn.end_status,
-        gn.description,
-        gn.remarks
-      FROM t_guest_network gn
-      JOIN m_guest g ON g.guest_id = gn.guest_id
-      LEFT JOIN m_wifi_provider wp ON wp.provider_id = gn.provider_id
-      LEFT JOIN m_rooms r ON r.room_id = gn.room_id
-      ${whereClause}
-      ORDER BY ${sortColumn} ${sortOrder}
-      LIMIT $${params.length + 1}
-      OFFSET $${params.length + 2};
-    `;
-
-    const countSql = `
-      SELECT COUNT(*)::int AS count
-      FROM t_guest_network gn
-      JOIN m_guest g ON g.guest_id = gn.guest_id
-      LEFT JOIN m_wifi_provider wp ON wp.provider_id = gn.provider_id
-      ${whereClause};
-    `;
-
-    const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
-    const countRes = await this.db.query(countSql, params);
-
-    return {
-      data: dataRes.rows,
-      totalCount: countRes.rows[0].count,
-    };
+  /* ---------- SEARCH ---------- */
+  if (query.search) {
+    where.push(`
+      (
+        g.guest_name ILIKE $${idx}
+        OR wp.provider_name ILIKE $${idx}
+      )
+    `);
+    params.push(`%${query.search}%`);
+    idx++;
   }
+
+  const whereClause = `WHERE ${where.join(' AND ')}`;
+
+  /* ---------- COUNT ---------- */
+  const countSql = `
+    SELECT COUNT(DISTINCT g.guest_id)::int AS count
+    FROM t_guest_inout io
+    JOIN m_guest g
+      ON g.guest_id = io.guest_id
+
+    LEFT JOIN t_guest_room gr
+      ON gr.guest_id = g.guest_id
+     AND gr.is_active = TRUE
+
+    LEFT JOIN t_guest_network gn
+      ON gn.guest_id = g.guest_id
+     AND gn.is_active = TRUE
+
+    LEFT JOIN m_wifi_provider wp
+      ON wp.provider_id = gn.provider_id
+
+    LEFT JOIN t_guest_messenger gm
+      ON gm.guest_id = g.guest_id
+     AND gm.is_active = TRUE
+
+    ${whereClause};
+  `;
+
+  /* ---------- DATA ---------- */
+  const dataSql = `
+    SELECT DISTINCT
+      g.guest_id,
+      g.guest_name,
+
+      /* -------- Room -------- */
+      gr.room_id,
+
+      /* -------- InOut Context -------- */
+      io.entry_date,
+      io.entry_time,
+      io.status AS inout_status,
+
+      /* -------- Network -------- */
+      gn.guest_network_id,
+      wp.provider_name,
+      gn.network_status,
+      gn.start_date,
+      gn.start_time,
+      gn.end_date,
+      gn.end_time,
+
+      /* -------- Messenger -------- */
+      gm.guest_messenger_id,
+      gm.assignment_date,
+      gm.remarks
+
+    FROM t_guest_inout io
+    JOIN m_guest g
+      ON g.guest_id = io.guest_id
+
+    LEFT JOIN t_guest_room gr
+      ON gr.guest_id = g.guest_id
+     AND gr.is_active = TRUE
+
+    LEFT JOIN t_guest_network gn
+      ON gn.guest_id = g.guest_id
+     AND gn.is_active = TRUE
+
+    LEFT JOIN m_wifi_provider wp
+      ON wp.provider_id = gn.provider_id
+
+    LEFT JOIN t_guest_messenger gm
+      ON gm.guest_id = g.guest_id
+     AND gm.is_active = TRUE
+
+    ${whereClause}
+    ORDER BY ${sortColumn} ${sortOrder}
+    LIMIT $${idx} OFFSET $${idx + 1};
+  `;
+
+  const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
+  const countRes = await this.db.query(countSql, params);
+
+  return {
+    data: dataRes.rows,
+    totalCount: countRes.rows[0].count,
+  };
+}
+
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -173,59 +222,221 @@ export class GuestNetworkService {
     return res.rows[0];
   }
 
-  async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Network entry '${id}' not found`);
+  // async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
+  //   const existing = await this.findOne(id);
+  //   if (!existing) throw new Error(`Guest Network entry '${id}' not found`);
 
-    const now = new Date().toISOString();
+  //   const now = new Date().toISOString();
 
-    const sql = `
-      UPDATE t_guest_network SET
-        provider_id = $1,
-        room_id = $2,
-        network_zone_from = $3,
-        network_zone_to = $4,
-        start_date = $5,
-        start_time = $6,
-        end_date = $7,
-        end_time = $8,
-        start_status = $9,
-        end_status = $10,
-        network_status = $11,
-        description = $12,
-        remarks = $13,
-        is_active = $14,
-        updated_at = $15,
-        updated_by = $16,
-        updated_ip = $17
-      WHERE guest_network_id = $18
-      RETURNING *;
-    `;
+  //   const sql = `
+  //     UPDATE t_guest_network SET
+  //       provider_id = $1,
+  //       room_id = $2,
+  //       network_zone_from = $3,
+  //       network_zone_to = $4,
+  //       start_date = $5,
+  //       start_time = $6,
+  //       end_date = $7,
+  //       end_time = $8,
+  //       start_status = $9,
+  //       end_status = $10,
+  //       network_status = $11,
+  //       description = $12,
+  //       remarks = $13,
+  //       is_active = $14,
+  //       updated_at = $15,
+  //       updated_by = $16,
+  //       updated_ip = $17
+  //     WHERE guest_network_id = $18
+  //     RETURNING *;
+  //   `;
 
-    const params = [
-      dto.provider_id ?? existing.provider_id,
-      dto.room_id ?? existing.room_id,
-      dto.network_zone_from ?? existing.network_zone_from,
-      dto.network_zone_to ?? existing.network_zone_to,
-      dto.start_date ?? existing.start_date,
-      dto.start_time ?? existing.start_time,
-      dto.end_date ?? existing.end_date,
-      dto.end_time ?? existing.end_time,
-      dto.start_status ?? existing.start_status,
-      dto.end_status ?? existing.end_status,
-      dto.network_status ?? existing.network_status,
-      dto.description ?? existing.description,
+  //   const params = [
+  //     dto.provider_id ?? existing.provider_id,
+  //     dto.room_id ?? existing.room_id,
+  //     dto.network_zone_from ?? existing.network_zone_from,
+  //     dto.network_zone_to ?? existing.network_zone_to,
+  //     dto.start_date ?? existing.start_date,
+  //     dto.start_time ?? existing.start_time,
+  //     dto.end_date ?? existing.end_date,
+  //     dto.end_time ?? existing.end_time,
+  //     dto.start_status ?? existing.start_status,
+  //     dto.end_status ?? existing.end_status,
+  //     dto.network_status ?? existing.network_status,
+  //     dto.description ?? existing.description,
+  //     dto.remarks ?? existing.remarks,
+  //     dto.is_active ?? existing.is_active,
+  //     now,
+  //     user,
+  //     ip,
+  //     id,
+  //   ];
+
+  //   const res = await this.db.query(sql, params);
+  //   return res.rows[0];
+  // }
+
+  // async changeStatus(
+  //   id: string,
+  //   dto: ChangeGuestNetworkStatusDto,
+  //   user: string,
+  //   ip: string
+  // ) {
+  //   const existing = await this.findOne(id);
+  //   if (!existing) throw new Error('Not found');
+
+  //   const now = new Date().toISOString();
+
+  //   // 1. Close previous record
+  //   await this.db.query(
+  //     `
+  //     UPDATE t_guest_network
+  //     SET
+  //       is_active = false,
+  //       end_date = $1,
+  //       end_time = $2,
+  //       updated_at = $3,
+  //       updated_by = $4,
+  //       updated_ip = $5
+  //     WHERE guest_network_id = $6
+  //     `,
+  //     [dto.end_date, dto.end_time, now, user, ip, id]
+  //   );
+
+  //   // 2. Insert new record (new fact)
+  //   const newId = await this.generateId();
+
+  //   const res = await this.db.query(
+  //     `
+  //     INSERT INTO t_guest_network (
+  //       guest_network_id,
+  //       guest_id,
+  //       provider_id,
+  //       room_id,
+  //       start_date,
+  //       start_time,
+  //       network_status,
+  //       start_status,
+  //       is_active,
+  //       inserted_at,
+  //       inserted_by,
+  //       inserted_ip
+  //     )
+  //     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11)
+  //     RETURNING *;
+  //     `,
+  //     [
+  //       newId,
+  //       existing.guest_id,
+  //       existing.provider_id,
+  //       existing.room_id,
+  //       dto.start_date,
+  //       dto.start_time,
+  //       dto.network_status,
+  //       dto.start_status,
+  //       now,
+  //       user,
+  //       ip,
+  //     ]
+  //   );
+
+  //   return res.rows[0];
+  // }
+async closeAndCreateNext(
+  id: string,
+  dto: CloseGuestNetworkDto,
+  user: string,
+  ip: string
+) {
+  const existing = await this.findOne(id);
+  if (!existing) throw new Error(`Guest Network '${id}' not found`);
+
+  const now = new Date().toISOString();
+
+  // 1. CLOSE OLD RECORD (NO DATA LOSS)
+  await this.db.query(
+    `
+    UPDATE t_guest_network
+    SET
+      is_active = false,
+      end_date = $1,
+      end_time = $2,
+      end_status = $3,
+      network_status = $4,
+      remarks = $5,
+      updated_at = $6,
+      updated_by = $7,
+      updated_ip = $8
+    WHERE guest_network_id = $9
+    `,
+    [
+      dto.end_date,
+      dto.end_time,
+      dto.end_status,
+      dto.network_status,
       dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
       now,
       user,
       ip,
       id,
-    ];
+    ]
+  );
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
+  // 2. CREATE NEW RECORD (NEW FACT)
+  const newId = await this.generateId();
+
+  const res = await this.db.query(
+    `
+    INSERT INTO t_guest_network (
+      guest_network_id,
+      guest_id,
+      provider_id,
+      room_id,
+      network_zone_from,
+      network_zone_to,
+      start_date,
+      start_time,
+      start_status,
+      network_status,
+      description,
+      remarks,
+      is_active,
+      inserted_at,
+      inserted_by,
+      inserted_ip
+    )
+    VALUES (
+      $1,$2,$3,$4,
+      $5,$6,
+      $7,$8,
+      'Waiting',
+      'Requested',
+      $9,$10,
+      true,
+      $11,$12,$13
+    )
+    RETURNING *;
+    `,
+    [
+      newId,
+      existing.guest_id,
+      existing.provider_id,
+      existing.room_id,
+      existing.network_zone_from,
+      existing.network_zone_to,
+      existing.start_date,
+      existing.start_time,
+      existing.description,
+      existing.remarks,
+      now,
+      user,
+      ip,
+    ]
+  );
+
+  return res.rows[0];
+}
+
 
   async softDelete(id: string, user: string, ip: string) {
     const now = new Date().toISOString();
