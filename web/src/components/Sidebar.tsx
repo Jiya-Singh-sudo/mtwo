@@ -64,11 +64,11 @@ export function Sidebar() {
     },
 
     {
-      id: 'guest-transport-management',
-      label: 'Guest Transport Management',
+      id: 'transport-management',
+      label: 'Transport Management',
       labelHi: 'ट्रांसपोर्ट प्रबंधन',
       icon: UserCog,
-      path: '/guest-transport-management',
+      path: '/transport-management',
       permission: 'transport.view',
     },
 

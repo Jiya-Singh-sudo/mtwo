@@ -18,7 +18,7 @@ import { Notifications } from '@/components/modules/Notification/Page';
 import { Reports } from '@/components/modules/Report/Page';
 import UserManagement from '@/components/modules/UserManagement/Page';
 import { SystemSettings } from '@/components/modules/SystemSettings/Page';
-import GuestTransportManagement from '@/components/modules/GuestTransportManagement/Page';
+import GuestTransportManagement from '@/components/modules/TransportManagement/Page';
 import FoodService from '@/components/modules/FoodService/Page';
 import ActivityLogPage from '@/components/modules/ActivityLog/Page';
 import NetworkManagement from '@/components/modules/NetworkManagement/Page';
@@ -146,7 +146,7 @@ export default function AppRoutes() {
             />
 
             <Route
-                path="/guest-transport-management"
+                path="/transport-management"
                 element={
                     <ProtectedRoute permission="transport.view">
                         <GuestTransportManagement />

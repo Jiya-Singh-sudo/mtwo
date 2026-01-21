@@ -15,8 +15,13 @@ import {
   unassignVehicle,
   getAssignableDrivers,
   getAssignableVehicles,
-  updateDriverTrip,
-  updateVehicleAssignment,
+  // updateDriverTrip,
+  // updateVehicleAssignment,
+  assignGuestDriver,
+  reassignVehicleToGuest,
+  releaseVehicle,
+  reviseGuestDriver,
+  closeGuestDriver,
   getGuestTransportTable
 } from "../../../api/guestTransport.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
@@ -300,7 +305,16 @@ function GuestTransportManagement() {
   async function submitEditDriver() {
     if (!editingGuestDriverId) return;
 
-    await updateDriverTrip(editingGuestDriverId, {
+    // await updateDriverTrip(editingGuestDriverId, {
+    //   pickup_location: driverForm.pickup_location || undefined,
+    //   drop_location: driverForm.drop_location || undefined,
+    //   trip_date: driverForm.trip_date || undefined,
+    //   start_time: driverForm.start_time || undefined,
+    //   end_time: driverForm.end_time || undefined,
+    //   trip_status: driverForm.trip_status,
+    // });
+
+    await reviseGuestDriver(editingGuestDriverId, {
       pickup_location: driverForm.pickup_location || undefined,
       drop_location: driverForm.drop_location || undefined,
       trip_date: driverForm.trip_date || undefined,
@@ -308,6 +322,7 @@ function GuestTransportManagement() {
       end_time: driverForm.end_time || undefined,
       trip_status: driverForm.trip_status,
     });
+
 
     setEditDriverModalOpen(false);
     setEditingGuestDriverId(null);
@@ -320,9 +335,12 @@ function GuestTransportManagement() {
   async function submitEditVehicle() {
     if (!editingGuestVehicleId) return;
 
-    await updateVehicleAssignment(editingGuestVehicleId, {
-      location: vehicleForm.location,
-    });
+  await reassignVehicleToGuest(editingGuestVehicleId, {
+    guest_id: vehicleForm.guest_id,
+    vehicle_no: vehicleForm.vehicle_no,
+    location: vehicleForm.location,
+  });
+
 
     setEditVehicleModalOpen(false);
     setEditingGuestVehicleId(null);
@@ -568,7 +586,7 @@ function GuestTransportManagement() {
                             <button
                               className="dangerBtn"
                               onClick={async () => {
-                                await unassignDriver(driver.guest_driver_id);
+                                await closeGuestDriver(driver.guest_driver_id);
                                 GuestTable.setPage(1);
                               }}
                             >
@@ -632,7 +650,7 @@ function GuestTransportManagement() {
                             <button
                               className="dangerBtn"
                               onClick={async () => {
-                                await unassignVehicle(vehicle.guest_vehicle_id);
+                                await releaseVehicle(vehicle.guest_vehicle_id);
                                 GuestTable.setPage(1); // Reset to page 1
                               }}
                             >

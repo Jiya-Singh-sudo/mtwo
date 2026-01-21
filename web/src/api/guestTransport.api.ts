@@ -1,6 +1,7 @@
 import api from "./apiClient";
 import { AssignGuestVehiclePayload } from "../types/guestVehicle";
 import { AssignGuestDriverPayload } from "../types/guestDriver";
+import { GuestDriverCreateDto } from "../types/guestDriver";
 import { TableQuery } from "@/types/table";
 /* =======================
    GUEST TRANSPORT — TABLE
@@ -21,6 +22,68 @@ export async function getGuestTransportTable(query: TableQuery) {
     data: res.data.data,
     totalCount: res.data.totalCount,
   };
+}
+/* Reassign vehicle (CLOSE + INSERT) */
+export async function reassignVehicleToGuest(
+  guestVehicleId: string,
+  payload: {
+    guest_id: string;
+    vehicle_no: string;
+    location?: string;
+  }
+) {
+  const res = await api.post(
+    `/guest-vehicle/reassign/${encodeURIComponent(guestVehicleId)}`,
+    payload
+  );
+  return res.data;
+}
+
+/* Release vehicle */
+export async function releaseVehicle(
+  guestVehicleId: string
+) {
+  const res = await api.patch(
+    `/guest-vehicle/guest-vehicle/${encodeURIComponent(guestVehicleId)}/release`
+  );
+  return res.data;
+}
+/* Assign driver (shortcut) */
+export async function assignGuestDriver(
+  data: GuestDriverCreateDto,
+  user = "system"
+) {
+  const res = await api.post(
+    "/guest-driver/assign",
+    data,
+    { headers: { "x-user": user } }
+  );
+  return res.data;
+}
+/* Revise trip (CLOSE + INSERT) */
+export async function reviseGuestDriver(
+  guestDriverId: string,
+  data: Partial<GuestDriverCreateDto>,
+  user = "system"
+) {
+  const res = await api.post(
+    `/guest-driver/revise/${encodeURIComponent(guestDriverId)}`,
+    data,
+    { headers: { "x-user": user } }
+  );
+  return res.data;
+}
+
+/* Close trip */
+export async function closeGuestDriver(
+  guestDriverId: string,
+  user = "system"
+) {
+  const res = await api.delete(
+    `/guest-driver/${encodeURIComponent(guestDriverId)}`,
+    { headers: { "x-user": user } }
+  );
+  return res.data;
 }
 
 /* =======================
