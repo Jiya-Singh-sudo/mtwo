@@ -29,10 +29,13 @@ export type CreateGuestMessengerPayload = {
   remarks?: string;
 };
 
-export type UpdateGuestMessengerPayload = {
+// export type UpdateGuestMessengerPayload = {
+//   remarks?: string;
+//   is_active?: boolean;
+// };
+export interface UnassignGuestMessengerPayload {
   remarks?: string;
-  is_active?: boolean;
-};
+}
 
 /* ======================================================
    TABLE QUERY (matches backend DTO)

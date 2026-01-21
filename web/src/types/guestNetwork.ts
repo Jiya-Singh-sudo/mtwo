@@ -65,27 +65,67 @@ export type CreateGuestNetworkPayload = {
 export type UpdateGuestNetworkPayload = Partial<CreateGuestNetworkPayload> & {
   is_active?: boolean;
 };
+export interface GuestNetworkRow {
+  guest_id: string;
+  guest_name: string;
+
+  room_id: string | null;
+
+  /* -------- Network -------- */
+  guest_network_id: string | null;
+  network_id: string | null;
+  network_name: string | null;
+  network_status: string | null;
+
+  /* -------- Messenger -------- */
+  guest_messenger_id: string | null;
+  messenger_id: string | null;
+  messenger_name: string | null;
+  messenger_status: string | null;
+
+  requested_at: string | null;
+}
+
+export interface GuestNetworkTableResponse {
+  data: GuestNetworkRow[];
+  totalCount: number;
+}
+
+export interface CloseGuestNetworkPayload {
+  end_date: string;        // YYYY-MM-DD
+  end_time: string;        // HH:mm:ss (or HH:mm)
+  end_status: string;      // e.g. "Completed" | "Cancelled"
+  network_status: string;  // e.g. "Closed" | "Disconnected"
+  remarks?: string;
+}
 
 /* ======================================================
    TABLE QUERY + RESPONSE
 ====================================================== */
-
-export type GuestNetworkTableQuery = {
+export interface GuestNetworkTableQuery {
   page: number;
   limit: number;
 
   search?: string;
 
-  sortBy?: 'start_date' | 'guest_name' | 'provider_name' | 'network_status';
+  sortBy?: 'guest_name' | 'network_status' | 'messenger_status' | 'requested_at';
   sortOrder?: 'asc' | 'desc';
+  status?: 'Requested' | 'Entered' | 'CheckedIn' | 'Closed' | 'All';
 
-  network_status?: GuestNetwork['network_status'];
+}
 
-  startDateFrom?: string;
-  startDateTo?: string;
-};
+// export type GuestNetworkTableQuery = {
+//   page: number;
+//   limit: number;
 
-export type GuestNetworkTableResponse = {
-  data: GuestNetwork[];
-  totalCount: number;
-};
+//   search?: string;
+
+//   sortBy?: 'start_date' | 'guest_name' | 'provider_name' | 'network_status';
+//   sortOrder?: 'asc' | 'desc';
+
+//   network_status?: GuestNetwork['network_status'];
+
+//   startDateFrom?: string;
+//   startDateTo?: string;
+// };
+

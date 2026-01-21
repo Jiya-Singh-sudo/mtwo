@@ -78,7 +78,7 @@ export function FoodService() {
     useState<"butler" | "food">("food");
 
   /* ---------------- FOOD SERVICE STATE ---------------- */
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [_formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<FoodDashboard | null>(null);
   const [guests, setGuests] = useState<GuestWithButler[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,7 +92,7 @@ export function FoodService() {
 
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
-  const [foodItems, setFoodItems] = useState<any[]>([]);
+  const [_foodItems, setFoodItems] = useState<any[]>([]);
 
 
   const [menuModalOpen, setMenuModalOpen] = useState(false);
@@ -137,50 +137,50 @@ export function FoodService() {
     }
   }
 
-async function loadGuests() {
-  try {
-    const baseGuests = await loadGuestsBase();
-    const todayOrders = await getTodayGuestOrders();
+  async function loadGuests() {
+    try {
+      const baseGuests = await loadGuestsBase();
+      const todayOrders = await getTodayGuestOrders();
 
-    const guestMap = new Map<string, GuestWithButler>();
+      const guestMap = new Map<string, GuestWithButler>();
 
-    // 1️⃣ Seed with active guests
-    for (const g of baseGuests) {
-      guestMap.set(g.guest_id, g);
-    }
-
-    // 2️⃣ Merge food + butler
-    for (const row of todayOrders) {
-      const guest = guestMap.get(row.guest_id);
-      if (!guest) continue;
-
-      // Food
-      guest.foodItems.push({
-        guest_food_id: row.guest_food_id,
-        food_name: row.food_name,
-        food_type: row.food_type,
-        delivery_status: row.delivery_status,
-      });
-
-      if (row.delivery_status === "Delivered") {
-        guest.foodStatus = "Served";
+      // 1️⃣ Seed with active guests
+      for (const g of baseGuests) {
+        guestMap.set(g.guest_id, g);
       }
 
+      // 2️⃣ Merge food + butler
+      for (const row of todayOrders) {
+        const guest = guestMap.get(row.guest_id);
+        if (!guest) continue;
 
-      // Butler (once)
-      if (!guest.butler && row.butler_id) {
-        guest.butler = {
-          id: row.butler_id,
-          name: row.butler_name,
-        };
+        // Food
+        guest.foodItems.push({
+          guest_food_id: row.guest_food_id,
+          food_name: row.food_name,
+          food_type: row.food_type,
+          delivery_status: row.delivery_status,
+        });
+
+        if (row.delivery_status === "Delivered") {
+          guest.foodStatus = "Served";
+        }
+
+
+        // Butler (once)
+        if (!guest.butler && row.butler_id) {
+          guest.butler = {
+            id: row.butler_id,
+            name: row.butler_name,
+          };
+        }
       }
-    }
 
-    setGuests(Array.from(guestMap.values()));
-  } catch (err) {
-    console.error("Failed to load guests", err);
+      setGuests(Array.from(guestMap.values()));
+    } catch (err) {
+      console.error("Failed to load guests", err);
+    }
   }
-}
 
   async function loadGuestsBase(): Promise<GuestWithButler[]> {
     const res = await getActiveGuests({
@@ -319,14 +319,15 @@ async function loadGuests() {
 
     await createMeal({
       food_name: menuInput.trim(),
-      food_type:
+      food_type: (
         selectedMeal === "highTea"
-          ? "High-Tea"
-          : selectedMeal.charAt(0).toUpperCase() + selectedMeal.slice(1),
+          ? "Veg"
+          : "Veg"
+      ) as "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg",
     });
 
     setMenuInput("");
-    const updated = await getMeals();
+    const updated = await getActiveMeals();
     setFoodItems(updated);
   }
 
@@ -456,7 +457,7 @@ async function loadGuests() {
     setButlerModalOpen(true);
   }
 
-  async function removeButler(butler: Butler) {
+  async function _removeButler(butler: Butler) {
     if (!confirm(`Deactivate ${butler.butler_name}?`)) return;
 
     try {
@@ -532,7 +533,7 @@ async function loadGuests() {
   function GuestFoodCard({
     guest,
     butlersList,
-    dailyMealPlan,
+    // dailyMealPlan,
     onAssignButler,
     onUnassignButler,
     onToggleFoodStatus,

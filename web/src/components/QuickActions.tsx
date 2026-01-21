@@ -8,7 +8,8 @@ import {
   Download,
   Settings,
   UserCog,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,6 +20,7 @@ type ModuleType =
   | 'guest-transport-management'
   | 'driver-management'
   | 'food-service'
+  | 'network-management'
   | 'duty-roster'
   | 'info-package'
   | 'notifications'
@@ -63,6 +65,13 @@ export function QuickActions() {
       icon: UtensilsCrossed,
       color: 'bg-pink-600 hover:bg-pink-700',
       module: 'food-service' as ModuleType
+    },
+    {
+      title: 'Network Management',
+      titleHi: 'नेटवर्क प्रबंधन',
+      icon: Building2,
+      color: 'bg-gradient-to-r from-[#F5A623] to-[#E09612] hover:from-[#E09612] hover:to-[#D48810] text-[#00247D]',
+      module: 'network-management' as ModuleType
     },
     {
       title: 'Create Duty Roster',

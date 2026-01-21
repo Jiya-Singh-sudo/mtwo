@@ -4,7 +4,7 @@ import {
   GuestNetworkTableQuery,
   GuestNetworkTableResponse,
   CreateGuestNetworkPayload,
-  UpdateGuestNetworkPayload,
+  CloseGuestNetworkPayload,
 } from '@/types/guestNetwork';
 
 /* ---------- TABLE ---------- */
@@ -24,11 +24,18 @@ export async function createGuestNetwork(
 }
 
 /* ---------- UPDATE ---------- */
-export async function updateGuestNetwork(
+// export async function updateGuestNetwork(
+//   id: string,
+//   payload: UpdateGuestNetworkPayload
+// ): Promise<GuestNetwork> {
+//   const res = await api.put(`/guest-network/${id}`, payload);
+//   return res.data;
+// }
+export async function closeGuestNetwork(
   id: string,
-  payload: UpdateGuestNetworkPayload
-): Promise<GuestNetwork> {
-  const res = await api.put(`/guest-network/${id}`, payload);
+  payload: CloseGuestNetworkPayload
+) {
+  const res = await api.post(`/guest-network/${id}/close`, payload);
   return res.data;
 }
 

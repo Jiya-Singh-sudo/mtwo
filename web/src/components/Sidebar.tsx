@@ -7,7 +7,7 @@ import {
   FileText,
   Bell,
   BarChart3,
-  Settings,
+  // Settings,
   UserCog,
   UtensilsCrossed
 } from 'lucide-react';
@@ -88,6 +88,15 @@ export function Sidebar() {
       icon: UtensilsCrossed,
       path: '/food-service',
       permission: 'food.view',
+    },
+
+    {
+      id: 'network-management',
+      label: 'Network Management',
+      labelHi: 'नेटवर्क प्रबंधन',
+      icon: Building2,
+      path: '/network-management',
+      permission: 'network.view',
     },
 /*
     {

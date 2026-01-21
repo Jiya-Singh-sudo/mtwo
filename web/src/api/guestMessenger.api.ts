@@ -4,8 +4,9 @@ import {
   GuestMessengerTableQuery,
   GuestMessengerTableResponse,
   CreateGuestMessengerPayload,
-  UpdateGuestMessengerPayload,
+  UnassignGuestMessengerPayload,
 } from '@/types/guestMessenger';
+import { GuestNetworkTableQuery, GuestNetworkTableResponse } from '@/types/guestNetwork';
 
 /* ======================================================
    TABLE (DATATABLE)
@@ -35,13 +36,34 @@ export async function createGuestMessenger(
    UPDATE
 ====================================================== */
 
-export async function updateGuestMessenger(
+// export async function updateGuestMessenger(
+//   id: string,
+//   payload: UpdateGuestMessengerPayload
+// ): Promise<GuestMessenger> {
+//   const res = await api.put(`/guest-messenger/${id}`, payload);
+//   return res.data;
+// }
+
+/* ======================================================
+   UNASSIGN
+====================================================== */
+export async function unassignGuestMessenger(
   id: string,
-  payload: UpdateGuestMessengerPayload
-): Promise<GuestMessenger> {
-  const res = await api.put(`/guest-messenger/${id}`, payload);
+  payload?: UnassignGuestMessengerPayload
+) {
+  const res = await api.post(`/guest-messenger/${id}/unassign`, payload);
   return res.data;
 }
+
+export const getGuestNetworkTable = async (
+  params: GuestNetworkTableQuery,
+): Promise<GuestNetworkTableResponse> => {
+  const res = await api.get('/guest-network/table', {
+    params,
+  });
+
+  return res.data;
+};
 
 /* ======================================================
    SOFT DELETE
