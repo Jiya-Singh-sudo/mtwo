@@ -133,6 +133,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
 [data-radix-dialog-overlay] {
   position: fixed !important;
   inset: 0 !important;
@@ -200,6 +201,7 @@
 html {
   font-size: var(--font-size);
 }
+
 /* ===== GLOBAL MODAL HEADER ===== */
 .modalHeader {
   display: flex;
@@ -238,4 +240,133 @@ html {
 .modalCloseBtn:hover {
   background: #f3f4f6;
   color: #111827;
+}
+
+/* ===== ICON BUTTONS (ACTION ICONS) ===== */
+.iconBtn {
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+
+.iconBtn.view {
+  color: #2563eb;
+}
+
+/* blue */
+.iconBtn.edit {
+  color: #16a34a;
+}
+
+/* green */
+.iconBtn.assign {
+  color: #7c3aed;
+}
+
+/* purple */
+.iconBtn.close {
+  color: #f97316;
+}
+
+/* orange */
+.iconBtn.delete,
+.iconBtn.danger {
+  color: #dc2626;
+}
+
+/* red */
+.iconBtn.warning {
+  color: #f97316;
+}
+
+/* orange */
+
+.iconBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ===== STATUS PILLS ===== */
+.statusPill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-transform: capitalize;
+}
+
+.statusPill.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusPill.inactive,
+.statusPill.closed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.statusPill.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusPill.assigned {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* ===== REQUIRED FIELD INDICATOR ===== */
+.required,
+.nicRequired {
+  color: #dc2626;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+/* ===== INLINE ERROR TEXT ===== */
+.errorText {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ===== FOOD TYPE BADGES ===== */
+.foodTypeBadge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.foodTypeBadge.Veg {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.foodTypeBadge.Non-Veg {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.foodTypeBadge.Jain {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.foodTypeBadge.Vegan {
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.foodTypeBadge.Egg {
+  background: #fff7ed;
+  color: #9a3412;
 }

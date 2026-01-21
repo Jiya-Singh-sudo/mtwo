@@ -19,7 +19,6 @@ import { getAssignableGuests } from "../../../api/roomManagement.api";
 import { ActiveGuestRow } from "@/types/guests";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { useTableQuery } from "@/hooks/useTableQuery";
-import { roomBoyManagementSchema } from "@/validation/roomBoyManagement.validation";
 import { roomCreateEditSchema } from "@/validation/roomManagement.validation";
 import { housekeepingCreateEditSchema } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";

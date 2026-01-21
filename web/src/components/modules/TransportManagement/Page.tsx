@@ -783,11 +783,11 @@ function GuestTransportManagement() {
               />
               {/* <p className="errorText">{formErrors.pickup_time_from}</p> */}
 
-
+{/* 
               <TimePicker12h
                 label="To Time"
                 onChange={(v) => setDriverForm({ ...driverForm, end_time: v })}
-              />
+              /> */}
               {/* <p className="errorText">{formErrors.vehicle_number}</p> */}
 
               <hr />
@@ -935,6 +935,9 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, pickup_location: e.target.value })
                 }
+                maxLength={300}
+                onBlur={() => validateSingleField(assignDriverSchema,"pickup_location",driverForm.pickup_location,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_location",driverForm.pickup_location,setFormErrors)}
               />
 
               <input
@@ -944,6 +947,9 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, drop_location: e.target.value })
                 }
+                maxLength={300}
+                onBlur={() => validateSingleField(assignDriverSchema,"drop_location",driverForm.drop_location,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignDriverSchema,"drop_location",driverForm.drop_location,setFormErrors)}
               />
 
               <input
@@ -953,15 +959,34 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, trip_date: e.target.value })
                 }
+                onBlur={() => validateSingleField(assignDriverSchema,"pickup_date",driverForm.trip_date,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_date",driverForm.trip_date,setFormErrors)}
               />
 
-              <input
+              <TimePicker12h
+                label="From Time"
+                onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+                onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
+                // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
+              />
+              <TimePicker12h
+                label="Drop Time"
+                onChange={(v) =>
+                  setDriverForm({ ...driverForm, drop_time: v })
+                }
+                onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_to",driverForm.drop_time,setFormErrors)}
+                // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_to",driverForm.drop_time,setFormErrors)}
+              />
+
+              {/* <input
                 type="time"
                 className="nicInput"
                 value={driverForm.start_time}
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, start_time: e.target.value })
                 }
+                onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
               />
 
               <input
@@ -971,7 +996,9 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setDriverForm({ ...driverForm, end_time: e.target.value })
                 }
-              />
+                onBlur={() => validateSingleField(assignDriverSchema,"drop_time",driverForm.end_time,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignDriverSchema,"drop_time",driverForm.end_time,setFormErrors)}
+              /> */}
             </div>
 
             <div className="nicModalActions">
@@ -1008,6 +1035,8 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, location: e.target.value })
                 }
+                onBlur={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
               />
               <input
                 className="nicInput"
@@ -1017,6 +1046,8 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
                 }
+                onBlur={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
               />
               <input
                 className="nicInput"
@@ -1026,6 +1057,8 @@ function GuestTransportManagement() {
                 onChange={(e) =>
                   setVehicleForm({ ...vehicleForm, released_at: e.target.value })
                 }
+                onBlur={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
+                onKeyUp={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
               />
             </div>
 

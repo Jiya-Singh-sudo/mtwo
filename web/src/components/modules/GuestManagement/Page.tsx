@@ -866,10 +866,25 @@ export function GuestManagement() {
               </button>
             </div>
             {Object.keys(formErrors).length > 0 && (
-              <div className="formErrorBanner">
-                Please fix the highlighted fields below.
+              <div className="alert alert-error">
+                <div className="alert-icon">
+                  <XCircle size={18} />
+                </div>
+
+                <span className="alert-text">
+                  Please fix the highlighted fields below.
+                </span>
+
+                <button
+                  className="alert-close"
+                  onClick={() => setFormErrors({})}
+                  aria-label="Close"
+                >
+                  <X size={14} />
+                </button>
               </div>
             )}
+
             {/* FORM BODY */}
             {modalMode === "add" ? (
               <div className="modalBody">
@@ -891,7 +906,13 @@ export function GuestManagement() {
                         maxLength={50}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_name", guestForm.guest_name, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.guest_name}</p>
+                      {formErrors.guest_name && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_name}</span>
+                        </div>
+                      )}
+
                     </div>
 
                     {/* <div>
@@ -947,7 +968,14 @@ export function GuestManagement() {
                         <option value="OTHER">Other</option>
                       </select>
 
-                      <p className="errorText">{formErrors.designation_id}</p>
+                      {/* <p className="errorText">{formErrors.designation_id}</p> */}
+                      {formErrors.designation_id && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.designation_id}</span>
+                        </div>
+                      )}
+
                     </div>
                     {designationMode === "other" && (
                       <>
@@ -961,7 +989,14 @@ export function GuestManagement() {
                             }
                             onKeyUp={() => validateSingleField(guestManagementSchema, "designation_name", guestForm.designation_name, setFormErrors)}
                           />
-                          <p className="errorText">{formErrors.designation_name}</p>
+                          {/* <p className="errorText">{formErrors.designation_name}</p> */}
+                          {formErrors.designation_name && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.designation_name}</span>
+  </div>
+)}
+
                         </div>
 
                         {/* <div>
@@ -986,7 +1021,14 @@ export function GuestManagement() {
                             }
                             onKeyUp={() => validateSingleField(guestManagementSchema, "organization", guestForm.organization, setFormErrors)}
                           />
-                          <p className="errorText">{formErrors.organization}</p>
+                          {/* <p className="errorText">{formErrors.organization}</p> */}
+                          {formErrors.organization && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.organization}</span>
+  </div>
+)}
+
                         </div>
 
                         <div>
@@ -999,7 +1041,14 @@ export function GuestManagement() {
                             }
                             onKeyUp={() => validateSingleField(guestManagementSchema, "office_location", guestForm.office_location, setFormErrors)}
                           />
-                          <p className="errorText">{formErrors.office_location}</p>
+                          {/* <p className="errorText">{formErrors.office_location}</p> */}
+                          {formErrors.office_location && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.office_location}</span>
+  </div>
+)}
+
                         </div>
                       </>
                     )}
@@ -1065,7 +1114,14 @@ export function GuestManagement() {
                         maxLength={10}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_mobile", guestForm.guest_mobile, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.guest_mobile}</p>
+                    {/* <p className="errorText">{formErrors.guest_mobile}</p> */}
+                    {formErrors.guest_mobile && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.guest_mobile}</span>
+  </div>
+)}
+
                     </div>
 
                     <div>
@@ -1078,7 +1134,14 @@ export function GuestManagement() {
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_alternate_mobile", guestForm.guest_alternate_mobile, setFormErrors)}
                         maxLength={0 | 10}
                       />
-                      <p className="errorText">{formErrors.guest_alternate_mobile}</p>
+                      {/* <p className="errorText">{formErrors.guest_alternate_mobile}</p> */}
+                      {formErrors.guest_alternate_mobile && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.guest_alternate_mobile}</span>
+  </div>
+)}
+
                     </div>
 
                     {/* Full width field */}
@@ -1092,7 +1155,14 @@ export function GuestManagement() {
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_address", guestForm.guest_address, setFormErrors)}
                         maxLength={250}
                       />
-                      <p className="errorText">{formErrors.guest_address}</p>
+                      {/* <p className="errorText">{formErrors.guest_address}</p> */}
+                      {formErrors.guest_address && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.guest_address}</span>
+  </div>
+)}
+
                     </div>
 
                     {/* Check-in Date */}
@@ -1112,7 +1182,14 @@ export function GuestManagement() {
                         }}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "entry_date", guestForm.entry_date, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.entry_date}</p>
+                      {/* <p className="errorText">{formErrors.entry_date}</p> */}
+                      {formErrors.entry_date && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.entry_date}</span>
+  </div>
+)}
+
                     </div>
 
                     <div>
@@ -1125,7 +1202,14 @@ export function GuestManagement() {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_time", guestForm.entry_time, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.entry_time}</p>
+                      {/* <p className="errorText">{formErrors.entry_time}</p> */}
+                      {formErrors.entry_time && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.entry_time}</span>
+  </div>
+)}
+
                     </div>
 
                     {/* Check-out Date */}
@@ -1143,7 +1227,14 @@ export function GuestManagement() {
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "exit_date", guestForm.exit_date, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.exit_date}</p>
+                      {/* <p className="errorText">{formErrors.exit_date}</p> */}
+                      {formErrors.exit_date && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.exit_date}</span>
+  </div>
+)}
+
                     </div>
 
                     <div>
@@ -1156,7 +1247,14 @@ export function GuestManagement() {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_time", guestForm.exit_time, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.exit_time}</p>
+                      {/* <p className="errorText">{formErrors.exit_time}</p> */}
+                      {formErrors.exit_time && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.exit_time}</span>
+  </div>
+)}
+
                     </div>
 
                     {/* <div>
@@ -1430,7 +1528,14 @@ export function GuestManagement() {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_time", editGuestForm.exit_time, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.exit_time}</p>
+                      {/* <p className="errorText">{formErrors.exit_time}</p> */}
+                      {formErrors.exit_time && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.exit_time}</span>
+                        </div>
+                      )}
+
                     </div>
 
 
@@ -1449,7 +1554,14 @@ export function GuestManagement() {
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "email", editGuestForm.email, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.email}</p>
+                      {/* <p className="errorText">{formErrors.email}</p> */}
+                      {formErrors.email && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.email}</span>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 </div>

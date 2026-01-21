@@ -324,80 +324,80 @@ export function LoginPage() {
                             <form onSubmit={handleLogin} className="space-y-5">
                                 {/* Username Field */}
                                 <div>
-                                <label htmlFor="username" className="block text-sm text-gray-700 mb-2">
-                                    Username <span className="text-red-500">*</span>
-                                </label>
+                                    <label htmlFor="username" className="block text-sm text-gray-700 mb-2">
+                                        Username <span className="text-red-500">*</span>
+                                    </label>
 
-                                <div className="relative">
-                                    <input
-                                    type="text"
-                                    id="username"
-                                    value={username}
-                                    onChange={(e) => handleUsernameChange(e.target.value)}
-                                    onBlur={() => handleBlur('username')}
-                                    placeholder="Enter your username"
-                                    disabled={isLoading}
-                                    className={`w-full h-12 px-4 pr-10 text-base
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            id="username"
+                                            value={username}
+                                            onChange={(e) => handleUsernameChange(e.target.value)}
+                                            onBlur={() => handleBlur('username')}
+                                            placeholder="Enter your username"
+                                            disabled={isLoading}
+                                            maxLength={20}
+                                            className={`w-full h-12 px-4 pr-10 text-base
                                         border rounded-lg focus:outline-none focus:ring-2 transition-all
-                                        ${
-                                        errors.username && touched.username
-                                            ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                            : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                        }`}
-                                    />
-                                </div>
+                                        ${errors.username && touched.username
+                                                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                                    : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                                }`}
+                                        />
+                                    </div>
 
-                                {errors.username && touched.username && (
-                                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                                    <AlertCircle className="h-4 w-4" />
-                                    {errors.username}
-                                    </p>
-                                )}
+                                    {errors.username && touched.username && (
+                                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                            <AlertCircle className="h-4 w-4" />
+                                            {errors.username}
+                                        </p>
+                                    )}
                                 </div>
 
 
                                 {/* Password Field */}
                                 <div dir="ltr">
-                                <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
-                                    Password <span className="text-red-500">*</span>
-                                </label>
+                                    <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
+                                        Password <span className="text-red-500">*</span>
+                                    </label>
 
-                                <div className="relative">
-                                    <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password"
-                                    value={password}
-                                    onChange={(e) => handlePasswordChange(e.target.value)}
-                                    onBlur={() => handleBlur('password')}
-                                    placeholder="Enter your password"
-                                    disabled={isLoading}
-                                    className={`w-full h-12 px-4 pr-12 text-base
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            id="password"
+                                            value={password}
+                                            onChange={(e) => handlePasswordChange(e.target.value)}
+                                            onBlur={() => handleBlur('password')}
+                                            placeholder="Enter your password"
+                                            disabled={isLoading}
+                                            maxLength={30}
+                                            className={`w-full h-12 px-4 pr-12 text-base
                                         border rounded-lg focus:outline-none focus:ring-2 transition-all
-                                        ${
-                                        errors.password && touched.password
-                                            ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                            : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                        }`}
-                                    />
+                                        ${errors.password && touched.password
+                                                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                                                    : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
+                                                }`}
+                                        />
 
-                                    {/* 👁 Eye button INSIDE input, right aligned */}
-                                    <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2
+                                        {/* 👁 Eye button INSIDE input, right aligned */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2
                                                 text-gray-500 hover:text-blue-700"
-                                    tabIndex={-1}
-                                    >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
 
-                                {errors.password && touched.password && (
-                                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                                    <AlertCircle className="h-4 w-4" />
-                                    {errors.password}
-                                    </p>
-                                )}
+                                    {errors.password && touched.password && (
+                                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                            <AlertCircle className="h-4 w-4" />
+                                            {errors.password}
+                                        </p>
+                                    )}
                                 </div>
 
 
@@ -432,6 +432,7 @@ export function LoginPage() {
                                         value={captchaInput}
                                         onChange={(e) => handleCaptchaChange(e.target.value)}
                                         onBlur={() => handleBlur('captcha')}
+                                        maxLength={20}
                                         className={`w-full h-12 px-4 text-base border rounded-lg focus:outline-none focus:ring-2 transition-all ${errors.captcha && touched.captcha
                                             ? 'border-red-500 focus:ring-red-500 bg-red-50'
                                             : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'

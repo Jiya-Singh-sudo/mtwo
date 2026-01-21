@@ -8,23 +8,23 @@ function Layout() {
   const { isAuthenticated } = useAuth();
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
 
-  const {logout}=useAuth();
+  const { logout } = useAuth();
 
   // Show ONLY login routes when not authenticated
   if (!isAuthenticated) {
     return <AppRoutes />;
   }
-  
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar/>
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
         <header className="bg-white border-b border-gray-200">
           {/* Top bar with dark background */}
           <div className="bg-[#2C2C2C] px-8 py-2">
             <div className="flex items-center justify-end gap-4">
-            
+
               <button className="text-white" onClick={logout}>
                 Logout
               </button>
@@ -65,10 +65,10 @@ function Layout() {
               </div>
             </div>
           </div>
-        
+
         </header>
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        <main className="flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
           <AppRoutes />
         </main>
         {/* Footer */}
@@ -85,9 +85,9 @@ function Layout() {
 
 export default function App() {
   return (
-    
-      <AuthProvider>
-          <Layout />
-        </AuthProvider>
+
+    <AuthProvider>
+      <Layout />
+    </AuthProvider>
   );
 }
