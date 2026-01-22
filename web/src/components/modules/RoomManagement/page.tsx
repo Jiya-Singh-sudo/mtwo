@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from "react";
-import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog } from 'lucide-react';
+import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
 import { StatCard } from "@/components/ui/StatCard";
 import "./RoomManagement.css";
 import { ZodError } from "zod";
@@ -23,7 +23,7 @@ import { roomCreateEditSchema } from "@/validation/roomManagement.validation";
 import { housekeepingCreateEditSchema } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
 import { roomBoyAssignmentSchema } from "@/validation/roomManagement.validation";
-
+import { formatDate, formatTime } from "@/utils/dateTime";
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 
@@ -302,7 +302,7 @@ export function RoomManagement() {
 
   async function handleEditRoom() {
     if (!editRoom) return;
-
+    try{
     const payload: EditRoomFullPayload = {
       // ROOM
       room_no: editRoom.roomNo,
@@ -330,6 +330,16 @@ export function RoomManagement() {
 
     setEditRoom(null);
     await loadRooms();
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+        err.issues.forEach(i => {
+          errors[i.path.join(".")] = i.message;
+        });
+        setFormErrors(errors);
+        return;
+      }
+    }
   }
 
 
@@ -343,6 +353,8 @@ export function RoomManagement() {
 
   async function submitAssignGuest() {
     if (!assignGuestRoom || selectedGuestId === null) return;
+
+    try{
     await createGuestRoom({
       guest_id: selectedGuestId,
       room_id: assignGuestRoom.roomId,
@@ -357,9 +369,22 @@ export function RoomManagement() {
       loadAssignableGuests(),   // 🔥 refresh dropdown source
     ]);
   }
+    catch (err) {
+    if (err instanceof ZodError) {
+      const errors: Record<string, string> = {};
+      err.issues.forEach(i => {
+        errors[i.path.join(".")] = i.message;
+      });
+      setFormErrors(errors);
+      return;
+    }
+    }
+    }
 
   /* ================= OPEN ASSIGN MODAL ================= */
   async function openAssignRoomBoyModal(room: RoomRow) {
+    resetFormErrors();
+    try{
     setActiveRoom(room);
     setAssignmentForm({
       roomBoyId: "",
@@ -369,7 +394,18 @@ export function RoomManagement() {
     });
     await loadRoomBoysAndShifts();
     setIsRoomBoyModalOpen(true);
-  }
+    }
+    catch (err) {
+    if (err instanceof ZodError) {
+      const errors: Record<string, string> = {};
+      err.issues.forEach(i => {
+        errors[i.path.join(".")] = i.message;
+      });
+      setFormErrors(errors);
+      return;
+    }
+    }
+    }
 
   /* ================= SUBMIT ================= */
   async function submitRoomBoyAssignment() {
@@ -418,6 +454,7 @@ export function RoomManagement() {
 
 
   async function vacateGuest(guestRoomId: string) {
+ 
     await updateGuestRoom(guestRoomId, {
       action_type: "Room-Released",
       is_active: false,
@@ -426,13 +463,36 @@ export function RoomManagement() {
       loadRooms(),              // refresh rooms
       loadAssignableGuests(),   // 🔥 refresh dropdown source
     ]);
+
+    // } catch (err) {
+    //   if (err instanceof ZodError) {
+    //     const errors: Record<string, string> = {};
+    //     err.issues.forEach(i => {
+    //       errors[i.path.join(".")] = i.message;
+    //     });
+    //     setFormErrors(errors);
+    //     return;
+    //   }
+    // }
   }
 
   function openAssignGuest(room: RoomRow) {
+    try{
     setAssignGuestRoom(room);
     setSelectedGuestId("");
     setAssignCheckInDate("");
     setAssignCheckOutDate("");
+    }
+    catch (err) {
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+        err.issues.forEach(i => {
+          errors[i.path.join(".")] = i.message;
+        });
+        setFormErrors(errors);
+        return;
+      }
+    }
   }
   async function unassignHousekeeping(guestHkId: string) {
     await unassignRoomBoy(guestHkId);
@@ -555,6 +615,48 @@ export function RoomManagement() {
       }
     }
   }
+function resetFormErrors() {
+  setFormErrors({});
+}
+
+function resetAssignRoomBoyState() {
+  setAssignmentForm({
+    roomBoyId: "",
+    shift: "",
+    taskDate: "",
+    remarks: "",
+  });
+  setActiveRoom(null);
+  resetFormErrors();
+}
+
+function resetAssignGuestState() {
+  setAssignGuestRoom(null);
+  setSelectedGuestId(null);
+  setAssignCheckInDate("");
+  setAssignCheckOutDate("");
+  resetFormErrors();
+}
+
+function resetEditRoomState() {
+  setEditRoom(null);
+  resetFormErrors();
+}
+
+function resetAddRoomState() {
+  setShowAddRoom(false);
+  setRoomForm({
+    room_no: "",
+    room_name: "",
+    residence_type: "",
+    building_name: "",
+    room_type: "",
+    room_capacity: 1,
+    room_category: "",
+    status: "Available",
+  });
+  resetFormErrors();
+}
 
   const roomColumns: Column<RoomRow>[] = [
     {
@@ -799,7 +901,7 @@ export function RoomManagement() {
                 placeholder="Search room, guest, residence..."
                 value={roomTable.query.search ?? ""}
                 onChange={(e) => roomTable.setSearchInput(e.target.value)}
-                maxLength={300}
+                maxLength={50}
               />
             </div>
 
@@ -843,7 +945,7 @@ export function RoomManagement() {
                 placeholder="Search room boys..."
                 value={hkTable.searchInput ?? ""}
                 onChange={(e) => hkTable.setSearchInput(e.target.value)}
-                maxLength={300}
+                maxLength={50}
               />
             </div>
 
@@ -885,13 +987,22 @@ export function RoomManagement() {
 
             <div className="nicModalHeader">
               <h2>Assign Room Boy</h2>
-              <button onClick={() => setIsRoomBoyModalOpen(false)}>✕</button>
+              <button onClick={() => {setIsRoomBoyModalOpen(false);
+                resetAssignRoomBoyState()}}>✕</button>
             </div>
-
+          {Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
             <div className="nicFormGrid">
 
               <div>
-                <label>Room No</label>
+                <label>Room No </label>
                 <input
                   className="nicInput"
                   value={activeRoom.roomNo}
@@ -902,7 +1013,7 @@ export function RoomManagement() {
               <div>
                 <label className="nicLabel">
                   Room Boy
-                  <span className="nicRequired">*</span>
+                  <span className="required">*</span>
                 </label>
                 <select
                   className="nicInput"
@@ -929,15 +1040,23 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
+                {/* {formErrors.room_boy_id && (
+                  // <p className="errorText">{formErrors.room_boy_id}</p>
+                  
+                )} */}
                 {formErrors.room_boy_id && (
-                  <p className="errorText">{formErrors.room_boy_id}</p>
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_boy_id}</span>
+                  </div>
                 )}
+
               </div>
 
               <div>
                 <label className="nicLabel">
                   Shift
-                  <span className="nicRequired">*</span>
+                  <span className="required">*</span>
                 </label>
                 <select
                   className="nicInput"
@@ -964,15 +1083,22 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
-                {formErrors.shift && (
+                {/* {formErrors.shift && (
                   <p className="errorText">{formErrors.shift}</p>
-                )}
+                )} */}
+                {formErrors.shift && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.shift}</span>
+  </div>
+)}
+
               </div>
 
               <div>
                 <label className="nicLabel">
                   Task Date
-                  <span className="nicRequired">*</span>
+                  <span className="required">*</span>
                 </label>
                 <input
                   type="date"
@@ -993,9 +1119,16 @@ export function RoomManagement() {
                     )
                   }
                 />
-                {formErrors.assignment_start_date && (
+                {/* {formErrors.assignment_start_date && (
                   <p className="errorText">{formErrors.assignment_start_date}</p>
-                )}
+                )} */}
+                {formErrors.assignment_start_date && (
+  <div className="fieldError">
+    <XCircle size={14} />
+    <span>{formErrors.assignment_start_date}</span>
+  </div>
+)}
+
               </div>
 
               <div className="fullWidth">
@@ -1020,7 +1153,8 @@ export function RoomManagement() {
             <div className="nicModalActions">
               <button
                 className="cancelBtn"
-                onClick={() => setIsRoomBoyModalOpen(false)}
+                onClick={() => {setIsRoomBoyModalOpen(false);
+                  resetAssignRoomBoyState()}}
               >
                 Cancel
               </button>
@@ -1036,7 +1170,6 @@ export function RoomManagement() {
                 )}
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -1044,10 +1177,19 @@ export function RoomManagement() {
       {editRoom && (
         <div className="modalOverlay">
           <div className="nicModal">
-
+          {Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
             <div className="nicModalHeader">
               <h2>Edit Room</h2>
-              <button className="closeBtn" onClick={() => setEditRoom(null)}>
+              <button className="closeBtn" onClick={() => {setEditRoom(null);
+                resetEditRoomState()}}>
                 ✕
               </button>
             </div>
@@ -1056,7 +1198,7 @@ export function RoomManagement() {
 
               {/* Room No */}
               <div>
-                <label>Room Number</label>
+                <label>Room Number <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={editRoom.roomNo}
@@ -1067,12 +1209,19 @@ export function RoomManagement() {
                   onBlur={() => validateField(roomCreateEditSchema, "room_no", editRoom.roomNo, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_no", editRoom.roomNo, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.room_no}</p>
+                {/* <p className="errorText">{formErrors.room_no}</p> */}
+                {formErrors.room_no && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_no}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Room Name */}
               <div>
-                <label>Room Name</label>
+                <label>Room Name <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={editRoom.roomName ?? ""}
@@ -1083,7 +1232,14 @@ export function RoomManagement() {
                   onBlur={() => validateField(roomCreateEditSchema, "room_name", editRoom.roomName, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_name", editRoom.roomName, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.room_name}</p>
+                {/* <p className="errorText">{formErrors.room_name}</p> */}
+                {formErrors.room_name && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_name}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Building */}
@@ -1099,12 +1255,19 @@ export function RoomManagement() {
                   onBlur={() => validateField(roomCreateEditSchema, "building_name", editRoom.buildingName, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "building_name", editRoom.buildingName, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.building_name}</p>
+                {/* <p className="errorText">{formErrors.building_name}</p> */}
+                {formErrors.building_name && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.building_name}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Residence Type */}
               <div>
-                <label>Residence Type</label>
+                <label>Residence Type <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={editRoom.residenceType ?? ""}
@@ -1115,42 +1278,65 @@ export function RoomManagement() {
                   onBlur={() => validateField(roomCreateEditSchema, "residence_type", editRoom.residenceType, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", editRoom.residenceType, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.residence_type}</p>
+                {/* <p className="errorText">{formErrors.residence_type}</p> */}
+                {formErrors.residence_type && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.residence_type}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Room Type */}
               <div>
-                <label>Room Type</label>
+                <label>Room Type <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={editRoom.roomType ?? ""}
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomType: e.target.value })
                   }
+                  maxLength={70}
                   onBlur={() => validateField(roomCreateEditSchema, "room_type", editRoom.roomType, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_type", editRoom.roomType, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.room_type}</p>
+                {/* <p className="errorText">{formErrors.room_type}</p> */}
+                {formErrors.room_type && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_type}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Room Category */}
               <div>
-                <label>Room Category</label>
+                <label>Room Category <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={editRoom.roomCategory ?? ""}
                   onChange={(e) =>
                     setEditRoom({ ...editRoom, roomCategory: e.target.value })
                   }
+                  maxLength={70}
                   onBlur={() => validateField(roomCreateEditSchema, "room_category", editRoom.roomCategory, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_category", editRoom.roomCategory, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.room_category}</p>
+                {/* <p className="errorText">{formErrors.room_category}</p> */}
+                {formErrors.room_category && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_category}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Capacity */}
               <div>
-                <label>Capacity</label>
+                <label>Capacity <span className="required">*</span></label>
                 <input
                   type="number"
                   min={1}
@@ -1166,12 +1352,19 @@ export function RoomManagement() {
                   onBlur={() => validateField(roomCreateEditSchema, "room_capacity", editRoom.roomCapacity, setFormErrors)}
                   onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", editRoom.roomCapacity, setFormErrors)}
                 />
-                <p className="errorText">{formErrors.room_capacity}</p>
+                {/* <p className="errorText">{formErrors.room_capacity}</p> */}
+                {formErrors.room_capacity && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_capacity}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Status */}
               <div>
-                <label>Status</label>
+                <label>Status </label>
                 <select
                   className="nicInput"
                   value={editRoom.status}
@@ -1187,12 +1380,19 @@ export function RoomManagement() {
                   <option value="Available">Available</option>
                   <option value="Occupied">Occupied</option>
                 </select>
-                <p className="errorText">{formErrors.status}</p>
+                {/* <p className="errorText">{formErrors.status}</p> */}
+                {formErrors.status && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.status}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Guest */}
               <div className="fullWidth">
-                <label>Guest</label>
+                <label>Guest <span className="required">*</span></label>
                 <select
                   className="nicInput"
                   value={editRoom.guest?.guestId ?? ""}
@@ -1222,12 +1422,19 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
-                <p className="errorText">{formErrors.guest}</p>
+                {/* <p className="errorText">{formErrors.guest}</p> */}
+                {formErrors.guest && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.guest}</span>
+                  </div>
+                )}
+
               </div>
 
               {/* Room Boy */}
               <div className="fullWidth">
-                <label>Room Boy</label>
+                <label>Room Boy </label>
                 <select
                   className="nicInput"
                   value={editRoom.housekeeping?.hkId ?? ""}
@@ -1257,19 +1464,29 @@ export function RoomManagement() {
                     </option>
                   ))}
                 </select>
-                <p className="errorText">{formErrors.room_boy}</p>
+                {/* <p className="errorText">{formErrors.room_boy}</p> */}
+                {formErrors.room_boy && (
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.room_boy}</span>
+                  </div>
+                )}
+
               </div>
             </div>
 
             <div className="nicModalActions">
-              <button className="cancelBtn" onClick={() => setEditRoom(null)}>
+              <button className="cancelBtn" onClick={() => {setEditRoom(null);
+                resetEditRoomState()}}>
                 Cancel
               </button>
               <button className="saveBtn" onClick={handleEditRoom}>
                 Save Changes
               </button>
             </div>
-          </div>
+
+
+           </div>
         </div>
       )}
 
@@ -1283,18 +1500,26 @@ export function RoomManagement() {
               <h2>Add Room</h2>
               <button
                 className="closeBtn"
-                onClick={() => setShowAddRoom(false)}
+                onClick={() => {setShowAddRoom(false); resetAddRoomState();}}
               >
                 ✕
               </button>
             </div>
-
+{Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
             {/* BODY (SCROLLABLE) */}
             <div className="nicModalBody">
               <div className="nicFormStack">
 
                 <div>
-                  <label>Room Number</label>
+                  <label>Room Number <span className="required">*</span></label>
                   <input
                     className="nicInput"
                     placeholder="e.g. GFD-101"
@@ -1306,11 +1531,18 @@ export function RoomManagement() {
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_no", roomForm.room_no, setFormErrors)}
                     onBlur={() => validateField(roomCreateEditSchema, "room_no", roomForm.room_no, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.room_no}</p>
+                  {/* <p className="errorText">{formErrors.room_no}</p> */}
+                  {formErrors.room_no && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.room_no}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
-                  <label>Room Name</label>
+                  <label>Room Name <span className="required">*</span></label>
                   <input
                     className="nicInput"
                     placeholder="e.g. Ground Floor Double"
@@ -1322,7 +1554,14 @@ export function RoomManagement() {
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                     onBlur={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.room_name}</p>
+                  {/* <p className="errorText">{formErrors.room_name}</p> */}
+                  {formErrors.room_name && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.room_name}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
@@ -1338,11 +1577,18 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "building_name", roomForm.building_name, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "building_name", roomForm.building_name, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.building_name}</p>
+                  {/* <p className="errorText">{formErrors.building_name}</p> */}
+                  {formErrors.building_name && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.building_name}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
-                  <label>Residence Type</label>
+                  <label>Residence Type <span className="required">*</span></label>
                   <input
                     className="nicInput"
                     placeholder="e.g. First Floor / Penthouse"
@@ -1354,11 +1600,18 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "residence_type", roomForm.residence_type, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "residence_type", roomForm.residence_type, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.residence_type}</p>
+                  {/* <p className="errorText">{formErrors.residence_type}</p> */}
+                  {formErrors.residence_type && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.residence_type}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
-                  <label>Room Type</label>
+                  <label>Room Type<span className="required">*</span></label>
                   <input
                     className="nicInput"
                     placeholder="e.g. Single / Double / Suite"
@@ -1366,14 +1619,22 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_type: e.target.value })
                     }
+                    maxLength={50}
                     onBlur={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.room_type}</p>
+                  {/* <p className="errorText">{formErrors.room_type}</p> */}
+                  {formErrors.room_type && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.room_type}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
-                  <label>Room Capacity</label>
+                  <label>Room Capacity<span className="required">*</span></label>
                   <input
                     type="number"
                     min={1}
@@ -1390,11 +1651,18 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.room_capacity}</p>
+                  {/* <p className="errorText">{formErrors.room_capacity}</p> */}
+                  {formErrors.room_capacity && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.room_capacity}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <div>
-                  <label>Room Category</label>
+                  <label>Room Category <span className="required">*</span></label>
                   <input
                     className="nicInput"
                     placeholder="e.g. Deluxe / Standard"
@@ -1402,10 +1670,18 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomForm({ ...roomForm, room_category: e.target.value })
                     }
+                    maxLength={50}
                     onBlur={() => validateField(roomCreateEditSchema, "room_category", roomForm.room_category, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_category", roomForm.room_category, setFormErrors)}
                   />
-                  <p className="errorText">{formErrors.room_category}</p>
+                  {/* <p className="errorText">{formErrors.room_category}</p> */}
+                  {formErrors.room_category && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.room_category}</span>
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>
@@ -1414,7 +1690,7 @@ export function RoomManagement() {
             <div className="nicModalActions">
               <button
                 className="cancelBtn"
-                onClick={() => setShowAddRoom(false)}
+                onClick={() => {setShowAddRoom(false); resetAddRoomState();}}
               >
                 Cancel
               </button>
@@ -1425,24 +1701,35 @@ export function RoomManagement() {
                 Save
               </button>
             </div>
-          </div>
+
+           </div>
         </div>
       )}
 
       {assignGuestRoom && (
         <div className="modalOverlay">
           <div className="nicModal">
-
+           
             {/* HEADER */}
             <div className="nicModalHeader">
               <h2>Assign Guest</h2>
               <button
                 className="closeBtn"
-                onClick={() => setAssignGuestRoom(null)}
+                onClick={() => {setAssignGuestRoom(null);
+                  resetAssignGuestState()}}
               >
                 ✕
               </button>
             </div>
+            {Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
 
             {/* BODY */}
             <div className="nicModalBody">
@@ -1456,7 +1743,7 @@ export function RoomManagement() {
                 {/* Guest (REQUIRED) */}
                 <div>
                   <label className="nicLabel">
-                    Guest <span className="nicRequired">*</span>
+                    Guest <span className="required">*</span>
                   </label>
                   <select
                     className="nicInput"
@@ -1480,9 +1767,16 @@ export function RoomManagement() {
                       </option>
                     ))}
                   </select>
-                  {formErrors.guest && (
+                  {/* {formErrors.guest && (
                     <p className="errorText">{formErrors.guest}</p>
+                  )} */}
+                  {formErrors.guest && (
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.guest}</span>
+                    </div>
                   )}
+
                 </div>
 
                 {/* Check-in Date (derived, read-only) */}
@@ -1514,7 +1808,8 @@ export function RoomManagement() {
             <div className="nicModalActions">
               <button
                 className="cancelBtn"
-                onClick={() => setAssignGuestRoom(null)}
+                onClick={() => {setAssignGuestRoom(null);
+                  resetAssignGuestState()}}
               >
                 Cancel
               </button>
@@ -1522,8 +1817,7 @@ export function RoomManagement() {
                 Assign
               </button>
             </div>
-
-          </div>
+        </div>
         </div>
       )}
 
@@ -1566,8 +1860,8 @@ export function RoomManagement() {
                   {viewRoom.guest ? (
                     <>
                       <p><b>Guest Name:</b> {viewRoom.guest.guestName}</p>
-                      <p><b>Check-In:</b> {viewRoom.guest.checkInDate || "—"}</p>
-                      <p><b>Check-Out:</b> {viewRoom.guest.checkOutDate || "—"}</p>
+                      <p><b>Check-In:</b> {formatDate(viewRoom.guest.checkInDate) || "—"}</p>
+                      <p><b>Check-Out:</b> {formatDate(viewRoom.guest.checkOutDate) || "—"}</p>
                     </>
                   ) : (
                     <p>— No guest assigned —</p>
@@ -1581,7 +1875,7 @@ export function RoomManagement() {
                     <>
                       <p><b>Room Boy:</b> {viewRoom.housekeeping.hkName}</p>
                       <p><b>Shift:</b> {viewRoom.housekeeping.taskShift}</p>
-                      <p><b>Task Date:</b> {viewRoom.housekeeping.taskDate}</p>
+                      <p><b>Task Date:</b> {formatDate(viewRoom.housekeeping.taskDate)}</p>
                       <p>
                         <b>Status:</b>{" "}
                         {viewRoom.housekeeping.isActive ? "Assigned" : "Inactive"}
@@ -1613,7 +1907,7 @@ export function RoomManagement() {
       {showAddRoomBoy && (
         <div className="modalOverlay">
           <div className="nicModal">
-
+          
             {/* HEADER */}
             <div className="nicModalHeader">
               <h2>Add Room Boy</h2>
@@ -1627,7 +1921,15 @@ export function RoomManagement() {
                 ✕
               </button>
             </div>
-
+{Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
             {/* BODY */}
             <div className="nicModalBody">
               <div className="nicFormStack">
@@ -1635,7 +1937,7 @@ export function RoomManagement() {
                 {/* Name */}
                 <div>
                   <label className="nicLabel">
-                    Name <span className="nicRequired">*</span>
+                    Name <span className="required">*</span>
                   </label>
                   <input
                     className="nicInput"
@@ -1648,13 +1950,18 @@ export function RoomManagement() {
                       validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)
                     }
                   />
+                  {/* <p className="errorText">{formErrors.hk_name}</p> */}
                   {formErrors.hk_name && (
-                    <p className="errorText">{formErrors.hk_name}</p>
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.hk_name}</span>
+                    </div>
                   )}
+
                 </div>
 
                 {/* Local Name */}
-                <div>
+                {/* <div>
                   <label className="nicLabel">Local Name</label>
                   <input
                     className="nicInput"
@@ -1666,12 +1973,12 @@ export function RoomManagement() {
                       })
                     }
                   />
-                </div>
+                </div> */}
 
                 {/* Contact */}
                 <div>
                   <label className="nicLabel">
-                    Contact <span className="nicRequired">*</span>
+                    Contact <span className="required">*</span>
                   </label>
                   <input
                     className="nicInput"
@@ -1684,9 +1991,14 @@ export function RoomManagement() {
                       validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)
                     }
                   />
+                  {/* <p className="errorText">{formErrors.hk_contact}</p> */}
                   {formErrors.hk_contact && (
-                    <p className="errorText">{formErrors.hk_contact}</p>
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.hk_contact}</span>
+                    </div>
                   )}
+
                 </div>
 
                 {/* Alternate Contact */}
@@ -1708,7 +2020,7 @@ export function RoomManagement() {
                 {/* Shift */}
                 <div>
                   <label className="nicLabel">
-                    Shift <span className="nicRequired">*</span>
+                    Shift <span className="required">*</span>
                   </label>
                   <select
                     className="nicInput"
@@ -1729,7 +2041,7 @@ export function RoomManagement() {
 
                 {/* Address */}
                 <div>
-                  <label className="nicLabel">Address</label>
+                  <label className="nicLabel">Address<span className="required">*</span></label>
                   <textarea
                     className="nicInput"
                     rows={3}
@@ -1737,7 +2049,7 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
                     }
-                    maxLength={500}
+                    maxLength={300}
                   />
                 </div>
 
@@ -1759,7 +2071,6 @@ export function RoomManagement() {
                 Add
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -1768,7 +2079,7 @@ export function RoomManagement() {
       {showEditRoomBoy && selectedRoomBoy && (
         <div className="modalOverlay">
           <div className="nicModal">
-
+          
             {/* HEADER */}
             <div className="nicModalHeader">
               <h2>Edit Room Boy</h2>
@@ -1779,7 +2090,15 @@ export function RoomManagement() {
                 ✕
               </button>
             </div>
-
+{Object.keys(formErrors).length > 0 && (
+  <div className="alert alert-error">
+    <XCircle size={18} />
+    <span>Please fix the highlighted fields below.</span>
+    <button onClick={() => setFormErrors({})}>
+      <X size={14} />
+    </button>
+  </div>
+)}
             {/* BODY */}
             <div className="nicModalBody">
               <div className="nicFormStack">
@@ -1787,7 +2106,7 @@ export function RoomManagement() {
                 {/* Name */}
                 <div>
                   <label className="nicLabel">
-                    Name <span className="nicRequired">*</span>
+                    Name <span className="required">*</span>
                   </label>
                   <input
                     className="nicInput"
@@ -1800,12 +2119,17 @@ export function RoomManagement() {
                       validateField(housekeepingCreateEditSchema, "hk_name", roomBoyForm.hk_name, setFormErrors)
                     }
                   />
+                  {/* <p className="errorText">{formErrors.hk_name}</p> */}
                   {formErrors.hk_name && (
-                    <p className="errorText">{formErrors.hk_name}</p>
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.hk_name}</span>
+                    </div>
                   )}
+
                 </div>
 
-                {/* Local Name */}
+                {/* Local Name
                 <div>
                   <label className="nicLabel">Local Name</label>
                   <input
@@ -1818,12 +2142,12 @@ export function RoomManagement() {
                       })
                     }
                   />
-                </div>
+                </div> */}
 
                 {/* Contact */}
                 <div>
                   <label className="nicLabel">
-                    Contact <span className="nicRequired">*</span>
+                    Contact <span className="required">*</span>
                   </label>
                   <input
                     className="nicInput"
@@ -1836,9 +2160,14 @@ export function RoomManagement() {
                       validateField(housekeepingCreateEditSchema, "hk_contact", roomBoyForm.hk_contact, setFormErrors)
                     }
                   />
+                  {/* <p className="errorText">{formErrors.hk_contact}</p> */}
                   {formErrors.hk_contact && (
-                    <p className="errorText">{formErrors.hk_contact}</p>
+                    <div className="fieldError">
+                      <XCircle size={14} />
+                      <span>{formErrors.hk_contact}</span>
+                    </div>
                   )}
+
                 </div>
 
                 {/* Alternate Contact */}
@@ -1860,7 +2189,7 @@ export function RoomManagement() {
                 {/* Shift */}
                 <div>
                   <label className="nicLabel">
-                    Shift <span className="nicRequired">*</span>
+                    Shift <span className="required">*</span>
                   </label>
                   <select
                     className="nicInput"
@@ -1881,7 +2210,7 @@ export function RoomManagement() {
 
                 {/* Address */}
                 <div>
-                  <label className="nicLabel">Address</label>
+                  <label className="nicLabel">Address<span className="required">*</span></label>
                   <textarea
                     className="nicInput"
                     rows={3}
@@ -1889,7 +2218,7 @@ export function RoomManagement() {
                     onChange={(e) =>
                       setRoomBoyForm({ ...roomBoyForm, address: e.target.value })
                     }
-                    maxLength={500}
+                    maxLength={300}
                   />
                 </div>
 
@@ -1908,7 +2237,6 @@ export function RoomManagement() {
                 Save
               </button>
             </div>
-
           </div>
         </div>
       )}

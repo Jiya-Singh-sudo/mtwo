@@ -90,14 +90,14 @@ export function Sidebar() {
       permission: 'food.view',
     },
 
-    {
-      id: 'network-management',
-      label: 'Network Management',
-      labelHi: 'नेटवर्क प्रबंधन',
-      icon: Building2,
-      path: '/network-management',
-      permission: 'network.view',
-    },
+    // {
+    //   id: 'network-management',
+    //   label: 'Network Management',
+    //   labelHi: 'नेटवर्क प्रबंधन',
+    //   icon: Building2,
+    //   path: '/network-management',
+    //   permission: 'network.view',
+    // },
 /*
     {
       id: 'duty-roster',
@@ -173,7 +173,7 @@ export function Sidebar() {
             <Building2 className="w-6 h-6 text-[#00247D]" />
           </div>
           <div>
-            <p className="text-sm opacity-90">Raj Bhavan</p>
+            <p className="text-sm opacity-90">Lok Bhavan</p>
             <p className="text-xs opacity-75">Guest House</p>
           </div>
         </div>

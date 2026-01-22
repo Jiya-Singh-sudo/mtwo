@@ -49,7 +49,7 @@ export function infoPackageTemplate(data: any) {
 <body>
 
 <h1>Guest Information Package</h1>
-<p style="text-align:center;">Raj Bhavan</p>
+<p style="text-align:center;">Lok Bhavan</p>
 
 <h2>Guest Details</h2>
 <table>

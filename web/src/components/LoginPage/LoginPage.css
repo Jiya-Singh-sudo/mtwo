@@ -288,3 +288,39 @@
     transform: translateY(0);
   }
 }
+.nicPrimaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  height: 44px;
+  padding: 0 18px;
+
+  background-color: #00247D;
+  color: #ffffff;
+
+  border-radius: 6px;
+  border: none;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nicPrimaryBtn:hover {
+  background-color: #003399;
+}
+
+.nicPrimaryBtn:disabled {
+  background-color: #c7d2fe;
+  color: #1e3a8a;
+  cursor: not-allowed;
+}
+
+.nicPrimaryBtn .icon {
+  width: 16px;
+  height: 16px;
+}

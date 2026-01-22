@@ -226,7 +226,7 @@ export function LoginPage() {
                                 className="h-16 w-16 object-contain"
                             />
                             <div>
-                                <p className="text-sm text-gray-600">राज्यपाल महाराष्ट्र</p>
+                                <p className="text-sm text-gray-600">लोक भवन महाराष्ट्र</p>
                                 <h1 className="text-gray-900">Lok Bhavan Maharashtra</h1>
                                 <p className="text-sm text-gray-600">Guest Management System</p>
                             </div>
@@ -452,10 +452,11 @@ export function LoginPage() {
                                 <button
                                     type="submit"
                                     disabled={!isFormValid() || isLoading}
-                                    className={`w-full py-3 rounded-lg transition-all ${!isFormValid() || isLoading
-                                        ? 'bg-blue-200 text-blue-700 cursor-not-allowed'
-                                        : 'bg-blue-700 hover:bg-blue-800 text-black shadow-md'
-                                        }`}
+                                    // className={`w-full py-3 rounded-lg transition-all ${!isFormValid() || isLoading
+                                    //     ? 'bg-blue-200 text-blue-700 cursor-not-allowed'
+                                    //     : 'bg-blue-700 hover:bg-blue-800 text-black shadow-md'
+                                    //     }`}
+                                    className="nicPrimaryBtn w-full"
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -487,7 +488,7 @@ export function LoginPage() {
             <footer className="bg-gradient-to-r from-blue-900 to-blue-800 border-t border-blue-700 py-4">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <p className="text-center text-sm text-blue-200">
-                        © 2026 Lok Bhavan Maharashtra | राज्यपाल महाराष्ट्र | Secured by NIC
+                        © 2026 Lok Bhavan Maharashtra | लोक भवन महाराष्ट्र | Secured by NIC
                     </p>
                 </div>
             </footer>

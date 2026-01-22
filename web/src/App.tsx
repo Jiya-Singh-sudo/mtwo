@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import AppRoutes from '@/routes/AppRoutes';
 import { Sidebar } from './components/Sidebar';
-import { Search, Globe } from 'lucide-react';
+// import { Search, Globe } from 'lucide-react';
 
 function Layout() {
   const { isAuthenticated } = useAuth();
@@ -24,6 +24,10 @@ function Layout() {
           {/* Top bar with dark background */}
           <div className="bg-[#2C2C2C] px-8 py-2">
             <div className="flex items-center justify-end gap-4">
+{/* 
+              <button className="text-white" onClick={() => setLanguage}>
+                Hindi
+              </button> */}
 
               <button className="text-white" onClick={logout}>
                 Logout
@@ -43,8 +47,8 @@ function Layout() {
                 />
                 {/* Title */}
                 <div>
-                  <h1 className="text-[#00247D] tracking-wide">राजभवन महाराष्ट्र</h1>
-                  <h2 className="text-[#00247D] mt-1">Raj Bhavan Maharashtra</h2>
+                  <h1 className="text-[#00247D] tracking-wide">लोक भवन महाराष्ट्र</h1>
+                  <h2 className="text-[#00247D] mt-1">Lok Bhavan Maharashtra</h2>
                   <p className="text-sm text-gray-600 mt-1">Guest House Management System</p>
                 </div>
               </div>
@@ -74,7 +78,7 @@ function Layout() {
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 px-8 py-3">
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <p>© 2025 Raj Bhavan Maharashtra | राजभवन महाराष्ट्र</p>
+            <p>© 2025 Lok Bhavan Maharashtra | लोक भवन महाराष्ट्र</p>
             <p>Version 1.0.0 | Powered by NIC</p>
           </div>
         </footer>

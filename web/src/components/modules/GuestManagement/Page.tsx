@@ -20,7 +20,6 @@ import { X } from "lucide-react";
 import { XCircle } from "lucide-react";
 import { validateSingleField } from "@/utils/validateSingleField";
 
-
 type DesignationOption = {
   designation_id: string;
   designation_name: string;
@@ -442,6 +441,7 @@ export function GuestManagement() {
   }
 
   function openEdit(g: ActiveGuestRow) {
+    setFormErrors({});
     setSelectedGuest(g);
 
     setEditGuestForm({
@@ -540,7 +540,7 @@ export function GuestManagement() {
           status: parsed.status,
         });
       }
-
+resetEditGuestState();
       setModalMode(null);
       await loadGuests();
       await refreshStatusCounts();
@@ -587,6 +587,14 @@ export function GuestManagement() {
       alert('Failed to delete entry');
     }
   }
+function resetEditGuestState() {
+  setEditGuestForm(initialGuestForm);
+  setEditGdId("");
+  setEditInoutId("");
+  setFormErrors({});
+  setSelectedGuest(null);
+  setDesignationMode("existing");
+}
 
   // function validateSingleField(
   //   field: keyof GuestForm,
@@ -758,17 +766,6 @@ export function GuestManagement() {
                   </div>
                 </div>
 
-                {/* DESIGNATION */}
-                <div className="viewSection">
-                  <h3>Designation Details</h3>
-                  <div className="viewFormGrid">
-                    <ViewRow label="Designation Name" value={selectedGuest.designation_name} />
-                    <ViewRow label="Department" value={selectedGuest.department} />
-                    <ViewRow label="Organization" value={selectedGuest.organization} />
-                    <ViewRow label="Office Location" value={selectedGuest.office_location} />
-                  </div>
-                </div>
-
                 {/* VISIT */}
                 <div className="viewSection">
                   <h3>Visit Information</h3>
@@ -784,6 +781,19 @@ export function GuestManagement() {
                     />
                   </div>
                 </div>
+
+                {/* DESIGNATION */}
+                <div className="viewSection">
+                  <h3>Designation Details</h3>
+                  <div className="viewFormGrid">
+                    <ViewRow label="Designation Name" value={selectedGuest.designation_name} />
+                    <ViewRow label="Department" value={selectedGuest.department} />
+                    <ViewRow label="Organization" value={selectedGuest.organization} />
+                    <ViewRow label="Office Location" value={selectedGuest.office_location} />
+                  </div>
+                </div>
+
+                
 
               </div>
             </div>
@@ -859,7 +869,10 @@ export function GuestManagement() {
 
               <button
                 className="viewCloseBtn"
-                onClick={() => setModalMode(null)}
+                onClick={() => {
+                  setModalMode(null);
+                  resetEditGuestState();
+                }}
                 aria-label="Close"
               >
                 <X size={20} />
@@ -1180,6 +1193,7 @@ export function GuestManagement() {
                           setGuestForm(s => ({ ...s, entry_date: value }));
                           validateSingleField(guestManagementSchema, "entry_date", value, setFormErrors);
                         }}
+                        onBlur={() => validateSingleField(guestManagementSchema, "entry_date", guestForm.entry_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "entry_date", guestForm.entry_date, setFormErrors)}
                       />
                       {/* <p className="errorText">{formErrors.entry_date}</p> */}
@@ -1226,6 +1240,7 @@ export function GuestManagement() {
                           setGuestForm((s) => ({ ...s, exit_date: e.target.value }))
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "exit_date", guestForm.exit_date, setFormErrors)}
+                        onBlur={() => validateSingleField(guestManagementSchema, "exit_date", guestForm.exit_date, setFormErrors)}
                       />
                       {/* <p className="errorText">{formErrors.exit_date}</p> */}
                       {formErrors.exit_date && (
@@ -1291,7 +1306,13 @@ export function GuestManagement() {
                         }}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "email", guestForm.email, setFormErrors)}
                       />
-                      <p className="errorText">{formErrors.email}</p>
+                      {/* <p className="errorText">{formErrors.email}</p> */}
+                      {formErrors.email && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.email}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1311,10 +1332,16 @@ export function GuestManagement() {
                         onChange={(e) =>
                           setEditGuestForm({ ...editGuestForm, guest_name: e.target.value })
                         }
-                        onKeyUp={() => validateSingleField(guestManagementSchema, "guest_name", editGuestForm.guest_name, setFormErrors)}
+                        onBlur={() => validateSingleField(guestManagementSchema, "guest_name", editGuestForm.guest_name, setFormErrors)}
                         maxLength={50}
                       />
-                      <p className="errorText">{formErrors.guest_name}</p>
+                      {/* <p className="errorText">{formErrors.guest_name}</p> */}
+                      {formErrors.guest_name && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_name}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* <div>
@@ -1328,6 +1355,7 @@ export function GuestManagement() {
                         name="designation_id"
                         className="nicInput"
                         value={designationMode === "other" ? "OTHER" : editGuestForm.designation_id}
+                        onBlur={() => validateSingleField(guestManagementSchema, "designation_id", editGuestForm.designation_id, setFormErrors)}
                         onChange={(e) => {
                           const value = e.target.value;
 
@@ -1369,9 +1397,15 @@ export function GuestManagement() {
                         <option value="OTHER">Other</option>
                       </select>
 
-                      <p className="errorText">{formErrors.designation_id}</p>
+                      {/* <p className="errorText">{formErrors.designation_id}</p>
 
-                      <p className="errorText">{formErrors.designation_id}</p>
+                      <p className="errorText">{formErrors.designation_id}</p> */}
+                      {formErrors.designation_id && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.designation_id}</span>
+                        </div>
+                      )}
                     </div>
 
                     {designationMode === "other" && (
@@ -1384,6 +1418,8 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setEditGuestForm(s => ({ ...s, designation_name: e.target.value }))
                             }
+                            onBlur={() => validateSingleField(guestManagementSchema, "designation_name", editGuestForm.designation_name, setFormErrors)}
+                            maxLength={50}
                           />
                           {/* <p className="errorText">{formErrors.designation_name}</p> */}
                           {formErrors.designation_name && (
@@ -1402,6 +1438,8 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setEditGuestForm(s => ({ ...s, department: e.target.value }))
                             }
+                            onBlur={() => validateSingleField(guestManagementSchema, "department", editGuestForm.department, setFormErrors)}
+                            maxLength={50}
                           />
                         </div>
 
@@ -1413,14 +1451,16 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setEditGuestForm(s => ({ ...s, organization: e.target.value }))
                             }
+                            onBlur={() => validateSingleField(guestManagementSchema, "organization", editGuestForm.organization, setFormErrors)}
+                            maxLength={50}
                           />
                           {/* <p className="errorText">{formErrors.organization}</p> */}
                           {formErrors.organization && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.organization}</span>
-  </div>
-)}
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.organization}</span>
+                            </div>
+                          )}
 
                         </div>
 
@@ -1432,14 +1472,16 @@ export function GuestManagement() {
                             onChange={(e) =>
                               setEditGuestForm(s => ({ ...s, office_location: e.target.value }))
                             }
+                            onBlur={() => validateSingleField(guestManagementSchema, "office_location", editGuestForm.office_location, setFormErrors)}
+                            maxLength={50}
                           />
                           {/* <p className="errorText">{formErrors.office_location}</p> */}
                           {formErrors.office_location && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.office_location}</span>
-  </div>
-)}
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.office_location}</span>
+                            </div>
+                          )}
 
                         </div>
                       </>
@@ -1455,15 +1497,16 @@ export function GuestManagement() {
                           setEditGuestForm({ ...editGuestForm, guest_mobile: e.target.value })
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_mobile", editGuestForm.guest_mobile, setFormErrors)}
+                        onBlur={() => validateSingleField(guestManagementSchema, "guest_mobile", editGuestForm.guest_mobile, setFormErrors)}
                         maxLength={10}
                       />
                       {/* <p className="errorText">{formErrors.guest_mobile}</p> */}
                       {formErrors.guest_mobile && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_mobile}</span>
-  </div>
-)}
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_mobile}</span>
+                        </div>
+                      )}
 
                     </div>
 
@@ -1477,15 +1520,16 @@ export function GuestManagement() {
                           setEditGuestForm({ ...editGuestForm, guest_alternate_mobile: e.target.value })
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_alternate_mobile", editGuestForm.guest_alternate_mobile, setFormErrors)}
+                        onBlur={() => validateSingleField(guestManagementSchema, "guest_alternate_mobile", editGuestForm.guest_alternate_mobile, setFormErrors)}
                         maxLength={0 | 10}
                       />
                       {/* <p className="errorText">{formErrors.guest_alternate_mobile}</p> */}
                       {formErrors.guest_alternate_mobile && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_alternate_mobile}</span>
-  </div>
-)}
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_alternate_mobile}</span>
+                        </div>
+                      )}
 
                     </div>
 
@@ -1498,15 +1542,16 @@ export function GuestManagement() {
                         value={editGuestForm.guest_address}
                         onChange={(e) => setEditGuestForm(s => ({ ...s, guest_address: e.target.value }))}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_address", editGuestForm.guest_address, setFormErrors)}
+                        onBlur={() => validateSingleField(guestManagementSchema, "guest_address", editGuestForm.guest_address, setFormErrors)}
                         maxLength={250}
                       />
                       {/* <p className="errorText">{formErrors.guest_address}</p> */}
                       {formErrors.guest_address && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_address}</span>
-  </div>
-)}
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_address}</span>
+                        </div>
+                      )}
 
                     </div>
 
@@ -1523,15 +1568,16 @@ export function GuestManagement() {
                         onChange={(e) =>
                           setEditGuestForm(s => ({ ...s, entry_date: e.target.value }))
                         }
+                        onBlur={() => validateSingleField(guestManagementSchema, "entry_date", editGuestForm.entry_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "entry_date", editGuestForm.entry_date, setFormErrors)}
                       />
                       {/* <p className="errorText">{formErrors.entry_date}</p> */}
                       {formErrors.entry_date && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.entry_date}</span>
-  </div>
-)}
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.entry_date}</span>
+                        </div>
+                      )}
 
                     </div>
 
@@ -1543,15 +1589,16 @@ export function GuestManagement() {
                         onChange={(value: string) =>
                           setEditGuestForm(s => ({ ...s, entry_time: value }))
                         }
+                        // onKeyUp={() => validateSingleField(guestManagementSchema, "entry_time", editGuestForm.entry_time, setFormErrors)}
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_time", editGuestForm.entry_time, setFormErrors)}
                       />
                       {/* <p className="errorText">{formErrors.entry_time}</p> */}
                       {formErrors.entry_time && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.entry_time}</span>
-  </div>
-)}
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.entry_time}</span>
+                        </div>
+                      )}
 
                     </div>
 
@@ -1568,6 +1615,7 @@ export function GuestManagement() {
                         onChange={(e) =>
                           setEditGuestForm(s => ({ ...s, exit_date: e.target.value }))
                         }
+                        onBlur={() => validateSingleField(guestManagementSchema, "exit_date", editGuestForm.exit_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "exit_date", editGuestForm.exit_date, setFormErrors)}
                       />
                       {/* <p className="errorText">{formErrors.exit_date}</p> */}
@@ -1632,7 +1680,10 @@ export function GuestManagement() {
 
             {/* ACTIONS */}
             <div className="modalActions">
-              <button onClick={() => setModalMode(null)}>Cancel</button>
+              <button onClick={() => {
+                setModalMode(null);
+                resetEditGuestState();
+              }}>Cancel</button>
 
               {modalMode === "add" ? (
                 <button className="saveBtn" onClick={() => { handleAddGuest(); console.log("button clicked") }}>

@@ -84,7 +84,7 @@ export const guestManagementSchema = z
 
     entry_date: z
       .string()
-      .regex(dateRegex, "Invalid date format (YYYY-MM-DD)"),
+      .regex(dateRegex, "Invalid date format (DD-MM-YYYY)"),
 
     entry_time: z
       .string()
@@ -92,13 +92,13 @@ export const guestManagementSchema = z
 
     exit_date: z
       .string()
-      .regex(dateRegex, "Invalid date format (YYYY-MM-DD)")
-      .optional(),
+      .regex(dateRegex, "Invalid date format (DD-MM-YYYY)"),
+      // .optional(),
 
     exit_time: z
       .string()
-      .regex(timeRegex, "Invalid time format (HH:mm)")
-      .optional(),
+      .regex(timeRegex, "Invalid time format (HH:mm)"),
+      // .optional(),
 
     status: z.enum(["Scheduled", "Entered", "Inside", "Exited", "Cancelled"]).optional(),
     purpose: z
@@ -122,9 +122,9 @@ export const guestManagementSchema = z
       organization,
       office_location,
       entry_date,
-      entry_time,
+      // entry_time,
       exit_date,
-      exit_time,
+      // exit_time,
     } = data;
 
     /* ---------- MOBILE RULES ---------- */

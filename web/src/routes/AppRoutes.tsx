@@ -21,7 +21,7 @@ import { SystemSettings } from '@/components/modules/SystemSettings/Page';
 import GuestTransportManagement from '@/components/modules/TransportManagement/Page';
 import FoodService from '@/components/modules/FoodService/Page';
 import ActivityLogPage from '@/components/modules/ActivityLog/Page';
-import NetworkManagement from '@/components/modules/NetworkManagement/Page';
+// import NetworkManagement from '@/components/modules/NetworkManagement/Page';
 
 // Common
 import Unauthorized from '@/components/common/Unauthorized';
@@ -91,14 +91,14 @@ export default function AppRoutes() {
                 }
             />
 
-            <Route
+            {/* <Route
                 path="/network-management"
                 element={
                     <ProtectedRoute permission="network.view">
                         <NetworkManagement />
                     </ProtectedRoute>
                 }
-            />
+            /> */}
 
             <Route
                 path="/info-package"
