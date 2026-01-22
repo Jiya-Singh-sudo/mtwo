@@ -38,35 +38,59 @@ export class GuestsService {
   //   if (/[\d@#$%^&*()_+=]/.test(localized)) return false;
   //   return true;
   // }
+  // async getGuestStatusCounts() {
+  //   const sql = `
+  //     SELECT io.status, COUNT(*)::int AS count
+  //     FROM t_guest_inout io
+  //     JOIN m_guest g ON g.guest_id = io.guest_id
+  //     WHERE g.is_active = TRUE
+  //     GROUP BY io.status
+  //   `;
+
+  //   const res = await this.db.query(sql);
+
+  //   const result = {
+  //     All: 0,
+  //     Scheduled: 0,
+  //     Entered: 0,
+  //     Exited: 0,
+  //   };
+
+  //   for (const row of res.rows) {
+  //     if (row.status === 'Inside') {
+  //       result.Entered += row.count; // normalize
+  //     } else if (row.status in result) {
+  //       result[row.status] += row.count;
+  //     }
+  //     result.All += row.count;
+  //   }
+
+  //   return result;
+  // }
   async getGuestStatusCounts() {
     const sql = `
-      SELECT io.status, COUNT(*)::int AS count
-      FROM t_guest_inout io
-      JOIN m_guest g ON g.guest_id = io.guest_id
+      SELECT
+        COUNT(DISTINCT g.guest_id)::int AS all_guests,
+        COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+        COUNT(*) FILTER (WHERE io.status IN ('Entered', 'Inside'))::int AS entered,
+        COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited
+      FROM m_guest g
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+        AND io.is_active = TRUE
       WHERE g.is_active = TRUE
-      GROUP BY io.status
     `;
 
-    const res = await this.db.query(sql);
+    const { rows } = await this.db.query(sql);
 
-    const result = {
-      All: 0,
-      Scheduled: 0,
-      Entered: 0,
-      Exited: 0,
+    return {
+      All: rows[0].all_guests,
+      Scheduled: rows[0].scheduled,
+      Entered: rows[0].entered,
+      Exited: rows[0].exited,
     };
-
-    for (const row of res.rows) {
-      if (row.status === 'Inside') {
-        result.Entered += row.count; // normalize
-      } else if (row.status in result) {
-        result[row.status] += row.count;
-      }
-      result.All += row.count;
-    }
-
-    return result;
   }
+
 
   // create guest (transactional)
   async createFullGuest(payload: {
@@ -305,7 +329,6 @@ export class GuestsService {
     }
   }
 
-
   async findActiveGuestsWithInOut(params: {
     page: number;
     limit: number;
@@ -322,6 +345,7 @@ export class GuestsService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
+    
     const values: any[] = [];
     let idx = 1;
 
@@ -372,17 +396,18 @@ export class GuestsService {
 
     /* ---------------- COUNT QUERY ---------------- */
     const countSql = `
-      SELECT COUNT(*)::int AS total
-      FROM t_guest_inout io
-      JOIN m_guest g ON g.guest_id = io.guest_id
+      SELECT COUNT(DISTINCT g.guest_id)::int AS total
+      FROM m_guest g
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
       LEFT JOIN t_guest_designation d
         ON d.guest_id = g.guest_id
         AND d.is_current = TRUE
-        AND d.is_active = TRUE
       LEFT JOIN m_guest_designation md
         ON md.designation_id = d.designation_id
-      WHERE ${where.join(' AND ')}
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     `;
+
 
     /* ---------------- DATA QUERY ---------------- */
     const dataSql = `
@@ -412,15 +437,17 @@ export class GuestsService {
         io.purpose,
         io.room_id
 
-      FROM t_guest_inout io
-      JOIN m_guest g ON g.guest_id = io.guest_id
+      FROM m_guest g
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+        AND io.is_active = TRUE
       LEFT JOIN t_guest_designation d
         ON d.guest_id = g.guest_id
         AND d.is_current = TRUE
-        AND d.is_active = TRUE
       LEFT JOIN m_guest_designation md
         ON md.designation_id = d.designation_id
-      WHERE ${where.join(' AND ')}
+
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY ${sortColumn} ${sortDirection}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
