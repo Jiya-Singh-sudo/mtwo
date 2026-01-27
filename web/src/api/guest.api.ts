@@ -38,6 +38,13 @@ export async function createGuest(payload: { guest: any; designation?: any; inou
 export async function updateGuest(id: number | string, payload: any) {
   return safePatch(`/guests/${id}`, payload);
 }
+export async function exitGuestInOut(inoutId: string) {
+  return safePatch(`/guests/inout/${inoutId}/exit`, {});
+}
+
+export async function cancelGuestInOut(inoutId: string) {
+  return safePatch(`/guests/inout/${inoutId}/cancel`, {});
+}
 
 export async function softDeleteGuest(id: number | string) {
   return safeDelete(`/guests/${id}`);

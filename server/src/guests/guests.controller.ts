@@ -51,10 +51,10 @@ export class GuestsController {
   // soft delete guest + optionally soft delete inout
   @Delete(':id')
   async softDelete(@Param('id') id: string, @Req() req: any) {
-    const user = req.user?.username || 'system';
+    const user = req.user?.username || 1;
     const ip = req.ip || '0.0.0.0';
     // soft delete all active inout rows for this guest
-    await this.service.softDeleteAllGuestInOuts(String(id), user, ip);
+    await this.service.softDeleteGuest(String(id), user, ip);
     return this.service.softDeleteGuest(String(id), user, ip);
   }
     @Get('checked-in-without-vehicle')
@@ -62,5 +62,14 @@ export class GuestsController {
     return this.service.findCheckedInWithoutVehicle();
   }
 
+  @Patch('inout/:id/exit')
+  async exitGuest(@Param('id') id: string, @Req() req: any) {
+    return this.service.updateGuestInOut(id, { status: 'Exited' });
+  }
+
+  @Patch('inout/:id/cancel')
+  async cancelGuest(@Param('id') id: string, @Req() req: any) {
+    return this.service.updateGuestInOut(id, { status: 'Cancelled' });
+  }
 
 }

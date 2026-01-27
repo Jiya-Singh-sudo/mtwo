@@ -484,6 +484,55 @@ export class GuestsService {
     return r.rows[0];
   }
 
+async updateGuestInOut(
+  inoutId: string,
+  payload: {
+    entry_date?: string;
+    entry_time?: string;
+    exit_date?: string;
+    exit_time?: string;
+    status?: 'Scheduled' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
+  },
+  user = 'system',
+  ip = '0.0.0.0'
+) {
+  const fields: string[] = [];
+  const values: any[] = [];
+  let idx = 1;
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined) continue;
+    fields.push(`${key} = $${idx}`);
+    values.push(value);
+    idx++;
+  }
+
+  if (fields.length === 0) {
+    throw new BadRequestException('No fields to update');
+  }
+
+  fields.push(`updated_at = NOW()`);
+  fields.push(`updated_by = $${idx}`);
+  values.push(user);
+  idx++;
+
+  fields.push(`updated_ip = $${idx}`);
+  values.push(ip);
+  idx++;
+
+  const sql = `
+    UPDATE t_guest_inout
+    SET ${fields.join(', ')}
+    WHERE inout_id = $${idx}
+      AND is_active = TRUE
+    RETURNING *;
+  `;
+
+  values.push(inoutId);
+
+  const res = await this.db.query(sql, values);
+  return res.rows[0];
+}
 
   async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `

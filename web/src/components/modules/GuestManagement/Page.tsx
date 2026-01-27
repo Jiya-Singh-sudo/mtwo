@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
-import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestStatusCounts } from "@/api/guest.api";
+import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestStatusCounts, exitGuestInOut, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
-import { updateGuestInOut, softDeleteGuestInOut } from "@/api/guestInOut.api";
+import { updateGuestInOut} from "@/api/guestInOut.api";
 import { guestManagementSchema } from "@/validation/guestManagement.validation";
 // import { designationSchema } from "@/validation/designation.validation";
 // import { guestInOutSchema } from "@/validation/guestInOut.validation";
@@ -12,7 +12,7 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import type { ActiveGuestRow } from "../../../types/guests";
 import "./GuestManagementModals.css";
 import { getActiveDesignationList } from "@/api/designation.api";
-import { formatSeparate, formatTime, formatDate } from "@/utils/dateTime";
+import { formatSeparate, formatTime, formatDate, toDateInputValue } from "@/utils/dateTime";
 import TimePicker12h from "@/components/common/TimePicker12h";
 import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
 import { StatCard } from "@/components/ui/StatCard";
@@ -441,6 +441,10 @@ export function GuestManagement() {
   }
 
   function openEdit(g: ActiveGuestRow) {
+    console.log("Raw entry_date from DB:", g.entry_date);
+  console.log("Raw exit_date from DB:", g.exit_date);
+  console.log("After toDateInputValue (entry):", toDateInputValue(g.entry_date));
+  console.log("After toDateInputValue (exit):", toDateInputValue(g.exit_date));
     setFormErrors({});
     setSelectedGuest(g);
 
@@ -457,9 +461,9 @@ export function GuestManagement() {
       organization: g.organization || "",
       office_location: g.office_location || "",
 
-      entry_date: g.entry_date ? g.entry_date.toString().split('T')[0] : "",
+      entry_date: toDateInputValue(g.entry_date),
       entry_time: g.entry_time ? g.entry_time.slice(0, 5) : "",
-      exit_date: g.exit_date ? g.exit_date.toString().split('T')[0] : "",
+      exit_date: toDateInputValue(g.exit_date),
       exit_time: g.exit_time ? g.exit_time.slice(0, 5) : "",
 
       status: g.inout_status || "Scheduled"
@@ -570,23 +574,41 @@ resetEditGuestState();
     }
   }
 
+  // async function handleDelete() {
+  //   if (!selectedGuest) return;
+  //   try {
+  //     // 1) soft delete guest_inout if exists
+  //     if (selectedGuest.inout_id) {
+  //       await softDeleteGuestInOut(selectedGuest.inout_id);
+  //     }
+  //     // 2) soft delete guest row
+  //     await softDeleteGuest(selectedGuest.guest_id);
+  //     setShowDeleteConfirm(false);
+  //     await loadGuests();
+  //     await refreshStatusCounts();
+  //   } catch (err) {
+  //     console.error('delete failed', err);
+  //     alert('Failed to delete entry');
+  //   }
+  // }
   async function handleDelete() {
-    if (!selectedGuest) return;
-    try {
-      // 1) soft delete guest_inout if exists
-      if (selectedGuest.inout_id) {
-        await softDeleteGuestInOut(selectedGuest.inout_id);
-      }
-      // 2) soft delete guest row
-      await softDeleteGuest(selectedGuest.guest_id);
-      setShowDeleteConfirm(false);
-      await loadGuests();
-      await refreshStatusCounts();
-    } catch (err) {
-      console.error('delete failed', err);
-      alert('Failed to delete entry');
-    }
+  if (!selectedGuest) return;
+
+  try {
+    // ✅ ONLY delete guest
+    await softDeleteGuest(selectedGuest.guest_id);
+
+    setShowDeleteConfirm(false);
+    setSelectedGuest(null);
+
+    await loadGuests();
+    await refreshStatusCounts();
+  } catch (err) {
+    console.error("delete failed", err);
+    alert("Failed to delete guest");
   }
+}
+
 function resetEditGuestState() {
   setEditGuestForm(initialGuestForm);
   setEditGdId("");
@@ -619,24 +641,50 @@ function resetEditGuestState() {
   //     }
   //   }
   // }
-  async function confirmCancelVisit() {
-    if (!cancelGuest?.inout_id) return;
+  // async function confirmCancelVisit() {
+  //   if (!cancelGuest?.inout_id) return;
 
-    try {
-      await updateGuestInOut(cancelGuest.inout_id, {
-        status: "Cancelled",
-      });
+  //   try {
+  //     await updateGuestInOut(cancelGuest.inout_id, {
+  //       status: "Cancelled",
+  //     });
 
-      setShowCancelConfirm(false);
-      setCancelGuest(null);
+  //     setShowCancelConfirm(false);
+  //     setCancelGuest(null);
 
-      await loadGuests();
-      await refreshStatusCounts();
-    } catch (err) {
-      console.error("Cancel visit failed", err);
-      alert("Failed to cancel visit");
-    }
+  //     await loadGuests();
+  //     await refreshStatusCounts();
+  //   } catch (err) {
+  //     console.error("Cancel visit failed", err);
+  //     alert("Failed to cancel visit");
+  //   }
+  // }
+async function confirmCancelVisit() {
+  if (!cancelGuest?.inout_id) return;
+
+  try {
+    await cancelGuestInOut(cancelGuest.inout_id);
+
+    setShowCancelConfirm(false);
+    setCancelGuest(null);
+
+    await loadGuests();
+    await refreshStatusCounts();
+  } catch (err) {
+    console.error("Cancel visit failed", err);
+    alert("Failed to cancel visit");
   }
+}
+async function confirmExitVisit(inoutId: string) {
+  try {
+    await exitGuestInOut(inoutId);
+    await loadGuests();
+    await refreshStatusCounts();
+  } catch (err) {
+    console.error("Exit failed", err);
+    alert("Failed to exit guest");
+  }
+}
 
 
 
@@ -859,7 +907,6 @@ function resetEditGuestState() {
           </div>
         </div>
       )}
-
 
       {modalMode && (
         <div className="modalOverlay">

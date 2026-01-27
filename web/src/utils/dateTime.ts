@@ -17,6 +17,64 @@ export function formatDateTime(date?: string) {
     minute: "2-digit",
   });
 }
+
+export function toDateInputValue(value?: string | null): string {
+  if (!value) return "";
+  
+  // Handle ISO timestamp (2026-01-21T18:30:00.000Z)
+  if (value.includes('T') || value.includes('Z')) {
+    const date = new Date(value);
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Check if it's DD-MM-YYYY format
+  const ddmmyyyyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Check if it's already YYYY-MM-DD format
+  const yyyymmddMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmddMatch) {
+    return value;
+  }
+  
+  return "";
+}
+
+
+// function toDateInputValue(date: string | Date | null) {
+//   if (!date) return "";
+//   const d = new Date(date);
+//   return new Date(
+//     d.getTime() - d.getTimezoneOffset() * 60000
+//   ).toISOString().slice(0, 10);
+// }
+
+// function toDateInputValue(value?: string | Date | null) {
+//   if (!value) return "";
+
+//   // Case 1: ISO string → extract date part
+//   if (typeof value === "string") {
+//     // Handles: 2026-01-22T00:00:00.000Z
+//     // Handles: 2026-01-22 00:00:00
+//     if (value.includes("T")) return value.split("T")[0];
+//     if (value.includes(" ")) return value.split(" ")[0];
+//     return value; // already YYYY-MM-DD
+//   }
+
+//   // Case 2: Date object → format manually (NO toISOString)
+//   const year = value.getFullYear();
+//   const month = String(value.getMonth() + 1).padStart(2, "0");
+//   const day = String(value.getDate()).padStart(2, "0");
+
+//   return `${year}-${month}-${day}`;
+// }
+
 export function to24Hour(
   hour: number,
   minute: string,
