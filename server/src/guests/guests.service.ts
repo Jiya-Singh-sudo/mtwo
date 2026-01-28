@@ -67,29 +67,59 @@ export class GuestsService {
 
   //   return result;
   // }
+  // async getGuestStatusCounts() {
+  //   const sql = `
+  //     SELECT
+  //       COUNT(DISTINCT g.guest_id)::int AS all_guests,
+  //       COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+  //       COUNT(*) FILTER (WHERE io.status IN ('Entered', 'Inside'))::int AS entered,
+  //       COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited
+  //     FROM m_guest g
+  //     LEFT JOIN t_guest_inout io
+  //       ON io.guest_id = g.guest_id
+  //       AND io.is_active = TRUE
+  //     WHERE g.is_active = TRUE
+  //   `;
+
+  //   const { rows } = await this.db.query(sql);
+
+  //   return {
+  //     All: rows[0].all_guests,
+  //     Scheduled: rows[0].scheduled,
+  //     Entered: rows[0].entered,
+  //     Exited: rows[0].exited,
+  //   };
+  // }
   async getGuestStatusCounts() {
-    const sql = `
-      SELECT
-        COUNT(DISTINCT g.guest_id)::int AS all_guests,
-        COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
-        COUNT(*) FILTER (WHERE io.status IN ('Entered', 'Inside'))::int AS entered,
-        COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited
-      FROM m_guest g
-      LEFT JOIN t_guest_inout io
-        ON io.guest_id = g.guest_id
-        AND io.is_active = TRUE
-      WHERE g.is_active = TRUE
-    `;
+  const sql = `
+    SELECT
+      COUNT(DISTINCT g.guest_id)::int AS all,
 
-    const { rows } = await this.db.query(sql);
+      COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+      COUNT(*) FILTER (WHERE io.status = 'Entered')::int AS entered,
+      COUNT(*) FILTER (WHERE io.status = 'Inside')::int AS inside,
+      COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited,
+      COUNT(*) FILTER (WHERE io.status = 'Cancelled')::int AS cancelled
 
-    return {
-      All: rows[0].all_guests,
-      Scheduled: rows[0].scheduled,
-      Entered: rows[0].entered,
-      Exited: rows[0].exited,
-    };
-  }
+    FROM m_guest g
+    LEFT JOIN t_guest_inout io
+      ON io.guest_id = g.guest_id
+      AND io.is_active = TRUE
+    WHERE g.is_active = TRUE
+  `;
+
+  const { rows } = await this.db.query(sql);
+  const r = rows[0];
+
+  return {
+    All: r.all,
+    Scheduled: r.scheduled,
+    Entered: r.entered,
+    Inside: r.inside,
+    Exited: r.exited,
+    Cancelled: r.cancelled,
+  };
+}
 
 
   // create guest (transactional)
@@ -133,6 +163,7 @@ export class GuestsService {
       status = 'Exited';
     }
     try {
+    
       const g = payload.guest;
 
       // 1. Generate ID (seconds timestamp to fit integer)
@@ -164,11 +195,48 @@ export class GuestsService {
 
 
       // 3. Upsert m_designation
+      // let finalDesignationId = payload.designation?.designation_id;
+      // if (payload.designation?.designation_name) {
+      //   const upsertSql = `
+      //     INSERT INTO m_guest_designation (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
+      //     VALUES ($1, $2, NULL, $3, $4)
+      //     ON CONFLICT (designation_id) DO UPDATE
+      //       SET designation_name = EXCLUDED.designation_name,
+      //           updated_at = NOW(),
+      //           updated_by = EXCLUDED.inserted_by,
+      //           updated_ip = EXCLUDED.inserted_ip::inet
+      //     RETURNING *;
+      //   `;
+      //   const desRes = await this.db.query(upsertSql, [
+      //     payload.designation.designation_id,
+      //     payload.designation.designation_name,
+      //     user, ip
+      //   ]);
+      //   finalDesignationId = desRes.rows[0].designation_id;
+      // } else {
+      //   if (finalDesignationId) {
+      //     const check = await this.db.query('SELECT designation_id FROM m_guest_designation WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
+      //     if (check.rowCount === 0) {
+      //       await this.db.query(
+      //         `INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
+      //         [finalDesignationId, null, user, ip]
+      //       );
+      //     }
+      //   }
+      // }
+      // 3. Upsert m_guest_designation (FULL DATA)
+      // 3. Upsert m_guest_designation (MASTER ONLY)
       let finalDesignationId = payload.designation?.designation_id;
+
       if (payload.designation?.designation_name) {
         const upsertSql = `
-          INSERT INTO m_guest_designation (designation_id, designation_name, designation_name_local_language, inserted_by, inserted_ip)
-          VALUES ($1, $2, NULL, $3, $4)
+          INSERT INTO m_guest_designation (
+            designation_id,
+            designation_name,
+            inserted_by,
+            inserted_ip
+          )
+          VALUES ($1,$2,$3,$4)
           ON CONFLICT (designation_id) DO UPDATE
             SET designation_name = EXCLUDED.designation_name,
                 updated_at = NOW(),
@@ -176,43 +244,77 @@ export class GuestsService {
                 updated_ip = EXCLUDED.inserted_ip::inet
           RETURNING *;
         `;
+
         const desRes = await this.db.query(upsertSql, [
           payload.designation.designation_id,
           payload.designation.designation_name,
-          user, ip
+          user,
+          ip,
         ]);
+
         finalDesignationId = desRes.rows[0].designation_id;
-      } else {
-        if (finalDesignationId) {
-          const check = await this.db.query('SELECT designation_id FROM m_guest_designation WHERE designation_id = $1 LIMIT 1', [finalDesignationId]);
-          if (check.rowCount === 0) {
-            await this.db.query(
-              `INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip) VALUES ($1,$2,$3,$4)`,
-              [finalDesignationId, null, user, ip]
-            );
-          }
-        }
       }
 
+
       // 4. Create t_guest_designation
+      if (!finalDesignationId) {
+  throw new BadRequestException('Designation is required');
+}
+
+      const d = payload.designation;
       let gd_id: string | null = null;
+
       if (finalDesignationId) {
         gd_id = `GD${Date.now()}`;
-        const insertGdSql = `
-          INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
+
+        await this.db.query(
+          `
+          INSERT INTO t_guest_designation (
+            gd_id,
+            guest_id,
+            designation_id,
+            department,
+            organization,
+            office_location,
+            is_current,
+            is_active,
+            inserted_by,
+            inserted_ip
+          )
           VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
-          RETURNING *;
-        `;
-        await this.db.query(insertGdSql, [
-          gd_id,
-          guestRow.guest_id,
-          finalDesignationId,
-          payload.designation?.department || null,
-          payload.designation?.organization || null,
-          payload.designation?.office_location || null,
-          user, ip
-        ]);
+          `,
+          [
+            gd_id,
+            guestRow.guest_id,
+            finalDesignationId,
+            d?.department || null,
+            d?.organization || null,
+            d?.office_location || null,
+            user,
+            ip,
+          ]
+        );
       }
+
+
+      // let gd_id: string | null = null;
+      // if (finalDesignationId) {
+      //   gd_id = `GD${Date.now()}`;
+      //   const insertGdSql = `
+      //     INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
+      //     VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
+      //     RETURNING *;
+      //   `;
+      //   await this.db.query(insertGdSql, [
+      //     gd_id,
+      //     guestRow.guest_id,
+      //     finalDesignationId,
+      //     payload.designation?.department || null,
+      //     payload.designation?.organization || null,
+      //     payload.designation?.office_location || null,
+      //     user, ip
+      //   ]);
+      // }
 
       // 5. Create t_guest_inout
       const inout_id = `IN${Date.now()}`;
@@ -226,7 +328,7 @@ export class GuestsService {
       const insertIoSql = `
         INSERT INTO t_guest_inout
           (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, is_active, inserted_by, inserted_ip)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, TRUE, $11, $12)
+        VALUES ($1,$2,$3,$4::DATE,$5,$6::DATE,$7,$8,$9,$10, TRUE, $11, $12)
         RETURNING *;
       `;
 
@@ -252,6 +354,7 @@ export class GuestsService {
         gd_id
       };
     } catch (err) {
+        console.error('CREATE GUEST ERROR:', err);
       await this.db.query('ROLLBACK');
       throw new BadRequestException(
         err?.message || 'Guest creation failed'
@@ -429,9 +532,9 @@ export class GuestsService {
         d.is_current AS designation_is_current,
 
         io.inout_id,
-        io.entry_date,
+        io.entry_date::TEXT AS entry_date,
         io.entry_time,
-        io.exit_date,
+        io.exit_date::TEXT AS exit_date,
         io.exit_time,
         io.status AS inout_status,
         io.purpose,
@@ -471,7 +574,6 @@ export class GuestsService {
       totalCount: countResult.rows[0].total,
     };
   }
-
 
   async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `

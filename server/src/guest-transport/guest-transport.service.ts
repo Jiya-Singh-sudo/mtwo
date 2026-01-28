@@ -18,6 +18,7 @@ export class GuestTransportService {
       search,
       sortBy,
       sortOrder,
+      status,
       entryDateFrom,
       entryDateTo,
     } = params;
@@ -42,29 +43,35 @@ export class GuestTransportService {
     const where: string[] = [
       'io.is_active = TRUE',
       'g.is_active = TRUE',
-
-      /* -------- VISIBILITY WINDOW -------- */
-      `
-      (
-        /* Scheduled: today or future */
-        (
-          io.status = 'Scheduled'
-          AND io.entry_date >= CURRENT_DATE
-        )
-
-        /* Entered / Inside */
-        OR io.status IN ('Entered', 'Inside')
-
-        /* Exited: within 24 hours of checkout */
-        OR (
-          io.status = 'Exited'
-          AND NOW() <= (
-            io.exit_date + COALESCE(io.exit_time, TIME '00:00')
-          ) + INTERVAL '24 hours'
-        )
-      )
-      `,
     ];
+
+    // const where: string[] = [
+    //   'io.is_active = TRUE',
+    //   'g.is_active = TRUE',
+
+    //   /* -------- VISIBILITY WINDOW -------- */
+    //   `
+    //   (
+    //     /* Scheduled: today or future */
+    //     (
+    //       io.status = 'Scheduled'
+    //       AND io.entry_date >= CURRENT_DATE
+    //     )
+
+    //     /* Entered / Inside */
+    //     OR io.status IN ('Entered', 'Inside')
+
+    //     /* Exited: within 24 hours of checkout */
+    //     OR (
+    //       io.status = 'Exited'
+    //       AND NOW() <= (
+    //         io.exit_date + COALESCE(io.exit_time, TIME '00:00')
+    //       ) + INTERVAL '24 hours'
+    //     )
+    //   )
+        
+    //   `,
+    // ];
 
     const sqlParams: any[] = [];
     let idx = 1;
@@ -93,6 +100,13 @@ export class GuestTransportService {
     if (entryDateTo) {
       where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
       sqlParams.push(entryDateTo);
+      idx++;
+    }
+
+    /* ---------------- STATUS FILTER ---------------- */
+    if (status && status !== 'All') {
+      where.push(`io.status = $${idx}`);
+      sqlParams.push(status);
       idx++;
     }
 

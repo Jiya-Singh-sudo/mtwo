@@ -25,6 +25,33 @@ export class GuestVehicleService {
 
     return `GV${num.toString().padStart(3, '0')}`;
   }
+
+
+  private async assertGuestIsAssignable(guestId: string) {
+    const sql = `
+      SELECT io.status
+      FROM t_guest_inout io
+      WHERE io.guest_id = $1
+        AND io.is_active = TRUE
+      ORDER BY io.inserted_at DESC
+      LIMIT 1
+    `;
+
+    const res = await this.db.query(sql, [guestId]);
+
+    if (!res.rows.length) {
+      throw new Error("Guest status not found");
+    }
+
+    const status = res.rows[0].status;
+
+    if (["Exited", "Cancelled"].includes(status)) {
+      throw new Error(
+        `Cannot assign vehicle to guest with status '${status}'`
+      );
+    }
+  }
+
   async findActiveByGuest(guestId: string) {
     const sql = `
       SELECT *
@@ -136,21 +163,24 @@ export class GuestVehicleService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
+    await this.assertGuestIsAssignable(dto.guest_id);
     await this.db.query('BEGIN');
     try {
       const guestVehicleId = await this.generateGuestVehicleId();
 
       await this.db.query(`
         INSERT INTO t_guest_vehicle
-            (guest_vehicle_id, guest_id, vehicle_no, location,
+            (guest_vehicle_id, guest_id, vehicle_no, location, assigned_at, released_at,
             is_active, inserted_by, inserted_ip)
         VALUES
-            ($1,$2,$3,$4, TRUE,$5,$6)
+            ($1,$2,$3,$4, $5, $6, TRUE,$7,$8)
         `, [
         guestVehicleId,
         dto.guest_id,
         dto.vehicle_no,
         dto.location || null,
+        dto.assigned_at,
+        dto.released_at || null,
         user,
         ip
       ]);
@@ -161,6 +191,27 @@ export class GuestVehicleService {
       await this.db.query('ROLLBACK');
       throw err;
     }
+  }
+  async autoCloseExpiredAssignments(
+    user = 'system',
+    ip = '0.0.0.0'
+  ) {
+    const sql = `
+      UPDATE t_guest_vehicle
+      SET
+        is_active = FALSE,
+        updated_at = NOW(),
+        updated_by = $1,
+        updated_ip = $2
+      WHERE
+        is_active = TRUE
+        AND released_at IS NOT NULL
+        AND released_at <= NOW()
+      RETURNING guest_vehicle_id;
+    `;
+
+    const res = await this.db.query(sql, [user, ip]);
+    return res.rows;
   }
 
   // WRITE (future) — Release vehicle
@@ -178,6 +229,7 @@ export class GuestVehicleService {
         updated_by = $2,
         updated_ip = $3
       WHERE guest_vehicle_id = $1
+        AND is_active = TRUE
       RETURNING *;
     `;
     const res = await this.db.query(sql, [guestVehicleId, user, ip]);
@@ -240,6 +292,22 @@ export class GuestVehicleService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
+    const old = await this.db.query(
+      `SELECT guest_id, is_active FROM t_guest_vehicle WHERE guest_vehicle_id = $1`,
+      [oldGuestVehicleId]
+    );
+
+    if (!old.rows.length) {
+      throw new Error("Vehicle assignment not found");
+    }
+
+    if (!old.rows[0].is_active) {
+      throw new Error("Cannot reassign an expired vehicle assignment");
+    }
+
+    await this.assertGuestIsAssignable(old.rows[0].guest_id);
+
+    // await this.assertGuestIsAssignable(dto.guest_id);
     await this.db.query('BEGIN');
 
     try {
@@ -263,15 +331,17 @@ export class GuestVehicleService {
 
       await this.db.query(`
         INSERT INTO t_guest_vehicle
-            (guest_vehicle_id, guest_id, vehicle_no, location,
+            (guest_vehicle_id, guest_id, vehicle_no, location, assigned_at, released_at,
             is_active, inserted_by, inserted_ip)
         VALUES
-            ($1,$2,$3,$4, TRUE,$5,$6)
+            ($1,$2,$3,$4, $5, $6, TRUE,$7,$8)
         `, [
         guestVehicleId,
         dto.guest_id,
         dto.vehicle_no,
         dto.location || null,
+        dto.assigned_at,
+        dto.released_at || null,
         user,
         ip
       ]);

@@ -32,7 +32,7 @@ export class GuestInoutService {
     const inoutId = await this.generateInoutId();
     const sql = `
       INSERT INTO t_guest_inout (inout_id, guest_id, room_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, inserted_by, inserted_ip)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      VALUES ($1,$2,$3,$4,$5::DATE,$6,$7::DATE,$8,$9,$10,$11,$12,$13)
       RETURNING *;
     `;
     const params = [

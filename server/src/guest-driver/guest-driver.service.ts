@@ -24,6 +24,7 @@ export class GuestDriverService {
     return "GD" + next;
   }
 
+
   /**
    * Insert helper with retry logic to handle race conditions on ID generation.
    * If a unique constraint violation occurs, it regenerates the ID and retries.
@@ -48,12 +49,38 @@ export class GuestDriverService {
     }
   }
 
+  private async assertGuestIsAssignable(guestId: string) {
+    const sql = `
+      SELECT io.status
+      FROM t_guest_inout io
+      WHERE io.guest_id = $1
+        AND io.is_active = TRUE
+      ORDER BY io.inserted_at DESC
+      LIMIT 1
+    `;
+
+    const res = await this.db.query(sql, [guestId]);
+
+    if (!res.rows.length) {
+      throw new Error("Guest status not found");
+    }
+
+    const status = res.rows[0].status;
+
+    if (["Exited", "Cancelled"].includes(status)) {
+      throw new Error(`Cannot assign driver to guest with status '${status}'`);
+    }
+  }
+
   // ---------- ASSIGN DRIVER ----------
   async assignDriver(
     dto: AssignGuestDriverDto,
     user = "system",
     ip = "0.0.0.0"
   ) {
+    // 🔒 BLOCK assignment for exited / cancelled guests
+    await this.assertGuestIsAssignable(dto.guest_id);
+
     return this.createTrip(
       {
         guest_id: dto.guest_id,
@@ -315,6 +342,34 @@ export class GuestDriverService {
    * Closes a trip by setting is_active = false.
    * Note: This is NOT a delete - the record remains for audit/history.
    */
+  async autoCloseExpiredTrips(
+  user = "system",
+  ip = "0.0.0.0"
+) {
+  const sql = `
+    UPDATE t_guest_driver
+    SET
+      is_active = FALSE,
+      updated_at = NOW(),
+      updated_by = $1,
+      updated_ip = $2
+    WHERE
+      is_active = TRUE
+      AND
+        (trip_date::timestamp + start_time::time) <= NOW()
+      AND
+        drop_date IS NOT NULL
+      AND
+        drop_time IS NOT NULL
+      AND
+        (drop_date::timestamp + drop_time::time) <= NOW()
+    RETURNING guest_driver_id;
+  `;
+
+  const res = await this.db.query(sql, [user, ip]);
+  return res.rows;
+}
+
   async closeTrip(id: string, user: string, ip: string) {
     const now = new Date().toISOString();
 
@@ -393,6 +448,8 @@ export class GuestDriverService {
   ) {
     const old = await this.findOne(oldGuestDriverId);
     if (!old) throw new Error('Trip not found');
+
+    await this.assertGuestIsAssignable(old.guest_id);
 
     // Use transaction to ensure atomic operation
     await this.db.query('BEGIN');

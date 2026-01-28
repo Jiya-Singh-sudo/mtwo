@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsISO8601 } from 'class-validator';
 
 export class CreateGuestVehicleDto {
   @IsString()
@@ -10,4 +10,12 @@ export class CreateGuestVehicleDto {
   @IsOptional()
   @IsString()
   location?: string;
+
+  @IsISO8601()
+  assigned_at: string;
+
+  @IsOptional()
+  @IsISO8601()
+  released_at?: string;
+
 }
