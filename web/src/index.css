@@ -3,6 +3,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === STATUS / STATS GRID (GLOBAL) === */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .statsGrid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.required {
+  color: #DC2626;
+  margin-left: 2px;
+}
+
+.primaryBtn {
+  background: #00247D;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.secondaryBtn {
+  border: 1px solid #00247D;
+  color: #00247D;
+  padding: 10px 16px;
+  border-radius: 6px;
+}
+
+.dangerBtn {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border-radius: 6px;
+  padding: 10px 16px;
+}
+
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
 

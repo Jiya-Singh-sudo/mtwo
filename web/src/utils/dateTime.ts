@@ -20,60 +20,12 @@ export function formatDateTime(date?: string) {
 
 export function toDateInputValue(value?: string | null): string {
   if (!value) return "";
-  
-  // Handle ISO timestamp (2026-01-21T18:30:00.000Z)
-  if (value.includes('T') || value.includes('Z')) {
-    const date = new Date(value);
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-  
-  // Check if it's DD-MM-YYYY format
-  const ddmmyyyyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (ddmmyyyyMatch) {
-    const [, day, month, year] = ddmmyyyyMatch;
-    return `${year}-${month}-${day}`;
-  }
-  
-  // Check if it's already YYYY-MM-DD format
-  const yyyymmddMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (yyyymmddMatch) {
-    return value;
-  }
-  
-  return "";
+  if (value.includes("T")) return value.split("T")[0];
+  if (value.includes(" ")) return value.split(" ")[0];
+  return value;
 }
 
 
-// function toDateInputValue(date: string | Date | null) {
-//   if (!date) return "";
-//   const d = new Date(date);
-//   return new Date(
-//     d.getTime() - d.getTimezoneOffset() * 60000
-//   ).toISOString().slice(0, 10);
-// }
-
-// function toDateInputValue(value?: string | Date | null) {
-//   if (!value) return "";
-
-//   // Case 1: ISO string → extract date part
-//   if (typeof value === "string") {
-//     // Handles: 2026-01-22T00:00:00.000Z
-//     // Handles: 2026-01-22 00:00:00
-//     if (value.includes("T")) return value.split("T")[0];
-//     if (value.includes(" ")) return value.split(" ")[0];
-//     return value; // already YYYY-MM-DD
-//   }
-
-//   // Case 2: Date object → format manually (NO toISOString)
-//   const year = value.getFullYear();
-//   const month = String(value.getMonth() + 1).padStart(2, "0");
-//   const day = String(value.getDate()).padStart(2, "0");
-
-//   return `${year}-${month}-${day}`;
-// }
 
 export function to24Hour(
   hour: number,
@@ -178,3 +130,56 @@ export function toISODate(ddmmyyyy?: string | null): string | undefined {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// For the TRANSPORT MANAGEMENT MODULE
+// ==========================
+// DATE ARITHMETIC HELPERS
+// ==========================
+
+export function addDays(date: string | Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+/**
+ * Returns YYYY-MM-DD (for <input type="date">)
+ */
+export function toISODateOnly(value: Date | string): string {
+  const d = new Date(value);
+  return d.toISOString().split("T")[0];
+}
+
+/**
+ * Returns YYYY-MM-DDTHH:mm (for <input type="datetime-local">)
+ */
+export function toISOLocalDateTime(value: Date | string): string {
+  return new Date(value).toISOString().slice(0, 16);
+}
+
+/**
+ * Inclusive date range check
+ */
+export function isDateWithinRange(
+  date: string,
+  min: string,
+  max: string
+): boolean {
+  return date >= min && date <= max;
+}
+export function combineDateAndTime(
+  date?: string,
+  time?: string
+): string | undefined {
+  if (!date || !time) return undefined;
+  return `${date}T${time}:00`;
+}
+export function splitDateTime(value?: string) {
+  if (!value) return { date: "", time: "" };
+
+  const [date, time] = value.split("T");
+  return {
+    date,
+    time: time?.slice(0, 5), // HH:mm
+  };
+}
+  

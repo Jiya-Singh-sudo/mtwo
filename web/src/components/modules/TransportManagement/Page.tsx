@@ -3,21 +3,25 @@ import { Car, UserCheck, X, Trash2 } from "lucide-react";
 import "./GuestTransportManagement.css";
 import { Input } from "@/components/ui/input";
 import GuestTransportCardSkeleton from "@/components/skeletons/GuestTransportCardSkeleton";
-import { formatISTDateTime, formatISTDate, toDateTimeLocal, formatISTTime } from "../../../utils/dateTime";
-import TimePicker12h from "@/components/common/TimePicker12h"
+import { formatISTDateTime, formatISTDate, formatISTTime, addDays, toISODateOnly, toISOLocalDateTime, combineDateAndTime, splitDateTime } from "../../../utils/dateTime";
+import TimePicker12h from "@/components/common/TimePicker12h";
+import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
+import { FieldError } from "@/components/ui/FieldError";
+import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
+import { StatCard } from "@/components/ui/StatCard";
 import {
   // getActiveGuests,
   // getActiveDriverByGuest,
   // getVehicleByGuest,
   assignDriverToGuest,
   assignVehicleToGuest,
-  unassignDriver,
-  unassignVehicle,
+  // unassignDriver,
+  // unassignVehicle,
   getAssignableDrivers,
   getAssignableVehicles,
   // updateDriverTrip,
   // updateVehicleAssignment,
-  assignGuestDriver,
+  // assignGuestDriver,
   reassignVehicleToGuest,
   releaseVehicle,
   reviseGuestDriver,
@@ -27,19 +31,27 @@ import {
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { GuestTransportRow } from "../../../types/guestTransport";
 import { AssignGuestDriverPayload } from "../../../types/guestDriver";
-import { AssignGuestVehiclePayload } from "../../../types/guestVehicle";
+import { VehicleDateTimeParts } from "../../../types/guestVehicle";
 import { AssignableDriver } from "../../../types/drivers";
 import { AssignableVehicle } from "../../../types/vehicles";
 import { assignDriverSchema, assignVehicleSchema } from "@/validation/transportAssignment.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
 // import { ActiveGuestRow } from "../../../types/guests";
+import { fetchGuestStatusCounts } from "@/api/guest.api";
 
 function GuestTransportManagement() {
 
-  const today = new Date();
-  const currentYear = today.getFullYear();
+  // const today = new Date();
+  // const currentYear = today.getFullYear();
+  const [assignWindow, setAssignWindow] = useState<{
+    minDate: string;   // YYYY-MM-DD
+    maxDate: string;   // YYYY-MM-DD
+    minDateTime: string; // YYYY-MM-DDTHH:mm
+    maxDateTime: string; // YYYY-MM-DDTHH:mm
+  } | null>(null);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   /* =======================
      PAGE STATE
@@ -82,19 +94,38 @@ function GuestTransportManagement() {
     drop_time: "",
     trip_status: "Scheduled"
   });
-  const minDate = `${currentYear}-01-01`;
-  const maxDate = `${currentYear + 1}-12-31`;
+  // const minDate = `${currentYear}-01-01`;
+  // const maxDate = `${currentYear + 1}-12-31`;
   /* =======================
      ASSIGN VEHICLE MODAL
      ======================= */
 
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [vehicles, setVehicles] = useState<AssignableVehicle[]>([]);
-  const [vehicleForm, setVehicleForm] = useState<AssignGuestVehiclePayload>({
-    guest_id: "",
-    vehicle_no: "",
-    location: ""
-  });
+  // const [vehicleForm, setVehicleForm] = useState<AssignGuestVehiclePayload & VehicleDateTimeParts>({
+  //   guest_id: "",
+  //   vehicle_no: "",
+  //   location: "", 
+  //   assigned_date: "",
+  //   assigned_time: "",
+  //   released_date: "",
+  //   released_time: "",
+  // });
+  const [vehicleForm, setVehicleForm] =
+    useState<VehicleDateTimeParts & {
+      guest_id: string;
+      vehicle_no: string;
+      location?: string;
+    }>({
+      guest_id: "",
+      vehicle_no: "",
+      location: "",
+      assigned_date: "",
+      assigned_time: "",
+      released_date: "",
+      released_time: "",
+    });
+
 
   /* =======================
      EDIT DRIVER MODAL
@@ -184,32 +215,32 @@ function GuestTransportManagement() {
 
           driver: row.driver_id
             ? {
-                guest_driver_id: row.guest_driver_id,
-                driver_id: row.driver_id,
-                driver_name: row.driver_name,
-                driver_contact: row.driver_contact,
-                pickup_location: row.pickup_location,
-                drop_location: row.drop_location,
-                trip_date: row.trip_date,
-                start_time: row.start_time,
-                end_time: row.end_time,
-                drop_date: row.drop_date,
-                drop_time: row.drop_time,
-                trip_status: row.trip_status,
-              }
+              guest_driver_id: row.guest_driver_id,
+              driver_id: row.driver_id,
+              driver_name: row.driver_name,
+              driver_contact: row.driver_contact,
+              pickup_location: row.pickup_location,
+              drop_location: row.drop_location,
+              trip_date: row.trip_date,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              drop_date: row.drop_date,
+              drop_time: row.drop_time,
+              trip_status: row.trip_status,
+            }
             : null,
 
           vehicle: row.vehicle_no
             ? {
-                guest_vehicle_id: row.guest_vehicle_id,
-                vehicle_no: row.vehicle_no,
-                vehicle_name: row.vehicle_name,
-                model: row.model,
-                color: row.color,
-                location: row.location,
-                assigned_at: row.assigned_at,
-                released_at: row.released_at,
-              }
+              guest_vehicle_id: row.guest_vehicle_id,
+              vehicle_no: row.vehicle_no,
+              vehicle_name: row.vehicle_name,
+              model: row.model,
+              color: row.color,
+              location: row.location,
+              assigned_at: row.assigned_at,
+              released_at: row.released_at,
+            }
             : null,
         }));
         setRows(adaptedRows);
@@ -221,12 +252,38 @@ function GuestTransportManagement() {
     load();
   }, [GuestTable.query]);
 
+  useEffect(() => {
+    if (driverModalOpen || editDriverModalOpen) {
+      setFormErrors({});
+    }
+  }, [driverModalOpen, editDriverModalOpen]);
+
+  useEffect(() => {
+    if (vehicleModalOpen || editVehicleModalOpen) {
+      setFormErrors({});
+    }
+  }, [vehicleModalOpen, editVehicleModalOpen]);
+  useEffect(() => {
+    fetchGuestStatusCounts().then(setStatusCounts);
+  }, []);
+
   /* =======================
      DRIVER ACTIONS
      ======================= */
 
-  async function openAssignDriver(guest_id: string) {
+  async function openAssignDriver(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
+    if (isGuestLocked(inout_status)) return;
+
     const list = await getAssignableDrivers();
+    const min = addDays(entry_date, -1);
+    const max = addDays(exit_date, 1);
+
+    setAssignWindow({
+      minDate: toISODateOnly(min),
+      maxDate: toISODateOnly(max),
+      minDateTime: toISOLocalDateTime(min),
+      maxDateTime: toISOLocalDateTime(max),
+    });
     setDrivers(list);
     setDriverForm({
       guest_id: String(guest_id),
@@ -240,6 +297,7 @@ function GuestTransportManagement() {
       drop_time: "",
       trip_status: "Scheduled"
     });
+    setFormErrors({});
     setDriverModalOpen(true);
   }
 
@@ -269,34 +327,124 @@ function GuestTransportManagement() {
       end_time: driverForm.end_time || undefined,
       trip_status: driverForm.trip_status,
     });
-
-
-
+    setFormErrors({});
     setDriverModalOpen(false);
     GuestTable.setPage(1);
   }
-
 
   /* =======================
      VEHICLE ACTIONS
      ======================= */
 
-  async function openAssignVehicle(guest_id: string) {
+  async function openAssignVehicle(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
+    if (isGuestLocked(inout_status)) return;
     const list = await getAssignableVehicles();
     setVehicles(list);
-    setVehicleForm({
+
+    const min = addDays(entry_date, -1);
+    const max = addDays(exit_date, 1);
+
+    setAssignWindow({
+      minDate: toISODateOnly(min),
+      maxDate: toISODateOnly(max),
+      minDateTime: toISOLocalDateTime(min),
+      maxDateTime: toISOLocalDateTime(max),
+    });
+    setVehicleForm(prev => ({
+      ...prev,
       guest_id: String(guest_id),
       vehicle_no: "",
-      location: ""
-    });
+      location: "",
+    }));
+
+    setFormErrors({});
     setVehicleModalOpen(true);
   }
-
   async function submitAssignVehicle() {
-    await assignVehicleToGuest(vehicleForm);
+    const assigned_at = combineDateAndTime(
+      vehicleForm.assigned_date,
+      vehicleForm.assigned_time
+    );
+
+    const released_at = combineDateAndTime(
+      vehicleForm.released_date,
+      vehicleForm.released_time
+    );
+
+    if (!assigned_at) {
+      alert("Assigned date and time are required");
+      return;
+    }
+
+    await assignVehicleToGuest({
+      guest_id: vehicleForm.guest_id,
+      vehicle_no: vehicleForm.vehicle_no,
+      location: vehicleForm.location || undefined,
+      assigned_at,
+      released_at: released_at || undefined,
+    });
+
     setVehicleModalOpen(false);
     GuestTable.setPage(1);
   }
+
+
+  // async function submitAssignVehicle() {
+  //   const assigned_at = combineDateAndTime(
+  //     vehicleForm.assigned_date,
+  //     vehicleForm.assigned_time
+  //   );
+
+  //   const released_at = combineDateAndTime(
+  //     vehicleForm.released_date,
+  //     vehicleForm.released_time
+  //   );
+
+  //   if (!assigned_at) {
+  //     alert("Assigned date and time are required");
+  //     return;
+  //   }
+
+  //   await assignVehicleToGuest({
+  //     guest_id: vehicleForm.guest_id,
+  //     vehicle_no: vehicleForm.vehicle_no,
+  //     location: vehicleForm.location,
+  //     assigned_at,
+  //     released_at,
+  //   });
+  //   setFormErrors({});
+  //   setVehicleModalOpen(false);
+  //   GuestTable.setPage(1);
+  // }
+
+  // async function submitAssignVehicle() {
+  //   const assigned_at = combineDateAndTime(
+  //     vehicleForm.assigned_date,
+  //     vehicleForm.assigned_time
+  //   );
+
+  //   const released_at = combineDateAndTime(
+  //     vehicleForm.released_date,
+  //     vehicleForm.released_time
+  //   );
+
+  //   await assignVehicleToGuest({
+  //     guest_id: vehicleForm.guest_id,
+  //     vehicle_no: vehicleForm.vehicle_no,
+  //     location: vehicleForm.location,
+  //     assigned_at,
+  //     released_at,
+  //   });
+
+  //   setVehicleModalOpen(false);
+  //   GuestTable.setPage(1);
+  // }
+
+  // async function submitAssignVehicle() {
+  //   await assignVehicleToGuest(vehicleForm);
+  //   setVehicleModalOpen(false);
+  //   GuestTable.setPage(1);
+  // }
 
   /* =======================
      EDIT DRIVER ACTIONS
@@ -323,8 +471,8 @@ function GuestTransportManagement() {
       trip_status: driverForm.trip_status,
     });
 
-
     setEditDriverModalOpen(false);
+    setFormErrors({});
     setEditingGuestDriverId(null);
     GuestTable.setPage(1);
   }
@@ -335,17 +483,47 @@ function GuestTransportManagement() {
   async function submitEditVehicle() {
     if (!editingGuestVehicleId) return;
 
-  await reassignVehicleToGuest(editingGuestVehicleId, {
-    guest_id: vehicleForm.guest_id,
-    vehicle_no: vehicleForm.vehicle_no,
-    location: vehicleForm.location,
-  });
+    const assigned_at = combineDateAndTime(
+      vehicleForm.assigned_date,
+      vehicleForm.assigned_time
+    );
 
+    const released_at = combineDateAndTime(
+      vehicleForm.released_date,
+      vehicleForm.released_time
+    );
+
+    if (!assigned_at) {
+      alert("Assigned date and time are required");
+      return;
+    }
+
+    await reassignVehicleToGuest(editingGuestVehicleId, {
+      guest_id: vehicleForm.guest_id,
+      vehicle_no: vehicleForm.vehicle_no,
+      location: vehicleForm.location,
+      assigned_at,
+      released_at: released_at || undefined,
+    });
 
     setEditVehicleModalOpen(false);
     setEditingGuestVehicleId(null);
     GuestTable.setPage(1);
   }
+
+  // async function submitEditVehicle() {
+  //   if (!editingGuestVehicleId) return;
+
+  //   await reassignVehicleToGuest(editingGuestVehicleId, {
+  //     guest_id: vehicleForm.guest_id,
+  //     vehicle_no: vehicleForm.vehicle_no,
+  //     location: vehicleForm.location,
+  //   });
+  //   setFormErrors({});
+  //   setEditVehicleModalOpen(false);
+  //   setEditingGuestVehicleId(null);
+  //   GuestTable.setPage(1);
+  // }
 
   /* =======================
      SOFT DELETE FROM UI
@@ -356,18 +534,63 @@ function GuestTransportManagement() {
     );
   }
 
+  function isGuestLocked(status?: string | null) {
+    return status === "Exited" || status === "Cancelled";
+  }
+
+  function isVehicleExpired(vehicle: any) {
+    if (!vehicle?.released_at) return false;
+    return new Date(vehicle.released_at) <= new Date();
+  }
+
+  function isDriverExpired(driver: any) {
+    if (!driver?.drop_date || !driver?.drop_time) return false;
+
+    const dropDateTime = new Date(
+      `${driver.drop_date}T${driver.drop_time}+05:30`
+    );
+
+    return dropDateTime <= new Date();
+  }
+
   /* =======================
      RENDER
      ======================= */
 
   return (
     <>
-      <div className="guest-transport space-y-6">
+      <div className="guest-transport">
         <div>
           <h2 className="text-[#00247D]">Guest Transport Management</h2>
           <p className="text-sm text-gray-600">
             Assign drivers and vehicles to checked-in guests
           </p>
+        </div>
+
+        <div className="statsGrid">
+          {GUEST_STATUS_CARDS.map(card => (
+            <StatCard
+              key={card.key}
+              title={card.label}
+              value={
+                card.key === "All"
+                  ? statusCounts?.All ?? 0
+                  : statusCounts?.[card.key] ?? 0
+              }
+              icon={card.icon}
+              variant={card.color}
+              active={GuestTable.query.status === card.key}
+              onClick={() => {
+                GuestTable.batchUpdate(prev => ({
+                  ...prev,
+                  status: card.key,
+                  page: 1,
+                  entryDateFrom: "",
+                  entryDateTo: "",
+                }));
+              }}
+            />
+          ))}
         </div>
 
         {/* {GuestTable.loading && <p>Loading...</p>} */}
@@ -390,7 +613,11 @@ function GuestTransportManagement() {
               <select
                 className="nicInput"
                 value={GuestTable.query.status}
-                onChange={(e) => GuestTable.setStatus(e.target.value)}
+                onChange={(e) => {
+                  GuestTable.setStatus(e.target.value);
+                  GuestTable.setPage(1);
+                  setAssignmentFilter("ALL");
+                }}
               >
                 <option value="All">All</option>
                 <option value="Entered">Entered</option>
@@ -404,6 +631,8 @@ function GuestTransportManagement() {
               <label>From</label>
               <input
                 type="date"
+                min={assignWindow?.minDate}
+                max={assignWindow?.maxDate}
                 className="nicInput"
                 value={GuestTable.query.entryDateFrom}
                 onChange={(e) => GuestTable.setEntryDateFrom(e.target.value)}
@@ -414,6 +643,8 @@ function GuestTransportManagement() {
               <label>To</label>
               <input
                 type="date"
+                min={assignWindow?.minDate}
+                max={assignWindow?.maxDate}
                 className="nicInput"
                 value={GuestTable.query.entryDateTo}
                 onChange={(e) => GuestTable.setEntryDateTo(e.target.value)}
@@ -428,7 +659,11 @@ function GuestTransportManagement() {
                   limit: GuestTable.query.limit,
                   sortBy: "entry_date",
                   sortOrder: "desc",
+                  status: "All",
+                  entryDateFrom: "",
+                  entryDateTo: "",
                 }));
+                setAssignmentFilter("ALL");
               }}
             >
               Reset
@@ -495,7 +730,20 @@ function GuestTransportManagement() {
                   <div key={guest.guest_id} className="transportCard">
 
                     {/* DELETE ICON (top-right) */}
-                    <button
+                    {!isGuestLocked(guest.inout_status) && (
+                      <button
+                        className="cardDeleteBtn"
+                        title="Delete assignment"
+                        onClick={() => {
+                          setDeleteGuestId(String(guest.guest_id));
+                          setDeleteConfirmOpen(true);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+
+                    {/* <button
                       className="cardDeleteBtn"
                       title="Delete assignment"
                       onClick={() => {
@@ -504,7 +752,7 @@ function GuestTransportManagement() {
                       }}
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </button> */}
 
                     {/* ================= GUEST HEADER ================= */}
                     <div className="guestHeader">
@@ -561,46 +809,74 @@ function GuestTransportManagement() {
                           </div>
 
                           <div className="actionRow">
-                            <button
-                              className="secondaryBtn"
-                              onClick={() => {
-                                setEditingGuestDriverId(driver.guest_driver_id);
-                                setDriverForm({
-                                  guest_id: String(guest.guest_id),
-                                  driver_id: driver.driver_id,
-                                  pickup_location: driver.pickup_location ?? "",
-                                  drop_location: driver.drop_location ?? "",
-                                  trip_date: driver.trip_date,
-                                  start_time: driver.start_time,
-                                  end_time: driver.end_time ?? "",
-                                  drop_date: driver.drop_date,
-                                  drop_time: driver.drop_time,
-                                  trip_status: driver.trip_status,
-                                });
-                                setEditDriverModalOpen(true);
-                              }}
-                            >
-                              Edit Driver Trip
-                            </button>
+                            {!isGuestLocked(guest.inout_status || undefined) && !isDriverExpired(driver) ? (
+                              <>
+                                <button
+                                  className="secondaryBtn"
+                                  onClick={() => {
+                                    setEditingGuestDriverId(driver.guest_driver_id);
+                                    setDriverForm({
+                                      guest_id: String(guest.guest_id),
+                                      driver_id: driver.driver_id,
+                                      pickup_location: driver.pickup_location ?? "",
+                                      drop_location: driver.drop_location ?? "",
+                                      trip_date: driver.trip_date,
+                                      start_time: driver.start_time,
+                                      end_time: driver.end_time ?? "",
+                                      drop_date: driver.drop_date,
+                                      drop_time: driver.drop_time,
+                                      trip_status: driver.trip_status,
+                                    });
+                                    setEditDriverModalOpen(true);
+                                  }}
+                                >
+                                  Edit Driver Trip
+                                </button>
 
-                            <button
-                              className="dangerBtn"
-                              onClick={async () => {
-                                await closeGuestDriver(driver.guest_driver_id);
-                                GuestTable.setPage(1);
-                              }}
-                            >
-                              Unassign Driver
-                            </button>
+                                <button
+                                  className="dangerBtn"
+                                  onClick={async () => {
+                                    await closeGuestDriver(driver.guest_driver_id);
+                                    GuestTable.setPage(1);
+                                  }}
+                                >
+                                  Unassign Driver
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs uppercase tracking-wide text-gray-400">
+                                Completed
+                              </span>
+                            )}
                           </div>
+
+
                         </>
                       ) : (
-                        <button
-                          className="primaryBtn mt-2"
-                          onClick={() => openAssignDriver(String(guest.guest_id))}
-                        >
-                          Assign Driver
-                        </button>
+                        !isGuestLocked(guest.inout_status || undefined) ? (
+                          <button
+                            className="primaryBtn mt-2"
+                            onClick={() => {
+                              if (!guest.entry_date || !guest.exit_date) {
+                                alert("Guest must have check-in and check-out dates before assignment.");
+                                return;
+                              }
+
+                              openAssignDriver(
+                                String(guest.guest_id),
+                                guest.entry_date,
+                                guest.exit_date,
+                                guest.inout_status
+                              );
+                            }}
+                          >
+                            Assign Driver
+                          </button>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            Guest exited / cancelled
+                          </span>
+                        )
                       )}
                     </div>
 
@@ -630,41 +906,73 @@ function GuestTransportManagement() {
                           </div>
 
                           <div className="actionRow">
-                            <button
-                              className="secondaryBtn"
-                              onClick={() => {
-                                setEditingGuestVehicleId(vehicle.guest_vehicle_id);
-                                setVehicleForm({
-                                  guest_id: String(guest.guest_id),
-                                  vehicle_no: vehicle.vehicle_no,
-                                  location: vehicle.location ?? "",
-                                  assigned_at: vehicle.assigned_at,
-                                  released_at: vehicle.released_at ?? undefined,
-                                });
-                                setEditVehicleModalOpen(true);
-                              }}
-                            >
-                              Edit Vehicle Assignment
-                            </button>
+                            {!isGuestLocked(guest.inout_status || undefined) && !isVehicleExpired(vehicle) ? (
+                              <>
+                                <button
+                                  className="secondaryBtn"
+                                  onClick={() => {
+                                    setEditingGuestVehicleId(vehicle.guest_vehicle_id);
+                                    const assigned = splitDateTime(vehicle.assigned_at);
+                                    const released = splitDateTime(vehicle.released_at ?? undefined);
+                                    setVehicleForm({
+                                      guest_id: String(guest.guest_id),
+                                      vehicle_no: vehicle.vehicle_no,
+                                      location: vehicle.location ?? "",
+                                      assigned_date: assigned.date,
+                                      assigned_time: assigned.time,
+                                      released_date: released.date,
+                                      released_time: released.time,
+                                    });
+                                    setEditVehicleModalOpen(true);
+                                  }}
+                                >
+                                  Edit Vehicle Assignment
+                                </button>
 
-                            <button
-                              className="dangerBtn"
-                              onClick={async () => {
-                                await releaseVehicle(vehicle.guest_vehicle_id);
-                                GuestTable.setPage(1); // Reset to page 1
-                              }}
-                            >
-                              Unassign Vehicle
-                            </button>
+                                <button
+                                  className="dangerBtn"
+                                  onClick={async () => {
+                                    await releaseVehicle(vehicle.guest_vehicle_id);
+                                    GuestTable.setPage(1);
+                                  }}
+                                >
+                                  Unassign Vehicle
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-sm text-gray-500">
+                                Assignment completed / guest closed
+                              </span>
+                            )}
                           </div>
+
+
                         </>
                       ) : (
-                        <button
-                          className="primaryBtn"
-                          onClick={() => openAssignVehicle(String(guest.guest_id))}
-                        >
-                          Assign Vehicle
-                        </button>
+                        !isGuestLocked(guest.inout_status || undefined) ? (
+                          <button
+                            className="primaryBtn"
+                            onClick={() => {
+                              if (!guest.entry_date || !guest.exit_date) {
+                                alert("Guest must have check-in and check-out dates before assignment.");
+                                return;
+                              }
+
+                              openAssignVehicle(
+                                String(guest.guest_id),
+                                guest.entry_date,
+                                guest.exit_date,
+                                guest.inout_status
+                              );
+                            }}
+                          >
+                            Assign Vehicle
+                          </button>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            Guest exited / cancelled
+                          </span>
+                        )
                       )}
                     </div>
 
@@ -704,281 +1012,349 @@ function GuestTransportManagement() {
       </div>
 
       {/* ASSIGN DRIVER MODAL */}
-      {driverModalOpen && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            <div className="nicModalHeader">
-              <h2>Assign Driver</h2>
-              <button onClick={() => setDriverModalOpen(false)}>
-                <X />
-              </button>
-            </div>
+      {
+        driverModalOpen && (
+          <div className="modalOverlay">
+            <div className="nicModal">
+              <div className="nicModalHeader">
+                <h2>Assign Driver</h2>
+                <button onClick={() => { setDriverModalOpen(false); setFormErrors({}); }}>
+                  <X />
+                </button>
+              </div>
 
-            <div className="nicForm">
-              <select
-                className="nicInput"
-                value={driverForm.driver_id}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, driver_id: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignDriverSchema, "driver_id",driverForm.driver_id,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema, "driver_id",driverForm.driver_id,setFormErrors)}
-              >
-
-                <option value="">Select Driver</option>
-                {drivers.map((d) => (
-                  <option key={d.driver_id} value={d.driver_id}>
-                    {d.driver_name}
-                  </option>
-                ))}
-              </select>
-              <p className="errorText">{formErrors.driver_id}</p>
-
-
-              <input
-                className="nicInput"
-                placeholder="Pickup Location"
-                value={driverForm.pickup_location}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, pickup_location: e.target.value })
-                }
-                maxLength={300}
-                onBlur={() => validateSingleField(assignDriverSchema, "pickup_location",driverForm.pickup_location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_location",driverForm.pickup_location,setFormErrors)}
+              <FormErrorAlert
+                errors={formErrors}
+                onClose={() => setFormErrors({})}
               />
-              <p className="errorText">{formErrors.pickup_location}</p>
 
 
-              <input
-                className="nicInput"
-                placeholder="Drop Location"
-                value={driverForm.drop_location}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, drop_location: e.target.value })
-                }
-                maxLength={300}
-                onBlur={() => validateSingleField(assignDriverSchema, "drop_location",driverForm.drop_location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema, "drop_location",driverForm.drop_location,setFormErrors)}
-              />
-              <p className="errorText">{formErrors.drop_location}</p>
+              <div className="nicForm">
+                <select
+                  className="nicInput"
+                  value={driverForm.driver_id}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, driver_id: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors)}
+                >
 
-              <h4>Pickup Schedule</h4>
-
-              <input type="date" className="nicInput"
-                min={minDate}
-                max={maxDate}
-                value={driverForm.trip_date}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, trip_date: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignDriverSchema, "pickup_date",driverForm.trip_date,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_date",driverForm.trip_date,setFormErrors)}
-              />
-              <p className="errorText">{formErrors.pickup_date}</p>
+                  <option value="">Select Driver</option>
+                  {drivers.map((d) => (
+                    <option key={d.driver_id} value={d.driver_id}>
+                      {d.driver_name}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={formErrors.driver_id} />
+                {/* <p className="errorText">{formErrors.driver_id}</p> */}
 
 
-              <TimePicker12h
-                label="From Time"
-                onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
-              />
-              {/* <p className="errorText">{formErrors.pickup_time_from}</p> */}
+                <input
+                  className="nicInput"
+                  placeholder="Pickup Location"
+                  value={driverForm.pickup_location}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, pickup_location: e.target.value })
+                  }
+                  maxLength={300}
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_location", driverForm.pickup_location, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_location", driverForm.pickup_location, setFormErrors)}
+                />
+                <FieldError message={formErrors.pickup_location} />
+                {/* <p className="errorText">{formErrors.pickup_location}</p> */}
 
-{/* 
+                <input
+                  className="nicInput"
+                  placeholder="Drop Location"
+                  value={driverForm.drop_location}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, drop_location: e.target.value })
+                  }
+                  maxLength={300}
+                  onBlur={() => validateSingleField(assignDriverSchema, "drop_location", driverForm.drop_location, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_location", driverForm.drop_location, setFormErrors)}
+                />
+                <FieldError message={formErrors.drop_location} />
+                {/* <p className="errorText">{formErrors.drop_location}</p> */}
+
+                <h4>Pickup Schedule</h4>
+
+                <input type="date" className="nicInput"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  value={driverForm.trip_date}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, trip_date: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.pickup_date} />
+                {/* <p className="errorText">{formErrors.pickup_date}</p> */}
+
+                <TimePicker12h
+                  label="From Time"
+                  onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+                />
+                {/* <p className="errorText">{formErrors.pickup_time_from}</p> */}
+
+                {/* 
               <TimePicker12h
                 label="To Time"
                 onChange={(v) => setDriverForm({ ...driverForm, end_time: v })}
               /> */}
-              {/* <p className="errorText">{formErrors.vehicle_number}</p> */}
+                {/* <p className="errorText">{formErrors.vehicle_number}</p> 
+              <FieldError message={formErrors.end_time} />*/}
 
-              <hr />
+                <hr />
 
-              <h4>Drop Details</h4>
+                <h4>Drop Details</h4>
 
-              <input
-                type="date"
-                className="nicInput"
-                value={driverForm.drop_date}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, drop_date: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignDriverSchema, "drop_date",driverForm.drop_date,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema, "drop_date",driverForm.drop_date,setFormErrors)}
-              />
-              <p className="errorText">{formErrors.drop_date}</p>
+                <input
+                  type="date"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  className="nicInput"
+                  value={driverForm.drop_date}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, drop_date: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.drop_date} />
+                {/* <p className="errorText">{formErrors.drop_date}</p> */}
 
 
-              <TimePicker12h
-                label="Drop Time"
-                onChange={(v) =>
-                  setDriverForm({ ...driverForm, drop_time: v })
-                }
-              />
-              {/* <p className="errorText">{formErrors.drop_time}</p> */}
-            </div>
+                <TimePicker12h
+                  label="Drop Time"
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, drop_time: v })
+                  }
+                />
+                <FieldError message={formErrors.drop_time} />
+              </div>
 
-            <div className="nicModalActions">
-              <button className="cancelBtn" onClick={() => setDriverModalOpen(false)}>
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitAssignDriver}>
-                Assign Driver
-              </button>
+              <div className="nicModalActions">
+                <button className="cancelBtn" onClick={() => { setDriverModalOpen(false); setFormErrors({}); }}>
+                  Cancel
+                </button>
+                <button className="saveBtn" onClick={submitAssignDriver}>
+                  Assign Driver
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* ASSIGN VEHICLE MODAL */}
-      {vehicleModalOpen && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            <div className="nicModalHeader">
-              <h2>Assign Vehicle</h2>
-              <button onClick={() => setVehicleModalOpen(false)}>
-                <X />
-              </button>
-            </div>
+      {
+        vehicleModalOpen && (
+          <div className="modalOverlay">
+            <div className="nicModal">
+              <div className="nicModalHeader">
+                <h2>Assign Vehicle</h2>
+                <button onClick={() => { setVehicleModalOpen(false); setFormErrors({}); }}>
+                  <X />
+                </button>
+              </div>
 
-            <div className="nicForm">
-              <select
-                className="nicInput"
-                value={vehicleForm.vehicle_no}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, vehicle_no: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignVehicleSchema,"vehicle_id",vehicleForm.vehicle_no,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"vehicle_id",vehicleForm.vehicle_no,setFormErrors)}
-              >
-                <p className="errorText">{formErrors.vehicle_no}</p>
-
-                <option value="">Select Vehicle</option>
-                {vehicles.map((v) => (
-                  <option key={v.vehicle_no} value={v.vehicle_no}>
-                    {v.vehicle_name}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                className="nicInput"
-                placeholder="Location"
-                value={vehicleForm.location}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, location: e.target.value })
-                }
-                maxLength={300}
-                onBlur={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
+              <FormErrorAlert
+                errors={formErrors}
+                onClose={() => setFormErrors({})}
               />
-              <p className="errorText">{formErrors.location}</p>
 
-              <input
-                className="nicInput"
-                type="datetime-local"
-                placeholder="Assigned At"
-                value={toDateTimeLocal(vehicleForm.assigned_at)}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
-                }
-                min={minDate}
-                max={maxDate}
-                onBlur={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
-              />
-              <p className="errorText">{formErrors.assigned_at}</p>
+              <div className="nicForm">
+                <select
+                  className="nicInput"
+                  value={vehicleForm.vehicle_no}
+                  onChange={(e) =>
+                    setVehicleForm({ ...vehicleForm, vehicle_no: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignVehicleSchema, "vehicle_no", vehicleForm.vehicle_no, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignVehicleSchema, "vehicle_no", vehicleForm.vehicle_no, setFormErrors)}
+                >
+                  <FieldError message={formErrors.vehicle_no} />
+                  {/* <p className="errorText">{formErrors.vehicle_no}</p> */}
 
-              <input
-                className="nicInput"
-                type="datetime-local"
-                placeholder="Released At"
-                value={toDateTimeLocal(vehicleForm.released_at)}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, released_at: e.target.value })
-                }
-                min={minDate}
-                max={maxDate}
-                onBlur={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
-              />
-              <p className="errorText">{formErrors.released_at}</p>
+                  <option value="">Select Vehicle</option>
+                  {vehicles.map((v) => (
+                    <option key={v.vehicle_no} value={v.vehicle_no}>
+                      {v.vehicle_name}
+                    </option>
+                  ))}
+                </select>
 
-            </div>
+                <input
+                  className="nicInput"
+                  placeholder="Location"
+                  value={vehicleForm.location}
+                  onChange={(e) =>
+                    setVehicleForm({ ...vehicleForm, location: e.target.value })
+                  }
+                  maxLength={300}
+                  onBlur={() => validateSingleField(assignVehicleSchema, "location", vehicleForm.location, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignVehicleSchema, "location", vehicleForm.location, setFormErrors)}
+                />
+                <FieldError message={formErrors.location} />
+                {/* <p className="errorText">{formErrors.location}</p> */}
 
-            <div className="nicModalActions">
-              <button className="cancelBtn" onClick={() => setVehicleModalOpen(false)}>
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitAssignVehicle}>
-                Assign Vehicle
-              </button>
+                <input
+                  className="nicInput"
+                  type="date"
+                  placeholder="Assigned Date"
+                  value={vehicleForm.assigned_date}
+                  onChange={(e) => setVehicleForm(s => ({ ...s, assigned_date: e.target.value }))}
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  onBlur={() => validateSingleField(assignVehicleSchema, "assigned_date", vehicleForm.assigned_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignVehicleSchema, "assigned_date", vehicleForm.assigned_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.assigned_date} />
+                {/* <p className="errorText">{formErrors.assigned_date}</p> */}
+                <TimePicker12h
+                  name="assigned_time"
+                  label="Assigned Time *"
+                  value={vehicleForm.assigned_time}
+                  onChange={(value: string) =>
+                    setVehicleForm(s => ({ ...s, assigned_time: value }))
+                  }
+                // onBlur={() => validateSingleField(assignVehicleSchema, "assigned_time", vehicleForm.assigned_time, setFormErrors)}
+                />
+                {/* <FieldError message={formErrors.assigned_time} /> */}
+
+                <input
+                  className="nicInput"
+                  type="date"
+                  placeholder="Released Date"
+                  value={vehicleForm.released_date}
+                  onChange={(e) => setVehicleForm(s => ({ ...s, released_date: e.target.value }))}
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  onBlur={() => validateSingleField(assignVehicleSchema, "released_date", vehicleForm.released_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignVehicleSchema, "released_date", vehicleForm.released_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.released_date} />
+                {/* <p className="errorText">{formErrors.released_date}</p> */}
+                <TimePicker12h
+                  name="released_time"
+                  label="Released Time"
+                  value={vehicleForm.released_time}
+                  onChange={(value: string) =>
+                    setVehicleForm(s => ({ ...s, released_time: value }))
+                  }
+                // onBlur={() => validateSingleField(assignVehicleSchema, "released_time", vehicleForm.released_time, setFormErrors)}
+                />
+                {/* <FieldError message={formErrors.released_time} /> */}
+
+              </div>
+
+              <div className="nicModalActions">
+                <button className="cancelBtn" onClick={() => { setVehicleModalOpen(false); setFormErrors({}); }}>
+                  Cancel
+                </button>
+                <button className="saveBtn" onClick={submitAssignVehicle}>
+                  Assign Vehicle
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* EDIT DRIVER MODAL */}
-      {editDriverModalOpen && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            <div className="nicModalHeader">
-              <h2>Edit Driver Trip</h2>
-              <button onClick={() => setEditDriverModalOpen(false)}>
-                <X />
-              </button>
-            </div>
-
-            <div className="nicForm">
-              <input
-                className="nicInput"
-                placeholder="Pickup Location"
-                value={driverForm.pickup_location}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, pickup_location: e.target.value })
-                }
-                maxLength={300}
-                onBlur={() => validateSingleField(assignDriverSchema,"pickup_location",driverForm.pickup_location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_location",driverForm.pickup_location,setFormErrors)}
+      {
+        editDriverModalOpen && (
+          <div className="modalOverlay">
+            <div className="nicModal">
+              <div className="nicModalHeader">
+                <h2>Edit Driver Trip</h2>
+                <button onClick={() => { setEditDriverModalOpen(false); setFormErrors({}); }}>
+                  <X />
+                </button>
+              </div>
+              <FormErrorAlert
+                errors={formErrors}
+                onClose={() => setFormErrors({})}
               />
 
-              <input
-                className="nicInput"
-                placeholder="Drop Location"
-                value={driverForm.drop_location}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, drop_location: e.target.value })
-                }
-                maxLength={300}
-                onBlur={() => validateSingleField(assignDriverSchema,"drop_location",driverForm.drop_location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema,"drop_location",driverForm.drop_location,setFormErrors)}
-              />
 
-              <input
-                type="date"
-                className="nicInput"
-                value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
-                onChange={(e) =>
-                  setDriverForm({ ...driverForm, trip_date: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignDriverSchema,"pickup_date",driverForm.trip_date,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_date",driverForm.trip_date,setFormErrors)}
-              />
+              <div className="nicForm">
+                <input
+                  className="nicInput"
+                  placeholder="Pickup Location"
+                  value={driverForm.pickup_location}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, pickup_location: e.target.value })
+                  }
+                  maxLength={300}
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_location", driverForm.pickup_location, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_location", driverForm.pickup_location, setFormErrors)}
+                />
+                <FieldError message={formErrors.pickup_location} />
 
-              <TimePicker12h
-                label="From Time"
-                onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
-                onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
+                <input
+                  className="nicInput"
+                  placeholder="Drop Location"
+                  value={driverForm.drop_location}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, drop_location: e.target.value })
+                  }
+                  maxLength={300}
+                  onBlur={() => validateSingleField(assignDriverSchema, "drop_location", driverForm.drop_location, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_location", driverForm.drop_location, setFormErrors)}
+                />
+                <FieldError message={formErrors.drop_location} />
+
+                <input
+                  type="date"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  className="nicInput"
+                  value={driverForm.trip_date ? driverForm.trip_date.split('T')[0] : ""}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, trip_date: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.pickup_date} />
+
+                <TimePicker12h
+                  label="From Time"
+                  onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_time_from", driverForm.start_time, setFormErrors)}
                 // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
-              />
-              <TimePicker12h
-                label="Drop Time"
-                onChange={(v) =>
-                  setDriverForm({ ...driverForm, drop_time: v })
-                }
-                onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_to",driverForm.drop_time,setFormErrors)}
-                // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_to",driverForm.drop_time,setFormErrors)}
-              />
+                />
+                <FieldError message={formErrors.pickup_time_from} />
 
-              {/* <input
+                <input
+                  type="date"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  className="nicInput"
+                  value={driverForm.drop_date ? driverForm.drop_date.split('T')[0] : ""}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, drop_date: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                />
+                <p className="errorText">{formErrors.drop_date}</p>
+                <TimePicker12h
+                  label="Drop Time"
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, drop_time: v })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_time_to", driverForm.drop_time, setFormErrors)}
+                // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_to",driverForm.drop_time,setFormErrors)}
+                />
+                <FieldError message={formErrors.pickup_time_to} />
+
+                {/* <input
                 type="time"
                 className="nicInput"
                 value={driverForm.start_time}
@@ -988,6 +1364,7 @@ function GuestTransportManagement() {
                 onBlur={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
                 onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
               />
+              <FieldError message={formErrors.start_time} />
 
               <input
                 type="time"
@@ -998,133 +1375,183 @@ function GuestTransportManagement() {
                 }
                 onBlur={() => validateSingleField(assignDriverSchema,"drop_time",driverForm.end_time,setFormErrors)}
                 onKeyUp={() => validateSingleField(assignDriverSchema,"drop_time",driverForm.end_time,setFormErrors)}
-              /> */}
-            </div>
+              /> 
+              <FieldError message={formErrors.end_time} />*/}
+              </div>
 
-            <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setEditDriverModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitEditDriver}>
-                Save Changes
-              </button>
+              <div className="nicModalActions">
+                <button
+                  className="cancelBtn"
+                  onClick={() => { setEditDriverModalOpen(false); setFormErrors({}); }}
+                >
+                  Cancel
+                </button>
+                <button className="saveBtn" onClick={submitEditDriver}>
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* EDIT VEHICLE MODAL */}
-      {editVehicleModalOpen && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            <div className="nicModalHeader">
-              <h2>Edit Vehicle Assignment</h2>
-              <button onClick={() => setEditVehicleModalOpen(false)}>
-                <X />
-              </button>
-            </div>
+      {
+        editVehicleModalOpen && (
+          <div className="modalOverlay">
+            <div className="nicModal">
+              <div className="nicModalHeader">
+                <h2>Edit Vehicle Assignment</h2>
+                <button onClick={() => { setEditVehicleModalOpen(false); setFormErrors({}); }}>
+                  <X />
+                </button>
+              </div>
+              <FormErrorAlert
+                errors={formErrors}
+                onClose={() => setFormErrors({})}
+              />
 
-            <div className="nicForm">
-              <input
-                className="nicInput"
-                placeholder="Location"
-                value={vehicleForm.location}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, location: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"location",vehicleForm.location,setFormErrors)}
-              />
-              <input
-                className="nicInput"
-                type="datetime-local"
-                placeholder="Assigned At"
-                value={toDateTimeLocal(vehicleForm.assigned_at)}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, assigned_at: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"from_datetime",vehicleForm.assigned_at,setFormErrors)}
-              />
-              <input
-                className="nicInput"
-                type="datetime-local"
-                placeholder="Released At"
-                value={toDateTimeLocal(vehicleForm.released_at)}
-                onChange={(e) =>
-                  setVehicleForm({ ...vehicleForm, released_at: e.target.value })
-                }
-                onBlur={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
-                onKeyUp={() => validateSingleField(assignVehicleSchema,"to_datetime",vehicleForm.released_at,setFormErrors)}
-              />
-            </div>
+              <div className="nicForm">
+                <div>
+                  <label>Location <span className="required">*</span></label>
+                  <input
+                    className="nicInput"
+                    placeholder="Location"
+                    value={vehicleForm.location}
+                    onChange={(e) =>
+                      setVehicleForm({ ...vehicleForm, location: e.target.value })
+                    }
+                    onBlur={() => validateSingleField(assignVehicleSchema, "location", vehicleForm.location, setFormErrors)}
+                    onKeyUp={() => validateSingleField(assignVehicleSchema, "location", vehicleForm.location, setFormErrors)}
+                  />
+                  <FieldError message={formErrors.location} />
+                </div>
+                <div>
+                  <label>Assigned Date <span className="required">*</span></label>
+                  <input
+                    className="nicInput"
+                    type="date"
+                    placeholder="Assigned date"
+                    value={vehicleForm.assigned_date}
+                    onChange={(e) =>
+                      setVehicleForm({ ...vehicleForm, assigned_date: e.target.value })
+                    }
+                    onBlur={() => validateSingleField(assignVehicleSchema, "assigned_date", vehicleForm.assigned_date, setFormErrors)}
+                    onKeyUp={() => validateSingleField(assignVehicleSchema, "assigned_date", vehicleForm.assigned_date, setFormErrors)}
+                  />
+                  <FieldError message={formErrors.assigned_date} />
+                </div>
 
-            <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setEditVehicleModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button className="saveBtn" onClick={submitEditVehicle}>
-                Save Changes
-              </button>
+                <div>
+                  <label>Assigned Time <span className="required">*</span></label>
+                  <TimePicker12h
+                    name="assigned_time"
+                    label="Assigned Time *"
+                    value={vehicleForm.assigned_time}
+                    onChange={(value: string) =>
+                      setVehicleForm(s => ({ ...s, assigned_time: value }))
+                    }
+                    onBlur={() => validateSingleField(assignVehicleSchema, "assigned_time", vehicleForm.assigned_time, setFormErrors)}
+                  />
+                  <FieldError message={formErrors.from_time} />
+                </div>
+
+                <div>
+                  <label>Released Date <span className="required">*</span></label>
+                  <input
+                    className="nicInput"
+                    type="date"
+                    placeholder="Released date"
+                    value={vehicleForm.released_date}
+                    onChange={(e) =>
+                      setVehicleForm({ ...vehicleForm, released_date: e.target.value })
+                    }
+                    onBlur={() => validateSingleField(assignVehicleSchema, "released_date", vehicleForm.released_date, setFormErrors)}
+                    onKeyUp={() => validateSingleField(assignVehicleSchema, "released_date", vehicleForm.released_date, setFormErrors)}
+                  />
+                  <FieldError message={formErrors.released_date} />
+                </div>
+
+                <div>
+                  <label>Released Time <span className="required">*</span></label>
+                  <TimePicker12h
+                    name="released_time"
+                    label="Released Time *"
+                    value={vehicleForm.released_time}
+                    onChange={(value: string) =>
+                      setVehicleForm(s => ({ ...s, released_time: value }))
+                    }
+                    onBlur={() => validateSingleField(assignVehicleSchema, "released_time", vehicleForm.released_time, setFormErrors)}
+                  // onKeyUp={() => validateSingleField(assignVehicleSchema,"released_date",vehicleForm.released_date,setFormErrors)}
+                  />
+                  <FieldError message={formErrors.released_time} />
+                </div>
+              </div>
+
+              <div className="nicModalActions">
+                <button
+                  className="cancelBtn"
+                  onClick={() => { setEditVehicleModalOpen(false); setFormErrors({}); }}
+                >
+                  Cancel
+                </button>
+                <button className="saveBtn" onClick={submitEditVehicle}>
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* DELETE CONFIRMATION MODAL */}
-      {deleteConfirmOpen && (
-        <div className="modalOverlay">
-          <div className="nicModal">
-            <div className="nicModalHeader">
-              <h2>Confirm Delete</h2>
-              <button onClick={() => setDeleteConfirmOpen(false)}>
-                <X />
-              </button>
-            </div>
+      {
+        deleteConfirmOpen && (
+          <div className="modalOverlay">
+            <div className="nicModal">
+              <div className="nicModalHeader">
+                <h2>Confirm Delete</h2>
+                <button onClick={() => setDeleteConfirmOpen(false)}>
+                  <X />
+                </button>
+              </div>
 
-            <p className="px-6 py-4">
-              Are you sure you want to delete this guest transport record?
-              <br />
-              <span className="text-red-600 font-medium">
-                This action cannot be undone.
-              </span>
-            </p>
+              <p className="px-6 py-4">
+                Are you sure you want to delete this guest transport record?
+                <br />
+                <span className="text-red-600 font-medium">
+                  This action cannot be undone.
+                </span>
+              </p>
 
-            <div className="nicModalActions">
-              <button
-                className="cancelBtn"
-                onClick={() => setDeleteConfirmOpen(false)}
-              >
-                Cancel
-              </button>
+              <div className="nicModalActions">
+                <button
+                  className="cancelBtn"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                >
+                  Cancel
+                </button>
 
-              <button
-                className="dangerBtn"
-                onClick={() => {
-                  if (!deleteGuestId) return;
+                <button
+                  className="dangerBtn"
+                  onClick={() => {
+                    if (!deleteGuestId) return;
 
-                  // frontend-only soft delete
-                  softDeleteFromUI(deleteGuestId);
+                    // frontend-only soft delete
+                    softDeleteFromUI(deleteGuestId);
 
-                  setDeleteConfirmOpen(false);
-                  setDeleteGuestId(null);
-                }}
-              >
-                Delete
-              </button>
+                    setDeleteConfirmOpen(false);
+                    setDeleteGuestId(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )
+      }
     </>
   );
 }
-
 export default GuestTransportManagement;

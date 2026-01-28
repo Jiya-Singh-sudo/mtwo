@@ -1,7 +1,7 @@
 import { LucideIcon } from "lucide-react";
 import "./StatCard.css";
 
-type StatCardVariant = "blue" | "green" | "orange" | "purple" | "indigo";
+type StatCardVariant = "blue" | "green" | "orange" | "purple" | "indigo" | "red" | "yellow" | "gray";
 
 type StatCardProps = {
     title: string;
@@ -26,10 +26,15 @@ export function StatCard({
             onClick={onClick}
             className={`statCard ${variant} ${active ? "activeStat" : ""}`}
         >
-            <Icon />
-            <div>
-                <p>{title}</p>
-                <h3>{value}</h3>
+            {/* ICON BOX */}
+            <div className={`statIcon ${variant}`}>
+                <Icon />
+            </div>
+
+            {/* CONTENT */}
+            <div className="statContent">
+                <p className="statLabel">{title}</p>
+                <h3 className="statValue">{value}</h3>
             </div>
         </button>
     );

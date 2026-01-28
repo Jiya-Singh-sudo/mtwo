@@ -4,14 +4,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 /* ================= STAT CARD ================= */
 
 .statCard {
   background: #ffffff;
-  border-radius: 10px;
-  padding: 16px 20px;
+  border-radius: 12px;
+  padding: 14px 18px;
   border: 1px solid #e5e7eb;
   border-left: 5px solid transparent;
   display: flex;
@@ -20,96 +21,193 @@
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
+  height: 72px;
 }
 
 .statCard:hover {
   background: #f9fafb;
 }
 
-.statCard h3 {
-  font-size: 22px;
-  font-weight: 600;
-  margin: 0;
+/* ================= ICON BOX ================= */
+
+.statIcon {
+  width: 18px;               /* 🔴 FIXED */
+  height: 18px;              /* 🔴 FIXED */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.statCard p {
+
+/* .statIcon svg {
+  width: 20px;
+  height: 20px;
+} */
+
+/* ================= CONTENT ================= */
+
+.statContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
   font-size: 13px;
   color: #6b7280;
+  line-height: 16px;
   margin: 0;
 }
 
-.statCard svg {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+.statValue {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 24px;
 }
 
 /* ================= COLOR VARIANTS ================= */
 
+/* BLUE */
 .statCard.blue {
   border-left-color: #2563eb;
 }
 
-.statCard.blue svg {
+.statIcon.blue {
+  background: #eff6ff;
+}
+
+.statIcon.blue svg {
   color: #2563eb;
 }
 
-.statCard.blue h3 {
+.statCard.blue .statValue {
   color: #1e40af;
 }
 
+/* GREEN */
 .statCard.green {
   border-left-color: #16a34a;
 }
 
-.statCard.green svg {
+.statIcon.green {
+  background: #ecfdf5;
+}
+
+.statIcon.green svg {
   color: #16a34a;
 }
 
-.statCard.green h3 {
+.statCard.green .statValue {
   color: #166534;
 }
 
+/* ORANGE */
 .statCard.orange {
   border-left-color: #ea580c;
 }
 
-.statCard.orange svg {
+.statIcon.orange {
+  background: #fff7ed;
+}
+
+.statIcon.orange svg {
   color: #ea580c;
 }
 
-.statCard.orange h3 {
+.statCard.orange .statValue {
   color: #9a3412;
 }
 
+/* PURPLE */
 .statCard.purple {
   border-left-color: #7c3aed;
 }
 
-.statCard.purple svg {
+.statIcon.purple {
+  background: #f5f3ff;
+}
+
+.statIcon.purple svg {
   color: #7c3aed;
 }
 
-.statCard.purple h3 {
+.statCard.purple .statValue {
   color: #6b21a8;
 }
 
+/* INDIGO */
 .statCard.indigo {
   border-left-color: #6366f1;
 }
 
-.statCard.indigo svg {
+.statIcon.indigo {
+  background: #eef2ff;
+}
+
+.statIcon.indigo svg {
   color: #6366f1;
 }
 
-.statCard.indigo h3 {
+.statCard.indigo .statValue {
   color: #4338ca;
+}
+
+/* RED */
+.statCard.red {
+  border-left-color: #dc2626;
+}
+
+.statIcon.red {
+  background: #fef2f2;
+}
+
+.statIcon.red svg {
+  color: #dc2626;
+}
+
+.statCard.red .statValue {
+  color: #b91c1c;
+}
+
+/* YELLOW */
+.statCard.yellow {
+  border-left-color: #d97706;
+}
+
+.statIcon.yellow {
+  background: #fffbeb;
+}
+
+.statIcon.yellow svg {
+  color: #d97706;
+}
+
+.statCard.yellow .statValue {
+  color: #b45309;
+}
+
+/* GRAY */
+.statCard.gray {
+  border-left-color: #6b7280;
+}
+
+.statIcon.gray {
+  background: #f3f4f6;
+}
+
+.statIcon.gray svg {
+  color: #6b7280;
+}
+
+.statCard.gray .statValue {
+  color: #4b5563;
 }
 
 /* ================= ACTIVE STATE ================= */
 
-.statCard.activeStat,
-.statCard.active {
+.statCard.activeStat {
   background: #f0f6ff;
   box-shadow: 0 0 0 2px #00247d;
 }

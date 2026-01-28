@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, XCircle } from "lucide-react";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestStatusCounts, exitGuestInOut, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
-import { updateGuestInOut} from "@/api/guestInOut.api";
+import { updateGuestInOut } from "@/api/guestInOut.api";
 import { guestManagementSchema } from "@/validation/guestManagement.validation";
 // import { designationSchema } from "@/validation/designation.validation";
 // import { guestInOutSchema } from "@/validation/guestInOut.validation";
@@ -17,15 +17,18 @@ import TimePicker12h from "@/components/common/TimePicker12h";
 import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
 import { StatCard } from "@/components/ui/StatCard";
 import { X } from "lucide-react";
-import { XCircle } from "lucide-react";
 import { validateSingleField } from "@/utils/validateSingleField";
+import { zodToFormErrors } from "@/utils/formErrors";
+import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
+import { FieldError } from "@/components/ui/FieldError";
+
 
 type DesignationOption = {
   designation_id: string;
   designation_name: string;
-  organization?: string;
-  office_location?: string;
-  department?: string;
+  // organization?: string;
+  // office_location?: string;
+  // department?: string;
 };
 
 type GuestForm = {
@@ -92,7 +95,7 @@ export function GuestManagement() {
   const [designationMode, setDesignationMode] = useState<"existing" | "other">("existing");
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const refreshStatusCounts = async () => {
-  const counts = await fetchGuestStatusCounts();
+    const counts = await fetchGuestStatusCounts();
     setStatusCounts(counts);
   };
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -304,9 +307,9 @@ export function GuestManagement() {
           data.map((d: any) => ({
             designation_id: d.designation_id ?? d.id,
             designation_name: d.designation_name ?? d.name,
-            organization: d.organization,
-            office_location: d.office_location,
-            department: d.department,
+            // organization: d.organization,
+            // office_location: d.office_location,
+            // department: d.department,
           }))
         )
       );
@@ -320,9 +323,9 @@ export function GuestManagement() {
           data.map((d: any) => ({
             designation_id: d.designation_id ?? d.id,
             designation_name: d.designation_name ?? d.name,
-            organization: d.organization,
-            office_location: d.office_location,
-            department: d.department,
+            // organization: d.organization,
+            // office_location: d.office_location,
+            // department: d.department,
           }))
         )
       );
@@ -357,7 +360,7 @@ export function GuestManagement() {
 
   async function handleAddGuest() {
     setFormErrors({});
-    console.log("Submitting", guestForm);
+    // console.log("Submitting", guestForm);
 
     try {
       // ✅ SINGLE SOURCE OF TRUTH
@@ -393,15 +396,14 @@ export function GuestManagement() {
           email: parsed.email,
         },
 
-        designation:
-          designationMode === "existing"
-            ? { designation_id: parsed.designation_id }
-            : {
-              designation_name: parsed.designation_name,
-              department: parsed.department,
-              organization: parsed.organization,
-              office_location: parsed.office_location,
-            },
+        designation: {
+          designation_id: parsed.designation_id,
+          designation_name:
+            designationMode === "other" ? parsed.designation_name : undefined,
+          department: parsed.department,
+          organization: parsed.organization,
+          office_location: parsed.office_location,
+        },
 
         inout: {
           entry_date: parsed.entry_date,
@@ -422,29 +424,29 @@ export function GuestManagement() {
       alert("Guest added successfully!");
     } catch (err) {
       if (err instanceof ZodError) {
-        const errors: Record<string, string> = {};
-        err.issues.forEach(issue => {
-          const field = issue.path.join(".");
-          errors[field] = issue.message;
-        });
-        setFormErrors(errors);
-        // console.warn("VALIDATION BLOCKED SUBMIT", errors);
-        // alert("Validation failed. Check highlighted fields.");
+        setFormErrors(zodToFormErrors(err));
         return;
       }
     }
   }
 
+  // function openView(g: ActiveGuestRow) {
+  //   setSelectedGuest(g);
+  //   setShowView(true);
+
+  // }
   function openView(g: ActiveGuestRow) {
+    console.log("VIEW ROW:", g);
     setSelectedGuest(g);
     setShowView(true);
   }
 
+
   function openEdit(g: ActiveGuestRow) {
-    console.log("Raw entry_date from DB:", g.entry_date);
-  console.log("Raw exit_date from DB:", g.exit_date);
-  console.log("After toDateInputValue (entry):", toDateInputValue(g.entry_date));
-  console.log("After toDateInputValue (exit):", toDateInputValue(g.exit_date));
+    //   console.log("Raw entry_date from DB:", g.entry_date);
+    // console.log("Raw exit_date from DB:", g.exit_date);
+    // console.log("After toDateInputValue (entry):", toDateInputValue(g.entry_date));
+    // console.log("After toDateInputValue (exit):", toDateInputValue(g.exit_date));
     setFormErrors({});
     setSelectedGuest(g);
 
@@ -544,28 +546,32 @@ export function GuestManagement() {
           status: parsed.status,
         });
       }
-resetEditGuestState();
+      resetEditGuestState();
       setModalMode(null);
       await loadGuests();
       await refreshStatusCounts();
     } catch (err) {
+      // if (err instanceof ZodError) {
+      //   console.log("EDIT VALIDATION ERRORS:", err.issues);
+
+      //   const errors: Record<string, string> = {};
+      //   err.issues.forEach(issue => {
+      //     const field = issue.path.join(".");
+      //     errors[field] = issue.message;
+      //   });
+      //   setFormErrors(errors);
+      //   requestAnimationFrame(() => {
+      //     const firstErrorField = Object.keys(errors)[0];
+      //     const el = document.querySelector(
+      //       `[name="${firstErrorField}"]`
+      //     ) as HTMLElement | null;
+
+      //     el?.focus();
+      //   });
+      //   return;
+      // }
       if (err instanceof ZodError) {
-        console.log("EDIT VALIDATION ERRORS:", err.issues);
-
-        const errors: Record<string, string> = {};
-        err.issues.forEach(issue => {
-          const field = issue.path.join(".");
-          errors[field] = issue.message;
-        });
-        setFormErrors(errors);
-        requestAnimationFrame(() => {
-          const firstErrorField = Object.keys(errors)[0];
-          const el = document.querySelector(
-            `[name="${firstErrorField}"]`
-          ) as HTMLElement | null;
-
-          el?.focus();
-        });
+        setFormErrors(zodToFormErrors(err));
         return;
       }
 
@@ -592,31 +598,31 @@ resetEditGuestState();
   //   }
   // }
   async function handleDelete() {
-  if (!selectedGuest) return;
+    if (!selectedGuest) return;
 
-  try {
-    // ✅ ONLY delete guest
-    await softDeleteGuest(selectedGuest.guest_id);
+    try {
+      // ✅ ONLY delete guest
+      await softDeleteGuest(selectedGuest.guest_id);
 
-    setShowDeleteConfirm(false);
-    setSelectedGuest(null);
+      setShowDeleteConfirm(false);
+      setSelectedGuest(null);
 
-    await loadGuests();
-    await refreshStatusCounts();
-  } catch (err) {
-    console.error("delete failed", err);
-    alert("Failed to delete guest");
+      await loadGuests();
+      await refreshStatusCounts();
+    } catch (err) {
+      console.error("delete failed", err);
+      alert("Failed to delete guest");
+    }
   }
-}
 
-function resetEditGuestState() {
-  setEditGuestForm(initialGuestForm);
-  setEditGdId("");
-  setEditInoutId("");
-  setFormErrors({});
-  setSelectedGuest(null);
-  setDesignationMode("existing");
-}
+  function resetEditGuestState() {
+    setEditGuestForm(initialGuestForm);
+    setEditGdId("");
+    setEditInoutId("");
+    setFormErrors({});
+    setSelectedGuest(null);
+    setDesignationMode("existing");
+  }
 
   // function validateSingleField(
   //   field: keyof GuestForm,
@@ -659,32 +665,32 @@ function resetEditGuestState() {
   //     alert("Failed to cancel visit");
   //   }
   // }
-async function confirmCancelVisit() {
-  if (!cancelGuest?.inout_id) return;
+  async function confirmCancelVisit() {
+    if (!cancelGuest?.inout_id) return;
 
-  try {
-    await cancelGuestInOut(cancelGuest.inout_id);
+    try {
+      await cancelGuestInOut(cancelGuest.inout_id);
 
-    setShowCancelConfirm(false);
-    setCancelGuest(null);
+      setShowCancelConfirm(false);
+      setCancelGuest(null);
 
-    await loadGuests();
-    await refreshStatusCounts();
-  } catch (err) {
-    console.error("Cancel visit failed", err);
-    alert("Failed to cancel visit");
+      await loadGuests();
+      await refreshStatusCounts();
+    } catch (err) {
+      console.error("Cancel visit failed", err);
+      alert("Failed to cancel visit");
+    }
   }
-}
-async function confirmExitVisit(inoutId: string) {
-  try {
-    await exitGuestInOut(inoutId);
-    await loadGuests();
-    await refreshStatusCounts();
-  } catch (err) {
-    console.error("Exit failed", err);
-    alert("Failed to exit guest");
+  async function confirmExitVisit(inoutId: string) {
+    try {
+      await exitGuestInOut(inoutId);
+      await loadGuests();
+      await refreshStatusCounts();
+    } catch (err) {
+      console.error("Exit failed", err);
+      alert("Failed to exit guest");
+    }
   }
-}
 
 
 
@@ -726,7 +732,7 @@ async function confirmExitVisit(inoutId: string) {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
-          maxLength={300}
+            maxLength={300}
             type="text"
             placeholder="Search by name, department or ID..."
             className="pl-10 pr-3 py-2 w-full border rounded-sm"
@@ -841,7 +847,7 @@ async function confirmExitVisit(inoutId: string) {
                   </div>
                 </div>
 
-                
+
 
               </div>
             </div>
@@ -925,7 +931,12 @@ async function confirmExitVisit(inoutId: string) {
                 <X size={20} />
               </button>
             </div>
-            {Object.keys(formErrors).length > 0 && (
+            <FormErrorAlert
+              errors={formErrors}
+              onClose={() => setFormErrors({})}
+            />
+
+            {/* {Object.keys(formErrors).length > 0 && (
               <div className="alert alert-error">
                 <div className="alert-icon">
                   <XCircle size={18} />
@@ -943,7 +954,7 @@ async function confirmExitVisit(inoutId: string) {
                   <X size={14} />
                 </button>
               </div>
-            )}
+            )} */}
 
             {/* FORM BODY */}
             {modalMode === "add" ? (
@@ -966,12 +977,13 @@ async function confirmExitVisit(inoutId: string) {
                         maxLength={50}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_name", guestForm.guest_name, setFormErrors)}
                       />
-                      {formErrors.guest_name && (
+                      {/* {formErrors.guest_name && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.guest_name}</span>
                         </div>
-                      )}
+                      )} */}
+                      <FieldError message={formErrors.guest_name} />
 
                     </div>
 
@@ -995,9 +1007,9 @@ async function confirmExitVisit(inoutId: string) {
                               ...s,
                               designation_id: "",
                               designation_name: "",
-                              organization: "",
-                              office_location: "",
-                              department: "",
+                              // organization: "",
+                              // office_location: "",
+                              // department: "",
                             }));
                             return;
                           }
@@ -1010,9 +1022,9 @@ async function confirmExitVisit(inoutId: string) {
                             ...s,
                             designation_id: selected.designation_id,
                             designation_name: selected.designation_name,
-                            organization: selected.organization ?? "",
-                            office_location: selected.office_location ?? "",
-                            department: selected.department ?? "",
+                            // organization: "",
+                            // office_location: "",
+                            // department: "",
                           }));
                         }}
                       // onKeyUp={() => validateSingleField("designation_id", guestForm.designation_id)}
@@ -1027,14 +1039,14 @@ async function confirmExitVisit(inoutId: string) {
 
                         <option value="OTHER">Other</option>
                       </select>
-
+                      <FieldError message={formErrors.designation_id} />
                       {/* <p className="errorText">{formErrors.designation_id}</p> */}
-                      {formErrors.designation_id && (
+                      {/* {formErrors.designation_id && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.designation_id}</span>
                         </div>
-                      )}
+                      )} */}
 
                     </div>
                     {designationMode === "other" && (
@@ -1049,13 +1061,14 @@ async function confirmExitVisit(inoutId: string) {
                             }
                             onKeyUp={() => validateSingleField(guestManagementSchema, "designation_name", guestForm.designation_name, setFormErrors)}
                           />
+                          <FieldError message={formErrors.designation_name} />
                           {/* <p className="errorText">{formErrors.designation_name}</p> */}
-                          {formErrors.designation_name && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.designation_name}</span>
-  </div>
-)}
+                          {/* {formErrors.designation_name && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.designation_name}</span>
+                            </div>
+                          )} */}
 
                         </div>
 
@@ -1070,96 +1083,69 @@ async function confirmExitVisit(inoutId: string) {
                             />
                             <p className="errorText">{formErrors.designation_id}</p>
                             </div> */}
-
-                        <div>
-                          <label>Organization <span className="required">*</span></label>
-                          <input
-                            className="nicInput"
-                            value={guestForm.organization}
-                            onChange={(e) =>
-                              setGuestForm(s => ({ ...s, organization: e.target.value }))
-                            }
-                            onKeyUp={() => validateSingleField(guestManagementSchema, "organization", guestForm.organization, setFormErrors)}
-                          />
-                          {/* <p className="errorText">{formErrors.organization}</p> */}
-                          {formErrors.organization && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.organization}</span>
-  </div>
-)}
-
-                        </div>
-
-                        <div>
-                          <label>Office Location <span className="required">*</span></label>
-                          <input
-                            className="nicInput"
-                            value={guestForm.office_location}
-                            onChange={(e) =>
-                              setGuestForm(s => ({ ...s, office_location: e.target.value }))
-                            }
-                            onKeyUp={() => validateSingleField(guestManagementSchema, "office_location", guestForm.office_location, setFormErrors)}
-                          />
-                          {/* <p className="errorText">{formErrors.office_location}</p> */}
-                          {formErrors.office_location && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.office_location}</span>
-  </div>
-)}
-
-                        </div>
                       </>
                     )}
-                    {/* <div>
-                        <label>Designation Id</label>
-                        <input 
-                          name="designation_id"
-                          className="nicInput" 
-                          value={guestForm.designation_id} 
-                          onChange={(e) => setGuestForm(s => ({ ...s, designation_id: e.target.value }))} 
-                          onKeyUp={() => validateSingleField("designation_id", guestForm.designation_id)}
-                        />
-                        <p className="errorText">{formErrors.designation_id}</p>
-                        </div>
+                    <div>
+                      <label>Department <span className="required">*</span></label>
+                      <input
+                        className="nicInput"
+                        value={guestForm.department}
+                        onChange={(e) =>
+                          setGuestForm(s => ({ ...s, department: e.target.value }))
+                        }
+                        onKeyUp={() => validateSingleField(guestManagementSchema, "department", guestForm.department, setFormErrors)}
+                      />
+                      <FieldError message={formErrors.department} />
+                      {/* <p className="errorText">{formErrors.department}</p> */}
+                      {/* {formErrors.department && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.department}</span>
+                            </div>
+                          )} */}
 
-                        <div>
-                        <label>Designation Name</label>
-                        <input 
-                          name="designation_name"
-                          className="nicInput" 
-                          value={guestForm.designation_name} 
-                          onChange={(e) => setGuestForm(s => ({ ...s, designation_name: e.target.value }))} 
-                          onKeyUp={() => validateSingleField("designation_name", guestForm.designation_name)}
-                        />
-                        <p className="errorText">{formErrors.designation_name}</p>
-                        </div>
+                    </div>
+                    <div>
+                      <label>Organization <span className="required">*</span></label>
+                      <input
+                        className="nicInput"
+                        value={guestForm.organization}
+                        onChange={(e) =>
+                          setGuestForm(s => ({ ...s, organization: e.target.value }))
+                        }
+                        onKeyUp={() => validateSingleField(guestManagementSchema, "organization", guestForm.organization, setFormErrors)}
+                      />
+                      <FieldError message={formErrors.organization} />
+                      {/* <p className="errorText">{formErrors.organization}</p> */}
+                      {/* {formErrors.organization && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.organization}</span>
+                            </div>
+                          )} */}
 
-                        <div>
-                        <label>Organization</label>
-                        <input 
-                          name="organization"
-                          className="nicInput" 
-                          value={guestForm.organization} 
-                          onChange={(e) => setGuestForm(s => ({ ...s, organization: e.target.value }))} 
-                          onKeyUp={() => validateSingleField("organization", guestForm.organization)}
-                        />
-                        <p className="errorText">{formErrors.organization}</p>
-                        </div>
+                    </div>
 
-                        <div>
-                        <label>Office Location</label>
-                        <input 
-                          name="office_location"
-                          className="nicInput" 
-                          value={guestForm.office_location} 
-                          onChange={(e) => setGuestForm(s => ({ ...s, office_location: e.target.value }))} 
-                          onKeyUp={() => validateSingleField("office_location", guestForm.office_location)}
-                        />
-                        <p className="errorText">{formErrors.office_location}</p>
-                        </div> */}
+                    <div>
+                      <label>Office Location <span className="required">*</span></label>
+                      <input
+                        className="nicInput"
+                        value={guestForm.office_location}
+                        onChange={(e) =>
+                          setGuestForm(s => ({ ...s, office_location: e.target.value }))
+                        }
+                        onKeyUp={() => validateSingleField(guestManagementSchema, "office_location", guestForm.office_location, setFormErrors)}
+                      />
+                      <FieldError message={formErrors.office_location} />
+                      {/* <p className="errorText">{formErrors.office_location}</p> */}
+                      {/* {formErrors.office_location && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.office_location}</span>
+                            </div>
+                          )} */}
 
+                    </div>
                     <div>
                       <label>Mobile Number <span className="required">*</span></label>
                       <input
@@ -1174,13 +1160,14 @@ async function confirmExitVisit(inoutId: string) {
                         maxLength={10}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_mobile", guestForm.guest_mobile, setFormErrors)}
                       />
-                    {/* <p className="errorText">{formErrors.guest_mobile}</p> */}
-                    {formErrors.guest_mobile && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_mobile}</span>
-  </div>
-)}
+                      <FieldError message={formErrors.guest_mobile} />
+                      {/* <p className="errorText">{formErrors.guest_mobile}</p> */}
+                      {/* {formErrors.guest_mobile && (
+                      <div className="fieldError">
+                        <XCircle size={14} />
+                        <span>{formErrors.guest_mobile}</span>
+                      </div>
+                    )} */}
 
                     </div>
 
@@ -1194,13 +1181,14 @@ async function confirmExitVisit(inoutId: string) {
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_alternate_mobile", guestForm.guest_alternate_mobile, setFormErrors)}
                         maxLength={0 | 10}
                       />
+                      <FieldError message={formErrors.guest_alternate_mobile} />
                       {/* <p className="errorText">{formErrors.guest_alternate_mobile}</p> */}
-                      {formErrors.guest_alternate_mobile && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_alternate_mobile}</span>
-  </div>
-)}
+                      {/* {formErrors.guest_alternate_mobile && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_alternate_mobile}</span>
+                        </div>
+                      )} */}
 
                     </div>
 
@@ -1215,13 +1203,14 @@ async function confirmExitVisit(inoutId: string) {
                         onKeyUp={() => validateSingleField(guestManagementSchema, "guest_address", guestForm.guest_address, setFormErrors)}
                         maxLength={250}
                       />
+                      <FieldError message={formErrors.guest_address} />
                       {/* <p className="errorText">{formErrors.guest_address}</p> */}
-                      {formErrors.guest_address && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.guest_address}</span>
-  </div>
-)}
+                      {/* {formErrors.guest_address && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.guest_address}</span>
+                        </div>
+                      )} */}
 
                     </div>
 
@@ -1243,13 +1232,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_date", guestForm.entry_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "entry_date", guestForm.entry_date, setFormErrors)}
                       />
+                      <FieldError message={formErrors.entry_date} />
                       {/* <p className="errorText">{formErrors.entry_date}</p> */}
-                      {formErrors.entry_date && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.entry_date}</span>
-  </div>
-)}
+                      {/* {formErrors.entry_date && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.entry_date}</span>
+                        </div>
+                      )} */}
 
                     </div>
 
@@ -1263,14 +1253,14 @@ async function confirmExitVisit(inoutId: string) {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_time", guestForm.entry_time, setFormErrors)}
                       />
+                      <FieldError message={formErrors.entry_time} />
                       {/* <p className="errorText">{formErrors.entry_time}</p> */}
-                      {formErrors.entry_time && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.entry_time}</span>
-  </div>
-)}
-
+                      {/* {formErrors.entry_time && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.entry_time}</span>
+                        </div>
+                      )} */}
                     </div>
 
                     {/* Check-out Date */}
@@ -1289,13 +1279,14 @@ async function confirmExitVisit(inoutId: string) {
                         onKeyUp={() => validateSingleField(guestManagementSchema, "exit_date", guestForm.exit_date, setFormErrors)}
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_date", guestForm.exit_date, setFormErrors)}
                       />
+                      <FieldError message={formErrors.exit_date} />
                       {/* <p className="errorText">{formErrors.exit_date}</p> */}
-                      {formErrors.exit_date && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.exit_date}</span>
-  </div>
-)}
+                      {/* {formErrors.exit_date && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.exit_date}</span>
+                        </div>
+                      )} */}
 
                     </div>
 
@@ -1309,13 +1300,14 @@ async function confirmExitVisit(inoutId: string) {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_time", guestForm.exit_time, setFormErrors)}
                       />
+                      <FieldError message={formErrors.exit_time} />
                       {/* <p className="errorText">{formErrors.exit_time}</p> */}
-                      {formErrors.exit_time && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.exit_time}</span>
-  </div>
-)}
+                      {/* {formErrors.exit_time && (
+                        <div className="fieldError">
+                          <XCircle size={14} />
+                          <span>{formErrors.exit_time}</span>
+                        </div>
+                      )} */}
 
                     </div>
 
@@ -1353,13 +1345,14 @@ async function confirmExitVisit(inoutId: string) {
                         }}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "email", guestForm.email, setFormErrors)}
                       />
+                      <FieldError message={formErrors.email} />
                       {/* <p className="errorText">{formErrors.email}</p> */}
-                      {formErrors.email && (
+                      {/* {formErrors.email && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.email}</span>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -1382,13 +1375,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "guest_name", editGuestForm.guest_name, setFormErrors)}
                         maxLength={50}
                       />
+                      <FieldError message={formErrors.guest_name} />
                       {/* <p className="errorText">{formErrors.guest_name}</p> */}
-                      {formErrors.guest_name && (
+                      {/* {formErrors.guest_name && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.guest_name}</span>
                         </div>
-                      )}
+                      )} */}
                     </div>
 
                     {/* <div>
@@ -1427,9 +1421,9 @@ async function confirmExitVisit(inoutId: string) {
                             ...s,
                             designation_id: selected.designation_id,
                             designation_name: selected.designation_name,
-                            department: selected.department ?? "",
-                            organization: selected.organization ?? "",
-                            office_location: selected.office_location ?? "",
+                            // department: selected.department ?? "",
+                            // organization: selected.organization ?? "",
+                            // office_location: selected.office_location ?? "",
                           }));
                         }}
                       >
@@ -1443,16 +1437,15 @@ async function confirmExitVisit(inoutId: string) {
 
                         <option value="OTHER">Other</option>
                       </select>
-
+                      <FieldError message={formErrors.designation_id} />
                       {/* <p className="errorText">{formErrors.designation_id}</p>
-
                       <p className="errorText">{formErrors.designation_id}</p> */}
-                      {formErrors.designation_id && (
+                      {/* {formErrors.designation_id && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.designation_id}</span>
                         </div>
-                      )}
+                      )} */}
                     </div>
 
                     {designationMode === "other" && (
@@ -1468,72 +1461,73 @@ async function confirmExitVisit(inoutId: string) {
                             onBlur={() => validateSingleField(guestManagementSchema, "designation_name", editGuestForm.designation_name, setFormErrors)}
                             maxLength={50}
                           />
+                          <FieldError message={formErrors.designation_name} />
                           {/* <p className="errorText">{formErrors.designation_name}</p> */}
-                          {formErrors.designation_name && (
+                          {/* {formErrors.designation_name && (
                             <div className="fieldError">
                               <XCircle size={14} />
                               <span>{formErrors.designation_name}</span>
                             </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label>Department</label>
-                          <input
-                            className="nicInput"
-                            value={editGuestForm.department}
-                            onChange={(e) =>
-                              setEditGuestForm(s => ({ ...s, department: e.target.value }))
-                            }
-                            onBlur={() => validateSingleField(guestManagementSchema, "department", editGuestForm.department, setFormErrors)}
-                            maxLength={50}
-                          />
-                        </div>
-
-                        <div>
-                          <label>Organization <span className="required">*</span></label>
-                          <input
-                            className="nicInput"
-                            value={editGuestForm.organization}
-                            onChange={(e) =>
-                              setEditGuestForm(s => ({ ...s, organization: e.target.value }))
-                            }
-                            onBlur={() => validateSingleField(guestManagementSchema, "organization", editGuestForm.organization, setFormErrors)}
-                            maxLength={50}
-                          />
-                          {/* <p className="errorText">{formErrors.organization}</p> */}
-                          {formErrors.organization && (
-                            <div className="fieldError">
-                              <XCircle size={14} />
-                              <span>{formErrors.organization}</span>
-                            </div>
-                          )}
-
-                        </div>
-
-                        <div>
-                          <label>Office Location <span className="required">*</span></label>
-                          <input
-                            className="nicInput"
-                            value={editGuestForm.office_location}
-                            onChange={(e) =>
-                              setEditGuestForm(s => ({ ...s, office_location: e.target.value }))
-                            }
-                            onBlur={() => validateSingleField(guestManagementSchema, "office_location", editGuestForm.office_location, setFormErrors)}
-                            maxLength={50}
-                          />
-                          {/* <p className="errorText">{formErrors.office_location}</p> */}
-                          {formErrors.office_location && (
-                            <div className="fieldError">
-                              <XCircle size={14} />
-                              <span>{formErrors.office_location}</span>
-                            </div>
-                          )}
-
+                          )} */}
                         </div>
                       </>
                     )}
 
+                    <div>
+                      <label>Department</label>
+                      <input
+                        className="nicInput"
+                        value={editGuestForm.department}
+                        onChange={(e) =>
+                          setEditGuestForm(s => ({ ...s, department: e.target.value }))
+                        }
+                        onBlur={() => validateSingleField(guestManagementSchema, "department", editGuestForm.department, setFormErrors)}
+                        maxLength={50}
+                      />
+                      <FieldError message={formErrors.department} />
+                    </div>
+
+                    <div>
+                      <label>Organization <span className="required">*</span></label>
+                      <input
+                        className="nicInput"
+                        value={editGuestForm.organization}
+                        onChange={(e) =>
+                          setEditGuestForm(s => ({ ...s, organization: e.target.value }))
+                        }
+                        onBlur={() => validateSingleField(guestManagementSchema, "organization", editGuestForm.organization, setFormErrors)}
+                        maxLength={50}
+                      />
+                      <FieldError message={formErrors.organization} />
+                      {/* <p className="errorText">{formErrors.organization}</p> */}
+                      {/* {formErrors.organization && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.organization}</span>
+                            </div>
+                          )} */}
+                    </div>
+
+                    <div>
+                      <label>Office Location <span className="required">*</span></label>
+                      <input
+                        className="nicInput"
+                        value={editGuestForm.office_location}
+                        onChange={(e) =>
+                          setEditGuestForm(s => ({ ...s, office_location: e.target.value }))
+                        }
+                        onBlur={() => validateSingleField(guestManagementSchema, "office_location", editGuestForm.office_location, setFormErrors)}
+                        maxLength={50}
+                      />
+                      <FieldError message={formErrors.office_location} />
+                      {/* <p className="errorText">{formErrors.office_location}</p> */}
+                      {/* {formErrors.office_location && (
+                            <div className="fieldError">
+                              <XCircle size={14} />
+                              <span>{formErrors.office_location}</span>
+                            </div>
+                          )} */}
+                    </div>
                     <div>
                       <label>Mobile Number <span className="required">*</span></label>
                       <input
@@ -1547,14 +1541,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "guest_mobile", editGuestForm.guest_mobile, setFormErrors)}
                         maxLength={10}
                       />
+                      <FieldError message={formErrors.guest_mobile} />
                       {/* <p className="errorText">{formErrors.guest_mobile}</p> */}
-                      {formErrors.guest_mobile && (
+                      {/* {formErrors.guest_mobile && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.guest_mobile}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     <div>
@@ -1570,14 +1564,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "guest_alternate_mobile", editGuestForm.guest_alternate_mobile, setFormErrors)}
                         maxLength={0 | 10}
                       />
+                      <FieldError message={formErrors.guest_alternate_mobile} />
                       {/* <p className="errorText">{formErrors.guest_alternate_mobile}</p> */}
-                      {formErrors.guest_alternate_mobile && (
+                      {/* {formErrors.guest_alternate_mobile && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.guest_alternate_mobile}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     {/* Full width field */}
@@ -1592,14 +1586,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "guest_address", editGuestForm.guest_address, setFormErrors)}
                         maxLength={250}
                       />
+                      <FieldError message={formErrors.guest_address} />
                       {/* <p className="errorText">{formErrors.guest_address}</p> */}
-                      {formErrors.guest_address && (
+                      {/* {formErrors.guest_address && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.guest_address}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     {/* Check-in Date */}
@@ -1618,14 +1612,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_date", editGuestForm.entry_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "entry_date", editGuestForm.entry_date, setFormErrors)}
                       />
+                      <FieldError message={formErrors.entry_date} />
                       {/* <p className="errorText">{formErrors.entry_date}</p> */}
-                      {formErrors.entry_date && (
+                      {/* {formErrors.entry_date && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.entry_date}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     <div>
@@ -1639,14 +1633,14 @@ async function confirmExitVisit(inoutId: string) {
                         // onKeyUp={() => validateSingleField(guestManagementSchema, "entry_time", editGuestForm.entry_time, setFormErrors)}
                         onBlur={() => validateSingleField(guestManagementSchema, "entry_time", editGuestForm.entry_time, setFormErrors)}
                       />
+                      <FieldError message={formErrors.entry_time} />
                       {/* <p className="errorText">{formErrors.entry_time}</p> */}
-                      {formErrors.entry_time && (
+                      {/* {formErrors.entry_time && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.entry_time}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     {/* Check-out Date */}
@@ -1665,14 +1659,14 @@ async function confirmExitVisit(inoutId: string) {
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_date", editGuestForm.exit_date, setFormErrors)}
                         onKeyUp={() => validateSingleField(guestManagementSchema, "exit_date", editGuestForm.exit_date, setFormErrors)}
                       />
+                      <FieldError message={formErrors.exit_date} />
                       {/* <p className="errorText">{formErrors.exit_date}</p> */}
-                      {formErrors.exit_date && (
+                      {/* {formErrors.exit_date && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.exit_date}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
 
                     <div>
@@ -1685,17 +1679,15 @@ async function confirmExitVisit(inoutId: string) {
                         }
                         onBlur={() => validateSingleField(guestManagementSchema, "exit_time", editGuestForm.exit_time, setFormErrors)}
                       />
+                      <FieldError message={formErrors.exit_time} />
                       {/* <p className="errorText">{formErrors.exit_time}</p> */}
-                      {formErrors.exit_time && (
+                      {/* {formErrors.exit_time && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.exit_time}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
-
-
 
                     <div className="fullWidth">
                       <label>
@@ -1711,14 +1703,14 @@ async function confirmExitVisit(inoutId: string) {
                         }
                         onKeyUp={() => validateSingleField(guestManagementSchema, "email", editGuestForm.email, setFormErrors)}
                       />
+                      <FieldError message={formErrors.email} />
                       {/* <p className="errorText">{formErrors.email}</p> */}
-                      {formErrors.email && (
+                      {/* {formErrors.email && (
                         <div className="fieldError">
                           <XCircle size={14} />
                           <span>{formErrors.email}</span>
                         </div>
-                      )}
-
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -1733,7 +1725,7 @@ async function confirmExitVisit(inoutId: string) {
               }}>Cancel</button>
 
               {modalMode === "add" ? (
-                <button className="saveBtn" onClick={() => { handleAddGuest(); console.log("button clicked") }}>
+                <button className="saveBtn" onClick={() => { handleAddGuest(); }}>
                   Add Guest
                 </button>
               ) : (

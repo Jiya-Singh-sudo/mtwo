@@ -14,7 +14,7 @@ export async function getGuestTransportTable(query: TableQuery) {
   );
 
   const res = await api.get("/guest-transport/table", {
-  // const res = await api.get("/guests/active", {
+    // const res = await api.get("/guests/active", {
     params: cleanParams,
   });
 
@@ -30,6 +30,8 @@ export async function reassignVehicleToGuest(
     guest_id: string;
     vehicle_no: string;
     location?: string;
+    assigned_at: string;
+    released_at?: string;
   }
 ) {
   const res = await api.post(
@@ -189,11 +191,7 @@ export async function getAssignableVehicles() {
    VEHICLE — WRITE
    ======================= */
 // Assign vehicle
-export async function assignVehicleToGuest(payload: {
-  guest_id: string;
-  vehicle_no: string;
-  location?: string;
-}) {
+export async function assignVehicleToGuest(payload: AssignGuestVehiclePayload) {
   const res = await api.post("/guest-vehicle/assign", payload);
   return res.data;
 }

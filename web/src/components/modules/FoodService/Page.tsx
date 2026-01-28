@@ -457,7 +457,7 @@ export function FoodService() {
     setButlerModalOpen(true);
   }
 
-  async function _removeButler(butler: Butler) {
+  async function removeButler(butler: Butler) {
     if (!confirm(`Deactivate ${butler.butler_name}?`)) return;
 
     try {

@@ -14,6 +14,13 @@ export interface Vehicle {
   assignedAt: string | null;   // ISO datetime
   releasedAt: string | null;   // ISO datetime
 }
+
+export type VehicleDateTimeParts = {
+  assigned_date?: string; // YYYY-MM-DD
+  assigned_time?: string; // HH:mm (from TimePicker12h)
+  released_date?: string;
+  released_time?: string;
+};
 /* ======================
    READ — Active vehicle
    ====================== */
@@ -42,6 +49,8 @@ export interface AssignGuestVehiclePayload {
   guest_id: string;
   vehicle_no: string;
   location?: string;
-  assigned_at?: string;
+
+  // backend expects these
+  assigned_at: string;
   released_at?: string;
 }

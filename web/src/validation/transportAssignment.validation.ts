@@ -129,7 +129,7 @@ export type AssignDriverSchema = z.infer<typeof assignDriverSchema>;
 
 export const assignVehicleSchema = z
   .object({
-    vehicle_id: z.string().min(1, "Vehicle is required"),
+    vehicle_no: z.string().min(1, "Vehicle is required"),
 
     location: z
       .string()
@@ -137,58 +137,56 @@ export const assignVehicleSchema = z
       .max(MAX_LOCATION_LENGTH, "Location too long")
       .regex(safeTextRegex, "Invalid characters in location"),
 
-    from_datetime: z
+    assigned_date: z
       .string()
-      .min(1, "From date & time is required"),
+      .regex(dateRegex, "Invalid assigned date"),
 
-    to_datetime: z
+    assigned_time: z
       .string()
-      .min(1, "To date & time is required"),
+      .regex(timeRegex, "Invalid assigned time"),
+
+    released_date: z
+      .string()
+      .regex(dateRegex, "Invalid released date")
+      .optional(),
+
+    released_time: z
+      .string()
+      .regex(timeRegex, "Invalid released time")
+      .optional(),
   })
-
-  /* ======================================================
-     CROSS-FIELD RULES
-  ====================================================== */
-
   .superRefine((data, ctx) => {
-    const fromDT = new Date(data.from_datetime);
-    const toDT = new Date(data.to_datetime);
-    const today = new Date();
+    const now = new Date();
 
-    if (isNaN(fromDT.getTime())) {
-      ctx.addIssue({
-        path: ["from_datetime"],
-        message: "Invalid from date-time",
-        code: z.ZodIssueCode.custom,
-      });
-      return;
-    }
+    const assignedDT = parseDateTime(
+      data.assigned_date,
+      data.assigned_time
+    );
 
-    if (isNaN(toDT.getTime())) {
+    if (assignedDT < now) {
       ctx.addIssue({
-        path: ["to_datetime"],
-        message: "Invalid to date-time",
-        code: z.ZodIssueCode.custom,
-      });
-      return;
-    }
-
-    if (fromDT < today) {
-      ctx.addIssue({
-        path: ["from_datetime"],
-        message: "From date-time cannot be in the past",
+        path: ["assigned_date"],
+        message: "Assigned date-time cannot be in the past",
         code: z.ZodIssueCode.custom,
       });
     }
 
-    if (toDT <= fromDT) {
-      ctx.addIssue({
-        path: ["to_datetime"],
-        message: "To date-time must be after from date-time",
-        code: z.ZodIssueCode.custom,
-      });
+    if (data.released_date && data.released_time) {
+      const releasedDT = parseDateTime(
+        data.released_date,
+        data.released_time
+      );
+
+      if (releasedDT <= assignedDT) {
+        ctx.addIssue({
+          path: ["released_date"],
+          message: "Release must be after assigned time",
+          code: z.ZodIssueCode.custom,
+        });
+      }
     }
   });
+
 
 /* ======================================================
    TYPE

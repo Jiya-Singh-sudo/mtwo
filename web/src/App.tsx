@@ -24,7 +24,7 @@ function Layout() {
           {/* Top bar with dark background */}
           <div className="bg-[#2C2C2C] px-8 py-2">
             <div className="flex items-center justify-end gap-4">
-{/* 
+              {/* 
               <button className="text-white" onClick={() => setLanguage}>
                 Hindi
               </button> */}
@@ -72,8 +72,10 @@ function Layout() {
 
         </header>
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
-          <AppRoutes />
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+          <div className="px-6 py-6 md:px-8 lg:px-10">
+            <AppRoutes />
+          </div>
         </main>
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 px-8 py-3">
