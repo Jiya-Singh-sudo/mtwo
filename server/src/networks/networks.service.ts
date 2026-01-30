@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateNetworkDto } from './dto/create-network.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
@@ -247,13 +247,34 @@ export class NetworksService {
 
   async softDelete(id: string, user: string, ip: string) {
     const existing = await this.findOneById(id);
-    if (!existing) throw new Error(`Provider '${id}' not found`);
+    if (!existing) {
+      throw new BadRequestException(`Provider '${id}' not found`);
+    }
 
+    // 🔴 BLOCK DELETE IF ASSIGNED TO ANY GUEST
+    const assigned = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_network
+      WHERE provider_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (assigned.rowCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete network provider '${existing.provider_name}' because it is currently assigned to a guest`
+      );
+    }
+
+    // ✅ SAFE TO DELETE
     const now = new Date().toISOString();
 
     const sql = `
       UPDATE m_wifi_provider SET
-        is_active = false,
+        is_active = FALSE,
         updated_at = $1,
         updated_by = $2,
         updated_ip = $3
@@ -262,7 +283,10 @@ export class NetworksService {
     `;
 
     const res = await this.db.query(sql, [
-      now, user, ip, existing.provider_id
+      now,
+      user,
+      ip,
+      existing.provider_id,
     ]);
 
     return res.rows[0];

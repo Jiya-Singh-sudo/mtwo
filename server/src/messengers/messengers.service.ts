@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateMessengerDto } from './dto/create-messenger.dto';
 import { UpdateMessengerDto } from './dto/update-messenger.dto';
@@ -138,19 +138,43 @@ export class MessengerService {
 
   /* ---------- SOFT DELETE ---------- */
   async softDelete(id: string, user: string, ip: string) {
+    const existing = await this.findOneById(id);
+    if (!existing) {
+      throw new BadRequestException(`Messenger '${id}' not found`);
+    }
+
+    // 🔴 BLOCK DELETE IF ASSIGNED TO ANY GUEST
+    const assigned = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_messenger
+      WHERE messenger_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (assigned.rowCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete messenger '${existing.messenger_name}' because it is currently assigned to a guest`
+      );
+    }
+
+    // ✅ SAFE TO DELETE
     const now = new Date().toISOString();
 
     const res = await this.db.query(
       `
       UPDATE m_messenger SET
-        is_active = false,
+        is_active = FALSE,
         updated_at = $1,
         updated_by = $2,
         updated_ip = $3
       WHERE messenger_id = $4
       RETURNING messenger_id, is_active;
       `,
-      [now, user, ip, id],
+      [now, user, ip, id]
     );
 
     return res.rows[0];
