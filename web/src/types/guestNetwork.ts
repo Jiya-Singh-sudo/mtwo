@@ -22,12 +22,12 @@ export type GuestNetwork = {
   end_status: 'Waiting' | 'Success';
 
   network_status:
-    | 'Requested'
-    | 'Connected'
-    | 'Disconnected'
-    | 'Issue-Reported'
-    | 'Resolved'
-    | 'Cancelled';
+  | 'Requested'
+  | 'Connected'
+  | 'Disconnected'
+  | 'Issue-Reported'
+  | 'Resolved'
+  | 'Cancelled';
 
   description?: string;
   remarks?: string;
@@ -74,7 +74,7 @@ export interface GuestNetworkRow {
   /* -------- Network -------- */
   guest_network_id: string | null;
   network_id: string | null;
-  network_name: string | null;
+  provider_name: string | null;
   network_status: string | null;
 
   /* -------- Messenger -------- */

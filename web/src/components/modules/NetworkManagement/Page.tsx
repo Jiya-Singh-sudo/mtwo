@@ -63,7 +63,7 @@ export default function NetworkManagement() {
         sortBy: "messenger_name",
         sortOrder: "asc",
     });
-
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     /* ================= GUEST NETWORK ================= */
     const [networks, setNetworks] = useState<NetworkProvider[]>([]);
@@ -358,14 +358,24 @@ export default function NetworkManagement() {
                     </button>
 
                     <button
-                        className="icon-btn text-red-600"
-                        title="Delete"
-                        onClick={async () => {
-                            await softDeleteNetwork(row.provider_id);
-                            loadNetworks();
-                        }}
+                    className="icon-btn text-red-600"
+                    title="Delete"
+                    onClick={async () => {
+                        setDeleteError(null);
+
+                        try {
+                        await softDeleteNetwork(row.provider_id);
+                        loadNetworks();
+                        } catch (err: any) {
+                        const message =
+                            err?.response?.data?.message ||
+                            "Unable to delete network provider";
+
+                        setDeleteError(message);
+                        }
+                    }}
                     >
-                        <Trash2 size={16} />
+                    <Trash2 size={16} />
                     </button>
                 </div>
             ),
@@ -409,14 +419,24 @@ export default function NetworkManagement() {
                     </button>
 
                     <button
-                        className="icon-btn text-red-600"
-                        title="Delete"
-                        onClick={async () => {
-                            await softDeleteMessenger(row.messenger_id);
-                            loadMessengers();
-                        }}
+                    className="icon-btn text-red-600"
+                    title="Delete"
+                    onClick={async () => {
+                        setDeleteError(null);
+
+                        try {
+                        await softDeleteMessenger(row.messenger_id);
+                        loadMessengers();
+                        } catch (err: any) {
+                        const message =
+                            err?.response?.data?.message ||
+                            "Unable to delete messenger";
+
+                        setDeleteError(message);
+                        }
+                    }}
                     >
-                        <Trash2 size={16} />
+                    <Trash2 size={16} />
                     </button>
                 </div>
             ),
@@ -440,21 +460,21 @@ export default function NetworkManagement() {
             <div className="nicTabs">
                 <button
                     className={`nicTab ${activeTab === "guestMng" ? "active" : ""}`}
-                    onClick={() => setActiveTab("guestMng")}
+                    onClick={() => {setActiveTab("guestMng"); }}
                 >
                     Guest Network
                 </button>
 
                 <button
                     className={`nicTab ${activeTab === "networks" ? "active" : ""}`}
-                    onClick={() => setActiveTab("networks")}
+                    onClick={() => {setActiveTab("networks");   setDeleteError(null);}}
                 >
                     Networks
                 </button>
 
                 <button
                     className={`nicTab ${activeTab === "messengers" ? "active" : ""}`}
-                    onClick={() => setActiveTab("messengers")}
+                    onClick={() => {setActiveTab("messengers");   setDeleteError(null);}}
                 >
                     Messengers
                 </button>
@@ -511,8 +531,13 @@ export default function NetworkManagement() {
                             />
                         </div>
                     </div>
-
+                    {deleteError && (
+                        <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {deleteError}
+                        </div>
+                    )}
                     <div className="bg-white border rounded-sm overflow-hidden">
+                        
                         <DataTable
                             data={networks}
                             columns={networkColumns}
@@ -554,7 +579,11 @@ export default function NetworkManagement() {
                             Add Messenger
                         </Button>
                     </div>
-
+                    {deleteError && (
+                        <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {deleteError}
+                        </div>
+                    )}
                     <div className="bg-white border rounded-sm overflow-hidden">
                         <DataTable
                             data={messengers}
