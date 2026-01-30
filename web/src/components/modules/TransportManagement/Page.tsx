@@ -26,7 +26,8 @@ import {
   releaseVehicle,
   reviseGuestDriver,
   closeGuestDriver,
-  getGuestTransportTable
+  getGuestTransportTable,
+  // getGuestTransportConflicts
 } from "../../../api/guestTransport.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { GuestTransportRow } from "../../../types/guestTransport";
@@ -52,6 +53,15 @@ function GuestTransportManagement() {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  const [transportConflicts, setTransportConflicts] = useState<
+    Record<
+      string,
+      {
+        drivers: number;
+        vehicles: number;
+      }
+    >
+  >({});
 
   /* =======================
      PAGE STATE
@@ -244,6 +254,20 @@ function GuestTransportManagement() {
             : null,
         }));
         setRows(adaptedRows);
+const conflicts: typeof transportConflicts = {};
+
+res.data.forEach((row: any) => {
+  if (row.driver_conflict || row.vehicle_conflict) {
+    conflicts[row.guest_id] = {
+      drivers: row.driver_conflict ? 1 : 0,
+      vehicles: row.vehicle_conflict ? 1 : 0,
+    };
+  }
+});
+
+setTransportConflicts(conflicts);
+
+
         GuestTable.setTotal(res.totalCount);
       } finally {
         GuestTable.setLoading(false);
@@ -275,8 +299,10 @@ function GuestTransportManagement() {
     if (isGuestLocked(inout_status)) return;
 
     const list = await getAssignableDrivers();
-    const min = addDays(entry_date, -1);
-    const max = addDays(exit_date, 1);
+    // const min = addDays(entry_date, -1);
+    // const max = addDays(exit_date, 1);
+    const min = entry_date;
+    const max = exit_date;
 
     setAssignWindow({
       minDate: toISODateOnly(min),
@@ -341,8 +367,10 @@ function GuestTransportManagement() {
     const list = await getAssignableVehicles();
     setVehicles(list);
 
-    const min = addDays(entry_date, -1);
-    const max = addDays(exit_date, 1);
+    // const min = addDays(entry_date, -1);
+    // const max = addDays(exit_date, 1);
+    const min = entry_date;
+    const max = exit_date;
 
     setAssignWindow({
       minDate: toISODateOnly(min),
@@ -375,6 +403,11 @@ function GuestTransportManagement() {
       alert("Assigned date and time are required");
       return;
     }
+    if (released_at && new Date(released_at) < new Date(assigned_at)) {
+      alert("Release time cannot be before assigned time");
+      return;
+    }
+
 
     await assignVehicleToGuest({
       guest_id: vehicleForm.guest_id,
@@ -495,6 +528,10 @@ function GuestTransportManagement() {
 
     if (!assigned_at) {
       alert("Assigned date and time are required");
+      return;
+    }
+    if (released_at && new Date(released_at) < new Date(assigned_at)) {
+      alert("Release time cannot be before assigned time");
       return;
     }
 
@@ -778,6 +815,19 @@ function GuestTransportManagement() {
                           <b>Stay:</b>{" "}
                           {formatISTDateTime(guest.entry_date)} →{" "}
                           {formatISTDateTime(guest.exit_date)}
+                          {transportConflicts[guest.guest_id] && (
+                            <div className="transportWarning">
+                              ⚠️ Stay dates changed.
+                              {transportConflicts[guest.guest_id].drivers > 0 && (
+                                <> {transportConflicts[guest.guest_id].drivers} driver trip(s)</>
+                              )}
+                              {transportConflicts[guest.guest_id].vehicles > 0 && (
+                                <> {transportConflicts[guest.guest_id].vehicles} vehicle assignment(s)</>
+                              )}
+                              {" "}may be outside the current stay period.
+                            </div>
+                          )}
+
                         </div>
                       </div>
                     </div>
@@ -1096,7 +1146,10 @@ function GuestTransportManagement() {
 
                 <TimePicker12h
                   label="From Time"
-                  onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+                  value={driverForm.start_time}
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, start_time: v })
+                  }
                 />
                 {/* <p className="errorText">{formErrors.pickup_time_from}</p> */}
 
@@ -1130,6 +1183,7 @@ function GuestTransportManagement() {
 
                 <TimePicker12h
                   label="Drop Time"
+                  value={driverForm.drop_time}
                   onChange={(v) =>
                     setDriverForm({ ...driverForm, drop_time: v })
                   }
@@ -1325,7 +1379,10 @@ function GuestTransportManagement() {
 
                 <TimePicker12h
                   label="From Time"
-                  onChange={(v) => setDriverForm({ ...driverForm, start_time: v })}
+                  value={driverForm.start_time}
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, start_time: v })
+                  }
                   onBlur={() => validateSingleField(assignDriverSchema, "pickup_time_from", driverForm.start_time, setFormErrors)}
                 // onKeyUp={() => validateSingleField(assignDriverSchema,"pickup_time_from",driverForm.start_time,setFormErrors)}
                 />
@@ -1346,6 +1403,7 @@ function GuestTransportManagement() {
                 <p className="errorText">{formErrors.drop_date}</p>
                 <TimePicker12h
                   label="Drop Time"
+                  value={driverForm.drop_time}
                   onChange={(v) =>
                     setDriverForm({ ...driverForm, drop_time: v })
                   }

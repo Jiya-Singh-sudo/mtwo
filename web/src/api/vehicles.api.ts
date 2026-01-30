@@ -47,9 +47,24 @@ export async function updateVehicle(
 
 // DELETE /vehicles/:vehicle_no
 export async function softDeleteVehicle(vehicleNo: string, user = "system") {
-  const res = await api.delete(
-    `/vehicles/delete/${encodeURIComponent(vehicleNo)}`,
-    { headers: { "x-user": user } }
-  );
-  return res.data;
+  try {
+    const res = await api.delete(
+      `/vehicles/delete/${encodeURIComponent(vehicleNo)}`,
+      { headers: { "x-user": user } }
+    );
+    return res.data;
+  } catch (err: any) {
+    // 👇 THIS is the key line
+    throw new Error(
+      err?.response?.data?.message ||
+      "Unable to delete vehicle. Please try again."
+    );
+  }
 }
+// export async function softDeleteVehicle(vehicleNo: string, user = "system") {
+//   const res = await api.delete(
+//     `/vehicles/delete/${encodeURIComponent(vehicleNo)}`,
+//     { headers: { "x-user": user } }
+//   );
+//   return res.data;
+// }

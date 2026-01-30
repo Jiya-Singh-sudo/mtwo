@@ -63,7 +63,20 @@ export async function assignDriverToGuestVehicle(payload: {
   const res = await api.post("/drivers/assign", payload);
   return res.data;
 }
+
 export async function softDeleteDriver(driver_id: string) {
-  const res = await api.delete(`/drivers/${driver_id}`);
-  return res.data;
-} 
+  try {
+    const res = await api.delete(`/drivers/${driver_id}`);
+    return res.data;
+  } catch (err: any) {
+    throw new Error(
+      err?.response?.data?.message ||
+      'Unable to delete driver. Please try again.'
+    );
+  }
+}
+
+// export async function softDeleteDriver(driver_id: string) {
+//   const res = await api.delete(`/drivers/${driver_id}`);
+//   return res.data;
+// } 

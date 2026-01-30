@@ -45,33 +45,6 @@ interface Driver {
 }
 
 export function VehicleManagement() {
-  // useEffect(() => {
-  //   async function loadDrivers() {
-  //     try {
-  //       const data = await fetchDrivers();
-
-  //       const normalized = data.map((d: any) => ({
-  //         driver_id: d.driver_id,
-  //         driver_name: d.driver_name,
-  //         driver_name_ll: d.driver_name_local_language,
-  //         driver_contact: d.driver_contact,
-  //         driver_alternate_contact: d.driver_alternate_mobile,
-  //         driver_license: d.driver_license,
-  //         address: d.address,
-  //         is_active: d.is_active,
-  //         inserted_at: d.inserted_at,
-  //       }));
-
-  //       setDrivers(normalized);
-  //     } catch (err) {
-  //       console.error('Failed to load driver', err);
-  //     } finally {
-  //       setDriverLoading(false);
-  //     }
-  //   }
-
-  //   loadDrivers();
-  // }, []);
 
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -90,7 +63,7 @@ export function VehicleManagement() {
   const [viewDriver, setViewDriver] = useState<Driver | null>(null);
   // const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
+  const [apiError, setApiError] = useState<string | null>(null);
   const vehicleTable = useTableQuery({
     prefix: "vehicles",
     sortBy: 'vehicle_name',
@@ -209,11 +182,13 @@ export function VehicleManagement() {
   const handleDeleteVehicle = async () => {
     if (!selectedVehicle) return;
 
-    await softDeleteVehicle(selectedVehicle.vehicle_no);
-
-    vehicleTable.setPage(1);
-
-    setShowDeleteVehicleConfirm(false);
+    try {
+      await softDeleteVehicle(selectedVehicle.vehicle_no);
+      vehicleTable.setPage(1);
+      setShowDeleteVehicleConfirm(false);
+    } catch (err: any) {
+      setApiError(err.message);
+    }
   };
 
 
@@ -277,12 +252,24 @@ export function VehicleManagement() {
     }
   };
 
+  // const handleDeleteDriver = async () => {
+  //   if (!selectedDriver) return;
+  //   await softDeleteDriver(selectedDriver.driver_id);
+  //   driverTable.setPage(1);
+  //   setShowDeleteDriverConfirm(false);
+  //   setSelectedDriver(null);
+  // };
   const handleDeleteDriver = async () => {
     if (!selectedDriver) return;
-    await softDeleteDriver(selectedDriver.driver_id);
-    driverTable.setPage(1);
-    setShowDeleteDriverConfirm(false);
-    setSelectedDriver(null);
+
+    try {
+      await softDeleteDriver(selectedDriver.driver_id);
+      driverTable.setPage(1);
+      setShowDeleteDriverConfirm(false);
+      setSelectedDriver(null);
+    } catch (err: any) {
+      setApiError(err.message);
+    }
   };
 
   const openEditDriverModal = (driver: Driver) => {
@@ -1200,12 +1187,20 @@ export function VehicleManagement() {
         <div className="modalOverlay">
           <div className="modal">
             <h3>Confirm Deletion</h3>
+            {apiError && (
+              <div className="mb-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">
+                {apiError}
+              </div>
+            )}
             <p className="mb-6">
               Are you sure you want to delete vehicle <strong>{selectedVehicle.vehicle_no}</strong>? This action cannot be undone.
             </p>
             <div className="modalActions">
               <button
-                onClick={() => setShowDeleteVehicleConfirm(false)}
+                onClick={() => {
+                  setShowDeleteVehicleConfirm(false);
+                  setApiError(null);
+                }}
                 className="linkBtn"
               >
                 Cancel
@@ -1226,12 +1221,20 @@ export function VehicleManagement() {
         <div className="modalOverlay">
           <div className="modal">
             <h3>Confirm Deletion</h3>
+            {apiError && (
+              <div className="mb-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">
+                {apiError}
+              </div>
+            )}
             <p className="mb-6">
               Are you sure you want to delete driver <strong>{selectedDriver.driver_name}</strong>? This action cannot be undone.
             </p>
             <div className="modalActions">
               <button
-                onClick={() => setShowDeleteDriverConfirm(false)}
+                onClick={() => {
+                  setShowDeleteDriverConfirm(false);
+                  setApiError(null);
+                }}
                 className="linkBtn"
               >
                 Cancel

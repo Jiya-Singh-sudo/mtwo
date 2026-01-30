@@ -214,3 +214,27 @@ export async function updateVehicleAssignment(
   const res = await api.patch(`/guest-vehicle/editVehicleAssignment/${guestVehicleId}`, payload);
   return res.data;
 }
+export async function getGuestTransportConflicts(guestId: string) {
+  const res = await api.get(
+    `/guests/${guestId}/transport-conflicts`
+  );
+  return res.data as {
+    drivers: {
+      guest_driver_id: string;
+      driver_id: string;
+      driver_name: string;
+      trip_date: string;
+      start_time: string;
+      end_time?: string;
+      drop_date?: string;
+      drop_time?: string;
+    }[];
+    vehicles: {
+      guest_vehicle_id: string;
+      vehicle_no: string;
+      vehicle_name: string;
+      assigned_at: string;
+      released_at?: string;
+    }[];
+  };
+}
