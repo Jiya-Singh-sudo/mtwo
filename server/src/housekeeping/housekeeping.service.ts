@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateHousekeepingDto } from './dto/create-housekeeping.dto';
 import { UpdateHousekeepingDto } from './dto/update-housekeeping.dto';
@@ -184,24 +184,43 @@ export class HousekeepingService {
 
   async softDelete(name: string, user: string, ip: string) {
     const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Housekeeping '${name}' not found`);
+    if (!existing) {
+      throw new BadRequestException(`Room boy '${name}' not found`);
+    }
 
+    // 🔴 BLOCK DELETE IF ASSIGNED
+    const assigned = await this.db.query(
+      `
+      SELECT 1
+      FROM t_room_housekeeping
+      WHERE hk_id = $1
+        AND is_active = TRUE
+        AND status != 'Cancelled'
+      LIMIT 1
+      `,
+      [existing.hk_id]
+    );
+
+    if (assigned.rowCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete room boy '${name}' because he is currently assigned to a room`
+      );
+    }
+
+    // ✅ SAFE TO DELETE
     const now = new Date().toISOString();
 
     const sql = `
-      UPDATE m_housekeeping SET
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
+      UPDATE m_housekeeping
+      SET is_active = false,
+          updated_at = $1,
+          updated_by = $2,
+          updated_ip = $3
       WHERE hk_id = $4
       RETURNING *;
     `;
 
-    const res = await this.db.query(sql, [
-      now, user, ip, existing.hk_id
-    ]);
-
+    const res = await this.db.query(sql, [now, user, ip, existing.hk_id]);
     return res.rows[0];
   }
 }

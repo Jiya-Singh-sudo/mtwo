@@ -147,17 +147,60 @@ export class RoomsService {
     return result.rows[0];
   }
 
+  // async softDelete(room_no: string, user: string, ip: string) {
+  //   const existing = await this.findOneByRoomNo(room_no);
+  //   if (!existing) {
+  //     throw new Error(`Room '${room_no}' not found`);
+  //   }
+
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     UPDATE m_rooms SET
+  //       is_active = false,
+  //       updated_at = $1,
+  //       updated_by = $2,
+  //       updated_ip = $3
+  //     WHERE room_id = $4
+  //     RETURNING *;
+  //   `;
+
+  //   const params = [now, user, ip, existing.room_id];
+  //   const result = await this.db.query(sql, params);
+
+  //   return result.rows[0];
+  // }
+
   async softDelete(room_no: string, user: string, ip: string) {
     const existing = await this.findOneByRoomNo(room_no);
     if (!existing) {
       throw new Error(`Room '${room_no}' not found`);
     }
 
+    // 1️⃣ Check active guest-room assignment
+    const assigned = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_room
+      WHERE room_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [existing.room_id]
+    );
+
+    if (assigned.rowCount > 0) {
+      throw new Error(
+        'Cannot delete room: room is currently assigned to a guest'
+      );
+    }
+
+    // 2️⃣ Safe delete
     const now = new Date().toISOString();
 
     const sql = `
       UPDATE m_rooms SET
-        is_active = false,
+        is_active = FALSE,
         updated_at = $1,
         updated_by = $2,
         updated_ip = $3

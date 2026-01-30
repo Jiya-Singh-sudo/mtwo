@@ -119,7 +119,32 @@ export class GuestHousekeepingService {
     return res.rows[0];
   }
 
+
   async cancel(id: string) {
+    // 1️⃣ Fetch housekeeping task
+    const check = await this.db.query(
+      `
+      SELECT guest_id, is_active
+      FROM t_room_housekeeping
+      WHERE guest_hk_id = $1
+      `,
+      [id]
+    );
+
+    if (!check.rowCount) {
+      throw new Error('Housekeeping task not found');
+    }
+
+    const hk = check.rows[0];
+
+    // 2️⃣ BLOCK if assigned to guest
+    if (hk.is_active && hk.guest_id) {
+      throw new Error(
+        'Cannot delete housekeeping: it is assigned to an active guest'
+      );
+    }
+
+    // 3️⃣ Safe to cancel
     const sql = `
       UPDATE t_room_housekeeping
       SET
@@ -129,6 +154,7 @@ export class GuestHousekeepingService {
       WHERE guest_hk_id = $1
       RETURNING *;
     `;
+
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
   }
