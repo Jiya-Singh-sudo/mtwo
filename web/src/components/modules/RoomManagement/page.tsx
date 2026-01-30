@@ -128,6 +128,7 @@ export function RoomManagement() {
   const [showAddRoomBoy, setShowAddRoomBoy] = useState(false);
   const [showEditRoomBoy, setShowEditRoomBoy] = useState(false);
   const [showDeleteRoomBoyConfirm, setShowDeleteRoomBoyConfirm] = useState(false);
+  const [deleteRoomBoyError, setDeleteRoomBoyError] = useState<string | null>(null);
 
   // Room boy create/edit form (HousekeepingCreateDto)
   const [roomBoyForm, setRoomBoyForm] = useState<HousekeepingCreateDto>({
@@ -538,18 +539,43 @@ export function RoomManagement() {
     setShowEditRoomBoy(false);
   };
 
+  // const handleDeleteRoomBoy = async () => {
+  //   if (!selectedRoomBoy) return;
+
+  //   await softDeleteHousekeeping(selectedRoomBoy.hk_name);
+
+  //   setRoomBoys((prev) =>
+  //     prev.filter((rb) => rb.hk_id !== selectedRoomBoy.hk_id)
+  //   );
+
+  //   setShowDeleteRoomBoyConfirm(false);
+  // };
   const handleDeleteRoomBoy = async () => {
     if (!selectedRoomBoy) return;
 
-    await softDeleteHousekeeping(selectedRoomBoy.hk_name);
+    // 🔴 clear old error
+    setDeleteRoomBoyError(null);
 
-    setRoomBoys((prev) =>
-      prev.filter((rb) => rb.hk_id !== selectedRoomBoy.hk_id)
-    );
+    try {
+      await softDeleteHousekeeping(selectedRoomBoy.hk_name);
 
-    setShowDeleteRoomBoyConfirm(false);
+      // ✅ success → update UI
+      setRoomBoys((prev) =>
+        prev.filter((rb) => rb.hk_id !== selectedRoomBoy.hk_id)
+      );
+
+      setShowDeleteRoomBoyConfirm(false);
+    } catch (err: any) {
+      // ✅ extract backend message
+      const message =
+        err?.response?.data?.message ||
+        "Unable to delete room boy";
+
+      setDeleteRoomBoyError(message);
+
+      // ❌ DO NOT close modal
+    }
   };
-
   const resetRoomBoyForm = () => {
     setRoomBoyForm({
       hk_name: "",
@@ -2294,7 +2320,22 @@ function resetAddRoomState() {
       {showDeleteRoomBoyConfirm && selectedRoomBoy && (
         <div className="modalOverlay">
           <div className="modal">
-            <h3>Confirm Deletion</h3>
+          <h3>Confirm Deletion</h3>
+          {deleteRoomBoyError && (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "10px 12px",
+                border: "1px solid #f5c2c7",
+                backgroundColor: "#f8d7da",
+                color: "#842029",
+                borderRadius: "4px",
+                fontSize: "14px",
+              }}
+            >
+              {deleteRoomBoyError}
+            </div>
+          )}
             <p className="mb-6">
               Are you sure you want to delete{" "}
               <strong>{selectedRoomBoy.hk_name}</strong>?
@@ -2303,7 +2344,7 @@ function resetAddRoomState() {
             <div className="modalActions">
               <button
                 className="linkBtn"
-                onClick={() => setShowDeleteRoomBoyConfirm(false)}
+                onClick={() => {setShowDeleteRoomBoyConfirm(false); setDeleteRoomBoyError(null)}}
               >
                 Cancel
               </button>

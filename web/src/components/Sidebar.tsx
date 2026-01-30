@@ -90,14 +90,14 @@ export function Sidebar() {
       permission: 'food.view',
     },
 
-    // {
-    //   id: 'network-management',
-    //   label: 'Network Management',
-    //   labelHi: 'नेटवर्क प्रबंधन',
-    //   icon: Building2,
-    //   path: '/network-management',
-    //   permission: 'network.view',
-    // },
+    {
+      id: 'network-management',
+      label: 'Network Management',
+      labelHi: 'नेटवर्क प्रबंधन',
+      icon: Building2,
+      path: '/network-management',
+      permission: 'network.view',
+    },
 /*
     {
       id: 'duty-roster',
