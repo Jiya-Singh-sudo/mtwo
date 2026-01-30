@@ -16,7 +16,7 @@ export class GuestStatusJob {
           updated_at = NOW()
       WHERE status = 'Scheduled'
         AND is_active = TRUE
-        AND (entry_date + entry_time) <= NOW();
+        AND (entry_date + entry_time)::timestamp <= NOW();
 
       /* ================= Entered / Inside → Exited ================= */
       UPDATE t_guest_inout
@@ -26,7 +26,7 @@ export class GuestStatusJob {
         AND is_active = TRUE
         AND exit_date IS NOT NULL
         AND exit_time IS NOT NULL
-        AND (exit_date + exit_time) <= NOW();
+        AND (exit_date + exit_time)::timestamp <= NOW();
     `);
   }
 }

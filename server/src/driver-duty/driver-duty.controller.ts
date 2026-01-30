@@ -66,4 +66,12 @@ export class DriverDutyController {
   ) {
     return this.service.findByDriver(driverId, from, to);
   }
+  @Get('driver/:driverId/date/:date')
+  getDutyForDriverOnDate(
+    @Param('driverId') driverId: string,
+    @Param('date') date: string
+  ) {
+    return this.service.findDutyForDriverOnDate(driverId, date);
+  }
+
 }

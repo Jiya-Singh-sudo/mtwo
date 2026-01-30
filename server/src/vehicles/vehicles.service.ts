@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -97,7 +97,6 @@ async getFleetOverview() {
   return res.rows;
 }
 
-
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM m_vehicle WHERE is_active = $1 ORDER BY vehicle_name`
@@ -195,41 +194,80 @@ async getFleetOverview() {
         return result.rows[0];
     }
 
-    async softDelete(vehicle_no: string, user: string, ip: string) {
-        const now = new Date().toISOString();
+    // async softDelete(vehicle_no: string, user: string, ip: string) {
+    //     const now = new Date().toISOString();
 
-        const sql = `
-            UPDATE m_vehicle SET
-                is_active = false,
-                updated_at = $1,
-                updated_by = $2,
-                updated_ip = $3
-            WHERE vehicle_no = $4
-            RETURNING *;
-        `;
+    //     const sql = `
+    //         UPDATE m_vehicle SET
+    //             is_active = false,
+    //             updated_at = $1,
+    //             updated_by = $2,
+    //             updated_ip = $3
+    //         WHERE vehicle_no = $4
+    //         RETURNING *;
+    //     `;
 
-        const result = await this.db.query(sql, [now, user, ip, vehicle_no]);
-        return result.rows[0];
+    //     const result = await this.db.query(sql, [now, user, ip, vehicle_no]);
+    //     return result.rows[0];
+    // }
+  async softDelete(vehicle_no: string, user: string, ip: string) {
+    const existing = await this.findOne(vehicle_no);
+    if (!existing) {
+      throw new Error(`Vehicle '${vehicle_no}' not found`);
     }
-      async findAssignable() {
+
+    // 🚫 CHECK: Is vehicle currently assigned?
+    const assignmentCheck = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_vehicle
+      WHERE vehicle_no = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [vehicle_no]
+    );
+
+    if (assignmentCheck.rows.length > 0) {
+      throw new BadRequestException(
+        `Cannot deactivate vehicle '${vehicle_no}' because it is currently assigned to an active duty`
+      );
+    }
+
+    const now = new Date().toISOString();
+
     const sql = `
-      SELECT
-        v.vehicle_no,
-        v.vehicle_name,
-        v.model,
-        v.capacity
-      FROM m_vehicle v
-      WHERE v.is_active = TRUE
-        AND NOT EXISTS (
-          SELECT 1
-          FROM t_guest_vehicle gv
-          WHERE gv.vehicle_no = v.vehicle_no
-            AND gv.is_active = TRUE
-        )
-      ORDER BY v.vehicle_name;
+      UPDATE m_vehicle SET
+        is_active = FALSE,
+        updated_at = $1,
+        updated_by = $2,
+        updated_ip = $3
+      WHERE vehicle_no = $4
+      RETURNING *;
     `;
 
-    const res = await this.db.query(sql);
-    return res.rows;
+    const result = await this.db.query(sql, [now, user, ip, vehicle_no]);
+    return result.rows[0];
+  }
+    async findAssignable() {
+      const sql = `
+        SELECT
+          v.vehicle_no,
+          v.vehicle_name,
+          v.model,
+          v.capacity
+        FROM m_vehicle v
+        WHERE v.is_active = TRUE
+          AND NOT EXISTS (
+            SELECT 1
+            FROM t_guest_vehicle gv
+            WHERE gv.vehicle_no = v.vehicle_no
+              AND gv.is_active = TRUE
+          )
+        ORDER BY v.vehicle_name;
+      `;
+
+      const res = await this.db.query(sql);
+      return res.rows;
   }
 }

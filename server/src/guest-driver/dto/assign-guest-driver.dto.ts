@@ -31,4 +31,12 @@ export class AssignGuestDriverDto {
   @IsOptional()
   @IsString()
   trip_status?: string;
+
+  @IsOptional()
+  @IsString()
+  drop_date?: string;
+
+  @IsOptional()
+  @IsString()
+  drop_time?: string;
 }

@@ -164,6 +164,11 @@ export class GuestVehicleService {
     ip = '0.0.0.0'
   ) {
     await this.assertGuestIsAssignable(dto.guest_id);
+    await this.assertVehicleAvailability(
+      dto.vehicle_no,
+      dto.assigned_at,
+      dto.released_at
+    );
     await this.db.query('BEGIN');
     try {
       const guestVehicleId = await this.generateGuestVehicleId();
@@ -237,19 +242,38 @@ export class GuestVehicleService {
   }
   async getWithoutDriver() {
     const sql = `
-    SELECT
-      gv.guest_vehicle_id,
-      gv.vehicle_no,
-      g.guest_name
-    FROM t_guest_vehicle gv
-    JOIN m_guest g ON g.guest_id = gv.guest_id
-    WHERE gv.driver_id IS NULL
-      AND gv.is_active = TRUE;
-  `;
+      SELECT
+        gv.guest_vehicle_id,
+        gv.vehicle_no,
+        g.guest_name
+      FROM t_guest_vehicle gv
+      JOIN m_guest g ON g.guest_id = gv.guest_id
+      LEFT JOIN t_guest_driver gd
+        ON gd.guest_id = gv.guest_id
+        AND gd.is_active = TRUE
+      WHERE gv.is_active = TRUE
+        AND gd.guest_driver_id IS NULL;
+    `;
 
     const res = await this.db.query(sql);
     return res.rows;
   }
+
+  // async getWithoutDriver() {
+  //   const sql = `
+  //   SELECT
+  //     gv.guest_vehicle_id,
+  //     gv.vehicle_no,
+  //     g.guest_name
+  //   FROM t_guest_vehicle gv
+  //   JOIN m_guest g ON g.guest_id = gv.guest_id
+  //   WHERE gv.driver_id IS NULL
+  //     AND gv.is_active = TRUE;
+  // `;
+
+  //   const res = await this.db.query(sql);
+  //   return res.rows;
+  // }
   //   async updateVehicleAssignment(
   //   guestVehicleId: string,
   //   payload: {
@@ -307,6 +331,19 @@ export class GuestVehicleService {
 
     await this.assertGuestIsAssignable(old.rows[0].guest_id);
 
+    await this.assertVehicleWithinGuestStay(
+      old.rows[0].guest_id,
+      dto.assigned_at,
+      dto.released_at
+    );
+
+    await this.assertVehicleAvailability(
+      dto.vehicle_no,
+      dto.assigned_at,
+      dto.released_at,
+      oldGuestVehicleId
+    );
+
     // await this.assertGuestIsAssignable(dto.guest_id);
     await this.db.query('BEGIN');
 
@@ -325,6 +362,8 @@ export class GuestVehicleService {
         `,
         [oldGuestVehicleId, user, ip]
       );
+      // store once for clarity
+      const guestId = old.rows[0].guest_id;
 
       // 2️⃣ Create new assignment (assignVehicle has its own transaction, so we inline the insert)
       const guestVehicleId = await this.generateGuestVehicleId();
@@ -334,10 +373,10 @@ export class GuestVehicleService {
             (guest_vehicle_id, guest_id, vehicle_no, location, assigned_at, released_at,
             is_active, inserted_by, inserted_ip)
         VALUES
-            ($1,$2,$3,$4, $5, $6, TRUE,$7,$8)
-        `, [
+            ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+      `, [
         guestVehicleId,
-        dto.guest_id,
+        guestId,                 // ✅ FIX: DO NOT use dto.guest_id
         dto.vehicle_no,
         dto.location || null,
         dto.assigned_at,
@@ -353,4 +392,75 @@ export class GuestVehicleService {
       throw err;
     }
   }
+  private async assertVehicleAvailability(
+    vehicleNo: string,
+    assignedAt: string,
+    releasedAt?: string,
+    excludeGuestVehicleId?: string
+  ) {
+    const sql = `
+      SELECT 1
+      FROM t_guest_vehicle
+      WHERE
+        vehicle_no = $1
+        AND is_active = TRUE
+        AND guest_vehicle_id <> COALESCE($4, guest_vehicle_id)
+        AND (
+          assigned_at,
+          COALESCE(released_at, 'infinity')
+        )
+        OVERLAPS
+        (
+          $2::timestamp,
+          COALESCE($3::timestamp, 'infinity')
+        )
+      LIMIT 1;
+    `;
+
+    const res = await this.db.query(sql, [
+      vehicleNo,
+      assignedAt,
+      releasedAt ?? null,
+      excludeGuestVehicleId ?? null
+    ]);
+
+    if (res.rows.length) {
+      throw new Error(
+        `Vehicle ${vehicleNo} is already assigned during the selected time`
+      );
+    }
+  }
+  private async assertVehicleWithinGuestStay(
+    guestId: string,
+    assignedAt: string,
+    releasedAt?: string
+  ) {
+    const res = await this.db.query(
+      `
+      SELECT
+        (io.entry_date::timestamp + io.entry_time::time) AS entry_ts,
+        (io.exit_date::timestamp + COALESCE(io.exit_time, TIME '23:59')) AS exit_ts
+      FROM t_guest_inout io
+      WHERE io.guest_id = $1
+        AND io.is_active = TRUE
+      ORDER BY io.inserted_at DESC
+      LIMIT 1
+      `,
+      [guestId]
+    );
+
+    if (!res.rows.length) return;
+
+    const { entry_ts, exit_ts } = res.rows[0];
+
+    if (
+      assignedAt < entry_ts ||
+      (releasedAt && releasedAt > exit_ts)
+    ) {
+      throw new Error(
+        'Vehicle assignment is outside guest check-in / check-out period'
+      );
+    }
+  }
+
 }

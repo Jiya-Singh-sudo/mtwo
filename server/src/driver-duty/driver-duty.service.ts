@@ -152,4 +152,22 @@ export class DriverDutyService {
 
     return res.rows;
   }
+
+  async findDutyForDriverOnDate(driverId: string, date: string) {
+    const res = await this.db.query(
+      `
+      SELECT *
+      FROM t_driver_duty
+      WHERE driver_id = $1
+        AND duty_date = $2
+        AND is_active = TRUE
+      ORDER BY updated_at DESC
+      LIMIT 1
+      `,
+      [driverId, date]
+    );
+
+    return res.rows[0] || null;
+  }
+
 }

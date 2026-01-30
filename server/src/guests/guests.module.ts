@@ -4,9 +4,11 @@ import { GuestsController } from './guests.controller';
 import { DatabaseModule } from '../database/database.module';
 import { GuestStatusJob } from './guests-status.job';
 
+import { GuestTransportModule } from '../guest-transport/guest-transport.module';
+
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, GuestTransportModule],
   controllers: [GuestsController],
   providers: [GuestsService, GuestStatusJob]
 })
-export class GuestsModule {}
+export class GuestsModule { }

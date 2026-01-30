@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
@@ -293,16 +293,56 @@ export class DriversService {
     return result.rows[0];
   }
 
+  // async softDelete(driver_id: string, user: string, ip: string) {
+  //   const existing = await this.findOneById(driver_id);
+  //   if (!existing) {
+  //     throw new Error(`Driver '${driver_id}' not found`);
+  //   }
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     UPDATE m_driver SET
+  //       is_active = false,
+  //       updated_at = $1,
+  //       updated_by = $2,
+  //       updated_ip = $3
+  //     WHERE driver_id = $4
+  //     RETURNING *;
+  //   `;
+
+  //   const result = await this.db.query(sql, [now, user, ip, driver_id]);
+  //   return result.rows[0];
+  // }
+
   async softDelete(driver_id: string, user: string, ip: string) {
     const existing = await this.findOneById(driver_id);
     if (!existing) {
       throw new Error(`Driver '${driver_id}' not found`);
     }
+
+    // 🚫 CHECK: Is driver currently assigned?
+    const assignmentCheck = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_vehicle
+      WHERE driver_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [driver_id]
+    );
+
+    if (assignmentCheck.rows.length > 0) {
+      throw new BadRequestException(
+        `Cannot deactivate driver '${driver_id}' because the driver is currently assigned to an active duty`
+      );
+    }
+
     const now = new Date().toISOString();
 
     const sql = `
       UPDATE m_driver SET
-        is_active = false,
+        is_active = FALSE,
         updated_at = $1,
         updated_by = $2,
         updated_ip = $3
@@ -313,6 +353,4 @@ export class DriversService {
     const result = await this.db.query(sql, [now, user, ip, driver_id]);
     return result.rows[0];
   }
-
-
 }

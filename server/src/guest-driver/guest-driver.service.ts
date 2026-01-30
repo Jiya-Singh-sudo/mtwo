@@ -80,6 +80,20 @@ export class GuestDriverService {
   ) {
     // 🔒 BLOCK assignment for exited / cancelled guests
     await this.assertGuestIsAssignable(dto.guest_id);
+    await this.assertDriverOnDuty(
+      dto.driver_id,
+      dto.trip_date,
+      dto.start_time,
+      dto.drop_date,
+      dto.drop_time
+    );
+    await this.assertDriverAvailability(
+      dto.driver_id,
+      dto.trip_date,
+      dto.start_time,
+      dto.drop_date,
+      dto.drop_time
+    );
 
     return this.createTrip(
       {
@@ -450,6 +464,20 @@ export class GuestDriverService {
     if (!old) throw new Error('Trip not found');
 
     await this.assertGuestIsAssignable(old.guest_id);
+    await this.assertDriverOnDuty(
+      dto.driver_id ?? old.driver_id,
+      dto.trip_date ?? old.trip_date,
+      dto.start_time ?? old.start_time,
+      dto.drop_date ?? old.drop_date,
+      dto.drop_time ?? old.drop_time
+    );
+    await this.assertDriverAvailability(
+      dto.driver_id ?? old.driver_id,
+      dto.trip_date ?? old.trip_date,
+      dto.start_time ?? old.start_time,
+      dto.drop_date ?? old.drop_date,
+      dto.drop_time ?? old.drop_time
+    );
 
     // Use transaction to ensure atomic operation
     await this.db.query('BEGIN');
@@ -468,7 +496,7 @@ export class GuestDriverService {
         [oldGuestDriverId, user, ip]
       );
 
-      // 2️⃣ Insert revised trip as NEW ROW
+      // 2️⃣ Insert   `d trip as NEW ROW
       const newTrip = await this.create(
         {
           guest_id: old.guest_id,
@@ -501,5 +529,169 @@ export class GuestDriverService {
       throw err;
     }
   }
+  private async assertDriverAvailability(
+    driverId: string,
+    tripDate: string,
+    startTime: string,
+    dropDate?: string,
+    dropTime?: string
+  ) {
+    const sql = `
+      SELECT 1
+      FROM t_guest_driver
+      WHERE
+        driver_id = $1
+        AND is_active = TRUE
+        AND (
+          (trip_date::timestamp + start_time::time),
+          COALESCE(
+            (drop_date::timestamp + drop_time::time),
+            'infinity'
+          )
+        )
+        OVERLAPS
+        (
+          ($2::date + $3::time),
+          COALESCE(($4::date + $5::time), 'infinity')
+        )
+      LIMIT 1;
+    `;
 
+    const res = await this.db.query(sql, [
+      driverId,
+      tripDate,
+      startTime,
+      dropDate ?? null,
+      dropTime ?? null,
+    ]);
+
+    if (res.rows.length) {
+      throw new Error(
+        `Driver is already assigned during the selected time`
+      );
+    }
+  }
+  // private async assertDriverOnDuty(
+  //   driverId: string,
+  //   tripDate: string,
+  //   startTime: string,
+  //   dropDate?: string,
+  //   dropTime?: string
+  // ) {
+  //   const res = await this.db.query(
+  //     `
+  //     SELECT 1
+  //     FROM t_driver_duty
+  //     WHERE driver_id = $1
+  //       AND duty_date = $2
+  //       AND is_active = TRUE
+  //       AND is_week_off = FALSE
+  //       AND (
+  //         (duty_date::timestamp + duty_in_time::time),
+  //         (duty_date::timestamp + duty_out_time::time)
+  //       )
+  //       OVERLAPS
+  //       (
+  //         ($2::date + $3::time),
+  //         COALESCE(($4::date + $5::time), 'infinity')
+  //       )
+  //     `,
+  //     [driverId, tripDate, startTime, dropDate ?? tripDate, dropTime ?? null]
+  //   );
+
+  //   if (!res.rows.length) {
+  //     throw new Error(
+  //       'Driver is not on duty during the selected time'
+  //     );
+  //   }
+  // }
+  // private async assertDriverOnDuty(
+  //   driverId: string,
+  //   tripDate: string,
+  //   startTime: string,
+  //   dropDate?: string,
+  //   dropTime?: string
+  // ) {
+  //   const res = await this.db.query(
+  //     `
+  //     SELECT 1
+  //     FROM t_driver_duty
+  //     WHERE driver_id = $1
+  //       AND duty_date = $2
+  //       AND is_active = TRUE
+  //       AND is_week_off = FALSE
+  //       AND (
+  //         /* ---------- DUTY WINDOW (handles night shifts) ---------- */
+  //         (
+  //           duty_date::timestamp + duty_in_time::time,
+  //           CASE
+  //             WHEN duty_out_time < duty_in_time
+  //               THEN duty_date::timestamp + duty_out_time::time + INTERVAL '1 day'
+  //             ELSE duty_date::timestamp + duty_out_time::time
+  //           END
+  //         )
+  //       )
+  //       OVERLAPS
+  //       (
+  //         /* ---------- TRIP WINDOW ---------- */
+  //         ($2::date + $3::time),
+  //         COALESCE(($4::date + $5::time), 'infinity')
+  //       )
+  //     `,
+  //     [
+  //       driverId,
+  //       tripDate,
+  //       startTime,
+  //       dropDate ?? tripDate,
+  //       dropTime ?? null
+  //     ]
+  //   );
+
+  //   if (!res.rows.length) {
+  //     throw new Error('Driver is not on duty during the selected time');
+  //   }
+  // }
+  private async assertDriverOnDuty(
+    driverId: string,
+    tripDate: string,
+    startTime: string,
+    dropDate?: string,
+    dropTime?: string
+  ) {
+    const res = await this.db.query(
+      `
+      SELECT 1
+      FROM t_driver_duty
+      WHERE driver_id = $1
+        AND duty_date = $2
+        AND is_active = TRUE
+        AND is_week_off = FALSE
+        AND
+          (
+            duty_date::timestamp + duty_in_time::time,
+            CASE
+              WHEN duty_out_time < duty_in_time
+                THEN duty_date::timestamp + duty_out_time::time + INTERVAL '1 day'
+              ELSE duty_date::timestamp + duty_out_time::time
+            END
+          )
+          OVERLAPS
+          (
+            $2::date + $3::time,
+            COALESCE($4::date + $5::time, 'infinity')
+          )
+      `,
+      [
+        driverId,
+        tripDate,
+        startTime,
+        dropDate ?? null,
+        dropTime ?? null
+      ]
+    );
+
+    if (!res.rows.length) {
+      throw new Error('Driver is not on duty during the selected time');
+    }
+  }
 }

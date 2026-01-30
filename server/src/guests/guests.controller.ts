@@ -71,5 +71,10 @@ export class GuestsController {
   async cancelGuest(@Param('id') id: string, @Req() req: any) {
     return this.service.updateGuestInOut(id, { status: 'Cancelled' });
   }
+  @Get(':guestId/transport-conflicts')
+getTransportConflicts(@Param('guestId') guestId: string) {
+  return this.service.getTransportConflictsForGuest(guestId);
+}
+
 
 }

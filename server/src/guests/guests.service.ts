@@ -4,10 +4,14 @@ import { CreateGuestDto } from './dto/create-guests.dto';
 import { UpdateGuestDto } from './dto/update-guests.dto';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
+import { GuestTransportService } from 'src/guest-transport/guest-transport.service';
 
 @Injectable()
 export class GuestsService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly guestTransportService: GuestTransportService
+  ) { }
   private async generateGuestId(): Promise<string> {
     const sql = `
       SELECT guest_id 
@@ -91,35 +95,33 @@ export class GuestsService {
   //   };
   // }
   async getGuestStatusCounts() {
-  const sql = `
-    SELECT
-      COUNT(DISTINCT g.guest_id)::int AS all,
+    const sql = `
+      SELECT
+        COUNT(DISTINCT g.guest_id)::int AS all,
+        COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+        COUNT(*) FILTER (WHERE io.status = 'Entered')::int AS entered,
+        COUNT(*) FILTER (WHERE io.status = 'Inside')::int AS inside,
+        COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited,
+        COUNT(*) FILTER (WHERE io.status = 'Cancelled')::int AS cancelled
+      FROM m_guest g
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+        AND io.is_active = TRUE
+      WHERE g.is_active = TRUE;
+    `;
 
-      COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
-      COUNT(*) FILTER (WHERE io.status = 'Entered')::int AS entered,
-      COUNT(*) FILTER (WHERE io.status = 'Inside')::int AS inside,
-      COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited,
-      COUNT(*) FILTER (WHERE io.status = 'Cancelled')::int AS cancelled
+    const { rows } = await this.db.query(sql);
+    const r = rows[0];
 
-    FROM m_guest g
-    LEFT JOIN t_guest_inout io
-      ON io.guest_id = g.guest_id
-      AND io.is_active = TRUE
-    WHERE g.is_active = TRUE
-  `;
-
-  const { rows } = await this.db.query(sql);
-  const r = rows[0];
-
-  return {
-    All: r.all,
-    Scheduled: r.scheduled,
-    Entered: r.entered,
-    Inside: r.inside,
-    Exited: r.exited,
-    Cancelled: r.cancelled,
-  };
-}
+    return {
+      All: r.all,
+      Scheduled: r.scheduled,
+      Entered: r.entered,
+      Inside: r.inside,
+      Exited: r.exited,
+      Cancelled: r.cancelled,
+    };
+  }
 
 
   // create guest (transactional)
@@ -163,7 +165,7 @@ export class GuestsService {
       status = 'Exited';
     }
     try {
-    
+
       const g = payload.guest;
 
       // 1. Generate ID (seconds timestamp to fit integer)
@@ -258,8 +260,8 @@ export class GuestsService {
 
       // 4. Create t_guest_designation
       if (!finalDesignationId) {
-  throw new BadRequestException('Designation is required');
-}
+        throw new BadRequestException('Designation is required');
+      }
 
       const d = payload.designation;
       let gd_id: string | null = null;
@@ -354,7 +356,7 @@ export class GuestsService {
         gd_id
       };
     } catch (err) {
-        console.error('CREATE GUEST ERROR:', err);
+      console.error('CREATE GUEST ERROR:', err);
       await this.db.query('ROLLBACK');
       throw new BadRequestException(
         err?.message || 'Guest creation failed'
@@ -448,7 +450,7 @@ export class GuestsService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
-    
+
     const values: any[] = [];
     let idx = 1;
 
@@ -586,43 +588,43 @@ export class GuestsService {
     return r.rows[0];
   }
 
-async updateGuestInOut(
-  inoutId: string,
-  payload: {
-    entry_date?: string;
-    entry_time?: string;
-    exit_date?: string;
-    exit_time?: string;
-    status?: 'Scheduled' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
-  },
-  user = 'system',
-  ip = '0.0.0.0'
-) {
-  const fields: string[] = [];
-  const values: any[] = [];
-  let idx = 1;
+  async updateGuestInOut(
+    inoutId: string,
+    payload: {
+      entry_date?: string;
+      entry_time?: string;
+      exit_date?: string;
+      exit_time?: string;
+      status?: 'Scheduled' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
+    },
+    user = 'system',
+    ip = '0.0.0.0'
+  ) {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
 
-  for (const [key, value] of Object.entries(payload)) {
-    if (value === undefined) continue;
-    fields.push(`${key} = $${idx}`);
-    values.push(value);
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === undefined) continue;
+      fields.push(`${key} = $${idx}`);
+      values.push(value);
+      idx++;
+    }
+
+    if (fields.length === 0) {
+      throw new BadRequestException('No fields to update');
+    }
+
+    fields.push(`updated_at = NOW()`);
+    fields.push(`updated_by = $${idx}`);
+    values.push(user);
     idx++;
-  }
 
-  if (fields.length === 0) {
-    throw new BadRequestException('No fields to update');
-  }
+    fields.push(`updated_ip = $${idx}`);
+    values.push(ip);
+    idx++;
 
-  fields.push(`updated_at = NOW()`);
-  fields.push(`updated_by = $${idx}`);
-  values.push(user);
-  idx++;
-
-  fields.push(`updated_ip = $${idx}`);
-  values.push(ip);
-  idx++;
-
-  const sql = `
+    const sql = `
     UPDATE t_guest_inout
     SET ${fields.join(', ')}
     WHERE inout_id = $${idx}
@@ -630,11 +632,40 @@ async updateGuestInOut(
     RETURNING *;
   `;
 
-  values.push(inoutId);
+    values.push(inoutId);
 
-  const res = await this.db.query(sql, values);
-  return res.rows[0];
-}
+    // const res = await this.db.query(sql, values);
+    // return res.rows[0];
+    const res = await this.db.query(sql, values);
+    const updated = res.rows[0];
+
+    // 🔴 ADD THIS BLOCK
+    let warnings = [];
+    if (
+      payload.entry_date || payload.exit_date ||
+      payload.entry_time || payload.exit_time
+    ) {
+      const entryTs = new Date(
+        `${updated.entry_date} ${updated.entry_time || '00:00'}`
+      );
+      const exitTs = new Date(
+        `${updated.exit_date} ${updated.exit_time || '23:59'}`
+      );
+
+      warnings = await this.guestTransportService
+        .findTransportConflictsForGuest(
+          updated.guest_id,
+          entryTs,
+          exitTs
+        );
+    }
+
+    return {
+      inout: updated,
+      warnings, // 🔑 FRONTEND NEEDS THIS
+    };
+
+  }
 
   async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
     const sql = `
@@ -788,6 +819,94 @@ async updateGuestInOut(
         `,
         [gr.room_id, user, ip]
       );
+    }
+  }
+  async getTransportConflictsForGuest(guestId: string) {
+    const driverSql = `
+    SELECT
+      gd.guest_driver_id,
+      gd.driver_id,
+      d.driver_name,
+      gd.trip_date,
+      gd.start_time,
+      gd.drop_date,
+      gd.drop_time
+    FROM t_guest_driver gd
+    JOIN m_driver d ON d.driver_id = gd.driver_id
+    WHERE
+      gd.guest_id = $1
+      AND gd.is_active = TRUE
+  `;
+
+    const vehicleSql = `
+    SELECT
+      gv.guest_vehicle_id,
+      gv.vehicle_no,
+      v.vehicle_name,
+      gv.assigned_at,
+      gv.released_at
+    FROM t_guest_vehicle gv
+    JOIN m_vehicle v ON v.vehicle_no = gv.vehicle_no
+    WHERE
+      gv.guest_id = $1
+      AND gv.is_active = TRUE
+  `;
+
+    const [drivers, vehicles] = await Promise.all([
+      this.db.query(driverSql, [guestId]),
+      this.db.query(vehicleSql, [guestId]),
+    ]);
+
+    return {
+      drivers: drivers.rows,
+      vehicles: vehicles.rows,
+    };
+  }
+  async syncExpiredGuestInOuts(user = 'system', ip = '0.0.0.0') {
+    await this.db.query('BEGIN');
+
+    try {
+      // 1️⃣ Find all inouts that SHOULD be exited but are not
+      const expired = await this.db.query(`
+        SELECT inout_id, guest_id
+        FROM t_guest_inout
+        WHERE
+          is_active = TRUE
+          AND status NOT IN ('Exited', 'Cancelled')
+          AND exit_date IS NOT NULL
+          AND exit_date < CURRENT_DATE
+        FOR UPDATE SKIP LOCKED
+      `);
+
+    const guestIds = new Set<string>();
+
+    for (const row of expired.rows) {
+      await this.db.query(
+        `
+        UPDATE t_guest_inout
+        SET
+          status = 'Exited',
+          is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+        WHERE inout_id = $1
+        `,
+        [row.inout_id, user, ip]
+      );
+
+      guestIds.add(row.guest_id);
+    }
+
+    for (const guestId of guestIds) {
+      await this.cascadeGuestExit(guestId, this.db, user, ip);
+    }
+
+      await this.db.query('COMMIT');
+      return { updated: expired.rowCount };
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
     }
   }
 }
