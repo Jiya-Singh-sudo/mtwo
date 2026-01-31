@@ -52,6 +52,7 @@ function GuestTransportManagement() {
   } | null>(null);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [hasBackendError, setHasBackendError] = useState(false);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [transportConflicts, setTransportConflicts] = useState<
     Record<
@@ -254,18 +255,18 @@ function GuestTransportManagement() {
             : null,
         }));
         setRows(adaptedRows);
-const conflicts: typeof transportConflicts = {};
+        const conflicts: typeof transportConflicts = {};
 
-res.data.forEach((row: any) => {
-  if (row.driver_conflict || row.vehicle_conflict) {
-    conflicts[row.guest_id] = {
-      drivers: row.driver_conflict ? 1 : 0,
-      vehicles: row.vehicle_conflict ? 1 : 0,
-    };
-  }
-});
+        res.data.forEach((row: any) => {
+          if (row.driver_conflict || row.vehicle_conflict) {
+            conflicts[row.guest_id] = {
+              drivers: row.driver_conflict ? 1 : 0,
+              vehicles: row.vehicle_conflict ? 1 : 0,
+            };
+          }
+        });
 
-setTransportConflicts(conflicts);
+        setTransportConflicts(conflicts);
 
 
         GuestTable.setTotal(res.totalCount);
@@ -279,6 +280,7 @@ setTransportConflicts(conflicts);
   useEffect(() => {
     if (driverModalOpen || editDriverModalOpen) {
       setFormErrors({});
+      setHasBackendError(false);
     }
   }, [driverModalOpen, editDriverModalOpen]);
 
@@ -388,6 +390,7 @@ setTransportConflicts(conflicts);
 
       // ✅ SUCCESS
       setFormErrors({});
+      setHasBackendError(false);
       setDriverModalOpen(false);
       GuestTable.setPage(1);
 
@@ -398,36 +401,46 @@ setTransportConflicts(conflicts);
 
       switch (backendMessage) {
         case "DRIVER_WEEK_OFF":
+          setHasBackendError(true);
           setFormErrors({
             _form: "This driver is on week off for the selected date. Please choose another driver.",
           });
           break;
 
         case "DRIVER_NOT_ON_DUTY":
+            setHasBackendError(true);
           setFormErrors({
             _form: "This driver is not on duty during the selected time.",
           });
           break;
 
         case "DRIVER_ALREADY_ASSIGNED":
+            setHasBackendError(true);
+
           setFormErrors({
             _form: "This driver is already assigned during the selected time.",
           });
           break;
 
         case "GUEST_NOT_ASSIGNABLE":
+            setHasBackendError(true);
+
           setFormErrors({
             _form: "This guest cannot be assigned a driver.",
           });
           break;
 
         case "GUEST_STATUS_NOT_FOUND":
+            setHasBackendError(true);
+
           setFormErrors({
             _form: "Guest status could not be determined.",
           });
           break;
 
         default:
+            setHasBackendError(true);
+
           setFormErrors({
             _form: "Failed to assign driver. Please try again.",
           });
@@ -1217,7 +1230,16 @@ setTransportConflicts(conflicts);
                   onChange={(e) =>
                     setDriverForm({ ...driverForm, trip_date: e.target.value })
                   }
-                  onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  // onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  onBlur={() => {
+                    if (hasBackendError) return;
+                    validateSingleField(
+                      assignDriverSchema,
+                      "trip_date",
+                      driverForm.trip_date,
+                      setFormErrors
+                    );
+                  }}
                   //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
                 <FieldError message={formErrors.trip_date} />
@@ -1451,8 +1473,17 @@ setTransportConflicts(conflicts);
                   onChange={(e) =>
                     setDriverForm({ ...driverForm, trip_date: e.target.value })
                   }
-                  onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
-                  onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  // onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  onBlur={() => {
+                    if (hasBackendError) return;
+                    validateSingleField(
+                      assignDriverSchema,
+                      "trip_date",
+                      driverForm.trip_date,
+                      setFormErrors
+                  );
+                }}
+                // onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
                 <FieldError message={formErrors.trip_date} />
 
