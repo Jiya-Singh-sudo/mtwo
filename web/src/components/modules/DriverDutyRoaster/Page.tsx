@@ -161,10 +161,11 @@ export default function DriverDutyRoasterPage() {
                 duty ?? {
                   driver_id: row.driver_id,
                   duty_date: date,
-                  shift: "morning",
+                  shift: "morning", 
                   duty_in_time: null,
                   duty_out_time: null,
                   is_week_off: false,
+                  repeat_weekly: false,
                 }
               )
             }
@@ -236,6 +237,7 @@ export default function DriverDutyRoasterPage() {
           duty_in_time: editForm.duty_in_time,
           duty_out_time: editForm.duty_out_time,
           is_week_off: editForm.is_week_off,
+          repeat_weekly: editForm.repeat_weekly,
           shift: editForm.shift,
         });
       } else {
@@ -247,6 +249,7 @@ export default function DriverDutyRoasterPage() {
           duty_in_time: editForm.duty_in_time ?? undefined,
           duty_out_time: editForm.duty_out_time ?? undefined,
           is_week_off: editForm.is_week_off ?? false,
+          repeat_weekly: editForm.repeat_weekly ?? false,
         });
       }
 
@@ -403,6 +406,7 @@ export default function DriverDutyRoasterPage() {
                     setEditForm({
                       ...editForm,
                       is_week_off: e.target.checked,
+                      repeat_weekly: e.target.checked ? editForm.repeat_weekly : false,
                       ...(e.target.checked
                         ? { duty_in_time: null, duty_out_time: null }
                         : {}),
@@ -413,6 +417,21 @@ export default function DriverDutyRoasterPage() {
                 Week Off
                 <p className="errorText">{formErrors.week_off}</p>
               </label>
+              {editForm.is_week_off && (
+                <label className="flex gap-2 items-center ml-6">
+                  <input
+                    type="checkbox"
+                    checked={editForm.repeat_weekly ?? false}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        repeat_weekly: e.target.checked,
+                      })
+                    }
+                  />
+                  Repeat every week
+                </label>
+              )}
 
               {!editForm.is_week_off && (
                 <>

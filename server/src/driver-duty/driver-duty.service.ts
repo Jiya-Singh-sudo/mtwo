@@ -6,7 +6,9 @@ import { UpdateDriverDutyDto } from '../driver-duty/dto/updateDriverDuty.dto';
 @Injectable()
 export class DriverDutyService {
   constructor(private readonly db: DatabaseService) { }
-
+  private getWeekday(date: string): number {
+    return new Date(date + 'T00:00:00').getDay();
+  }
   private async generateId(): Promise<string> {
     const res = await this.db.query(`
       SELECT duty_id
@@ -66,12 +68,35 @@ export class DriverDutyService {
           dto.is_week_off ?? false,
         ],
       );
+    const duty = res.rows[0];
 
-      return res.rows[0];
+    /* ===============================
+      HANDLE WEEKLY OFF RULE
+    ================================ */
+    if (dto.is_week_off && dto.repeat_weekly) {
+      const weekday = this.getWeekday(dto.duty_date);
+
+      await this.db.query(
+        `
+        INSERT INTO t_driver_week_off (driver_id, weekday)
+        VALUES ($1, $2)
+        ON CONFLICT (driver_id, weekday)
+        DO UPDATE SET
+          is_active = true,
+          updated_at = now()
+        `,
+        [dto.driver_id, weekday]
+      );
+    }
+
+    return duty;
+      // return res.rows[0];
     } catch (err) {
       console.error("UPSERT DRIVER DUTY FAILED", err);
       throw err;
+      
     }
+    
   }
 
   async update(dutyId: string, dto: UpdateDriverDutyDto) {
@@ -98,8 +123,30 @@ export class DriverDutyService {
       dto.is_week_off ?? existing.is_week_off,
       dutyId,
     ]);
+    const duty = res.rows[0];
 
-    return res.rows[0];
+    /* ===============================
+      HANDLE WEEKLY OFF RULE
+    ================================ */
+    if (dto.is_week_off && dto.repeat_weekly) {
+      const weekday = this.getWeekday(duty.duty_date);
+
+      await this.db.query(
+        `
+        INSERT INTO t_driver_week_off (driver_id, weekday)
+        VALUES ($1, $2)
+        ON CONFLICT (driver_id, weekday)
+        DO UPDATE SET
+          is_active = true,
+          updated_at = now()
+        `,
+        [existing.driver_id, weekday]
+      );
+    }
+
+    return duty;
+    // return res.rows[0];
+    
   }
 
   async findOne(dutyId: string) {
@@ -109,7 +156,7 @@ export class DriverDutyService {
     );
 
     if (!res.rows.length) {
-      return res.rows;
+      throw new NotFoundException('Duty not found');
     }
 
     return res.rows[0];
@@ -120,19 +167,41 @@ export class DriverDutyService {
       SELECT
         drv.driver_id,
         drv.driver_name,
+        cal.duty_date,
         d.duty_id,
-        d.duty_date::date AS duty_date,
         d.shift,
         d.duty_in_time,
         d.duty_out_time,
-        d.is_week_off,
-        d.is_active
+
+        CASE
+          WHEN d.is_week_off = true THEN true
+          WHEN w.id IS NOT NULL THEN true
+          ELSE false
+        END AS is_week_off,
+
+        COALESCE(d.is_active, true) AS is_active
+
       FROM m_driver drv
+
+      CROSS JOIN (
+        SELECT generate_series(
+          $1::date,
+          $2::date,
+          interval '1 day'
+        )::date AS duty_date
+      ) cal
+
       LEFT JOIN t_driver_duty d
         ON d.driver_id = drv.driver_id
-        AND d.duty_date BETWEEN $1::date AND $2::date
+      AND d.duty_date = cal.duty_date
+
+      LEFT JOIN t_driver_week_off w
+        ON w.driver_id = drv.driver_id
+      AND w.weekday = EXTRACT(DOW FROM cal.duty_date)
+      AND w.is_active = true
+
       WHERE drv.is_active = true
-      ORDER BY drv.driver_name, d.duty_date;
+      ORDER BY drv.driver_name, cal.duty_date;
   `;
     const res = await this.db.query(sql, [from, to]);
     return res.rows;

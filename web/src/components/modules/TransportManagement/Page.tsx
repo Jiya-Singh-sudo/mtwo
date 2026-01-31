@@ -327,6 +327,37 @@ setTransportConflicts(conflicts);
     setDriverModalOpen(true);
   }
 
+  // async function submitAssignDriver() {
+  //   if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
+  //     alert("End time cannot be earlier than start time");
+  //     return;
+  //   }
+
+  //   if (!driverForm.driver_id) {
+  //     alert("Please select a driver first!");
+  //     return;
+  //   }
+
+  //   if (!driverForm.trip_date || !driverForm.start_time) {
+  //     alert("Trip date and start time are required");
+  //     return;
+  //   }
+
+  //   await assignDriverToGuest({
+  //     guest_id: driverForm.guest_id,
+  //     driver_id: driverForm.driver_id,
+  //     pickup_location: driverForm.pickup_location || undefined,
+  //     drop_location: driverForm.drop_location || undefined,
+  //     trip_date: driverForm.trip_date,
+  //     start_time: driverForm.start_time,
+  //     end_time: driverForm.end_time || undefined,
+  //     trip_status: driverForm.trip_status,
+  //   });
+  //   setFormErrors({});
+  //   setDriverModalOpen(false);
+  //   GuestTable.setPage(1);
+  // }
+
   async function submitAssignDriver() {
     if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
       alert("End time cannot be earlier than start time");
@@ -343,19 +374,66 @@ setTransportConflicts(conflicts);
       return;
     }
 
-    await assignDriverToGuest({
-      guest_id: driverForm.guest_id,
-      driver_id: driverForm.driver_id,
-      pickup_location: driverForm.pickup_location || undefined,
-      drop_location: driverForm.drop_location || undefined,
-      trip_date: driverForm.trip_date,
-      start_time: driverForm.start_time,
-      end_time: driverForm.end_time || undefined,
-      trip_status: driverForm.trip_status,
-    });
-    setFormErrors({});
-    setDriverModalOpen(false);
-    GuestTable.setPage(1);
+    try {
+      await assignDriverToGuest({
+        guest_id: driverForm.guest_id,
+        driver_id: driverForm.driver_id,
+        pickup_location: driverForm.pickup_location || undefined,
+        drop_location: driverForm.drop_location || undefined,
+        trip_date: driverForm.trip_date,
+        start_time: driverForm.start_time,
+        end_time: driverForm.end_time || undefined,
+        trip_status: driverForm.trip_status,
+      });
+
+      // ✅ SUCCESS
+      setFormErrors({});
+      setDriverModalOpen(false);
+      GuestTable.setPage(1);
+
+    } catch (err: any) {
+      const backendMessage = Array.isArray(err?.response?.data?.message)
+        ? err.response.data.message[0]
+        : err?.response?.data?.message;
+
+      switch (backendMessage) {
+        case "DRIVER_WEEK_OFF":
+          setFormErrors({
+            _form: "This driver is on week off for the selected date. Please choose another driver.",
+          });
+          break;
+
+        case "DRIVER_NOT_ON_DUTY":
+          setFormErrors({
+            _form: "This driver is not on duty during the selected time.",
+          });
+          break;
+
+        case "DRIVER_ALREADY_ASSIGNED":
+          setFormErrors({
+            _form: "This driver is already assigned during the selected time.",
+          });
+          break;
+
+        case "GUEST_NOT_ASSIGNABLE":
+          setFormErrors({
+            _form: "This guest cannot be assigned a driver.",
+          });
+          break;
+
+        case "GUEST_STATUS_NOT_FOUND":
+          setFormErrors({
+            _form: "Guest status could not be determined.",
+          });
+          break;
+
+        default:
+          setFormErrors({
+            _form: "Failed to assign driver. Please try again.",
+          });
+      }
+      console.log("FORM ERRORS SET:", backendMessage);
+    }
   }
 
   /* =======================
@@ -1076,6 +1154,7 @@ setTransportConflicts(conflicts);
               <FormErrorAlert
                 errors={formErrors}
                 onClose={() => setFormErrors({})}
+                
               />
 
 
@@ -1138,11 +1217,11 @@ setTransportConflicts(conflicts);
                   onChange={(e) =>
                     setDriverForm({ ...driverForm, trip_date: e.target.value })
                   }
-                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
-                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                  onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
-                <FieldError message={formErrors.pickup_date} />
-                {/* <p className="errorText">{formErrors.pickup_date}</p> */}
+                <FieldError message={formErrors.trip_date} />
+                {/* <p className="errorText">{formErrors.trip_date}</p> */}
 
                 <TimePicker12h
                   label="From Time"
@@ -1372,10 +1451,10 @@ setTransportConflicts(conflicts);
                   onChange={(e) =>
                     setDriverForm({ ...driverForm, trip_date: e.target.value })
                   }
-                  onBlur={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
-                  onKeyUp={() => validateSingleField(assignDriverSchema, "pickup_date", driverForm.trip_date, setFormErrors)}
+                  onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
-                <FieldError message={formErrors.pickup_date} />
+                <FieldError message={formErrors.trip_date} />
 
                 <TimePicker12h
                   label="From Time"

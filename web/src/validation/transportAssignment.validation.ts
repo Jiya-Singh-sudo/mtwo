@@ -38,7 +38,7 @@ export const assignDriverSchema = z
       .max(MAX_LOCATION_LENGTH, "Drop location too long")
       .regex(safeTextRegex, "Invalid characters in drop location"),
 
-    pickup_date: z
+    trip_date: z
       .string()
       .regex(dateRegex, "Invalid pickup date format (YYYY-MM-DD)"),
 
@@ -66,16 +66,16 @@ export const assignDriverSchema = z
   .superRefine((data, ctx) => {
     const today = todayMidnight();
 
-    const pickupDate = parseDate(data.pickup_date);
+    const pickupDate = parseDate(data.trip_date);
     const dropDate = parseDate(data.drop_date);
 
     const pickupFromDT = parseDateTime(
-      data.pickup_date,
+      data.trip_date,
       data.pickup_time_from
     );
 
     const pickupToDT = parseDateTime(
-      data.pickup_date,
+      data.trip_date,
       data.pickup_time_to
     );
 

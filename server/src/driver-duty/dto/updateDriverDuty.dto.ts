@@ -23,4 +23,8 @@ export class UpdateDriverDutyDto extends PartialType(CreateDriverDutyDto) {
     @IsOptional()
     @IsBoolean()
     is_week_off?: boolean;
+    
+    @IsOptional()
+    @IsBoolean()
+    repeat_weekly?: boolean;
 }

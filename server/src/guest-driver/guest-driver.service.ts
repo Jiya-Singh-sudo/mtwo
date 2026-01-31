@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
 import { AssignGuestDriverDto } from "./dto/assign-guest-driver.dto";
@@ -62,14 +62,12 @@ export class GuestDriverService {
     const res = await this.db.query(sql, [guestId]);
 
     if (!res.rows.length) {
-      throw new Error("Guest status not found");
-    }
+      throw new BadRequestException("GUEST_STATUS_NOT_FOUND");    }
 
     const status = res.rows[0].status;
 
     if (["Exited", "Cancelled"].includes(status)) {
-      throw new Error(`Cannot assign driver to guest with status '${status}'`);
-    }
+      throw new BadRequestException("GUEST_NOT_ASSIGNABLE");    }
   }
 
   // ---------- ASSIGN DRIVER ----------
@@ -80,6 +78,10 @@ export class GuestDriverService {
   ) {
     // 🔒 BLOCK assignment for exited / cancelled guests
     await this.assertGuestIsAssignable(dto.guest_id);
+    await this.assertDriverNotOnWeekOff(
+      dto.driver_id,
+      dto.trip_date
+    );
     await this.assertDriverOnDuty(
       dto.driver_id,
       dto.trip_date,
@@ -285,7 +287,7 @@ export class GuestDriverService {
 
   // async update(id: string, dto: UpdateGuestDriverDto, user: string, ip: string) {
   //   const existing = await this.findOne(id);
-  //   if (!existing) throw new Error(`Guest Driver Entry '${id}' not found`);
+  //   if (!existing) throw new BadRequestException(`Guest Driver Entry '${id}' not found`);
 
   //   const now = new Date().toISOString();
 
@@ -461,7 +463,7 @@ export class GuestDriverService {
     ip: string
   ) {
     const old = await this.findOne(oldGuestDriverId);
-    if (!old) throw new Error('Trip not found');
+    if (!old) throw new BadRequestException('Trip not found');
 
     await this.assertGuestIsAssignable(old.guest_id);
     await this.assertDriverOnDuty(
@@ -566,9 +568,7 @@ export class GuestDriverService {
     ]);
 
     if (res.rows.length) {
-      throw new Error(
-        `Driver is already assigned during the selected time`
-      );
+      throw new BadRequestException("DRIVER_ALREADY_ASSIGNED");
     }
   }
   // private async assertDriverOnDuty(
@@ -600,7 +600,7 @@ export class GuestDriverService {
   //   );
 
   //   if (!res.rows.length) {
-  //     throw new Error(
+  //     throw new BadRequestException(
   //       'Driver is not on duty during the selected time'
   //     );
   //   }
@@ -648,7 +648,7 @@ export class GuestDriverService {
   //   );
 
   //   if (!res.rows.length) {
-  //     throw new Error('Driver is not on duty during the selected time');
+  //     throw new BadRequestException('Driver is not on duty during the selected time');
   //   }
   // }
   private async assertDriverOnDuty(
@@ -691,7 +691,36 @@ export class GuestDriverService {
     );
 
     if (!res.rows.length) {
-      throw new Error('Driver is not on duty during the selected time');
+      throw new BadRequestException("DRIVER_NOT_ON_DUTY");
+    }
+  }
+  private async assertDriverNotOnWeekOff(
+    driverId: string,
+    tripDate: string
+  ) {
+    const res = await this.db.query(
+      `
+      SELECT 1
+      FROM t_driver_duty d
+      WHERE d.driver_id = $1
+        AND d.duty_date = $2
+        AND d.is_active = TRUE
+        AND d.is_week_off = TRUE
+
+      UNION
+
+      SELECT 1
+      FROM t_driver_week_off w
+      WHERE w.driver_id = $1
+        AND w.weekday = EXTRACT(DOW FROM $2::date)
+        AND w.is_active = TRUE
+      LIMIT 1
+      `,
+      [driverId, tripDate]
+    );
+
+    if (res.rows.length) {
+      throw new BadRequestException("DRIVER_WEEK_OFF");
     }
   }
 }

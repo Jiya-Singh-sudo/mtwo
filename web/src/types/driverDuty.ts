@@ -14,6 +14,7 @@ export interface DriverDuty {
   duty_out_time: string | null;
 
   is_week_off: boolean;
+  repeat_weekly: boolean;
   is_active: boolean;
 
   created_at?: string;
@@ -27,6 +28,7 @@ export interface CreateDriverDutyPayload {
   duty_in_time?: string;
   duty_out_time?: string;
   is_week_off?: boolean;
+  repeat_weekly?: boolean;
 }
 
 export interface UpdateDriverDutyPayload {
@@ -36,6 +38,7 @@ export interface UpdateDriverDutyPayload {
   duty_in_time?: string | null;
   duty_out_time?: string | null;
   is_week_off?: boolean;
+  repeat_weekly?: boolean;
 }
 
 export interface DriverWeeklyRow {
