@@ -15,7 +15,6 @@ export class DriverDutyController {
   }
 
   /* ================= UPDATE ================= */
-
   @Put(':dutyId')
   update(
     @Param('dutyId') dutyId: string,
@@ -44,7 +43,6 @@ export class DriverDutyController {
     return this.service.findOne(dutyId);
   }
 
-  
   /**
    * Fetch duties for a specific driver
    * Example:
