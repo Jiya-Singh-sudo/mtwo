@@ -4,6 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UserTableQueryDto } from './dto/user-table-query.dto';
 import * as crypto from 'crypto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
@@ -13,7 +14,7 @@ export class UsersService {
   constructor(
     private readonly db: DatabaseService,
     private readonly activityLog: ActivityLogService,
-  ) {}
+  ) { }
 
   private generateResetToken(): string {
     return crypto.randomBytes(32).toString('hex');
@@ -32,12 +33,102 @@ export class UsersService {
     return crypto.createHash('sha256').update(plain).digest('hex');
   }
 
-  async findAll(activeOnly = true) {
-    const sql = activeOnly
-      ? `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user WHERE is_active = $1 ORDER BY username`
-      : `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user ORDER BY username`;
-    const res = await this.db.query(sql, activeOnly ? [true] : []);
-    return res.rows;
+  async findAll(query: UserTableQueryDto | boolean = true) {
+    // Legacy support if boolean passed (internal calls?) - although controller now passes object
+    if (typeof query === 'boolean') {
+      const sql = query
+        ? `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user WHERE is_active = $1 ORDER BY username`
+        : `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user ORDER BY username`;
+      const res = await this.db.query(sql, query ? [true] : []);
+      // Adapt legacy return to match new shape if needed, OR keep array if internal callers expect it.
+      // But since we changed signature, let's keep array for boolean compat.
+      return res.rows;
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'username',
+      sortOrder = 'asc',
+      status, // used for role filter or active status? Let's use it for is_active if needed, or ignore.
+    } = query;
+
+    const offset = (page - 1) * limit;
+
+    const SORT_MAP: Record<string, string> = {
+      username: 'u.username',
+      full_name: 'u.full_name',
+      email: 'u.email',
+      role_id: 'u.role_id',
+      is_active: 'u.is_active',
+    };
+
+    const sortColumn = SORT_MAP[sortBy] ?? 'u.username';
+    const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    const where: string[] = ['u.is_active = TRUE']; // default active only?? 
+    // Wait, User page usually shows active users. 
+    // And getActiveUsers implied active users. 
+    // getAllUsers (controller 'all') calls findAll(false).
+    // Let's assume this endpoint is for ACTIVE users table. 
+
+    // If we want to support showing inactive via status param:
+    // if (status === 'All') where = []; else where.push('u.is_active = TRUE');
+    // But original getActiveUsers was STRICTLY active.
+
+    const sqlParams: any[] = [];
+    let idx = 1;
+
+    if (search) {
+      where.push(`(
+        u.username ILIKE $${idx}
+        OR u.full_name ILIKE $${idx}
+        OR u.email ILIKE $${idx}
+        OR u.user_mobile ILIKE $${idx}
+      )`);
+      sqlParams.push(`%${search}%`);
+      idx++;
+    }
+
+    const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    // Count
+    const countSql = `SELECT COUNT(*)::int AS total FROM m_user u ${whereSql}`;
+    const countRes = await this.db.query(countSql, sqlParams);
+
+    // Data
+    const dataSql = `
+      SELECT 
+        u.user_id, 
+        u.username, 
+        u.full_name, 
+        u.full_name_local_language, 
+        u.role_id, 
+        u.user_mobile, 
+        u.user_alternate_mobile, 
+        u.email, 
+        u.last_login, 
+        u.is_active, 
+        u.inserted_at, 
+        u.inserted_by, 
+        u.inserted_ip, 
+        u.updated_at, 
+        u.updated_by, 
+        u.updated_ip 
+      FROM m_user u
+      ${whereSql}
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $${idx} OFFSET $${idx + 1}
+    `;
+
+    sqlParams.push(limit, offset);
+    const dataRes = await this.db.query(dataSql, sqlParams);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].total,
+    };
   }
 
   async findOneByUsername(username: string) {
@@ -51,8 +142,8 @@ export class UsersService {
     const res = await this.db.query(sql, [user_id]);
     return res.rows[0];
   }
-  private sha256Hex(val: string): string{
-    return crypto.createHash('sha256').update(val,'utf8').digest('hex');
+  private sha256Hex(val: string): string {
+    return crypto.createHash('sha256').update(val, 'utf8').digest('hex');
   }
   async create(dto: CreateUserDto, user: string, ip: string) {
     // ensure username uniqueness should be handled by DB unique constraint,

@@ -167,7 +167,7 @@ export class DriverDutyService {
       SELECT
         drv.driver_id,
         drv.driver_name,
-        cal.duty_date,
+        cal.duty_date::text AS duty_date,
         d.duty_id,
         d.shift,
         d.duty_in_time,

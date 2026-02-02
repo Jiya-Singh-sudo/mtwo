@@ -1,9 +1,10 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Req
+  Controller, Get, Post, Put, Delete, Body, Param, Req, Query
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserTableQueryDto } from './dto/user-table-query.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UseGuards } from '@nestjs/common';
@@ -14,7 +15,7 @@ import { Permissions } from '../decorators/permissions/permissions.decorator';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly service: UsersService) {}
+  constructor(private readonly service: UsersService) { }
 
   private extractIp(req: any): string {
     let ip =
@@ -34,14 +35,14 @@ export class UsersController {
   findAll() {
     return this.service.findAll(true);
   }
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@Permissions('user.view')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('user.view')
   @Get('all')
   findAllIncludingInactive() {
     return this.service.findAll(false);
   }
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@Permissions('user.create')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('user.create')
   @Post()
   create(@Body() dto: CreateUserDto, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
@@ -49,22 +50,22 @@ export class UsersController {
     return this.service.create(dto, user, ip);
   }
   @Post('forgot-password')
-    async forgotPassword(
-      @Body() dto: ForgotPasswordDto,
-      @Req() req: any,
-    ) {
-      return this.service.forgotPassword(dto, req.ip);
-    }
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() req: any,
+  ) {
+    return this.service.forgotPassword(dto, req.ip);
+  }
 
-    @Post('reset-password')
-    async resetPassword(
-      @Body() dto: ResetPasswordDto,
-      @Req() req: any,
-    ) {
-      return this.service.resetPassword(dto, req.ip);
-    }
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@Permissions('user.update')
+  @Post('reset-password')
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Req() req: any,
+  ) {
+    return this.service.resetPassword(dto, req.ip);
+  }
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('user.update')
   // Update by username (frontend should pass username in URL)
   @Put(':username')
   update(@Param('username') username: string, @Body() dto: UpdateUserDto, @Req() req: any) {
@@ -72,9 +73,9 @@ export class UsersController {
     const ip = this.extractIp(req);
     return this.service.update(username, dto, user, ip);
   }
-  
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@Permissions('user.delete')
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('user.delete')
   @Delete(':username')
   softDelete(@Param('username') username: string, @Req() req: any) {
     const user = req.headers['x-user'] || 'system';
