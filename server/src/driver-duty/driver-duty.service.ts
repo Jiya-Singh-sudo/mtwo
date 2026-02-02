@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDutyDto } from '../driver-duty/dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from '../driver-duty/dto/updateDriverDuty.dto';
@@ -22,9 +22,69 @@ export class DriverDutyService {
     const last = parseInt(res.rows[0].duty_id.replace('DD', ''), 10);
     return `DD${String(last + 1).padStart(3, '0')}`;
   }
+// ================= TIME HELPERS =================
 
+private timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+  private isPastDate(date: string): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dutyDate = new Date(date + 'T00:00:00');
+    return dutyDate < today;
+  }
+
+  private readonly SHIFT_WINDOWS: Record<
+    'morning' | 'afternoon' | 'night',
+    { start: number; end: number }
+  > = {
+    morning: { start: 6 * 60, end: 14 * 60 },
+    afternoon: { start: 14 * 60, end: 22 * 60 },
+    night: { start: 22 * 60, end: 30 * 60 }, // crosses midnight
+  };
   async create(dto: CreateDriverDutyDto) {
     try {
+      const driverCheck = await this.db.query(
+        `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true`,
+        [dto.driver_id]
+      );
+      if (!driverCheck.rows.length) {
+        throw new BadRequestException('Driver is inactive or does not exist');
+      }
+
+      if (dto.is_week_off && (dto.duty_in_time || dto.duty_out_time)) {
+        throw new BadRequestException(
+          'Week off cannot have duty timings'
+        );
+      }
+
+      if (!driverCheck.rows.length) {
+        throw new BadRequestException('Driver is inactive or does not exist');
+      }
+      if (!dto.is_week_off && dto.duty_in_time && dto.duty_out_time) {
+        const inMin = this.timeToMinutes(dto.duty_in_time);
+        let outMin = this.timeToMinutes(dto.duty_out_time);
+
+        // Overnight shift support
+        if (outMin < inMin) {
+          outMin += 24 * 60;
+        }
+
+        const window = this.SHIFT_WINDOWS[dto.shift];
+
+        if (!window) {
+          throw new BadRequestException('Invalid shift');
+        }
+
+        if (inMin < window.start || outMin > window.end) {
+          throw new BadRequestException(
+            `Duty time does not match ${dto.shift} shift`
+          );
+        }
+      }
       const res = await this.db.query(
         `
         INSERT INTO t_driver_duty (
@@ -92,7 +152,11 @@ export class DriverDutyService {
     return duty;
       // return res.rows[0];
     } catch (err) {
-      console.error("UPSERT DRIVER DUTY FAILED", err);
+      if (err.code === '23503') {
+        throw new BadRequestException('Driver no longer exists');
+      }
+
+      console.error('UPSERT DRIVER DUTY FAILED', err);
       throw err;
       
     }
@@ -101,6 +165,46 @@ export class DriverDutyService {
 
   async update(dutyId: string, dto: UpdateDriverDutyDto) {
     const existing = await this.findOne(dutyId);
+    if (this.isPastDate(existing.duty_date)) {
+      throw new BadRequestException(
+        'Past duties cannot be modified'
+      );
+    }
+    const driverCheck = await this.db.query(
+      `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true`,
+      [existing.driver_id]
+    );
+
+    if (!driverCheck.rows.length) {
+      throw new BadRequestException('Driver is inactive or does not exist');
+    }
+    const inTime = dto.duty_in_time ?? existing.duty_in_time;
+    const outTime = dto.duty_out_time ?? existing.duty_out_time;
+    const shift = dto.shift ?? existing.shift;
+    const isWeekOff = dto.is_week_off ?? existing.is_week_off;
+    if (isWeekOff && (inTime || outTime)) {
+      throw new BadRequestException(
+        'Week off cannot have duty timings'
+      );
+    }
+    if (!isWeekOff && inTime && outTime) {
+      const inMin = this.timeToMinutes(inTime);
+      let outMin = this.timeToMinutes(outTime);
+
+      if (outMin < inMin) {
+        outMin += 24 * 60;
+      }
+
+      const window = this.SHIFT_WINDOWS[shift];
+      if (!window) {
+        throw new BadRequestException('Invalid shift');
+      }
+      if (inMin < window.start || outMin > window.end) {
+        throw new BadRequestException(
+          `Duty time does not match ${shift} shift`
+        );
+      }
+    }
 
     const sql = `
       UPDATE t_driver_duty
@@ -143,7 +247,6 @@ export class DriverDutyService {
         [existing.driver_id, weekday]
       );
     }
-
     return duty;
     // return res.rows[0];
     

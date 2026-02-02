@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query } from '@nestjs/common';
 import { DriverDutyService } from './driver-duty.service';
 import { CreateDriverDutyDto } from './dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
