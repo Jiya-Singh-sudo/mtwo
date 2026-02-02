@@ -190,14 +190,17 @@ export default function DriverDutyRoasterPage() {
       sun: cellsByDay.sun,
     };
   });
-
+  
   function toLocalDateKey(value: string): string {
-    const date = new Date(value);
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    return value.slice(0, 10);
   }
+  // function toLocalDateKey(value: string): string {
+  //   const date = new Date(value);
+  //   const yyyy = date.getFullYear();
+  //   const mm = String(date.getMonth() + 1).padStart(2, "0");
+  //   const dd = String(date.getDate()).padStart(2, "0");
+  //   return `${yyyy}-${mm}-${dd}`;
+  // }
 
   // function shiftWeek(weekStart: string, days: number) {
   //   const [y, m, d] = weekStart.split("-").map(Number);

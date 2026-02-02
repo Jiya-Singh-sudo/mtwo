@@ -43,8 +43,8 @@ api.interceptors.response.use(
 );
 
 // Optional helper stays exactly as-is
-export async function safeGet<T = any>(url: string) {
-  const res = await api.get<T>(url);
+export async function safeGet<T = any>(url: string, params?: any) {
+  const res = await api.get<T>(url, { params });
   return res.data;
 }
 

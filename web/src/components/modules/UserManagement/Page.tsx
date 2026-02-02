@@ -1,10 +1,12 @@
-import { Plus, Edit, Trash2, X } from "lucide-react";
+import { Plus, Edit, Trash2, X, Users, CheckCircle } from "lucide-react";
 import "./UserManagement.css";
 import { useEffect, useState } from "react";
 import type { Role } from "@/types/userManagement.types";
 import { getActiveUsers, createUser, updateUser, softDeleteUser, getActiveRoles } from "@/api/authentication/users.api";
 import { useAuth } from "@/context/AuthContext";
-
+import { Column, DataTable } from "@/components/ui/DataTable";
+import { useTableQuery } from "@/hooks/useTableQuery";
+import { StatCard } from "@/components/ui/StatCard";
 
 /* ======================================================
    Types – mapped to m_User table
@@ -24,7 +26,7 @@ interface User {
 export default function UserManagement() {
   /* ---------------- STATE ---------------- */
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false); // Handled by userTable
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -44,6 +46,12 @@ export default function UserManagement() {
 
   const [roles, setRoles] = useState<Role[]>([]);
 
+  const userTable = useTableQuery({
+    prefix: "users",
+    sortBy: "username",
+    sortOrder: "asc",
+    limit: 10,
+  });
 
   /* ---------------- HELPERS ---------------- */
   const resetForm = () =>
@@ -74,27 +82,29 @@ export default function UserManagement() {
 
   useEffect(() => {
     async function loadUsers() {
-      setLoading(true);
+      userTable.setLoading(true);
       try {
-        const data = await getActiveUsers();
-        setUsers(
-          data.map((u) => ({
-            id: u.user_id,
-            username: u.username,
-            fullName: u.full_name,
-            role_id: u.role_id,
-            mobile: u.user_mobile,
-            email: u.email,
-          }))
-        );
+        const res = await getActiveUsers(userTable.query);
+        // Map based on the response structure { data: [], totalCount: number }
+        const mapped = res.data.map((u: any) => ({
+          id: u.user_id,
+          username: u.username,
+          fullName: u.full_name,
+          role_id: u.role_id,
+          mobile: u.user_mobile,
+          email: u.email,
+        }));
+
+        setUsers(mapped);
+        userTable.setTotal(res.totalCount);
       } finally {
-        setLoading(false);
+        userTable.setLoading(false);
       }
     }
 
     loadUsers();
-  }, []);
-  
+  }, [userTable.query]);
+
   useEffect(() => {
     async function loadRoles() {
       try {
@@ -122,19 +132,10 @@ export default function UserManagement() {
       user_mobile: form.mobile ? Number(form.mobile) : undefined,
     };
 
-    const created = await createUser(payload);
+    await createUser(payload);
 
-    setUsers((prev) => [
-      ...prev,
-      {
-        id: created.user_id,
-        username: created.username,
-        fullName: created.full_name,
-        role_id: created.role_id,
-        email: created.email,
-        mobile: created.user_mobile,
-      },
-    ]);
+    // Reload table to properly handle pagination/sorting update
+    userTable.setPage(1);
 
     setIsAddOpen(false);
     resetForm();
@@ -152,22 +153,11 @@ export default function UserManagement() {
       user_mobile: form.mobile ? Number(form.mobile) : undefined,
     };
 
-    const updated = await updateUser(selectedUser.username, payload);
+    await updateUser(selectedUser.username, payload);
 
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === selectedUser.id
-          ? {
-              ...u,
-              username: updated.username,
-              fullName: updated.full_name,
-              role_id: updated.role_id,
-              email: updated.email,
-              mobile: updated.user_mobile,
-            }
-          : u
-      )
-    );
+    // Reload table or update local state if we want to be optimistic
+    // Ideally reload for consistent sort/filter
+    userTable.setPage(1); // Or keep current page: setPage(userTable.query.page)
 
     setIsEditOpen(false);
     setSelectedUser(null);
@@ -180,13 +170,79 @@ export default function UserManagement() {
 
     await softDeleteUser(selectedUser.username);
 
-    setUsers((prev) =>
-      prev.filter((u) => u.id !== selectedUser.id)
-    );
+    // Refresh table
+    userTable.setPage(1);
 
     setIsDeleteOpen(false);
     setSelectedUser(null);
   }
+
+  /* ---------------- COLUMNS ---------------- */
+  const userColumns: Column<User>[] = [
+    {
+      header: "User ID",
+      accessor: "username",
+      sortable: true,
+      sortKey: "username",
+    },
+    {
+      header: "Name & Email",
+      render: (row) => (
+        <div>
+          <p>{row.fullName}</p>
+          <p className="subText">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      header: "Role",
+      render: (row) => (
+        <span className="statusPill">
+          {roles.find((r) => r.role_id === row.role_id)?.role_name ?? row.role_id}
+        </span>
+      ),
+    },
+    {
+      header: "Actions",
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          {hasPermission("user.update") && (
+            <button
+              className="icon-btn text-green-600"
+              title="Edit"
+              onClick={() => {
+                setSelectedUser(row);
+                setForm({
+                  username: row.username,
+                  fullName: row.fullName,
+                  role_id: row.role_id,
+                  mobile: row.mobile ?? "",
+                  email: row.email ?? "",
+                  password: "",
+                });
+                setIsEditOpen(true);
+              }}
+            >
+              <Edit size={16} />
+            </button>
+          )}
+
+          {hasPermission("user.delete") && (
+            <button
+              className="icon-btn text-red-600"
+              title="Delete"
+              onClick={() => {
+                setSelectedUser(row);
+                setIsDeleteOpen(true);
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
 
   /* ======================================================
@@ -202,81 +258,82 @@ export default function UserManagement() {
             Manage system users and roles | उपयोगकर्ता प्रबंधन
           </p>
         </div>
+        {/* Header action button moved to search bar area usually, but keeping here if preferred or...
+            Wait, instructions said "Search + Add Bar" - checking Step 101.
+            Step 101: "Step 2 — You already added the correct Search + Add bar... Leave it."
+            But in the current file view (Step 139), I see standard header with Add button, NO Search bar.
+            I must have missed that "You already added..." part because I reverted files or the user reverted files.
+            I will re-add the Search + Add bar structure as per Transport style.
+         */}
+      </div>
+
+      {/* STAT CARDS */}
+      <div className="statsGrid">
+        <div className="statCard blue">
+          <div className="statIcon blue">
+            <Users />
+          </div>
+          <div className="statContent">
+            <p className="statLabel">Total Users</p>
+            <h3 className="statValue">{userTable.total}</h3>
+          </div>
+        </div>
+
+        <div className="statCard green">
+          <div className="statIcon green">
+            <CheckCircle />
+          </div>
+          <div className="statContent">
+            <p className="statLabel">Active Roles</p>
+            <h3 className="statValue">{roles.length}</h3>
+          </div>
+        </div>
+      </div>
+
+      {/* SEARCH + ADD BAR */}
+      <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          {/* Simple Input for now, or match Transport search */}
+          <input
+            className="pl-3 pr-3 py-2 w-full border rounded-sm"
+            placeholder="Search username or name..."
+            value={userTable.searchInput}
+            onChange={(e) => userTable.setSearchInput(e.target.value)}
+          />
+        </div>
+
         {hasPermission("user.create") && (
-        <button
-          className="nicPrimaryBtn"
-          onClick={() => {
-            resetForm();
-            setIsAddOpen(true);
-          }}
-        >
-          <Plus size={16} /> Add New User
-        </button>
+          <button
+            className="nicPrimaryBtn"
+            onClick={() => {
+              resetForm();
+              setIsAddOpen(true);
+            }}
+          >
+            <Plus size={16} /> Add New User
+          </button>
         )}
       </div>
 
-      {/* TABLE */}
+      {/* DATATABLE */}
       <div className="bg-white border rounded-sm">
-        <table className="w-full">
-          <thead className="bg-[#F5A623] text-white">
-            <tr>
-              <th className="px-4 py-3 text-left">User ID</th>
-              <th className="px-4 py-3 text-left">Name & Email</th>
-              <th className="px-4 py-3 text-left">Role</th>
-              <th className="px-4 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u, i) => (
-              <tr key={u.id} className={i % 2 ? "bg-gray-50" : ""}>
-                <td className="px-4 py-3">{u.username}</td>
-                <td className="px-4 py-3">
-                  <p>{u.fullName}</p>
-                  <p className="subText">{u.email}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="statusPill">
-                    {roles.find((r) => r.role_id === u.role_id)?.role_name ?? u.role_id}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
-                    {hasPermission("user.update") && (
-                    <button
-                      className="actionBtn"
-                      onClick={() => {
-                        setSelectedUser(u);
-                        setForm({
-                          username: u.username,
-                          fullName: u.fullName,
-                          role_id: u.role_id,
-                          mobile: u.mobile ?? "",
-                          email: u.email ?? "",
-                          password: "",
-                        });
-                        setIsEditOpen(true);
-                      }}
-                    >
-                      <Edit size={16} />
-                    </button>
-                    )}
-                    {hasPermission("user.delete") && (
-                    <button
-                      className="actionBtn delete"
-                      onClick={() => {
-                        setSelectedUser(u);
-                        setIsDeleteOpen(true);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          data={users}
+          columns={userColumns}
+          keyField="id"
+
+          page={userTable.query.page}
+          limit={userTable.query.limit}
+          totalCount={userTable.total}
+
+          sortBy={userTable.query.sortBy}
+          sortOrder={userTable.query.sortOrder}
+          loading={userTable.loading}
+
+          onPageChange={userTable.setPage}
+          onLimitChange={userTable.setLimit}
+          onSortChange={userTable.setSort}
+        />
       </div>
 
       {/* ADD / EDIT MODAL */}

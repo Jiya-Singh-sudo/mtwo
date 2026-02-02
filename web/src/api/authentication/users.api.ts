@@ -1,6 +1,6 @@
 import api, { safeGet } from "../apiClient";
 import type { UserCreateDto, UserUpdateDto, UserLoginDto } from "../../types/users";
-import { ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse,} from '../../types/users';
+import { ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse, } from '../../types/users';
 import { Role } from "@/types/userManagement.types";
 
 export async function getActiveRoles() {
@@ -22,8 +22,8 @@ export const resetPassword = async (
 };
 
 // GET active users
-export async function getActiveUsers() {
-  return safeGet<any[]>("/users");
+export async function getActiveUsers(query?: any) {
+  return safeGet<{ data: any[]; totalCount: number }>("/users", query);
 }
 
 // GET all users (inactive included)
