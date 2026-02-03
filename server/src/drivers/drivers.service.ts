@@ -22,11 +22,89 @@ export class DriversService {
     const number = parseInt(lastId.replace('D', '')) + 1;
     return 'D' + number.toString().padStart(3, '0');
   }
-  
+  async getDriverStats() {
+    const sql = `
+      SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE is_active = TRUE) AS active,
+        COUNT(*) FILTER (WHERE is_active = FALSE) AS inactive
+      FROM m_driver;
+    `;
+    const res = await this.db.query(sql);
+    return res.rows[0];
+  }
+  // async getDriversTable(query: {
+  //   page: number;
+  //   limit: number;
+  //   search?: string;
+  //   sortBy: string;
+  //   sortOrder: 'asc' | 'desc';
+  // }) {
+  //   const offset = (query.page - 1) * query.limit;
+
+  //   const SORT_MAP: Record<string, string> = {
+  //     driver_name: 'd.driver_name',
+  //     driver_contact: 'd.driver_contact',
+  //     driver_license: 'd.driver_license',
+  //   };
+
+  //   const sortColumn = SORT_MAP[query.sortBy] ?? 'd.driver_name';
+  //   const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+
+  //   const where: string[] = ['d.is_active = TRUE'];
+  //   const params: any[] = [];
+
+  //   if (query.search) {
+  //     params.push(`%${query.search}%`);
+  //     where.push(`
+  //       (
+  //         d.driver_name ILIKE $${params.length}
+  //         OR d.driver_contact ILIKE $${params.length}
+  //         OR d.driver_license ILIKE $${params.length}
+  //       )
+  //     `);
+  //   }
+
+  //   const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  //   const dataSql = `
+  //     SELECT
+  //       d.driver_id,
+  //       d.driver_name,
+  //       d.driver_name_local_language,
+  //       d.driver_contact,
+  //       d.driver_alternate_mobile,
+  //       d.driver_license,
+  //       d.address,
+  //       d.is_active
+  //     FROM m_driver d
+  //     ${whereSql}
+  //     ORDER BY ${sortColumn} ${sortOrder}
+  //     LIMIT ${query.limit}
+  //     OFFSET ${offset};
+  //   `;
+
+  //   const countSql = `
+  //     SELECT COUNT(*)::int AS count
+  //     FROM m_driver d
+  //     ${whereSql};
+  //   `;
+
+  //   const [dataRes, countRes] = await Promise.all([
+  //     this.db.query(dataSql, params),
+  //     this.db.query(countSql, params),
+  //   ]);
+
+  //   return {
+  //     data: dataRes.rows,
+  //     totalCount: countRes.rows[0].count,
+  //   };
+  // }
   async getDriversTable(query: {
     page: number;
     limit: number;
     search?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
     sortBy: string;
     sortOrder: 'asc' | 'desc';
   }) {
@@ -41,7 +119,7 @@ export class DriversService {
     const sortColumn = SORT_MAP[query.sortBy] ?? 'd.driver_name';
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
-    const where: string[] = ['d.is_active = TRUE'];
+    const where: string[] = [];
     const params: any[] = [];
 
     if (query.search) {
@@ -55,7 +133,15 @@ export class DriversService {
       `);
     }
 
-    const whereSql = `WHERE ${where.join(' AND ')}`;
+    if (query.status === 'ACTIVE') {
+      where.push('d.is_active = TRUE');
+    }
+
+    if (query.status === 'INACTIVE') {
+      where.push('d.is_active = FALSE');
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const dataSql = `
       SELECT
@@ -170,6 +256,25 @@ export class DriversService {
 
   async create(dto: CreateDriverDto, user: string, ip: string) {
     const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
+    const license = dto.driver_license?.trim();
+    if (license) {
+      const exists = await this.db.query(
+        `
+        SELECT 1
+        FROM m_driver
+        WHERE driver_license = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [license]
+      );
+
+      if (exists.rows.length > 0) {
+        throw new BadRequestException(
+          `Driver with license '${license}' already exists`
+        );
+      }
+    }
 
     const sql = `
     INSERT INTO m_driver
@@ -182,14 +287,14 @@ export class DriversService {
 
     const driverId = await this.generateDriverId();
 
-
+    const driverName = dto.driver_name?.trim();
     const res = await this.db.query(sql, [
       driverId,
-      dto.driver_name,
+      driverName,
       driver_name_local_language,
       dto.driver_contact,
       dto.driver_alternate_contact,
-      dto.driver_license || null,
+      license,
       dto.address,
       user,
       ip
@@ -203,6 +308,24 @@ export class DriversService {
     user: string,
     ip: string
   ) {
+
+    const driver = await this.findOneById(payload.driver_id);
+
+    if (!driver) {
+      throw new BadRequestException('Driver not found');
+    }
+
+    if (driver.license_expiry_date) {
+      const today = new Date();
+      const expiry = new Date(driver.license_expiry_date);
+
+      if (expiry < today) {
+        throw new BadRequestException(
+          `Cannot assign driver '${driver.driver_id}' due to expired license`
+        );
+      }
+    }
+
     const sql = `
     UPDATE t_guest_vehicle
     SET
@@ -253,12 +376,59 @@ export class DriversService {
       throw new Error(`Driver '${driver_id}' not found`);
     }
     const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
+    const updatedName = dto.driver_name?.trim();
+    const updatedLicense = dto.driver_license?.trim();
 
     const now = new Date().toLocaleString('en-GB', {
       timeZone: 'Asia/Kolkata',
       hour12: false,
     }).replace(',', '');
 
+    // 🚫 CHECK: Prevent deactivation if driver is assigned
+    if (dto.is_active === false && existing.is_active === true) {
+      const assignmentCheck = await this.db.query(
+        `
+        SELECT 1
+        FROM t_guest_vehicle
+        WHERE driver_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [driver_id]
+      );
+
+      if (assignmentCheck.rows.length > 0) {
+        throw new BadRequestException(
+          `Cannot deactivate driver '${driver_id}' because the driver is currently assigned`
+        );
+      }
+    }
+    if (dto.driver_license && dto.driver_license !== existing.driver_license) {
+      const exists = await this.db.query(
+        `
+        SELECT 1
+        FROM m_driver
+        WHERE driver_license = $1
+          AND driver_id <> $2
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [dto.driver_license.trim(), driver_id]
+      );
+
+      if (exists.rows.length > 0) {
+        throw new BadRequestException(
+          `Driver with license '${dto.driver_license}' already exists`
+        );
+      }
+    }
+    if (dto.is_active === true && existing.license_expiry_date) {
+      if (new Date(existing.license_expiry_date) < new Date()) {
+        throw new BadRequestException(
+          `Cannot activate driver '${driver_id}' with expired license`
+        );
+      }
+    }
     const sql = `
       UPDATE m_driver SET
         driver_name = $1,
@@ -276,11 +446,11 @@ export class DriversService {
     `;
 
     const params = [
-      dto.driver_name ?? existing.driver_name,
+      updatedName ?? existing.driver_name,
       driver_name_local_language,
       dto.driver_contact ?? existing.driver_contact,
       dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
-      dto.driver_license ?? existing.driver_license,
+      updatedLicense ?? existing.driver_license,
       dto.address ?? existing.address,
       dto.is_active ?? existing.is_active,
       now,

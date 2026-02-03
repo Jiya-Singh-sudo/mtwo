@@ -6,96 +6,127 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 @Injectable()
 export class VehiclesService {
     constructor(private readonly db: DatabaseService) {}
+      async getVehicleStats() {
+        const sql = `
+          SELECT
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE is_active = TRUE) AS active,
+            COUNT(*) FILTER (WHERE is_active = FALSE) AS inactive
+          FROM m_vehicle;
+        `;
+        const res = await this.db.query(sql);
+        return res.rows[0];
+      }
+      async getVehiclesTable(query: {
+        page: number;
+        limit: number;
+        search?: string;
+        status?: string;
+        sortBy: string;
+        sortOrder: 'asc' | 'desc';
+      }) {
+        const offset = (query.page - 1) * query.limit;
 
-    // This is NOT a master-table API.
-// This is a READ MODEL for the Vehicle Management page.
-async getVehiclesTable(query: {
-  page: number;
-  limit: number;
-  search?: string;
-  status?: string;
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-}) {
-  const offset = (query.page - 1) * query.limit;
+        const SORT_MAP: Record<string, string> = {
+          vehicle_no: 'v.vehicle_no',
+          vehicle_name: 'v.vehicle_name',
+          manufacturing: 'v.manufacturing',
+          capacity: 'v.capacity',
+        };
 
-  const SORT_MAP: Record<string, string> = {
-    vehicle_no: 'v.vehicle_no',
-    vehicle_name: 'v.vehicle_name',
-    manufacturing: 'v.manufacturing',
-    capacity: 'v.capacity',
-  };
+        const sortColumn = SORT_MAP[query.sortBy] ?? 'v.vehicle_name';
+        const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
-  const sortColumn = SORT_MAP[query.sortBy] ?? 'v.vehicle_name';
-  const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+        // const where: string[] = [];
+        // const params: any[] = [];
 
-  const where: string[] = ['v.is_active = TRUE'];
-  const params: any[] = [];
+        // if (query.search) {
+        //   params.push(`%${query.search}%`);
+        //   where.push(`(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`);
+        // }
+        // if (query.status === 'ACTIVE') {
+        //   where.push('v.is_active = TRUE');
+        // }
 
-  if (query.search) {
-    params.push(`%${query.search}%`);
-    where.push(`(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`);
-  }
+        // if (query.status === 'INACTIVE') {
+        //   where.push('v.is_active = FALSE');
+        // }
+        // const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const where: string[] = [];
+        const params: any[] = [];
 
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        if (query.search) {
+          params.push(`%${query.search}%`);
+          where.push(`(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`);
+        }
 
-  const dataSql = `
-    SELECT *
-    FROM m_vehicle v
-    ${whereSql}
-    ORDER BY ${sortColumn} ${sortOrder}
-    LIMIT ${query.limit}
-    OFFSET ${offset};
-  `;
+        if (query.status === 'ACTIVE') {
+          where.push('v.is_active = TRUE');
+        }
 
-  const countSql = `
-    SELECT COUNT(*)::int AS count
-    FROM m_vehicle v
-    ${whereSql};
-  `;
+        if (query.status === 'INACTIVE') {
+          where.push('v.is_active = FALSE');
+        }
 
-  const [dataRes, countRes] = await Promise.all([
-    this.db.query(dataSql, params),
-    this.db.query(countSql, params),
-  ]);
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  return {
-    data: dataRes.rows,
-    totalCount: countRes.rows[0].count,
-  };
-}
+        const dataSql = `
+          SELECT *
+          FROM m_vehicle v
+          ${whereSql}
+          ORDER BY ${sortColumn} ${sortOrder}
+          LIMIT ${query.limit}
+          OFFSET ${offset};
+        `;
 
-async getFleetOverview() {
-  const sql = `
-    SELECT
-      v.vehicle_no,
-      v.vehicle_name,
+        const countSql = `
+          SELECT COUNT(*)::int AS count
+          FROM m_vehicle v
+          ${whereSql};
+        `;
 
-      CASE
-        WHEN gv.is_active = TRUE THEN 'ON_DUTY'
-        ELSE 'AVAILABLE'
-      END AS status,
+        const [dataRes, countRes] = await Promise.all([
+          this.db.query(dataSql, params),
+          this.db.query(countSql, params),
+        ]);
 
-      gv.location,
-      g.guest_name,
-      d.driver_name
+        return {
+          data: dataRes.rows,
+          totalCount: countRes.rows[0].count,
+        };
+      }
 
-    FROM m_vehicle v
-    LEFT JOIN t_guest_vehicle gv
-      ON gv.vehicle_no = v.vehicle_no
-     AND gv.is_active = TRUE
-    LEFT JOIN m_guest g
-      ON g.guest_id = gv.guest_id
-    LEFT JOIN m_driver d
-      ON d.driver_id = gv.driver_id
+      async getFleetOverview() {
+        const sql = `
+          SELECT
+            v.vehicle_no,
+            v.vehicle_name,
 
-    WHERE v.is_active = TRUE
-    ORDER BY v.vehicle_name;
-  `;
+            CASE
+              WHEN gv.is_active = TRUE THEN 'ON_DUTY'
+              ELSE 'AVAILABLE'
+            END AS status,
 
-  const res = await this.db.query(sql);
-  return res.rows;
-}
+            gv.location,
+            g.guest_name,
+            d.driver_name
+
+          FROM m_vehicle v
+          LEFT JOIN t_guest_vehicle gv
+            ON gv.vehicle_no = v.vehicle_no
+          AND gv.is_active = TRUE
+          LEFT JOIN m_guest g
+            ON g.guest_id = gv.guest_id
+          LEFT JOIN m_driver d
+            ON d.driver_id = gv.driver_id
+
+          WHERE v.is_active = TRUE
+          ORDER BY v.vehicle_name;
+        `;
+
+        const res = await this.db.query(sql);
+        return res.rows;
+      }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -117,7 +148,43 @@ async getFleetOverview() {
             timeZone: "Asia/Kolkata",
             hour12: false,
         }).replace(",", "");
+    // const normalizedVehicleNo = dto.vehicle_no?.trim().toUpperCase();
+    // const normalizedVehicleName = dto.vehicle_name?.trim();
+    const normalizedVehicleNo = dto.vehicle_no.trim().toUpperCase();
+    const normalizedVehicleName = dto.vehicle_name.trim();
 
+    const exists = await this.db.query(
+      `
+      SELECT 1
+      FROM m_vehicle
+      WHERE vehicle_no = $1
+      LIMIT 1
+      `,
+      [normalizedVehicleNo]
+    );
+
+    if (exists.rows.length > 0) {
+      throw new BadRequestException(
+        `Vehicle '${normalizedVehicleNo}' already exists`
+      );
+    }
+    if (dto.manufacturing) {
+      const year = Number(dto.manufacturing);
+      const currentYear = new Date().getFullYear();
+
+      if (year < 1980 || year > currentYear + 1) {
+        throw new BadRequestException(
+          `Invalid manufacturing year '${year}'`
+        );
+      }
+    }
+    if (dto.capacity !== undefined) {
+      if (dto.capacity < 1 || dto.capacity > 50) {
+        throw new BadRequestException(
+          `Invalid vehicle capacity '${dto.capacity}'`
+        );
+      }
+    }
         const sql = `
             INSERT INTO m_vehicle (
                 vehicle_no,
@@ -135,12 +202,12 @@ async getFleetOverview() {
         `;
 
         const params = [
-            dto.vehicle_no,
-            dto.vehicle_name,
-            dto.model,
+            normalizedVehicleNo,
+            normalizedVehicleName,
+            dto.model?.trim() ?? null,
             dto.manufacturing,
             dto.capacity,
-            dto.color,
+            dto.color?.trim() ?? null,
             true,
             now,
             user,
@@ -156,12 +223,48 @@ async getFleetOverview() {
             timeZone: "Asia/Kolkata",
             hour12: false,
         }).replace(",", "");
+        // const normalizedVehicleNo = dto.vehicle_no?.trim().toUpperCase();
+        // const normalizedVehicleName = dto.vehicle_name?.trim();
 
         const existing = await this.findOne(vehicle_no);
         if (!existing) {
             throw new Error(`Vehicle '${vehicle_no}' not found`);
         }
+      if (dto.is_active === false && existing.is_active === true) {
+        const assignmentCheck = await this.db.query(
+          `
+          SELECT 1
+          FROM t_guest_vehicle
+          WHERE vehicle_no = $1
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [vehicle_no]
+        );
 
+        if (assignmentCheck.rows.length > 0) {
+          throw new BadRequestException(
+            `Cannot deactivate vehicle '${vehicle_no}' because it is currently assigned`
+          );
+        }
+      }
+      if (dto.manufacturing) {
+        const year = Number(dto.manufacturing);
+        const currentYear = new Date().getFullYear();
+
+        if (year < 1980 || year > currentYear + 1) {
+          throw new BadRequestException(
+            `Invalid manufacturing year '${year}'`
+          );
+        }
+      }
+      if (dto.capacity !== undefined) {
+        if (dto.capacity < 1 || dto.capacity > 50) {
+          throw new BadRequestException(
+            `Invalid vehicle capacity '${dto.capacity}'`
+          );
+        }
+      }
         const sql = `
             UPDATE m_vehicle SET
                 vehicle_name = $1,
@@ -178,7 +281,7 @@ async getFleetOverview() {
         `;
 
         const params = [
-            dto.vehicle_name ?? existing.vehicle_name,
+            dto.vehicle_name?.trim() ?? existing.vehicle_name,,
             dto.model ?? existing.model,
             dto.manufacturing ?? existing.manufacturing,
             dto.capacity ?? existing.capacity,
@@ -216,7 +319,6 @@ async getFleetOverview() {
       throw new Error(`Vehicle '${vehicle_no}' not found`);
     }
 
-    // 🚫 CHECK: Is vehicle currently assigned?
     const assignmentCheck = await this.db.query(
       `
       SELECT 1

@@ -31,6 +31,7 @@ export class VehiclesController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
     @Query('search') search = '',
+    @Query('status') status?: 'ACTIVE' | 'INACTIVE',
     @Query('sortBy') sortBy = 'vehicle_name',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
   ) {
@@ -38,6 +39,7 @@ export class VehiclesController {
       page: Number(page),
       limit: Number(limit),
       search,
+      status,
       sortBy,
       sortOrder,
     });
@@ -85,5 +87,9 @@ export class VehiclesController {
     async getAssingableVehicles(){
       return this.service.findAssignable();
     }
+      @Get('stats')
+  async getVehicleStats() {
+    return this.service.getVehicleStats();
+  }
 }
 

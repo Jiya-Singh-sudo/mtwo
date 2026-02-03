@@ -2,6 +2,7 @@ import {
   IsString,
   IsEmail,
   IsOptional,
+  IsDateString,
 } from 'class-validator';
 
 export class CreateDriverDto {
@@ -25,4 +26,7 @@ export class CreateDriverDto {
 
   @IsString()
   address: string;
+  @IsOptional()
+@IsDateString()
+license_expiry_date?: string;
 }

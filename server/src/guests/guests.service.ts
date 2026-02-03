@@ -146,6 +146,7 @@ export class GuestsService {
   }, user = 'system', ip = '0.0.0.0') {
     // transaction start
     await this.db.query('BEGIN');
+    
 
     const today = todayISO();
     let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
@@ -167,7 +168,29 @@ export class GuestsService {
     try {
 
       const g = payload.guest;
+      if (g.guest_mobile) {
+        const dup = await this.db.query(
+          `
+          SELECT guest_id
+          FROM m_guest
+          WHERE guest_mobile = $1
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [g.guest_mobile]
+        );
 
+        if (dup.rowCount > 0) {
+          throw new BadRequestException(
+            'A guest with this mobile number already exists'
+          );
+        }
+      }
+      if (g.guest_address && g.guest_address.length > 255) {
+        throw new BadRequestException(
+          'Address cannot exceed 255 characters'
+        );
+      }
       // 1. Generate ID (seconds timestamp to fit integer)
       const guest_id = await this.generateGuestId();
       // Transliteration (NON-BLOCKING & SAFE)
@@ -319,6 +342,15 @@ export class GuestsService {
       // }
 
       // 5. Create t_guest_inout
+      if (
+        payload.inout?.entry_date &&
+        payload.inout?.exit_date &&
+        isBefore(payload.inout.exit_date, payload.inout.entry_date)
+      ) {
+        throw new BadRequestException(
+          'Exit date cannot be before entry date'
+        );
+      }
       const inout_id = `IN${Date.now()}`;
       const now = new Date();
       if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
@@ -366,6 +398,28 @@ export class GuestsService {
 
   // Generic update
   async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
+    const statusCheck = await this.db.query(
+      `
+      SELECT status
+      FROM t_guest_inout
+      WHERE guest_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [guestId]
+    );
+
+    if (statusCheck.rowCount > 0) {
+      const status = statusCheck.rows[0].status;
+
+      if (['Exited', 'Cancelled'].includes(status)) {
+        throw new BadRequestException(
+          `Cannot edit guest once status is ${status}`
+        );
+      }
+    }
+
+    
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
       'guest_address', 'email'
@@ -375,6 +429,11 @@ export class GuestsService {
     let idx = 1;
     for (const [k, v] of Object.entries(dto)) {
       if (!allowed.has(k)) continue;
+      if (k === 'guest_address' && typeof v === 'string' && v.length > 255) {
+        throw new BadRequestException(
+          'Address cannot exceed 255 characters'
+        );
+      }
       fields.push(`${k} = $${idx}`);
       vals.push(v);
       idx++;
@@ -600,6 +659,15 @@ export class GuestsService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
+    if (
+      payload.entry_date &&
+      payload.exit_date &&
+      isBefore(payload.exit_date, payload.entry_date)
+    ) {
+      throw new BadRequestException(
+        'Exit date cannot be before entry date'
+      );
+    }
     const fields: string[] = [];
     const values: any[] = [];
     let idx = 1;
@@ -909,4 +977,35 @@ export class GuestsService {
       throw err;
     }
   }
+
+  private async assertRoomAvailable(
+    roomId: string,
+    from: string,
+    to: string,
+    excludeGuestId?: string
+  ) {
+    const res = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_room
+      WHERE
+        room_id = $1
+        AND is_active = TRUE
+        AND daterange(checkin_date, checkout_date, '[]')
+            && daterange($2::date, $3::date, '[]')
+        ${excludeGuestId ? 'AND guest_id <> $4' : ''}
+      LIMIT 1
+      `,
+      excludeGuestId
+        ? [roomId, from, to, excludeGuestId]
+        : [roomId, from, to]
+    );
+
+    if (res.rowCount > 0) {
+      throw new BadRequestException(
+        'Room is already allocated for the selected dates'
+      );
+    }
+  }
+
 }

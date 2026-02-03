@@ -27,12 +27,16 @@ export class DriversController {
 
     return ip;
   }
-
+  @Get('stats')
+  getDriverStats() {
+    return this.service.getDriverStats();
+  }
   @Get('table')
   getDriversTable(
     @Query('page') page = 1,
     @Query('limit') limit = 10,
     @Query('search') search = '',
+    @Query('status') status?: 'ACTIVE' | 'INACTIVE',
     @Query('sortBy') sortBy = 'driver_name',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
   ) {
@@ -40,6 +44,7 @@ export class DriversController {
       page: Number(page),
       limit: Number(limit),
       search,
+      status, 
       sortBy,
       sortOrder,
     });

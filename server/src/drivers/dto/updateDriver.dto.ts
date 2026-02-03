@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsOptional,
   IsBoolean,
+  IsDateString,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -45,4 +46,8 @@ export class UpdateDriverDto {
   })
   @IsBoolean()
   is_active?: boolean;
+
+  @IsOptional()
+@IsDateString()
+license_expiry_date?: string;
 }
