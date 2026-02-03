@@ -3,6 +3,8 @@ import { DatabaseService } from "../database/database.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
 import { CloseGuestNetworkDto } from "./dto/close-guest-network.dto";
+import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
+import { ChangeGuestNetworkStatusDto } from "./dto/changes-guest-network-status.dto";
 
 @Injectable()
 export class GuestNetworkService {
@@ -25,7 +27,7 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
   const SORT_MAP: Record<string, string> = {
     entry_date: 'io.entry_date',
     guest_name: 'g.guest_name',
-    network_status: 'gn.network_status',
+    network_status: "COALESCE(gn.network_status, '')",
   };
 
   const sortColumn =
@@ -74,44 +76,38 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
 
   /* ---------- COUNT ---------- */
   const countSql = `
-    SELECT COUNT(DISTINCT g.guest_id)::int AS count
+    SELECT COUNT(*)::int AS count
     FROM t_guest_inout io
     JOIN m_guest g
       ON g.guest_id = io.guest_id
-
     LEFT JOIN t_guest_room gr
       ON gr.guest_id = g.guest_id
-     AND gr.is_active = TRUE
-
+    AND gr.is_active = TRUE
     LEFT JOIN t_guest_network gn
       ON gn.guest_id = g.guest_id
-     AND gn.is_active = TRUE
-
-    LEFT JOIN m_wifi_provider wp
-      ON wp.provider_id = gn.provider_id
-
+    AND gn.is_active = TRUE
     LEFT JOIN t_guest_messenger gm
       ON gm.guest_id = g.guest_id
-     AND gm.is_active = TRUE
-
+    AND gm.is_active = TRUE
     ${whereClause};
   `;
 
   /* ---------- DATA ---------- */
   const dataSql = `
-    SELECT DISTINCT
+    SELECT
       g.guest_id,
       g.guest_name,
 
-      /* -------- Room -------- */
-      gr.room_id,
+      /* -------- Room (from t_guest_room) -------- */
+      r.room_id,
+      r.room_no,
 
       /* -------- InOut Context -------- */
       io.entry_date,
       io.entry_time,
       io.status AS inout_status,
 
-      /* -------- Network -------- */
+      /* -------- Network (may not exist) -------- */
       gn.guest_network_id,
       wp.provider_name,
       gn.network_status,
@@ -120,8 +116,12 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
       gn.end_date,
       gn.end_time,
 
-      /* -------- Messenger -------- */
+      /* -------- Messenger (may not exist) -------- */
       gm.guest_messenger_id,
+      CASE 
+        WHEN gm.guest_messenger_id IS NOT NULL THEN 'Assigned'
+        ELSE NULL
+      END AS messenger_status,
       gm.assignment_date,
       gm.remarks
 
@@ -131,18 +131,21 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
 
     LEFT JOIN t_guest_room gr
       ON gr.guest_id = g.guest_id
-     AND gr.is_active = TRUE
+    AND gr.is_active = TRUE
+
+    LEFT JOIN m_rooms r
+      ON r.room_id = gr.room_id
 
     LEFT JOIN t_guest_network gn
       ON gn.guest_id = g.guest_id
-     AND gn.is_active = TRUE
+    AND gn.is_active = TRUE
 
     LEFT JOIN m_wifi_provider wp
       ON wp.provider_id = gn.provider_id
 
     LEFT JOIN t_guest_messenger gm
       ON gm.guest_id = g.guest_id
-     AND gm.is_active = TRUE
+    AND gm.is_active = TRUE
 
     ${whereClause}
     ORDER BY ${sortColumn} ${sortOrder}
@@ -222,59 +225,59 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
     return res.rows[0];
   }
 
-  // async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
-  //   const existing = await this.findOne(id);
-  //   if (!existing) throw new Error(`Guest Network entry '${id}' not found`);
+  async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
+    const existing = await this.findOne(id);
+    if (!existing) throw new Error(`Guest Network entry '${id}' not found`);
 
-  //   const now = new Date().toISOString();
+    const now = new Date().toISOString();
 
-  //   const sql = `
-  //     UPDATE t_guest_network SET
-  //       provider_id = $1,
-  //       room_id = $2,
-  //       network_zone_from = $3,
-  //       network_zone_to = $4,
-  //       start_date = $5,
-  //       start_time = $6,
-  //       end_date = $7,
-  //       end_time = $8,
-  //       start_status = $9,
-  //       end_status = $10,
-  //       network_status = $11,
-  //       description = $12,
-  //       remarks = $13,
-  //       is_active = $14,
-  //       updated_at = $15,
-  //       updated_by = $16,
-  //       updated_ip = $17
-  //     WHERE guest_network_id = $18
-  //     RETURNING *;
-  //   `;
+    const sql = `
+      UPDATE t_guest_network SET
+        provider_id = $1,
+        room_id = $2,
+        network_zone_from = $3,
+        network_zone_to = $4,
+        start_date = $5,
+        start_time = $6,
+        end_date = $7,
+        end_time = $8,
+        start_status = $9,
+        end_status = $10,
+        network_status = $11,
+        description = $12,
+        remarks = $13,
+        is_active = $14,
+        updated_at = $15,
+        updated_by = $16,
+        updated_ip = $17
+      WHERE guest_network_id = $18
+      RETURNING *;
+    `;
 
-  //   const params = [
-  //     dto.provider_id ?? existing.provider_id,
-  //     dto.room_id ?? existing.room_id,
-  //     dto.network_zone_from ?? existing.network_zone_from,
-  //     dto.network_zone_to ?? existing.network_zone_to,
-  //     dto.start_date ?? existing.start_date,
-  //     dto.start_time ?? existing.start_time,
-  //     dto.end_date ?? existing.end_date,
-  //     dto.end_time ?? existing.end_time,
-  //     dto.start_status ?? existing.start_status,
-  //     dto.end_status ?? existing.end_status,
-  //     dto.network_status ?? existing.network_status,
-  //     dto.description ?? existing.description,
-  //     dto.remarks ?? existing.remarks,
-  //     dto.is_active ?? existing.is_active,
-  //     now,
-  //     user,
-  //     ip,
-  //     id,
-  //   ];
+    const params = [
+      dto.provider_id ?? existing.provider_id,
+      dto.room_id ?? existing.room_id,
+      dto.network_zone_from ?? existing.network_zone_from,
+      dto.network_zone_to ?? existing.network_zone_to,
+      dto.start_date ?? existing.start_date,
+      dto.start_time ?? existing.start_time,
+      dto.end_date ?? existing.end_date,
+      dto.end_time ?? existing.end_time,
+      dto.start_status ?? existing.start_status,
+      dto.end_status ?? existing.end_status,
+      dto.network_status ?? existing.network_status,
+      dto.description ?? existing.description,
+      dto.remarks ?? existing.remarks,
+      dto.is_active ?? existing.is_active,
+      now,
+      user,
+      ip,
+      id,
+    ];
 
-  //   const res = await this.db.query(sql, params);
-  //   return res.rows[0];
-  // }
+    const res = await this.db.query(sql, params);
+    return res.rows[0];
+  }
 
   // async changeStatus(
   //   id: string,

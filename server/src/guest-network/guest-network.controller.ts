@@ -3,7 +3,7 @@ import { GuestNetworkService } from "./guest-network.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { CloseGuestNetworkDto } from "./dto/close-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
-
+import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
 @Controller("guest-network")
 export class GuestNetworkController {
   constructor(private readonly service: GuestNetworkService) {}
@@ -43,12 +43,12 @@ export class GuestNetworkController {
     return this.service.create(dto, user, ip);
   }
 
-  // @Put(":id")
-  // update(@Param("id") id: string, @Body() dto: UpdateGuestNetworkDto, @Req() req: any) {
-  //   const user = req.headers["x-user"] || "system";
-  //   const ip = this.extractIp(req);
-  //   return this.service.update(id, dto, user, ip);
-  // }
+  @Put(":id")
+  update(@Param("id") id: string, @Body() dto: UpdateGuestNetworkDto, @Req() req: any) {
+    const user = req.headers["x-user"] || "system";
+    const ip = this.extractIp(req);
+    return this.service.update(id, dto, user, ip);
+  }
 
   @Post(':id/close')
   closeAndCreateNext(

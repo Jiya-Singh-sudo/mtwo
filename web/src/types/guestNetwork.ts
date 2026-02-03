@@ -70,6 +70,7 @@ export interface GuestNetworkRow {
   guest_name: string;
 
   room_id: string | null;
+  room_no: string | null;
 
   /* -------- Network -------- */
   guest_network_id: string | null;

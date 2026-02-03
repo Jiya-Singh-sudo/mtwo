@@ -4,16 +4,19 @@ import { Plus, Eye, Edit, User, XCircle, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ZodError } from "zod";
 import "./NetworkManagement.css";
-import { getNetworkTable, softDeleteNetwork } from "@/api/network.api";
-import { getMessengerTable, softDeleteMessenger, createMessenger } from "@/api/messenger.api";
-import { getGuestNetworkTable } from "@/api/guestNetwork.api";
+import { getNetworkTable, softDeleteNetwork, updateNetwork, createNetwork } from "@/api/network.api";
+import { getMessengerTable, softDeleteMessenger, createMessenger, updateMessenger } from "@/api/messenger.api";
+import { getGuestNetworkTable, updateGuestNetwork, createGuestNetwork } from "@/api/guestNetwork.api";
 import { unassignGuestMessenger, createGuestMessenger } from "@/api/guestMessenger.api";
 import { NetworkProvider } from "@/types/network";
 import { Messenger } from "@/types/messenger";
+import { GuestNetwork } from "@/types/guestNetwork";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import { messengerCreateSchema } from "@/validation/messenger.validation";
+import { validateSingleField as validateField } from "@/utils/validateSingleField";
+// import { getActiveRooms } from "@/api/rooms.api";
 
 type AssignMessengerForm = {
     assigned_to: string;
@@ -25,6 +28,7 @@ type GuestNetworkView = {
     guest_name: string;
 
     room_id: string | null;
+    room_no: string | null;
 
     guest_network_id: string | null;
     provider_name: string | null;
@@ -67,6 +71,7 @@ export default function NetworkManagement() {
 
     /* ================= GUEST NETWORK ================= */
     const [networks, setNetworks] = useState<NetworkProvider[]>([]);
+    // const [rooms, setRooms] = useState<any[]>([]);
     const [guestRows, setGuestRows] = useState<GuestNetworkView[]>([]);
     const [assignModal, setAssignModal] = useState(false);
     const [selectedGuest, setSelectedGuest] =
@@ -82,6 +87,39 @@ export default function NetworkManagement() {
         useState<GuestNetworkView | null>(null);
     const [viewNetwork, setViewNetwork] = useState<NetworkProvider | null>(null);
     const [viewMessenger, setViewMessenger] = useState<Messenger | null>(null);
+
+    /* ================= EDIT STATES ================= */
+    /* ================= EDIT STATES ================= */
+    const [networkModalOpen, setNetworkModalOpen] = useState(false);
+    const [isAddNetwork, setIsAddNetwork] = useState(false);
+    const [editNetwork, setEditNetwork] = useState<NetworkProvider | null>(null);
+    const [editMessenger, setEditMessenger] = useState<Messenger | null>(null);
+
+    const [networkForm, setNetworkForm] = useState({
+        provider_name: "",
+        provider_name_local_language: "",
+        network_type: "WiFi" as "WiFi" | "Broadband" | "Hotspot" | "Leased-Line",
+        bandwidth_mbps: "",
+        username: "",
+        password: "",
+        static_ip: "",
+        address: "",
+    });
+
+    const [messengerEditForm, setMessengerEditForm] = useState({
+        messenger_name: "",
+        primary_mobile: "",
+        email: "",
+    });
+
+    const [editGuest, setEditGuest] = useState<GuestNetworkView | null>(null);
+    const [guestForm, setGuestForm] = useState<{
+        guest_name: string;
+        network_status: GuestNetwork['network_status'] | "";
+    }>({
+        guest_name: "",
+        network_status: "",
+    });
 
     /* ================= MESSENGERS ================= */
     const [messengers, setMessengers] = useState<Messenger[]>([]);
@@ -102,6 +140,53 @@ export default function NetworkManagement() {
     const [messengerTotal, setMessengerTotal] = useState(0);
     const [messengerLoading, setMessengerLoading] = useState(false);
 
+
+    /* ================= PREFILL EFFECTS ================= */
+    useEffect(() => {
+        if (editNetwork) {
+            setNetworkForm({
+                provider_name: editNetwork.provider_name,
+                provider_name_local_language:
+                    editNetwork.provider_name_local_language || "",
+                network_type: editNetwork.network_type,
+                bandwidth_mbps: editNetwork.bandwidth_mbps
+                    ? String(editNetwork.bandwidth_mbps)
+                    : "",
+                username: editNetwork.username || "",
+                password: "", // never prefill passwords
+                static_ip: editNetwork.static_ip || "",
+                address: editNetwork.address || "",
+            });
+        }
+    }, [editNetwork]);
+
+    useEffect(() => {
+        if (editMessenger) {
+            setMessengerEditForm({
+                messenger_name: editMessenger.messenger_name,
+                primary_mobile: editMessenger.primary_mobile,
+                email: editMessenger.email || "",
+            });
+        }
+    }, [editMessenger]);
+
+    useEffect(() => {
+        if (editGuest) {
+            setGuestForm({
+                guest_name: editGuest.guest_name,
+                network_status: (editGuest.network_status as GuestNetwork['network_status']) || "",
+            });
+        }
+    }, [editGuest]);
+
+    // useEffect(() => {
+    //     async function loadRooms() {
+    //         const res = await getActiveRooms();
+    //         setRooms(res);
+    //     }
+
+    //     loadRooms();
+    // }, []);
 
     async function loadGuestNetwork() {
         setGuestLoading(true);
@@ -180,7 +265,9 @@ export default function NetworkManagement() {
 
         setAssignModal(false);
         setAssignForm({ assigned_to: "", admin_remark: "" });
+        setAssignForm({ assigned_to: "", admin_remark: "" });
         await loadGuestNetwork();
+        guestTable.setPage(1);
     }
 
     /* ================= ADD MESSENGER HANDLER (with Zod) ================= */
@@ -303,6 +390,14 @@ export default function NetworkManagement() {
                         <User size={16} />
                     </button>
 
+                    <button
+                        className="icon-btn text-green-600"
+                        title="Edit Guest Network"
+                        onClick={() => setEditGuest(row)}
+                    >
+                        <Edit size={16} />
+                    </button>
+
                     {/* Unassign Messenger */}
                     {row.guest_messenger_id && (
                         <button
@@ -310,7 +405,8 @@ export default function NetworkManagement() {
                             title="Unassign Messenger"
                             onClick={async () => {
                                 await unassignGuestMessenger(row.guest_messenger_id!);
-                                loadGuestNetwork();
+                                await loadGuestNetwork();
+                                guestTable.setPage(1);
                             }}
                         >
                             <XCircle size={16} />
@@ -352,30 +448,35 @@ export default function NetworkManagement() {
                     <button
                         className="icon-btn text-green-600"
                         title="Edit"
-                        onClick={() => console.log("Edit", row.provider_id)}
+
+                        onClick={() => {
+                            setIsAddNetwork(false);
+                            setEditNetwork(row);
+                            setNetworkModalOpen(true);
+                        }}
                     >
                         <Edit size={16} />
                     </button>
 
                     <button
-                    className="icon-btn text-red-600"
-                    title="Delete"
-                    onClick={async () => {
-                        setDeleteError(null);
+                        className="icon-btn text-red-600"
+                        title="Delete"
+                        onClick={async () => {
+                            setDeleteError(null);
 
-                        try {
-                        await softDeleteNetwork(row.provider_id);
-                        loadNetworks();
-                        } catch (err: any) {
-                        const message =
-                            err?.response?.data?.message ||
-                            "Unable to delete network provider";
+                            try {
+                                await softDeleteNetwork(row.provider_id);
+                                loadNetworks();
+                            } catch (err: any) {
+                                const message =
+                                    err?.response?.data?.message ||
+                                    "Unable to delete network provider";
 
-                        setDeleteError(message);
-                        }
-                    }}
+                                setDeleteError(message);
+                            }
+                        }}
                     >
-                    <Trash2 size={16} />
+                        <Trash2 size={16} />
                     </button>
                 </div>
             ),
@@ -413,30 +514,30 @@ export default function NetworkManagement() {
                     <button
                         className="icon-btn text-green-600"
                         title="Edit"
-                        onClick={() => console.log("Edit", row.messenger_id)}
+                        onClick={() => setEditMessenger(row)}
                     >
                         <Edit size={16} />
                     </button>
 
                     <button
-                    className="icon-btn text-red-600"
-                    title="Delete"
-                    onClick={async () => {
-                        setDeleteError(null);
+                        className="icon-btn text-red-600"
+                        title="Delete"
+                        onClick={async () => {
+                            setDeleteError(null);
 
-                        try {
-                        await softDeleteMessenger(row.messenger_id);
-                        loadMessengers();
-                        } catch (err: any) {
-                        const message =
-                            err?.response?.data?.message ||
-                            "Unable to delete messenger";
+                            try {
+                                await softDeleteMessenger(row.messenger_id);
+                                loadMessengers();
+                            } catch (err: any) {
+                                const message =
+                                    err?.response?.data?.message ||
+                                    "Unable to delete messenger";
 
-                        setDeleteError(message);
-                        }
-                    }}
+                                setDeleteError(message);
+                            }
+                        }}
                     >
-                    <Trash2 size={16} />
+                        <Trash2 size={16} />
                     </button>
                 </div>
             ),
@@ -460,21 +561,21 @@ export default function NetworkManagement() {
             <div className="nicTabs">
                 <button
                     className={`nicTab ${activeTab === "guestMng" ? "active" : ""}`}
-                    onClick={() => {setActiveTab("guestMng"); }}
+                    onClick={() => { setActiveTab("guestMng"); }}
                 >
                     Guest Network
                 </button>
 
                 <button
                     className={`nicTab ${activeTab === "networks" ? "active" : ""}`}
-                    onClick={() => {setActiveTab("networks");   setDeleteError(null);}}
+                    onClick={() => { setActiveTab("networks"); setDeleteError(null); }}
                 >
                     Networks
                 </button>
 
                 <button
                     className={`nicTab ${activeTab === "messengers" ? "active" : ""}`}
-                    onClick={() => {setActiveTab("messengers");   setDeleteError(null);}}
+                    onClick={() => { setActiveTab("messengers"); setDeleteError(null); }}
                 >
                     Messengers
                 </button>
@@ -530,6 +631,30 @@ export default function NetworkManagement() {
                                 maxLength={300}
                             />
                         </div>
+
+                        <div className="flex items-center gap-3">
+                            <Button
+                                onClick={() => {
+                                    setIsAddNetwork(true);
+                                    setEditNetwork(null);
+                                    setNetworkForm({
+                                        provider_name: "",
+                                        provider_name_local_language: "",
+                                        network_type: "WiFi",
+                                        bandwidth_mbps: "",
+                                        username: "",
+                                        password: "",
+                                        static_ip: "",
+                                        address: "",
+                                    });
+                                    setNetworkModalOpen(true);
+                                }}
+                                className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text h-10 px-4"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Network
+                            </Button>
+                        </div>
                     </div>
                     {deleteError && (
                         <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -537,7 +662,7 @@ export default function NetworkManagement() {
                         </div>
                     )}
                     <div className="bg-white border rounded-sm overflow-hidden">
-                        
+
                         <DataTable
                             data={networks}
                             columns={networkColumns}
@@ -904,6 +1029,400 @@ export default function NetworkManagement() {
                 </div>
             )}
 
-        </div>
+            {networkModalOpen && (
+                <div className="modalOverlay">
+                    <div className="nicModal wide">
+
+                        <div className="nicModalHeader">
+                            <h2>
+                                {isAddNetwork ? "Add Network Provider" : "Edit Network Provider"}
+                            </h2>
+                            <button onClick={() => setNetworkModalOpen(false)}>✕</button>
+                        </div>
+
+                        <div className="nicFormStack">
+
+                            <div>
+                                <label className="nicLabel">
+                                    Provider Name <span className="required">*</span>
+                                </label>
+                                <input
+                                    className="nicInput"
+                                    value={networkForm.provider_name}
+                                    onChange={(e) =>
+                                        setNetworkForm({ ...networkForm, provider_name: e.target.value })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Provider Name (Local Language)</label>
+                                <input
+                                    className="nicInput"
+                                    value={networkForm.provider_name_local_language}
+                                    onChange={(e) =>
+                                        setNetworkForm({
+                                            ...networkForm,
+                                            provider_name_local_language: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">
+                                    Network Type <span className="required">*</span>
+                                </label>
+                                <select
+                                    className="nicInput"
+                                    value={networkForm.network_type}
+                                    onChange={(e) =>
+                                        setNetworkForm({
+                                            ...networkForm,
+                                            network_type: e.target.value as any,
+                                        })
+                                    }
+                                >
+                                    <option value="WiFi">WiFi</option>
+                                    <option value="Broadband">Broadband</option>
+                                    <option value="Hotspot">Hotspot</option>
+                                    <option value="Leased-Line">Leased-Line</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Bandwidth (Mbps)</label>
+                                <input
+                                    type="number"
+                                    className="nicInput"
+                                    value={networkForm.bandwidth_mbps}
+                                    onChange={(e) =>
+                                        setNetworkForm({
+                                            ...networkForm,
+                                            bandwidth_mbps: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Username</label>
+                                <input
+                                    className="nicInput"
+                                    value={networkForm.username}
+                                    onChange={(e) =>
+                                        setNetworkForm({ ...networkForm, username: e.target.value })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Password</label>
+                                <input
+                                    type="password"
+                                    className="nicInput"
+                                    value={networkForm.password}
+                                    onChange={(e) =>
+                                        setNetworkForm({ ...networkForm, password: e.target.value })
+                                    }
+                                    placeholder={
+                                        !isAddNetwork
+                                            ? "Leave blank to keep existing password"
+                                            : ""
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Static IP</label>
+                                <input
+                                    className="nicInput"
+                                    value={networkForm.static_ip}
+                                    onChange={(e) =>
+                                        setNetworkForm({ ...networkForm, static_ip: e.target.value })
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Address</label>
+                                <textarea
+                                    className="nicInput"
+                                    rows={2}
+                                    value={networkForm.address}
+                                    onChange={(e) =>
+                                        setNetworkForm({ ...networkForm, address: e.target.value })
+                                    }
+                                />
+                            </div>
+
+                        </div>
+
+                        <div className="nicModalActions">
+                            <button
+                                className="cancelBtn"
+                                onClick={() => {
+                                    setNetworkModalOpen(false);
+                                    setEditNetwork(null);
+                                }}
+                            >
+                                Cancel
+                            </button>
+
+                            {/* SAVE */}
+                            <button
+                                className="saveBtn"
+                                onClick={async () => {
+                                    const payload = {
+                                        provider_name: networkForm.provider_name,
+                                        provider_name_local_language:
+                                            networkForm.provider_name_local_language || undefined,
+                                        network_type: networkForm.network_type,
+                                        bandwidth_mbps: networkForm.bandwidth_mbps
+                                            ? Number(networkForm.bandwidth_mbps)
+                                            : undefined,
+                                        username: networkForm.username || undefined,
+                                        password: networkForm.password || undefined,
+                                        static_ip: networkForm.static_ip || undefined,
+                                        address: networkForm.address || undefined,
+                                    };
+
+                                    try {
+                                        if (editNetwork?.provider_id) {
+                                            await updateNetwork(editNetwork.provider_id, payload);
+                                        } else {
+                                            await createNetwork(payload);
+                                        }
+
+                                        setNetworkModalOpen(false);
+                                        setEditNetwork(null);
+                                        await loadNetworks();
+                                        networkTable.setPage(1);
+                                    } catch (e) {
+                                        console.error(e);
+                                    }
+                                }}
+                            >
+                                Save
+                            </button>
+
+                            {/* SAVE & ADD NEW */}
+                            {!editNetwork?.provider_id && (
+                                <button
+                                    className="saveBtn"
+                                    onClick={async () => {
+                                        const payload = {
+                                            provider_name: networkForm.provider_name,
+                                            provider_name_local_language:
+                                                networkForm.provider_name_local_language || undefined,
+                                            network_type: networkForm.network_type,
+                                            bandwidth_mbps: networkForm.bandwidth_mbps
+                                                ? Number(networkForm.bandwidth_mbps)
+                                                : undefined,
+                                            username: networkForm.username || undefined,
+                                            password: networkForm.password || undefined,
+                                            static_ip: networkForm.static_ip || undefined,
+                                            address: networkForm.address || undefined,
+                                        };
+
+                                        try {
+                                            await createNetwork(payload);
+
+                                            // reset form for next entry
+                                            setNetworkForm({
+                                                provider_name: "",
+                                                provider_name_local_language: "",
+                                                network_type: "WiFi",
+                                                bandwidth_mbps: "",
+                                                username: "",
+                                                password: "",
+                                                static_ip: "",
+                                                address: "",
+                                            });
+
+                                            await loadNetworks();
+                                        } catch (e) {
+                                            console.error(e);
+                                        }
+                                    }}
+                                >
+                                    Save & Add New
+                                </button>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            )}
+
+            {/* ================= FIX 5: EDIT MESSENGER MODAL ================= */}
+            {editMessenger && (
+                <div className="modalOverlay">
+                    <div className="nicModal">
+
+                        <div className="nicModalHeader">
+                            <h2>Edit Messenger</h2>
+                            <button onClick={() => setEditMessenger(null)}>✕</button>
+                        </div>
+
+                        <div className="nicFormStack">
+                            <div>
+                                <label className="nicLabel">
+                                    Name <span className="required">*</span>
+                                </label>
+                                <input
+                                    className="nicInput"
+                                    value={messengerEditForm.messenger_name}
+                                    onChange={(e) =>
+                                        setMessengerEditForm({
+                                            ...messengerEditForm,
+                                            messenger_name: e.target.value,
+                                        })
+                                    }
+                                    onBlur={() => validateField(messengerCreateSchema, "messenger_name", messengerEditForm.messenger_name, setFormErrors)}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">
+                                    Mobile <span className="required">*</span>
+                                </label>
+                                <input
+                                    className="nicInput"
+                                    value={messengerEditForm.primary_mobile}
+                                    onChange={(e) =>
+                                        setMessengerEditForm({
+                                            ...messengerEditForm,
+                                            primary_mobile: e.target.value,
+                                        })
+                                    }
+                                    onBlur={() => validateField(messengerCreateSchema, "primary_mobile", messengerEditForm.primary_mobile, setFormErrors)}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="nicLabel">Email</label>
+                                <input
+                                    className="nicInput"
+                                    value={messengerEditForm.email}
+                                    onChange={(e) =>
+                                        setMessengerEditForm({
+                                            ...messengerEditForm,
+                                            email: e.target.value,
+                                        })
+                                    }
+                                    onBlur={() => validateField(messengerCreateSchema, "email", messengerEditForm.email, setFormErrors)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="nicModalActions">
+                            <button className="cancelBtn" onClick={() => setEditMessenger(null)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="saveBtn"
+                                onClick={async () => {
+                                    await updateMessenger(editMessenger.messenger_id, messengerEditForm);
+                                    setEditMessenger(null);
+                                    loadMessengers();
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ================= EDIT GUEST MODAL ================= */}
+            {editGuest && (
+                <div className="modalOverlay">
+                    <div className="nicModal">
+                        <div className="nicModalHeader">
+                            <h2>Edit Guest Network</h2>
+                            <button onClick={() => setEditGuest(null)}>✕</button>
+                        </div>
+                        <div className="nicFormStack">
+                            <div>
+                                <label className="nicLabel">Guest Name</label>
+                                <input
+                                    className="nicInput"
+                                    value={guestForm.guest_name}
+                                    disabled
+                                />
+                            </div>
+                            {/* <div>
+                                <label className="nicLabel">Room</label>
+                                <input
+                                    className="nicInput"
+                                    value={guestForm.room_id}
+                                    onChange={(e) => setGuestForm({ ...guestForm, room_id: e.target.value })}
+                                />
+                            </div> */}
+                            <div>
+                            <label className="nicLabel">Room</label>
+                            <input
+                                className="nicInput"
+                                value={editGuest?.room_no || "—"}
+                                disabled
+                            />
+                            </div>
+                            <div>
+                                <label className="nicLabel">
+                                    Network Status <span className="required">*</span>
+                                </label>
+                                <select
+                                    className="nicInput"
+                                    value={guestForm.network_status}
+                                    onChange={(e) => setGuestForm({ ...guestForm, network_status: e.target.value as GuestNetwork['network_status'] })}
+                                >
+                                    <option value="Requested">Requested</option>
+                                    <option value="Connected">Connected</option>
+                                    <option value="Disconnected">Disconnected</option>
+                                    <option value="Issue-Reported">Issue Reported</option>
+                                    <option value="Resolved">Resolved</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="nicModalActions">
+                            <button className="cancelBtn" onClick={() => setEditGuest(null)}>Cancel</button>
+                            <button
+                                className="saveBtn"
+                                onClick={async () => {
+                                    try {
+                                        if (editGuest?.guest_network_id) {
+                                            // UPDATE existing guest network
+                                            await updateGuestNetwork(editGuest.guest_network_id, {
+                                                network_status: guestForm.network_status,
+                                            });
+                                        } else {
+                                            // CREATE new guest network (because it does not exist yet)
+                                            await createGuestNetwork({
+                                                guest_id: editGuest!.guest_id,
+                                                network_status: guestForm.network_status as GuestNetwork['network_status'],
+
+                                                // REQUIRED fields for CreateGuestNetworkDto
+                                                provider_id: "N001", // <-- replace with actual default or selected provider
+                                                start_date: new Date().toISOString().slice(0, 10),
+                                                start_time: new Date().toISOString().slice(11, 16),
+                                            });
+                                        }
+
+                                        await loadGuestNetwork();
+                                        setEditGuest(null);
+
+                                    } catch (err) {
+                                        console.error(err);
+                                    }
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div >
     );
 }

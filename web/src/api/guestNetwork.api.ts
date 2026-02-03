@@ -24,13 +24,13 @@ export async function createGuestNetwork(
 }
 
 /* ---------- UPDATE ---------- */
-// export async function updateGuestNetwork(
-//   id: string,
-//   payload: UpdateGuestNetworkPayload
-// ): Promise<GuestNetwork> {
-//   const res = await api.put(`/guest-network/${id}`, payload);
-//   return res.data;
-// }
+export async function updateGuestNetwork(
+  id: string,
+  payload: any // UpdateGuestNetworkPayload
+): Promise<GuestNetwork> {
+  const res = await api.put(`/guest-network/${id}`, payload);
+  return res.data;
+}
 export async function closeGuestNetwork(
   id: string,
   payload: CloseGuestNetworkPayload
