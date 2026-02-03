@@ -5,6 +5,9 @@ import {
   IsInt,
   Min,
   MaxLength,
+  IsNotEmpty,
+  IsIP,
+  MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -14,6 +17,7 @@ export class CreateNetworkDto {
   // provider_id: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   provider_name: string;
 
@@ -36,10 +40,11 @@ export class CreateNetworkDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(6)
   password?: string; // SHA256 hex (validated elsewhere)
 
   @IsOptional()
-  @IsString()
+  @IsIP(4)
   static_ip?: string;
 
   @IsOptional()

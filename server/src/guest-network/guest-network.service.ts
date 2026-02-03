@@ -8,7 +8,7 @@ import { ChangeGuestNetworkStatusDto } from "./dto/changes-guest-network-status.
 
 @Injectable()
 export class GuestNetworkService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   private async generateId(): Promise<string> {
     const sql = `SELECT guest_network_id FROM t_guest_network ORDER BY guest_network_id DESC LIMIT 1`;
@@ -18,27 +18,27 @@ export class GuestNetworkService {
     const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
     return `GN${next}`;
   }
-async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
-  const page = query.page;
-  const limit = query.limit;
-  const offset = (page - 1) * limit;
+  async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
+    const page = query.page;
+    const limit = query.limit;
+    const offset = (page - 1) * limit;
 
-  /* ---------- SORT WHITELIST ---------- */
-  const SORT_MAP: Record<string, string> = {
-    entry_date: 'io.entry_date',
-    guest_name: 'g.guest_name',
-    network_status: "COALESCE(gn.network_status, '')",
-  };
+    /* ---------- SORT WHITELIST ---------- */
+    const SORT_MAP: Record<string, string> = {
+      entry_date: 'io.entry_date',
+      guest_name: 'g.guest_name',
+      network_status: "COALESCE(gn.network_status, '')",
+    };
 
-  const sortColumn =
-    SORT_MAP[query.sortBy ?? 'entry_date'] ?? 'io.entry_date';
+    const sortColumn =
+      SORT_MAP[query.sortBy ?? 'entry_date'] ?? 'io.entry_date';
 
-  const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-  const where: string[] = [
-    'io.is_active = TRUE',
-    'g.is_active = TRUE',
-    `
+    const where: string[] = [
+      'io.is_active = TRUE',
+      'g.is_active = TRUE',
+      `
     (
       /* Scheduled */
       (io.status = 'Scheduled' AND io.entry_date >= CURRENT_DATE)
@@ -55,27 +55,27 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
       )
     )
     `,
-  ];
+    ];
 
-  const params: any[] = [];
-  let idx = 1;
+    const params: any[] = [];
+    let idx = 1;
 
-  /* ---------- SEARCH ---------- */
-  if (query.search) {
-    where.push(`
+    /* ---------- SEARCH ---------- */
+    if (query.search) {
+      where.push(`
       (
         g.guest_name ILIKE $${idx}
         OR wp.provider_name ILIKE $${idx}
       )
     `);
-    params.push(`%${query.search}%`);
-    idx++;
-  }
+      params.push(`%${query.search}%`);
+      idx++;
+    }
 
-  const whereClause = `WHERE ${where.join(' AND ')}`;
+    const whereClause = `WHERE ${where.join(' AND ')}`;
 
-  /* ---------- COUNT ---------- */
-  const countSql = `
+    /* ---------- COUNT ---------- */
+    const countSql = `
     SELECT COUNT(*)::int AS count
     FROM t_guest_inout io
     JOIN m_guest g
@@ -92,8 +92,8 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
     ${whereClause};
   `;
 
-  /* ---------- DATA ---------- */
-  const dataSql = `
+    /* ---------- DATA ---------- */
+    const dataSql = `
     SELECT
       g.guest_id,
       g.guest_name,
@@ -152,14 +152,39 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
     LIMIT $${idx} OFFSET $${idx + 1};
   `;
 
-  const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
-  const countRes = await this.db.query(countSql, params);
+    const statsSql = `
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(CASE WHEN gn.network_status = 'Requested' THEN 1 END)::int AS requested,
+      COUNT(CASE WHEN gn.network_status = 'Connected' THEN 1 END)::int AS connected,
+      COUNT(CASE WHEN gn.network_status = 'Disconnected' THEN 1 END)::int AS disconnected,
+      COUNT(CASE WHEN gn.network_status = 'Issue-Reported' THEN 1 END)::int AS issue_reported,
+      COUNT(CASE WHEN gn.network_status = 'Resolved' THEN 1 END)::int AS resolved,
+      COUNT(CASE WHEN gn.network_status = 'Cancelled' THEN 1 END)::int AS cancelled,
+      (SELECT COUNT(*)::int FROM t_guest_messenger gm WHERE gm.is_active = TRUE) AS messenger_assigned
+    FROM t_guest_network gn
+    WHERE gn.is_active = TRUE;
+  `;
 
-  return {
-    data: dataRes.rows,
-    totalCount: countRes.rows[0].count,
-  };
-}
+    const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
+    const countRes = await this.db.query(countSql, params);
+    const statsRes = await this.db.query(statsSql);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].count,
+      stats: {
+        total: parseInt(statsRes.rows[0].total, 10) || 0,
+        requested: parseInt(statsRes.rows[0].requested, 10) || 0,
+        connected: parseInt(statsRes.rows[0].connected, 10) || 0,
+        disconnected: parseInt(statsRes.rows[0].disconnected, 10) || 0,
+        issueReported: parseInt(statsRes.rows[0].issue_reported, 10) || 0,
+        resolved: parseInt(statsRes.rows[0].resolved, 10) || 0,
+        cancelled: parseInt(statsRes.rows[0].cancelled, 10) || 0,
+        messengerAssigned: parseInt(statsRes.rows[0].messenger_assigned, 10) || 0,
+      },
+    };
+  }
 
 
   async findAll(activeOnly = true) {
@@ -345,20 +370,20 @@ async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
 
   //   return res.rows[0];
   // }
-async closeAndCreateNext(
-  id: string,
-  dto: CloseGuestNetworkDto,
-  user: string,
-  ip: string
-) {
-  const existing = await this.findOne(id);
-  if (!existing) throw new Error(`Guest Network '${id}' not found`);
+  async closeAndCreateNext(
+    id: string,
+    dto: CloseGuestNetworkDto,
+    user: string,
+    ip: string
+  ) {
+    const existing = await this.findOne(id);
+    if (!existing) throw new Error(`Guest Network '${id}' not found`);
 
-  const now = new Date().toISOString();
+    const now = new Date().toISOString();
 
-  // 1. CLOSE OLD RECORD (NO DATA LOSS)
-  await this.db.query(
-    `
+    // 1. CLOSE OLD RECORD (NO DATA LOSS)
+    await this.db.query(
+      `
     UPDATE t_guest_network
     SET
       is_active = false,
@@ -372,24 +397,24 @@ async closeAndCreateNext(
       updated_ip = $8
     WHERE guest_network_id = $9
     `,
-    [
-      dto.end_date,
-      dto.end_time,
-      dto.end_status,
-      dto.network_status,
-      dto.remarks ?? existing.remarks,
-      now,
-      user,
-      ip,
-      id,
-    ]
-  );
+      [
+        dto.end_date,
+        dto.end_time,
+        dto.end_status,
+        dto.network_status,
+        dto.remarks ?? existing.remarks,
+        now,
+        user,
+        ip,
+        id,
+      ]
+    );
 
-  // 2. CREATE NEW RECORD (NEW FACT)
-  const newId = await this.generateId();
+    // 2. CREATE NEW RECORD (NEW FACT)
+    const newId = await this.generateId();
 
-  const res = await this.db.query(
-    `
+    const res = await this.db.query(
+      `
     INSERT INTO t_guest_network (
       guest_network_id,
       guest_id,
@@ -420,25 +445,25 @@ async closeAndCreateNext(
     )
     RETURNING *;
     `,
-    [
-      newId,
-      existing.guest_id,
-      existing.provider_id,
-      existing.room_id,
-      existing.network_zone_from,
-      existing.network_zone_to,
-      existing.start_date,
-      existing.start_time,
-      existing.description,
-      existing.remarks,
-      now,
-      user,
-      ip,
-    ]
-  );
+      [
+        newId,
+        existing.guest_id,
+        existing.provider_id,
+        existing.room_id,
+        existing.network_zone_from,
+        existing.network_zone_to,
+        existing.start_date,
+        existing.start_time,
+        existing.description,
+        existing.remarks,
+        now,
+        user,
+        ip,
+      ]
+    );
 
-  return res.rows[0];
-}
+    return res.rows[0];
+  }
 
 
   async softDelete(id: string, user: string, ip: string) {

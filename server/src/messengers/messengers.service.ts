@@ -7,7 +7,7 @@ import { transliterateToDevanagari } from '../../common/utlis/transliteration.ut
 
 @Injectable()
 export class MessengerService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   /* ---------- ID GENERATION ---------- */
   private async generateMessengerId(): Promise<string> {
@@ -181,21 +181,21 @@ export class MessengerService {
   }
 
   /* ---------- DATA TABLE ---------- */
-    async getMessengerTable(query: MessengerTableQueryDto) {
+  async getMessengerTable(query: MessengerTableQueryDto) {
     const page = query.page;
     const limit = query.limit;
     const offset = (page - 1) * limit;
 
     /* ---------- SORT WHITELIST ---------- */
     const SORT_MAP: Record<string, string> = {
-        messenger_name: 'messenger_name',
-        primary_mobile: 'primary_mobile',
-        designation: 'designation',
-        inserted_at: 'inserted_at',
+      messenger_name: 'messenger_name',
+      primary_mobile: 'primary_mobile',
+      designation: 'designation',
+      inserted_at: 'inserted_at',
     };
 
     const sortColumn =
-        SORT_MAP[query.sortBy ?? 'messenger_name'] ?? 'messenger_name';
+      SORT_MAP[query.sortBy ?? 'messenger_name'] ?? 'messenger_name';
 
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
@@ -205,15 +205,15 @@ export class MessengerService {
 
     // active / inactive
     if (query.status === 'active') {
-        where.push('is_active = true');
+      where.push('is_active = true');
     } else if (query.status === 'inactive') {
-        where.push('is_active = false');
+      where.push('is_active = false');
     }
 
     // search (name, mobile, email)
     if (query.search) {
-        params.push(`%${query.search}%`);
-        where.push(`
+      params.push(`%${query.search}%`);
+      where.push(`
         (
             messenger_name ILIKE $${params.length}
             OR primary_mobile ILIKE $${params.length}
@@ -223,7 +223,7 @@ export class MessengerService {
     }
 
     const whereClause =
-        where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+      where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
     /* ---------- DATA QUERY ---------- */
     const dataSql = `
@@ -256,8 +256,9 @@ export class MessengerService {
     const countRes = await this.db.query(countSql, params);
 
     return {
-        data: dataRes.rows,
-        totalCount: countRes.rows[0].count,
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].count,
+      stats: {}
     };
-    }
+  }
 }

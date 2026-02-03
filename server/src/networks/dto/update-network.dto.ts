@@ -5,12 +5,16 @@ import {
   IsInt,
   Min,
   IsBoolean,
+  IsNotEmpty,
+  IsIP,
+  MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateNetworkDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   provider_name?: string;
 
   @IsOptional()
@@ -33,10 +37,11 @@ export class UpdateNetworkDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(6)
   password?: string;
 
   @IsOptional()
-  @IsString()
+  @IsIP(4)
   static_ip?: string;
 
   @IsOptional()

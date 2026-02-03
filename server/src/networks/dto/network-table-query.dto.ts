@@ -9,13 +9,13 @@ export class NetworkTableQueryDto extends BaseTableQueryDto {
     'bandwidth_mbps',
     'inserted_at',
   ])
-  sortBy?: 
+  sortBy?:
     | 'provider_name'
     | 'network_type'
     | 'bandwidth_mbps'
     | 'inserted_at';
 
   @IsOptional()
-  @IsIn(['active', 'inactive'])
-  status?: 'active' | 'inactive';
+  @IsIn(['all', 'active', 'inactive'])
+  status?: 'all' | 'active' | 'inactive';
 }

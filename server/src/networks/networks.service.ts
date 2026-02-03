@@ -7,7 +7,7 @@ import { sha256 } from '../../common/utlis/hash.util';
 
 @Injectable()
 export class NetworksService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
   private async generateProviderId(): Promise<string> {
     const sql = `
       SELECT provider_id
@@ -96,12 +96,31 @@ export class NetworksService {
       ${whereClause};
     `;
 
+    const statsSql = `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN network_type = 'WiFi' THEN 1 END)::int AS wifi,
+        COUNT(CASE WHEN network_type = 'Broadband' THEN 1 END)::int AS broadband,
+        COUNT(CASE WHEN network_type = 'Hotspot' THEN 1 END)::int AS hotspot,
+        COUNT(CASE WHEN network_type = 'Leased-Line' THEN 1 END)::int AS leased_line
+      FROM m_wifi_provider
+      WHERE is_active = TRUE;
+    `;
+
     const dataRes = await this.db.query(dataSql, dataParams);
     const countRes = await this.db.query(countSql, params);
+    const statsRes = await this.db.query(statsSql);
 
     return {
       data: dataRes.rows,
       totalCount: countRes.rows[0].count,
+      stats: {
+        total: parseInt(statsRes.rows[0].total, 10) || 0,
+        wifi: parseInt(statsRes.rows[0].wifi, 10) || 0,
+        broadband: parseInt(statsRes.rows[0].broadband, 10) || 0,
+        hotspot: parseInt(statsRes.rows[0].hotspot, 10) || 0,
+        leasedLine: parseInt(statsRes.rows[0].leased_line, 10) || 0,
+      },
     };
   }
 
@@ -134,7 +153,23 @@ export class NetworksService {
     const hashedPassword = dto.password
       ? sha256(dto.password)
       : null;
+    // 🔴 Duplicate provider name check
+    const duplicate = await this.db.query(
+      `
+      SELECT 1
+      FROM m_wifi_provider
+      WHERE LOWER(provider_name) = LOWER($1)
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [dto.provider_name]
+    );
 
+    if (duplicate.rowCount > 0) {
+      throw new BadRequestException(
+        `Network provider '${dto.provider_name}' already exists`
+      );
+    }
     const sql = `
       INSERT INTO m_wifi_provider (
         provider_id,
@@ -195,7 +230,43 @@ export class NetworksService {
       dto.password !== undefined
         ? sha256(dto.password)
         : existing.password;
+    if (dto.provider_name) {
+      const duplicate = await this.db.query(
+        `
+        SELECT 1
+        FROM m_wifi_provider
+        WHERE LOWER(provider_name) = LOWER($1)
+          AND provider_id <> $2
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [dto.provider_name, id]
+      );
 
+      if (duplicate.rowCount > 0) {
+        throw new BadRequestException(
+          `Network provider '${dto.provider_name}' already exists`
+        );
+      }
+    }
+    if (dto.network_type && dto.network_type !== existing.network_type) {
+      const assigned = await this.db.query(
+        `
+        SELECT 1
+        FROM t_guest_network
+        WHERE provider_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [id]
+      );
+
+      if (assigned.rowCount > 0) {
+        throw new BadRequestException(
+          'Cannot change network type while provider is assigned to a guest'
+        );
+      }
+    }
     const sql = `
       UPDATE m_wifi_provider SET
         provider_name = $1,
@@ -270,7 +341,9 @@ export class NetworksService {
     }
 
     // ✅ SAFE TO DELETE
-    const now = new Date().toISOString();
+    const now = new Date()
+    .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
+    .replace(',', '');
 
     const sql = `
       UPDATE m_wifi_provider SET
