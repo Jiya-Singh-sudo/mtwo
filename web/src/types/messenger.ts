@@ -53,4 +53,11 @@ export type MessengerTableQuery = {
 export type MessengerTableResponse = {
   data: Messenger[];
   totalCount: number;
+  stats: {
+    total: number;
+    active: number;
+    inactive: number;
+    assigned: number;
+    unassigned: number;
+  };
 };

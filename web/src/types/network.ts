@@ -54,4 +54,11 @@ export type NetworkTableQuery = {
 export type NetworkTableResponse = {
   data: NetworkProvider[];
   totalCount: number;
+  stats: {
+    total: number;
+    wifi: number;
+    broadband: number;
+    hotspot: number;
+    leasedLine: number;
+  };
 };

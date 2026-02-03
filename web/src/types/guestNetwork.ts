@@ -85,11 +85,29 @@ export interface GuestNetworkRow {
   messenger_status: string | null;
 
   requested_at: string | null;
+
+  /* -------- Lifecycle -------- */
+  start_date: string | null;
+  start_time: string | null;
+  end_date: string | null;
+  end_time: string | null;
+  start_status: string | null;
+  remarks: string | null;
 }
 
 export interface GuestNetworkTableResponse {
   data: GuestNetworkRow[];
   totalCount: number;
+  stats: {
+    total: number;
+    requested: number;
+    connected: number;
+    disconnected: number;
+    issueReported: number;
+    resolved: number;
+    cancelled: number;
+    messengerAssigned: number;
+  };
 }
 
 export interface CloseGuestNetworkPayload {
