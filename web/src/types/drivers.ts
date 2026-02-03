@@ -5,6 +5,7 @@ export interface Driver {
   driver_contact: string;
   driver_alternate_contact?: string;
   driver_license: string;
+  license_expiry_date: string;
   address?: string;
   is_active: boolean;
   inserted_at: string;
@@ -27,6 +28,7 @@ export interface CreateDriverDto {
   driver_alternate_contact?: string;
   driver_license: string;
   address?: string;
+  license_expiry_date?: string;
 }
 
 export interface UpdateDriverDto {
@@ -37,13 +39,14 @@ export interface UpdateDriverDto {
   driver_license?: string;
   address?: string;
   is_active?: boolean;
+  license_expiry_date?: string;
 }
 export interface DriverDashboardRow {
   driver_id: string;
   driver_name: string;
   driver_contact: string;
   driver_license: string;
-
+  license_expiry_date: string;
   duty_status: "Available" | "Unavailable";
   is_assigned: boolean;
 

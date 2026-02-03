@@ -14,11 +14,19 @@ export function getDriversTable(params: {
   search?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  status?: 'ACTIVE' | 'INACTIVE';
 }) {
   return api.get('/drivers/table', { params })
     .then(res => res.data);
 }
-
+export async function getDriverStats() {
+  const res = await api.get('/drivers/stats');
+  return res.data as {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+}
 /* WRITE: Add new driver */
 export async function createDriver(payload: {
   driver_name: string;

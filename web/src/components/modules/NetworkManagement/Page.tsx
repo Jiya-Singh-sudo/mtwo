@@ -1039,6 +1039,7 @@ export default function NetworkManagement() {
                             </h2>
                             <button onClick={() => setNetworkModalOpen(false)}>✕</button>
                         </div>
+      <div className="nicModalBody">
 
                         <div className="nicFormStack">
 
@@ -1157,6 +1158,7 @@ export default function NetworkManagement() {
                             </div>
 
                         </div>
+</div>
 
                         <div className="nicModalActions">
                             <button

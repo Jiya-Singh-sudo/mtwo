@@ -6,6 +6,7 @@ interface TimePicker12hProps {
   name?: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
+  disabled?: boolean;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -17,6 +18,7 @@ export default function TimePicker12h({
   name,
   onChange,
   onBlur,
+  disabled,
 }: TimePicker12hProps) {
   const [hour, setHour] = useState<number>(1);
   const [minute, setMinute] = useState<string>("00");
@@ -72,6 +74,7 @@ export default function TimePicker12h({
           name={name}                 // ✅ focus anchor
           className="nicInput"
           value={hour}
+          disabled={disabled}
           onChange={(e) => {
             const v = Number(e.target.value);
             setHour(v);
@@ -90,6 +93,7 @@ export default function TimePicker12h({
           name={name}
           className="nicInput"
           value={minute}
+          disabled={disabled}
           onChange={(e) => {
             const v = e.target.value;
             setMinute(v);
@@ -108,6 +112,7 @@ export default function TimePicker12h({
           name={name}
           className="nicInput"
           value={meridiem}
+          disabled={disabled}
           onChange={(e) => {
             const v = e.target.value as "AM" | "PM";
             setMeridiem(v);

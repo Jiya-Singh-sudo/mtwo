@@ -55,6 +55,18 @@ export const driverCreateEditSchema = z
       .max(MAX_ADDRESS_LENGTH, "Address too long")
       .regex(safeTextRegex, "Invalid characters in address")
       .optional(),
+
+    license_expiry_date: z
+      .string()
+      .min(1, "License expiry date is required")
+      .refine(
+        (date) => !isNaN(Date.parse(date)),
+        "Invalid date format"
+      )
+      .refine(
+        (date) => new Date(date) > new Date(),
+        "License expiry date must be in the future"
+      ),
   })
 
   /* ======================================================

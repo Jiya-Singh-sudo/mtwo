@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, Plus, Eye, Edit, Trash2, XCircle } from "lucide-react";
-import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestStatusCounts, exitGuestInOut, cancelGuestInOut } from "@/api/guest.api";
+import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestStatusCounts, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
 import { updateGuestInOut } from "@/api/guestInOut.api";
 import { guestManagementSchema } from "@/validation/guestManagement.validation";
@@ -78,6 +78,11 @@ export function GuestManagement() {
       </div>
     </div>
   );
+  const isLockedStatus = (status?: string) =>
+    status === "Exited" || status === "Cancelled";
+
+  const isCheckinLocked = (status?: string) =>
+    status === "Entered" || status === "Inside";
 
   const minDate = `${currentYear}-01-01`;
   const maxDate = `${currentYear + 1}-12-31`; // adjust if needed
@@ -422,11 +427,23 @@ export function GuestManagement() {
       await loadGuests();
       await refreshStatusCounts();
       alert("Guest added successfully!");
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof ZodError) {
         setFormErrors(zodToFormErrors(err));
         return;
       }
+
+      const message =
+        err?.response?.data?.message || err?.message;
+
+      if (message?.includes("mobile")) {
+        setFormErrors({
+          guest_mobile: message,
+        });
+        return;
+      }
+
+      alert(message || "Failed to add guest");
     }
   }
 
@@ -538,13 +555,19 @@ export function GuestManagement() {
 
       // 3️⃣ inout
       if (editInoutId) {
-        await updateGuestInOut(editInoutId, {
+        const res = await updateGuestInOut(editInoutId, {
           entry_date: parsed.entry_date,
           entry_time: parsed.entry_time,
           exit_date: parsed.exit_date,
           exit_time: parsed.exit_time,
           status: parsed.status,
         });
+        if (res?.warnings?.length) {
+          alert(
+            "⚠ Transport conflicts detected:\n" +
+            res.warnings.map((w: string) => `• ${w}`).join("\n")
+          );
+        }
       }
       resetEditGuestState();
       setModalMode(null);
@@ -681,16 +704,7 @@ export function GuestManagement() {
       alert("Failed to cancel visit");
     }
   }
-  async function confirmExitVisit(inoutId: string) {
-    try {
-      await exitGuestInOut(inoutId);
-      await loadGuests();
-      await refreshStatusCounts();
-    } catch (err) {
-      console.error("Exit failed", err);
-      alert("Failed to exit guest");
-    }
-  }
+
 
 
 
@@ -1604,6 +1618,7 @@ export function GuestManagement() {
                         type="date"
                         min={minDate}
                         max={maxDate}
+                        disabled={isCheckinLocked(editGuestForm.status)}
                         className={`nicInput ${formErrors.entry_date ? "error" : ""}`}
                         value={editGuestForm.entry_date}
                         onChange={(e) =>
@@ -1627,6 +1642,7 @@ export function GuestManagement() {
                         name="entry_time"
                         label={<>Check-in Time <span className="required">*</span></>}
                         value={editGuestForm.entry_time}
+                        disabled={isCheckinLocked(editGuestForm.status)}
                         onChange={(value: string) =>
                           setEditGuestForm(s => ({ ...s, entry_time: value }))
                         }
@@ -1729,7 +1745,7 @@ export function GuestManagement() {
                   Add Guest
                 </button>
               ) : (
-                <button className="saveBtn" onClick={submitEdit}>
+                <button className="saveBtn" disabled={isLockedStatus(editGuestForm.status)} onClick={submitEdit}>
                   Save Changes
                 </button>
               )}

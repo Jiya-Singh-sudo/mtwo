@@ -160,7 +160,25 @@ export const guestManagementSchema = z
         code: z.ZodIssueCode.custom,
       });
     }
+    if (data.exit_date && !data.exit_time) {
+      ctx.addIssue({
+        path: ["exit_time"],
+        message: "Exit time is required when exit date is set",
+        code: z.ZodIssueCode.custom,
+      });
+    }
+    if (entry_date === new Date().toISOString().slice(0, 10)) {
+      const now = new Date();
+      const inDT = new Date(`${entry_date}T${data.entry_time}`);
 
+      if (inDT < now) {
+        ctx.addIssue({
+      path: ["entry_time"],
+      message: "Check-in time cannot be in the past",
+      code: z.ZodIssueCode.custom,
+    });
+  }
+}
     /* ---------- DATE RULES ---------- */
 
   //   const inDate = parseDate(entry_date);

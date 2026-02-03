@@ -8,11 +8,20 @@ export function getVehiclesTable(params: {
   search?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
-}) {
+  status?: 'ACTIVE' | 'INACTIVE';
+  }) {
   return api.get('/vehicles/table', { params })
     .then(res => res.data);
 }
 
+export async function getVehicleStats() {
+  const res = await api.get('/vehicles/stats');
+  return res.data as {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+}
 // GET /vehicles
 export async function getActiveVehicles() {
   return safeGet<any[]>("/vehicles");

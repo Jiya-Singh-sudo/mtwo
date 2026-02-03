@@ -6,13 +6,64 @@
 /* ============================
    TABS
 =============================== */
-.nicTabs {
+/* .nicTabs {
     display: flex;
     gap: 4px;
     border-bottom: 2px solid #e5e7eb;
     margin-bottom: 20px;
+} */
+ .nicTab {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+ .nicTab.active {
+  box-shadow: 0 -2px 6px rgba(0, 36, 125, 0.25);
+}
+/* Tabs container */
+.nicTabs {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
 }
 
+/* Base tab – ALWAYS BLUE */
+.nicTab {
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background-color: #00247D;   /* NIC Blue */
+  color: #ffffff;              /* White text */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 36, 125, 0.25);
+}
+
+/* Hover – subtle darkening */
+.nicTab:hover {
+  background-color: #001c5a;
+}
+
+/* Active tab – slightly darker & raised */
+.nicTab.active {
+  background-color: #001a4d;
+  box-shadow: 0 4px 10px rgba(0, 36, 125, 0.4);
+  color:white
+}
+
+/* Focus (keyboard accessibility) */
+.nicTab:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 36, 125, 0.4);
+}
+
+/* Remove double border with container */
+.nicTab:not(.active) {
+  border-bottom-color: transparent;
+}
 .nicTab {
     padding: 10px 20px;
     font-size: 14px;
@@ -28,12 +79,15 @@
 
 .nicTab:hover {
     color: #00247D;
+        color: #F9AB2A;
+
 }
 
 .nicTab.active {
     color: #00247D;
     border-bottom-color: #00247D;
     font-weight: 600;
+    color: white;
 }
 
 /* ============================
