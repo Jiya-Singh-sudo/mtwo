@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { EditRoomFullDto } from './dto/editFullRoom.dto';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+
 const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
   room_name: 'r.room_name',
@@ -12,7 +14,6 @@ export class RoomManagementService {
   constructor(private readonly db: DatabaseService) {}
 
   /* ================= OVERVIEW ================= */
-
   async getOverview({
     page,
     limit,
@@ -197,8 +198,135 @@ export class RoomManagementService {
     user: string,
     ip: string
   ) {
-    await this.db.query('BEGIN');
 
+    const roomRes = await this.db.query(
+      `SELECT * FROM m_rooms WHERE room_id = $1`,
+      [room_id]
+    );
+
+    if (roomRes.rowCount === 0) {
+      throw new NotFoundException(`Room '${room_id}' not found`);
+    }
+
+    const room = roomRes.rows[0];
+
+    const activeGuestRes = await this.db.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM t_guest_room
+      WHERE room_id = $1
+        AND checkout_time IS NULL
+      `,
+      [room_id]
+    );
+
+    const activeGuestCount = activeGuestRes.rows[0].count;
+
+    /* ================= VALIDATIONS ================= */
+    // 1️⃣ Capacity must always be >= 1
+    if (dto.room_capacity !== undefined && dto.room_capacity <= 0) {
+      throw new BadRequestException(
+        'Room capacity must be at least 1'
+      );
+    }
+
+    // 2️⃣ If room has active guest, restrict critical changes
+    if (activeGuestCount > 0) {
+      if (dto.room_no && dto.room_no !== room.room_no) {
+        throw new BadRequestException(
+          'Room number cannot be changed while room is occupied'
+        );
+      }
+
+      if (dto.room_type && dto.room_type !== room.room_type) {
+        throw new BadRequestException(
+          'Room type cannot be changed while room is occupied'
+        );
+      }
+
+      if (
+        dto.room_capacity !== undefined &&
+        dto.room_capacity < activeGuestCount
+      ) {
+        throw new BadRequestException(
+          `Room capacity cannot be less than current occupancy (${activeGuestCount})`
+        );
+      }
+
+      if (dto.status === 'Available') {
+        throw new BadRequestException(
+          'Occupied room cannot be marked as Available'
+        );
+      }
+    }
+      /* ---------- GUEST VALIDATION ---------- */
+
+      if (dto.guest_id !== undefined) {
+
+        // Assigning a new guest while one is already checked in
+        if (dto.guest_id !== null && activeGuestCount > 0) {
+          throw new BadRequestException(
+            'Room already has an active guest'
+          );
+        }
+
+        // Removing guest when no guest exists
+        if (dto.guest_id === null && activeGuestCount === 0) {
+          throw new BadRequestException(
+            'No active guest to remove from this room'
+          );
+        }
+      }
+
+      /* ---------- HOUSEKEEPING VALIDATION ---------- */
+      if (dto.hk_id !== undefined && dto.hk_id !== null) {
+
+        if (!dto.task_shift) {
+          throw new BadRequestException(
+            'Task shift is required for housekeeping assignment'
+          );
+        }
+
+        // Prevent same HK assigned to multiple rooms in same shift/date
+        const hkConflict = await this.db.query(
+          `
+          SELECT 1
+          FROM t_room_housekeeping
+          WHERE hk_id = $1
+            AND task_date = COALESCE($2, CURRENT_DATE)
+            AND task_shift = $3
+            AND is_active = TRUE
+            AND room_id <> $4
+          LIMIT 1
+          `,
+          [
+            dto.hk_id,
+            dto.task_date ?? null,
+            dto.task_shift,
+            room_id,
+          ]
+        );
+
+        if (hkConflict.rowCount > 0) {
+          throw new BadRequestException(
+            'Housekeeping staff already assigned to another room for this shift'
+          );
+        }
+
+        // Task date must not be in the past
+        if (dto.task_date) {
+          const taskDate = new Date(dto.task_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (taskDate < today) {
+            throw new BadRequestException(
+              'Housekeeping task date cannot be in the past'
+            );
+          }
+        }
+      }
+    await this.db.query('BEGIN');
     try {
       /* ---------- 1️⃣ ROOM ---------- */
 
@@ -236,12 +364,14 @@ export class RoomManagementService {
       /* ---------- 2️⃣ GUEST ---------- */
 
       if (dto.guest_id !== undefined) {
-        // close active guest-room
+
+        // 1️⃣ Close active guest-room (checkout)
         await this.db.query(
           `
           UPDATE t_guest_room
           SET is_active = FALSE,
               check_out_date = CURRENT_DATE,
+              check_out_time = CURRENT_TIME,
               updated_at = NOW(),
               updated_by = $2,
               updated_ip = $3
@@ -251,6 +381,15 @@ export class RoomManagementService {
           [room_id, user, ip]
         );
 
+        // 2️⃣ If removing guest → mark room Available
+        if (dto.guest_id === null) {
+          await this.db.query(
+            `UPDATE m_rooms SET status = 'Available' WHERE room_id = $1`,
+            [room_id]
+          );
+        }
+
+        // 3️⃣ If assigning new guest → insert + mark Occupied
         if (dto.guest_id !== null) {
           const grIdRes = await this.db.query(`
             SELECT 'GR' || LPAD(
@@ -302,7 +441,75 @@ export class RoomManagementService {
           );
         }
       }
+      // if (dto.guest_id !== undefined) {
+      //   // close active guest-room
+      //   await this.db.query(
+      //     `
+      //     UPDATE t_guest_room
+      //     SET is_active = FALSE,
+      //         check_out_date = CURRENT_DATE,
+      //         check_out_time = CURRENT_TIME,
+      //         updated_at = NOW(),
+      //         updated_by = $2,
+      //         updated_ip = $3
+      //     WHERE room_id = $1
+      //       AND is_active = TRUE
+      //     `,
+      //     [room_id, user, ip]
+      //   );
 
+      //   if (dto.guest_id !== null) {
+      //     const grIdRes = await this.db.query(`
+      //       SELECT 'GR' || LPAD(
+      //         (COALESCE(MAX(SUBSTRING(guest_room_id FROM 3)::int), 0) + 1)::text,
+      //         3,
+      //         '0'
+      //       ) AS id
+      //       FROM t_guest_room
+      //     `);
+
+      //     await this.db.query(
+      //       `
+      //       INSERT INTO t_guest_room (
+      //         guest_room_id,
+      //         guest_id,
+      //         room_id,
+      //         check_in_date,
+      //         action_type,
+      //         action_description,
+      //         remarks,
+      //         is_active,
+      //         inserted_at,
+      //         inserted_by,
+      //         inserted_ip
+      //       ) VALUES (
+      //         $1,$2,$3,
+      //         COALESCE($4, CURRENT_DATE),
+      //         $5,$6,$7,
+      //         TRUE,
+      //         NOW(),$8,$9
+      //       )
+      //       `,
+      //       [
+      //         grIdRes.rows[0].id,
+      //         dto.guest_id,
+      //         room_id,
+      //         dto.action_date ?? null,
+      //         dto.action_type,
+      //         dto.action_description ?? null,
+      //         dto.remarks ?? null,
+      //         user,
+      //         ip,
+      //       ]
+      //     );
+
+      //     await this.db.query(
+      //       `UPDATE m_rooms SET status = 'Occupied' WHERE room_id = $1`,
+      //       [room_id]
+      //     );
+      //   }
+      // }
+      
       /* ---------- 3️⃣ HOUSEKEEPING ---------- */
 
       if (dto.hk_id !== undefined) {

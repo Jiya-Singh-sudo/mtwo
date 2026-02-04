@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsIn,
-  IsInt,
-  Min,
-} from 'class-validator';
+import { IsString, IsOptional, IsIn, IsInt, Min, ValidateIf, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class EditRoomFullDto {
@@ -47,13 +41,17 @@ export class EditRoomFullDto {
   status?: 'Available' | 'Occupied';
 
   /* =======================
-     GUEST ASSIGNMENT
+    GUEST ASSIGNMENT
   ======================= */
 
   @IsOptional()
   @IsString()
   guest_id?: string | null;
 
+  /**
+   * action_type is REQUIRED only when guest_id is NOT null
+   */
+  @ValidateIf((o) => o.guest_id !== undefined && o.guest_id !== null)
   @IsIn([
     'Room-Allocated',
     'Room-Changed',
@@ -64,7 +62,7 @@ export class EditRoomFullDto {
     'Room-Released',
     'Other',
   ])
-  action_type:
+  action_type?:
     | 'Room-Allocated'
     | 'Room-Changed'
     | 'Room-Upgraded'
@@ -79,7 +77,7 @@ export class EditRoomFullDto {
   action_description?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   action_date?: string;
 
   @IsOptional()
@@ -98,16 +96,45 @@ export class EditRoomFullDto {
   @IsString()
   hk_id?: string | null;
 
-  @IsString()
-  task_date: string; // YYYY-MM-DD
+  /**
+   * task_date required ONLY when hk_id is not null
+   */
+  @ValidateIf((o) => o.hk_id !== undefined && o.hk_id !== null)
+  @IsDateString()
+  task_date?: string; // YYYY-MM-DD
 
+  /**
+   * task_shift required ONLY when hk_id is not null
+   */
+  @ValidateIf((o) => o.hk_id !== undefined && o.hk_id !== null)
   @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'])
-  task_shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
+  task_shift?: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
 
+  /**
+   * service_type required ONLY when hk_id is not null
+   */
+  @ValidateIf((o) => o.hk_id !== undefined && o.hk_id !== null)
   @IsString()
-  service_type: string;
+  service_type?: string;
 
   @IsOptional()
   @IsString()
   admin_instructions?: string;
+
+  // @IsOptional()
+  // @IsString()
+  // hk_id?: string | null;
+
+  // @IsString()
+  // task_date: string; // YYYY-MM-DD
+
+  // @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'])
+  // task_shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
+
+  // @IsString()
+  // service_type: string;
+
+  // @IsOptional()
+  // @IsString()
+  // admin_instructions?: string;
 }

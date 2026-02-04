@@ -2,10 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateRoomDto } from './dto/create-rooms.dto';
 import { UpdateRoomDto } from './dto/update-rooms.dto';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class RoomsService {
   constructor(private readonly db: DatabaseService) {}
+
+  private async getActiveGuestCount(room_id: string): Promise<number> {
+    const result = await this.db.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM t_guest_room
+      WHERE room_id = $1
+        AND checkout_time IS NULL
+      `,
+      [room_id]
+    );
+
+    return result.rows[0]?.count ?? 0;
+  }
 
   private async generateRoomId(): Promise<string> {
     const result = await this.db.query(`
@@ -28,7 +43,7 @@ export class RoomsService {
     const num = Number(numericPart);
 
     if (!Number.isFinite(num)) {
-      throw new Error(`Corrupt room_id detected: ${lastId}`);
+      throw new BadRequestException(`Corrupt room_id detected: ${lastId}`);
     }
 
     return `R_${String(num + 1).padStart(3, '0')}`;
@@ -60,6 +75,7 @@ export class RoomsService {
       .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
       .replace(',', '');
     const roomId = await this.generateRoomId();
+    
 
     const sql = `
       INSERT INTO m_rooms (
@@ -102,9 +118,43 @@ export class RoomsService {
   async update(room_id: string, dto: UpdateRoomDto, user: string, ip: string) {
     const existing = await this.findOneById(room_id);
     if (!existing) {
-      throw new Error(`Room '${room_id}' not found`);
+      throw new NotFoundException(`Room '${room_id}' not found`);
     }
+    const activeGuestCount = await this.getActiveGuestCount(room_id);
 
+    const nextRoomNo = dto.room_no ?? existing.room_no;
+    const nextRoomType = dto.room_type ?? existing.room_type;
+    const nextCapacity = dto.room_capacity ?? existing.room_capacity;
+    const nextIsActive = dto.is_active ?? existing.is_active;
+
+    if (activeGuestCount > 0) {
+      // 1️⃣ Room identity must remain stable
+      if (nextRoomNo !== existing.room_no) {
+        throw new BadRequestException(
+          'Room number cannot be changed while the room is occupied'
+        );
+      }
+
+      if (nextRoomType !== existing.room_type) {
+        throw new BadRequestException(
+          'Room type cannot be changed while the room is occupied'
+        );
+      }
+
+      // 2️⃣ Capacity must not drop below current occupancy
+      if (nextCapacity < activeGuestCount) {
+        throw new BadRequestException(
+          `Room capacity cannot be less than current occupancy (${activeGuestCount})`
+        );
+      }
+
+      // 3️⃣ Occupied room cannot be deactivated
+      if (nextIsActive === false) {
+        throw new BadRequestException(
+          'Occupied room cannot be deactivated'
+        );
+      }
+    }
     const now = new Date()
       .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
       .replace(',', '');
@@ -150,7 +200,7 @@ export class RoomsService {
   // async softDelete(room_no: string, user: string, ip: string) {
   //   const existing = await this.findOneByRoomNo(room_no);
   //   if (!existing) {
-  //     throw new Error(`Room '${room_no}' not found`);
+  //     throw new NotFoundException(`Room '${room_no}' not found`);
   //   }
 
   //   const now = new Date().toISOString();
@@ -171,17 +221,77 @@ export class RoomsService {
   //   return result.rows[0];
   // }
 
+  // async softDelete(room_no: string, user: string, ip: string) {
+  //   const existing = await this.findOneByRoomNo(room_no);
+  //   if (!existing) {
+  //     throw new NotFoundException(`Room '${room_no}' not found`);
+  //   }
+
+  //   // 1️⃣ Check active guest-room assignment
+  //   const assigned = await this.db.query(
+  //     `
+  //     SELECT 1
+  //     FROM t_guest_room
+  //     WHERE room_id = $1
+  //       AND is_active = TRUE
+  //     LIMIT 1
+  //     `,
+  //     [existing.room_id]
+  //   );
+
+  //   if (assigned.rowCount > 0) {
+  //     throw new BadRequestException(
+  //       'Cannot delete room: room is currently assigned to a guest'
+  //     );
+  //   }
+
+  //   // 2️⃣ Safe delete
+  //   const now = new Date().toISOString();
+
+  //   const sql = `
+  //     UPDATE m_rooms SET
+  //       is_active = FALSE,
+  //       updated_at = $1,
+  //       updated_by = $2,
+  //       updated_ip = $3
+  //     WHERE room_id = $4
+  //     RETURNING *;
+  //   `;
+
+  //   const params = [now, user, ip, existing.room_id];
+  //   const result = await this.db.query(sql, params);
+
+  //   return result.rows[0];
+  // }
   async softDelete(room_no: string, user: string, ip: string) {
     const existing = await this.findOneByRoomNo(room_no);
     if (!existing) {
-      throw new Error(`Room '${room_no}' not found`);
+      throw new NotFoundException(`Room '${room_no}' not found`);
     }
 
-    // 1️⃣ Check active guest-room assignment
-    const assigned = await this.db.query(
+    // 1️⃣ Check active guest occupancy
+    const activeGuest = await this.db.query(
       `
       SELECT 1
       FROM t_guest_room
+      WHERE room_id = $1
+        AND checkout_time IS NULL
+      LIMIT 1
+      `,
+      [existing.room_id]
+    );
+
+    if (activeGuest.rowCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete room: room is currently occupied by a guest'
+      );
+    }
+
+    // 2️⃣ Check active room boy / housekeeping assignment
+    const activeHousekeeping = await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_hk
       WHERE room_id = $1
         AND is_active = TRUE
       LIMIT 1
@@ -189,13 +299,13 @@ export class RoomsService {
       [existing.room_id]
     );
 
-    if (assigned.rowCount > 0) {
-      throw new Error(
-        'Cannot delete room: room is currently assigned to a guest'
+    if (activeHousekeeping.rowCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete room: room is currently assigned to housekeeping staff'
       );
     }
 
-    // 2️⃣ Safe delete
+    // 3️⃣ Safe soft delete
     const now = new Date().toISOString();
 
     const sql = `
