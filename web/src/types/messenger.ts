@@ -47,7 +47,8 @@ export type MessengerTableQuery = {
   sortBy?: 'messenger_name' | 'primary_mobile' | 'designation' | 'inserted_at';
   sortOrder?: 'asc' | 'desc';
 
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'assigned' | 'unassigned';
+
 };
 
 export type MessengerTableResponse = {

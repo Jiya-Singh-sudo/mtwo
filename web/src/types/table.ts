@@ -11,4 +11,6 @@ export type TableQuery = {
 
   entryDateFrom?: string;
   entryDateTo?: string;
+  networkType?: "WiFi" | "Broadband" | "Hotspot" | "Leased-Line";
+
 }; 

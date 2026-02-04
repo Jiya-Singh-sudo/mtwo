@@ -16,6 +16,7 @@ import { useTableQuery } from "@/hooks/useTableQuery";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 import { messengerCreateSchema } from "@/validation/messenger.validation";
+import { networkProviderSchema } from "@/validation/network.validation";
 import { validateSingleField as validateField } from "@/utils/validateSingleField";
 // import { getActiveRooms } from "@/api/rooms.api";
 
@@ -56,30 +57,30 @@ type MessengerFormState = {
     remarks: string;
 };
 
-
-
 export default function NetworkManagement() {
 
     const [activeTab, setActiveTab] =
         useState<"guestMng" | "networks" | "messengers">("guestMng");
 
     // Guest Network
-    const guestTable = useTableQuery({
-        sortBy: "guest_name",
-        sortOrder: "asc",
-    });
+const guestTable = useTableQuery({
+  prefix: "guest",
+  sortBy: "guest_name",
+  sortOrder: "asc",
+});
 
-    // Networks
-    const networkTable = useTableQuery({
-        sortBy: "provider_name",
-        sortOrder: "asc",
-    });
+const networkTable = useTableQuery({
+  prefix: "network",
+  sortBy: "provider_name",
+  sortOrder: "asc",
+  status: "all",
+});
 
-    // Messengers
-    const messengerTable = useTableQuery({
-        sortBy: "messenger_name",
-        sortOrder: "asc",
-    });
+const messengerTable = useTableQuery({
+  prefix: "messenger",
+  sortBy: "messenger_name",
+  sortOrder: "asc",
+});
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     /* ================= GUEST NETWORK ================= */
@@ -194,6 +195,8 @@ export default function NetworkManagement() {
     });
     const [networkStats, setNetworkStats] = useState({
         total: 0,
+        active: 0,
+        inactive: 0,
         wifi: 0,
         broadband: 0,
         hotspot: 0,
@@ -206,7 +209,21 @@ export default function NetworkManagement() {
         assigned: 0,
         unassigned: 0,
     });
+    function applyNetworkStatus(status: "all" | "active" | "inactive") {
+        networkTable.setPage(1);
+        networkTable.setStatus(status);
+    }
+    function applyNetworkType(type?: NetworkProvider["network_type"]) {
+        networkTable.setPage(1);
+        networkTable.setNetworkType?.(type);
+    }
+    function applyMessengerStatus(
+    status: 'active' | 'inactive' | 'assigned' | 'unassigned'
+    ) {
+    messengerTable.setPage(1);
+    messengerTable.setStatus(status);
 
+    }
 
     /* ================= PREFILL EFFECTS ================= */
     useEffect(() => {
@@ -300,11 +317,20 @@ export default function NetworkManagement() {
                 : "provider_name" as any,
 
             sortOrder: networkTable.query.sortOrder,
+            status: networkTable.query.status as "all" | "active" | "inactive" | undefined,
         });
 
         setNetworks(res.data);
         setNetworkTotal(res.totalCount);
-        setNetworkStats(res.stats);
+        setNetworkStats({
+            total: res.stats.total ?? 0,
+            active: res.stats.active ?? 0,
+            inactive: res.stats.inactive ?? 0,
+            wifi: res.stats.wifi ?? 0,
+            broadband: res.stats.broadband ?? 0,
+            hotspot: res.stats.hotspot ?? 0,
+            leasedLine: res.stats.leasedLine ?? 0,
+        });
         setNetworkLoading(false);
     }
 
@@ -321,8 +347,9 @@ export default function NetworkManagement() {
             ].includes(messengerTable.query.sortBy)
                 ? messengerTable.query.sortBy
                 : "messenger_name" as any,
+
             sortOrder: messengerTable.query.sortOrder,
-            status: "active",
+            status: messengerTable.query.status as "active" | "inactive" | "assigned" | "unassigned" | undefined,
         });
 
         setMessengers(res.data);
@@ -404,8 +431,15 @@ export default function NetworkManagement() {
     }, [networkTable.query]);
 
     useEffect(() => {
-        loadMessengers();
-    }, [messengerTable.query]);
+    loadMessengers();
+    }, [
+    messengerTable.query.page,
+    messengerTable.query.limit,
+    messengerTable.query.search,
+    messengerTable.query.status,
+    messengerTable.query.sortBy,
+    messengerTable.query.sortOrder,
+    ]);
 
     /* ================= COLUMN DEFINITIONS ================= */
 
@@ -659,7 +693,12 @@ export default function NetworkManagement() {
 
                 <button
                     className={`nicTab ${activeTab === "networks" ? "active" : ""}`}
-                    onClick={() => { setActiveTab("networks"); setDeleteError(null); }}
+                    onClick={() => {
+                        setActiveTab("networks");
+                        setDeleteError(null);
+                        networkTable.setPage(1);
+                        networkTable.setStatus("all");
+                    }}
                 >
                     Networks
                 </button>
@@ -711,38 +750,148 @@ export default function NetworkManagement() {
                 </div>
             )}
 
+            {deleteError && activeTab === "networks" && (
+                <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {deleteError}
+                </div>
+            )}
+
             {activeTab === "networks" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                // <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                //     <StatCard
+                //         title="Total Providers"
+                //         value={networkStats.total}
+                //         icon={Router}
+                //         variant="blue"
+                //     />
+                //     <StatCard
+                //         title="Wi-Fi"
+                //         value={networkStats.wifi}
+                //         icon={Wifi}
+                //         variant="green"
+                //     />
+                //     <StatCard
+                //         title="Broadband"
+                //         value={networkStats.broadband}
+                //         icon={Router}
+                //         variant="orange"
+                //     />
+                //     <StatCard
+                //         title="Leased Line"
+                //         value={networkStats.leasedLine}
+                //         icon={Router}
+                //         variant="purple"
+                //     />
+                // </div>
+                <div className="statsGrid">
+                    {/* STATUS CARDS */}
                     <StatCard
                         title="Total Providers"
                         value={networkStats.total}
                         icon={Router}
                         variant="blue"
+                        active={!networkTable.query.status || networkTable.query.status === "all"}
+                        onClick={() => applyNetworkStatus("all")}
                     />
+
+                    <StatCard
+                        title="Active"
+                        value={networkStats.active}
+                        icon={CheckCircle}
+                        variant="green"
+                        active={networkTable.query.status === "active"}
+                        onClick={() => applyNetworkStatus("active")}
+                    />
+
+                    <StatCard
+                        title="Inactive"
+                        value={networkStats.inactive}
+                        icon={XCircle}
+                        variant="red"
+                        active={networkTable.query.status === "inactive"}
+                        onClick={() => applyNetworkStatus("inactive")}
+                    />
+
+                    {/* TYPE CARDS (informational) */}
                     <StatCard
                         title="Wi-Fi"
                         value={networkStats.wifi}
                         icon={Wifi}
                         variant="green"
+                        active={networkTable.query.networkType === "WiFi"}
+                        onClick={() => applyNetworkType("WiFi")}
                     />
+
                     <StatCard
                         title="Broadband"
                         value={networkStats.broadband}
                         icon={Router}
                         variant="orange"
+                        active={networkTable.query.networkType === "Broadband"}
+                        onClick={() => applyNetworkType("Broadband")}
                     />
+
                     <StatCard
                         title="Leased Line"
                         value={networkStats.leasedLine}
                         icon={Router}
                         variant="purple"
+                        active={networkTable.query.networkType === "Leased-Line"}
+                        onClick={() => applyNetworkType("Leased-Line")}
                     />
                 </div>
             )}
 
             {activeTab === "messengers" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     <StatCard
+                        title="Total Messengers"
+                        value={messengerStats.total}
+                        icon={Users}
+                        variant="blue"
+                        active={!messengerTable.query.status}
+                        onClick={() => {
+                            messengerTable.setPage(1);
+                            messengerTable.setStatus(undefined);
+                        }}
+                    />
+
+                    <StatCard
+                        title="Active"
+                        value={messengerStats.active}
+                        icon={CheckCircle}
+                        variant="green"
+                        active={messengerTable.query.status === "active"}
+                        onClick={() => applyMessengerStatus("active")}
+                    />
+
+                    <StatCard
+                        title="Assigned"
+                        value={messengerStats.assigned}
+                        icon={Smartphone}
+                        variant="blue"
+                        active={messengerTable.query.status === "assigned"}
+                        onClick={() => applyMessengerStatus("assigned")}
+                    />
+
+                    <StatCard
+                        title="Unassigned"
+                        value={messengerStats.unassigned}
+                        icon={User}
+                        variant="orange"
+                        active={messengerTable.query.status === "unassigned"}
+                        onClick={() => applyMessengerStatus("unassigned")}
+                    />
+
+                    <StatCard
+                        title="Inactive"
+                        value={messengerStats.inactive}
+                        icon={XCircle}
+                        variant="red"
+                        active={messengerTable.query.status === "inactive"}
+                        onClick={() => applyMessengerStatus("inactive")}
+                    />
+                    {/* <StatCard
                         title="Total Messengers"
                         value={messengerStats.total}
                         icon={Users}
@@ -765,7 +914,7 @@ export default function NetworkManagement() {
                         value={messengerStats.inactive}
                         icon={XCircle}
                         variant="red"
-                    />
+                    /> */}
                 </div>
             )}
 
@@ -1302,7 +1451,11 @@ export default function NetworkManagement() {
                                         onChange={(e) =>
                                             setNetworkForm({ ...networkForm, provider_name: e.target.value })
                                         }
+                                        onBlur={() => validateField(networkProviderSchema, "provider_name", networkForm.provider_name, setFormErrors)}
                                     />
+                                    {formErrors.provider_name && (
+                                        <p className="errorText">{formErrors.provider_name}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1352,7 +1505,11 @@ export default function NetworkManagement() {
                                                 bandwidth_mbps: e.target.value,
                                             })
                                         }
+                                        onBlur={() => validateField(networkProviderSchema, "bandwidth_mbps", networkForm.bandwidth_mbps, setFormErrors)}
                                     />
+                                    {formErrors.bandwidth_mbps && (
+                                        <p className="errorText">{formErrors.bandwidth_mbps}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1380,7 +1537,11 @@ export default function NetworkManagement() {
                                                 ? "Leave blank to keep existing password"
                                                 : ""
                                         }
+                                        onBlur={() => validateField(networkProviderSchema, "password", networkForm.password, setFormErrors)}
                                     />
+                                    {formErrors.password && (
+                                        <p className="errorText">{formErrors.password}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1391,7 +1552,11 @@ export default function NetworkManagement() {
                                         onChange={(e) =>
                                             setNetworkForm({ ...networkForm, static_ip: e.target.value })
                                         }
+                                        onBlur={() => validateField(networkProviderSchema, "static_ip", networkForm.static_ip, setFormErrors)}
                                     />
+                                    {formErrors.static_ip && (
+                                        <p className="errorText">{formErrors.static_ip}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1424,33 +1589,30 @@ export default function NetworkManagement() {
                             <button
                                 className="saveBtn"
                                 onClick={async () => {
-                                    const payload = {
-                                        provider_name: networkForm.provider_name,
-                                        provider_name_local_language:
-                                            networkForm.provider_name_local_language || undefined,
-                                        network_type: networkForm.network_type,
-                                        bandwidth_mbps: networkForm.bandwidth_mbps
-                                            ? Number(networkForm.bandwidth_mbps)
-                                            : undefined,
-                                        username: networkForm.username || undefined,
-                                        password: networkForm.password || undefined,
-                                        static_ip: networkForm.static_ip || undefined,
-                                        address: networkForm.address || undefined,
-                                    };
-
+                                    setFormErrors({});
                                     try {
+                                        const parsed = networkProviderSchema.parse(networkForm);
+
                                         if (editNetwork?.provider_id) {
-                                            await updateNetwork(editNetwork.provider_id, payload);
+                                            await updateNetwork(editNetwork.provider_id, parsed);
                                         } else {
-                                            await createNetwork(payload);
+                                            await createNetwork(parsed);
                                         }
 
                                         setNetworkModalOpen(false);
                                         setEditNetwork(null);
                                         await loadNetworks();
                                         networkTable.setPage(1);
-                                    } catch (e) {
-                                        console.error(e);
+                                    } catch (err: any) {
+                                        if (err instanceof ZodError) {
+                                            const errors: Record<string, string> = {};
+                                            err.issues.forEach((issue: any) => {
+                                                errors[issue.path[0] as string] = issue.message;
+                                            });
+                                            setFormErrors(errors);
+                                        } else {
+                                            console.error(err);
+                                        }
                                     }
                                 }}
                             >
@@ -1462,22 +1624,11 @@ export default function NetworkManagement() {
                                 <button
                                     className="saveBtn"
                                     onClick={async () => {
-                                        const payload = {
-                                            provider_name: networkForm.provider_name,
-                                            provider_name_local_language:
-                                                networkForm.provider_name_local_language || undefined,
-                                            network_type: networkForm.network_type,
-                                            bandwidth_mbps: networkForm.bandwidth_mbps
-                                                ? Number(networkForm.bandwidth_mbps)
-                                                : undefined,
-                                            username: networkForm.username || undefined,
-                                            password: networkForm.password || undefined,
-                                            static_ip: networkForm.static_ip || undefined,
-                                            address: networkForm.address || undefined,
-                                        };
-
+                                        setFormErrors({});
                                         try {
-                                            await createNetwork(payload);
+                                            const parsed = networkProviderSchema.parse(networkForm);
+
+                                            await createNetwork(parsed);
 
                                             // reset form for next entry
                                             setNetworkForm({
@@ -1492,8 +1643,16 @@ export default function NetworkManagement() {
                                             });
 
                                             await loadNetworks();
-                                        } catch (e) {
-                                            console.error(e);
+                                        } catch (err: any) {
+                                            if (err instanceof ZodError) {
+                                                const errors: Record<string, string> = {};
+                                                err.issues.forEach((issue: any) => {
+                                                    errors[issue.path[0] as string] = issue.message;
+                                                });
+                                                setFormErrors(errors);
+                                            } else {
+                                                console.error(err);
+                                            }
                                         }
                                     }}
                                 >

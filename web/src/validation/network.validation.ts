@@ -16,7 +16,7 @@ export const networkProviderSchema = z.object({
 
   bandwidth_mbps: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
-    z.number({ invalid_type_error: "Must be a number" })
+    z.number()
       .int("Must be an integer")
       .min(1, "Must be at least 1 Mbps")
       .optional()

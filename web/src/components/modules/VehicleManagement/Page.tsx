@@ -131,7 +131,7 @@ export function VehicleManagement() {
         const res = await getDriversTable({
           ...driverTable.query,
           status: driverTable.query.status as 'ACTIVE' | 'INACTIVE' | undefined,
-        });        
+        });
         setDrivers(res.data);
         driverTable.setTotal(res.totalCount);
       } finally {
@@ -554,163 +554,123 @@ export function VehicleManagement() {
         <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन और चालक प्रबंधन</p>
       </div>
       {/* STATS */}
-      <div className="statsGrid">
-        {/* TOTAL = ALL */}
-        <div
-          className="statCard blue"
-          onClick={() => {
-            vehicleTable.setStatus(undefined); // 👈 ALL
-            vehicleTable.setPage(1);
-          }}
-        >
-          <Car />
-          <div>
-            <p>Total Vehicles</p>
-            <h3>{vehicleStats.total}</h3>
+      {/* STATS */}
+      {activeTab === "vehicles" && (
+        <div className="statsGrid">
+          {/* TOTAL = ALL */}
+          <div
+            className="statCard blue"
+            onClick={() => {
+              vehicleTable.setStatus(undefined); // 👈 ALL
+              vehicleTable.setPage(1);
+            }}
+          >
+            <Car />
+            <div>
+              <p>Total Vehicles</p>
+              <h3>{vehicleStats.total}</h3>
+            </div>
           </div>
-        </div>
 
-        {/* ACTIVE */}
-        <div
-          className="statCard green"
-          onClick={() => {
-            vehicleTable.setStatus('ACTIVE');
-            vehicleTable.setPage(1);
-          }}
-        >
-          <CheckCircle />
-          <div>
-            <p>Active Vehicles</p>
-            <h3>{vehicleStats.active}</h3>
+          {/* ACTIVE */}
+          <div
+            className="statCard green"
+            onClick={() => {
+              vehicleTable.setStatus('ACTIVE');
+              vehicleTable.setPage(1);
+            }}
+          >
+            <CheckCircle />
+            <div>
+              <p>Active Vehicles</p>
+              <h3>{vehicleStats.active}</h3>
+            </div>
           </div>
-        </div>
 
-        {/* INACTIVE */}
-        <div
-          className="statCard red"
-          onClick={() => {
-            vehicleTable.setStatus('INACTIVE');
-            vehicleTable.setPage(1);
-          }}
-        >
-          <AlertCircle />
-          <div>
-            <p>Inactive Vehicles</p>
-            <h3>{vehicleStats.inactive}</h3>
+          {/* INACTIVE */}
+          <div
+            className="statCard red"
+            onClick={() => {
+              vehicleTable.setStatus('INACTIVE');
+              vehicleTable.setPage(1);
+            }}
+          >
+            <AlertCircle />
+            <div>
+              <p>Inactive Vehicles</p>
+              <h3>{vehicleStats.inactive}</h3>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* <div
-          className="statCard blue"
-          onClick={() => { vehicleTable.setPage(1); vehicleTable.setSort('vehicle_name', 'asc'); }}
-        >
-          <Car />
-          <div>
-            <p>Total Vehicles</p>
-            <h3>{vehicleStats.total}</h3>
+      {activeTab === "drivers" && (
+        <div className="statsGrid">
+          {/* TOTAL DRIVERS = ALL */}
+          <div
+            className="statCard orange"
+            onClick={() => {
+              driverTable.setStatus(undefined); // ALL
+              driverTable.setPage(1);
+            }}
+          >
+            <Users />
+            <div>
+              <p>Total Drivers</p>
+              <h3>{driverStats.total}</h3>
+            </div>
           </div>
-        </div>
 
-        <div
-          className="statCard green"
-          onClick={() => { vehicleTable.setPage(1); }}
-        >
-          <CheckCircle />
-          <div>
-            <p>Active Vehicles</p>
-            <h3>{vehicleStats.active}</h3>
+          {/* ACTIVE DRIVERS */}
+          <div
+            className="statCard green"
+            onClick={() => {
+              driverTable.setStatus('ACTIVE');
+              driverTable.setPage(1);
+            }}
+          >
+            <CheckCircle />
+            <div>
+              <p>Active Drivers</p>
+              <h3>{driverStats.active}</h3>
+            </div>
           </div>
-        </div>
-        <div className="statCard red">
-          <AlertCircle />
-          <div>
-            <p>Inactive Vehicles</p>
-            <h3>{vehicleStats.inactive}</h3>
-          </div>
-        </div> */}
 
-        {/* TOTAL DRIVERS = ALL */}
-        <div
-          className="statCard orange"
-          onClick={() => {
-            driverTable.setStatus(undefined); // ALL
-            driverTable.setPage(1);
-          }}
-        >
-          <Users />
-          <div>
-            <p>Total Drivers</p>
-            <h3>{driverStats.total}</h3>
+          {/* INACTIVE DRIVERS */}
+          <div
+            className="statCard red"
+            onClick={() => {
+              driverTable.setStatus('INACTIVE');
+              driverTable.setPage(1);
+            }}
+          >
+            <AlertCircle />
+            <div>
+              <p>Inactive Drivers</p>
+              <h3>{driverStats.inactive}</h3>
+            </div>
           </div>
         </div>
-
-        {/* ACTIVE DRIVERS */}
-        <div
-          className="statCard green"
-          onClick={() => {
-            driverTable.setStatus('ACTIVE');
-            driverTable.setPage(1);
-          }}
-        >
-          <CheckCircle />
-          <div>
-            <p>Active Drivers</p>
-            <h3>{driverStats.active}</h3>
-          </div>
-        </div>
-
-        {/* INACTIVE DRIVERS */}
-        <div
-          className="statCard red"
-          onClick={() => {
-            driverTable.setStatus('INACTIVE');
-            driverTable.setPage(1);
-          }}
-        >
-          <AlertCircle />
-          <div>
-            <p>Inactive Drivers</p>
-            <h3>{driverStats.inactive}</h3>
-          </div>
-        </div>
-        {/* <div
-          className="statCard orange"
-          onClick={() => {
-            driverTable.setPage(1);
-            driverTable.setSort('driver_name', 'asc');
-          }}
-        >
-          <Users />
-          <div>
-            <p>Total Drivers</p>
-            <h3>{driverTable.total}</h3>
-          </div>
-        </div>
-
-        <div
-          className="statCard purple"
-          onClick={() => {
-            driverTable.setPage(1);
-          }}
-        >
-          <AlertCircle />
-          <div>
-            <p>Active Drivers</p>
-            <h3>{drivers.filter(d => d.is_active).length}</h3>
-          </div>
-        </div> */}
-      </div>
+      )}
       {/* TABS */}
       <div className="nicTabs">
         <button
           className={`nicTab ${activeTab === "vehicles" ? "active" : ""}`}
-          onClick={() => setActiveTab("vehicles")}
+          onClick={() => {
+            setActiveTab("vehicles");
+            vehicleTable.setStatus(undefined);
+            vehicleTable.setPage(1);
+          }}
         >
           Vehicles
         </button>
         <button
           className={`nicTab ${activeTab === "drivers" ? "active" : ""}`}
-          onClick={() => setActiveTab("drivers")}
+          onClick={() => {
+            setActiveTab("drivers");
+            driverTable.setStatus(undefined);
+            driverTable.setPage(1);
+          }}
         >
           Drivers
         </button>

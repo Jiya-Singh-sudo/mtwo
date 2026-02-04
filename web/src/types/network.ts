@@ -48,7 +48,7 @@ export type NetworkTableQuery = {
   sortBy?: 'provider_name' | 'network_type' | 'bandwidth_mbps' | 'inserted_at';
   sortOrder?: 'asc' | 'desc';
 
-  status?: 'active' | 'inactive';
+  status?: "all" | "active" | "inactive" | undefined;
 };
 
 export type NetworkTableResponse = {
@@ -56,6 +56,8 @@ export type NetworkTableResponse = {
   totalCount: number;
   stats: {
     total: number;
+    active: number;
+    inactive: number;
     wifi: number;
     broadband: number;
     hotspot: number;

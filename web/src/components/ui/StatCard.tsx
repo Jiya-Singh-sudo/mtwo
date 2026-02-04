@@ -21,8 +21,7 @@ export function StatCard({
     onClick,
 }: StatCardProps) {
     return (
-        <button
-            type="button"
+        <div
             onClick={onClick}
             className={`statCard ${variant} ${active ? "activeStat" : ""}`}
         >
@@ -36,6 +35,6 @@ export function StatCard({
                 <p className="statLabel">{title}</p>
                 <h3 className="statValue">{value}</h3>
             </div>
-        </button>
+        </div>
     );
 }
