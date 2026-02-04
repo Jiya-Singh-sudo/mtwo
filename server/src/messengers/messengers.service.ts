@@ -203,12 +203,38 @@ export class MessengerService {
     const where: string[] = [];
     const params: any[] = [];
 
-    // active / inactive
+    // status filters
     if (query.status === 'active') {
-      where.push('is_active = true');
-    } else if (query.status === 'inactive') {
-      where.push('is_active = false');
+      where.push('m.is_active = true');
     }
+
+    if (query.status === 'inactive') {
+      where.push('m.is_active = false');
+    }
+
+    if (query.status === 'assigned') {
+      where.push(`
+        m.is_active = true
+        AND EXISTS (
+          SELECT 1
+          FROM t_guest_messenger tgm
+          WHERE tgm.messenger_id = m.messenger_id
+            AND tgm.is_active = true
+        )
+      `);
+    }
+
+if (query.status === 'unassigned') {
+  where.push(`
+    m.is_active = true
+    AND NOT EXISTS (
+      SELECT 1
+      FROM t_guest_messenger tgm
+      WHERE tgm.messenger_id = m.messenger_id
+        AND tgm.is_active = true
+    )
+  `);
+}
 
     // search (name, mobile, email)
     if (query.search) {
@@ -251,14 +277,37 @@ export class MessengerService {
         FROM m_messenger
         ${whereClause};
     `;
+    const statsSql = `
+      SELECT
+        COUNT(*) FILTER (WHERE is_active = true) AS active,
+        COUNT(*) FILTER (WHERE is_active = false) AS inactive,
+        COUNT(*) FILTER (
+          WHERE is_active = true
+            AND EXISTS (
+              SELECT 1 FROM t_guest_messenger tgm
+              WHERE tgm.messenger_id = m.messenger_id
+                AND tgm.is_active = true
+            )
+        ) AS assigned,
+        COUNT(*) FILTER (
+          WHERE is_active = true
+            AND NOT EXISTS (
+              SELECT 1 FROM t_guest_messenger tgm
+              WHERE tgm.messenger_id = m.messenger_id
+                AND tgm.is_active = true
+            )
+        ) AS unassigned
+      FROM m_messenger m;
+    `;
 
     const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
     const countRes = await this.db.query(countSql, params);
+    const statsRes = await this.db.query(statsSql);
 
     return {
       data: dataRes.rows,
       totalCount: countRes.rows[0].count,
-      stats: {}
+      stats: statsRes.rows[0],
     };
   }
 }

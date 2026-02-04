@@ -16,6 +16,6 @@ export class MessengerTableQueryDto extends BaseTableQueryDto {
     | 'inserted_at';
 
   @IsOptional()
-  @IsIn(['active', 'inactive'])
-  status?: 'active' | 'inactive';
+  @IsIn(['active', 'inactive', 'assigned', 'unassigned'])
+  status?: 'active' | 'inactive' | 'assigned' | 'unassigned';
 }

@@ -96,15 +96,30 @@ export class NetworksService {
       ${whereClause};
     `;
 
+    // const statsSql = `
+    //   SELECT
+    //     COUNT(*)::int AS total,
+    //     COUNT(CASE WHEN network_type = 'WiFi' THEN 1 END)::int AS wifi,
+    //     COUNT(CASE WHEN network_type = 'Broadband' THEN 1 END)::int AS broadband,
+    //     COUNT(CASE WHEN network_type = 'Hotspot' THEN 1 END)::int AS hotspot,
+    //     COUNT(CASE WHEN network_type = 'Leased-Line' THEN 1 END)::int AS leased_line
+    //   FROM m_wifi_provider
+    //   WHERE is_active = TRUE;
+    // `;
     const statsSql = `
       SELECT
         COUNT(*)::int AS total,
-        COUNT(CASE WHEN network_type = 'WiFi' THEN 1 END)::int AS wifi,
-        COUNT(CASE WHEN network_type = 'Broadband' THEN 1 END)::int AS broadband,
-        COUNT(CASE WHEN network_type = 'Hotspot' THEN 1 END)::int AS hotspot,
-        COUNT(CASE WHEN network_type = 'Leased-Line' THEN 1 END)::int AS leased_line
-      FROM m_wifi_provider
-      WHERE is_active = TRUE;
+
+        -- Status-based counts
+        COUNT(CASE WHEN is_active = TRUE THEN 1 END)::int AS active,
+        COUNT(CASE WHEN is_active = FALSE THEN 1 END)::int AS inactive,
+
+        -- Network-type counts (ACTIVE only)
+        COUNT(CASE WHEN network_type = 'WiFi' AND is_active = TRUE THEN 1 END)::int AS wifi,
+        COUNT(CASE WHEN network_type = 'Broadband' AND is_active = TRUE THEN 1 END)::int AS broadband,
+        COUNT(CASE WHEN network_type = 'Hotspot' AND is_active = TRUE THEN 1 END)::int AS hotspot,
+        COUNT(CASE WHEN network_type = 'Leased-Line' AND is_active = TRUE THEN 1 END)::int AS leased_line
+      FROM m_wifi_provider;
     `;
 
     const dataRes = await this.db.query(dataSql, dataParams);
@@ -116,6 +131,10 @@ export class NetworksService {
       totalCount: countRes.rows[0].count,
       stats: {
         total: parseInt(statsRes.rows[0].total, 10) || 0,
+
+        active: parseInt(statsRes.rows[0].active, 10) || 0,
+        inactive: parseInt(statsRes.rows[0].inactive, 10) || 0,
+
         wifi: parseInt(statsRes.rows[0].wifi, 10) || 0,
         broadband: parseInt(statsRes.rows[0].broadband, 10) || 0,
         hotspot: parseInt(statsRes.rows[0].hotspot, 10) || 0,
