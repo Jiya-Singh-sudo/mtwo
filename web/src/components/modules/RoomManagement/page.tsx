@@ -1,28 +1,24 @@
 'use client';
 import { useState, useEffect } from "react";
+import { Button } from "../../ui/button";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import "./RoomManagement.css";
 import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
 import { StatCard } from "@/components/ui/StatCard";
-import "./RoomManagement.css";
 import { ZodError } from "zod";
-import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping } from "../../../api/housekeeping.api";
-import { getRoomBoyOptions } from "../../../api/housekeeping.api";
-import { Button } from "../../ui/button";
+import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping, getRoomBoyOptions } from "../../../api/housekeeping.api";
+import { createGuestRoom, updateGuestRoom } from "../../../api/guestRoom.api";
+import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
+import { createRoom } from "../../../api/rooms.api";
+import { getRoomManagementOverview, updateFullRoom, getAssignableGuests } from "../../../api/roomManagement.api";
 import type { Housekeeping, HousekeepingCreateDto, HousekeepingUpdateDto } from "../../../types/housekeeping";
 import { HK_SHIFTS } from "../../../constants/housekeeping";
-import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
 type ShiftType = "Morning" | "Evening" | "Night" | "Full-Day";
-import { createRoom } from "../../../api/rooms.api";
-import { createGuestRoom, updateGuestRoom } from "../../../api/guestRoom.api";
-import { getRoomManagementOverview, updateFullRoom } from "../../../api/roomManagement.api";
 import { RoomRow, EditRoomFullPayload } from "@/types/roomManagement";
-import { getAssignableGuests } from "../../../api/roomManagement.api";
 import { ActiveGuestRow } from "@/types/guests";
-import { DataTable, type Column } from "@/components/ui/DataTable";
 import { useTableQuery } from "@/hooks/useTableQuery";
-import { roomCreateEditSchema } from "@/validation/roomManagement.validation";
-import { housekeepingCreateEditSchema } from "@/validation/roomManagement.validation";
+import { housekeepingCreateEditSchema, roomBoyAssignmentSchema, roomCreateEditSchema  } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
-import { roomBoyAssignmentSchema } from "@/validation/roomManagement.validation";
 import { formatDate } from "@/utils/dateTime";
 
 /* ================= BACKEND-MATCHING TYPES ================= */

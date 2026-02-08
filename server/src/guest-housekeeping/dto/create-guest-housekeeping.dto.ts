@@ -2,6 +2,9 @@ import { IsString, IsOptional, IsIn } from 'class-validator';
 
 export class CreateGuestHousekeepingDto {
   @IsString()
+  guest_id: string;
+
+  @IsString()
   hk_id: string;        // Staff ID
 
   @IsString()

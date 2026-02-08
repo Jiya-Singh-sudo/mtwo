@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateHousekeepingDto } from './dto/create-housekeeping.dto';
 import { UpdateHousekeepingDto } from './dto/update-housekeeping.dto';
@@ -7,7 +7,7 @@ import { transliterateToDevanagari } from '../../common/utlis/transliteration.ut
 @Injectable()
 export class HousekeepingService {
   constructor(private readonly db: DatabaseService) {}
-  
+
   private async generateId(): Promise<string> {
     const sql = `SELECT hk_id FROM m_housekeeping ORDER BY hk_id DESC LIMIT 1`;
     const res = await this.db.query(sql);
@@ -106,6 +106,49 @@ export class HousekeepingService {
   }
 
   async create(dto: CreateHousekeepingDto, user: string, ip: string) {
+    // 1️⃣ Prevent duplicate housekeeping name (case-insensitive)
+    const existingByName = await this.db.query(
+      `
+      SELECT 1
+      FROM m_housekeeping
+      WHERE LOWER(hk_name) = LOWER($1)
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [dto.hk_name.trim()]
+    );
+
+    if (existingByName.rowCount > 0) {
+      throw new BadRequestException(
+        `Housekeeping staff '${dto.hk_name}' already exists`
+      );
+    }
+
+    // 2️⃣ Prevent duplicate contact number
+    const existingByContact = await this.db.query(
+      `
+      SELECT 1
+      FROM m_housekeeping
+      WHERE hk_contact = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [dto.hk_contact]
+    );
+
+    if (existingByContact.rowCount > 0) {
+      throw new BadRequestException(
+        `Contact number '${dto.hk_contact}' is already assigned to another staff`
+      );
+    }
+    if (
+      dto.hk_alternate_contact &&
+      dto.hk_contact === dto.hk_alternate_contact
+    ) {
+      throw new BadRequestException(
+        'Primary contact and alternate contact cannot be the same'
+      );
+    }
     const hk_id = await this.generateId();
     const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 
@@ -143,7 +186,84 @@ export class HousekeepingService {
 
   async update(name: string, dto: UpdateHousekeepingDto, user: string, ip: string) {
     const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Housekeeping '${name}' not found`);
+    if (!existing) throw new NotFoundException(`Housekeeping '${name}' not found`);
+    // 1️⃣ Prevent renaming to an existing active staff
+    if (dto.hk_name && dto.hk_name !== existing.hk_name) {
+      const nameConflict = await this.db.query(
+        `
+        SELECT 1
+        FROM m_housekeeping
+        WHERE LOWER(hk_name) = LOWER($1)
+          AND hk_id <> $2
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [dto.hk_name.trim(), existing.hk_id]
+      );
+
+      if (nameConflict.rowCount > 0) {
+        throw new BadRequestException(
+          `Housekeeping staff name '${dto.hk_name}' already exists`
+        );
+      }
+    }
+
+    // 2️⃣ Check if staff is currently assigned to any room
+    const activeAssignment = await this.db.query(
+      `
+      SELECT 1
+      FROM t_room_housekeeping
+      WHERE hk_id = $1
+        AND is_active = TRUE
+      LIMIT 1
+      `,
+      [existing.hk_id]
+    );
+    // 3️⃣ Block deactivation if assigned
+    if (dto.is_active === false && activeAssignment.rowCount > 0) {
+      throw new BadRequestException(
+        'Cannot deactivate housekeeping staff while assigned to a room'
+      );
+    }
+
+    // 4️⃣ Block shift change if assigned
+    if (dto.shift && dto.shift !== existing.shift && activeAssignment.rowCount > 0) {
+      throw new BadRequestException(
+        'Cannot change shift while staff is assigned to a room'
+      );
+    }
+    const primaryContact = dto.hk_contact ?? existing.hk_contact;
+    const alternateContact = dto.hk_alternate_contact ?? existing.hk_alternate_contact;
+
+    if (alternateContact && primaryContact === alternateContact) {
+      throw new BadRequestException(
+        'Primary contact and alternate contact cannot be the same'
+      );
+    }
+    if (dto.hk_contact && dto.hk_contact !== existing.hk_contact) {
+      const contactConflict = await this.db.query(
+        `
+        SELECT 1
+        FROM m_housekeeping
+        WHERE hk_contact = $1
+          AND hk_id <> $2
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [dto.hk_contact, existing.hk_id]
+      );
+
+      if (contactConflict.rowCount > 0) {
+        throw new BadRequestException(
+          `Contact number '${dto.hk_contact}' is already assigned to another staff`
+        );
+      }
+    }
+    const VALID_SHIFTS = ['Morning', 'Evening', 'Night', 'Full-Day'];
+
+    if (dto.shift && !VALID_SHIFTS.includes(dto.shift)) {
+      throw new BadRequestException('Invalid shift value');
+    }
     const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 
     const now = new Date().toISOString();
@@ -195,7 +315,6 @@ export class HousekeepingService {
       FROM t_room_housekeeping
       WHERE hk_id = $1
         AND is_active = TRUE
-        AND status != 'Cancelled'
       LIMIT 1
       `,
       [existing.hk_id]
@@ -203,10 +322,9 @@ export class HousekeepingService {
 
     if (assigned.rowCount > 0) {
       throw new BadRequestException(
-        `Cannot delete room boy '${name}' because he is currently assigned to a room`
+        `Cannot delete housekeeping staff '${name}' because they are currently assigned to a room`
       );
     }
-
     // ✅ SAFE TO DELETE
     const now = new Date().toISOString();
 
