@@ -98,3 +98,62 @@ export async function downloadGuestSummaryPdf(params: {
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
+/**
+ * Room & Housekeeping Summary → Excel
+ */
+export async function downloadRoomSummaryExcel(params: {
+  rangeType: string;
+  startDate?: string;
+  endDate?: string;
+}) {
+  const response = await api.post(
+    '/reports-pkg/room-summary/excel',
+    params,
+    { responseType: 'blob' }
+  );
+
+  const blob = new Blob([response.data], {
+    type:
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `Room_Housekeeping_Report_${Date.now()}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+/**
+ * Room & Housekeeping → PDF
+ */
+export async function downloadRoomSummaryPdf(params: {
+  rangeType: string;
+  startDate?: string;
+  endDate?: string;
+}) {
+  const response = await api.post(
+    '/reports-pkg/room-summary/pdf',
+    params,
+    { responseType: 'blob' }
+  );
+
+  const blob = new Blob([response.data], {
+    type: 'application/pdf',
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `Room_Housekeeping_Report_${Date.now()}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}

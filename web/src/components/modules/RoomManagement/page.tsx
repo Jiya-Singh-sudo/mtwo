@@ -19,7 +19,7 @@ import { ActiveGuestRow } from "@/types/guests";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { housekeepingCreateEditSchema, roomBoyAssignmentSchema, roomCreateEditSchema  } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
-import { formatDate } from "@/utils/dateTime";
+import { formatDate, normalizeDateOnly, formatDateDDMMYYYY, formatDateOnlyDDMMYYYY } from "@/utils/dateTime";
 
 /* ================= BACKEND-MATCHING TYPES ================= */
 
@@ -355,8 +355,8 @@ export function RoomManagement() {
     await createGuestRoom({
       guest_id: selectedGuestId,
       room_id: assignGuestRoom.roomId,
-      check_in_date: assignCheckInDate,
-      check_out_date: assignCheckOutDate || undefined,
+      check_in_date: normalizeDateOnly(assignCheckInDate),
+      check_out_date: normalizeDateOnly(assignCheckOutDate) || undefined,
       action_type: "Room-Allocated",
       action_description: "Assigned from Room Management",
     });
@@ -495,10 +495,7 @@ export function RoomManagement() {
     await unassignRoomBoy(guestHkId);
     await loadRooms(); // 🔥 THIS is what you were missing
   }
-  function toDateOnly(value?: string) {
-    if (!value) return "";
-    return value.slice(0, 10);
-  }
+
 
   /* ================= ROOM BOY CRUD ================= */
   const handleAddRoomBoy = async () => {
@@ -1145,11 +1142,11 @@ function resetAddRoomState() {
                   <p className="errorText">{formErrors.assignment_start_date}</p>
                 )} */}
                 {formErrors.assignment_start_date && (
-  <div className="fieldError">
-    <XCircle size={14} />
-    <span>{formErrors.assignment_start_date}</span>
-  </div>
-)}
+                  <div className="fieldError">
+                    <XCircle size={14} />
+                    <span>{formErrors.assignment_start_date}</span>
+                  </div>
+                )}
 
               </div>
 
@@ -1469,7 +1466,7 @@ function resetAddRoomState() {
                           hkId: e.target.value,
                           hkName:
                             roomBoyOptions.find(rb => rb.id === e.target.value)?.name || "",
-                          taskDate: new Date().toISOString().slice(0, 10),
+                          taskDate: normalizeDateOnly(new Date()),
                           taskShift: "Morning",
                           isActive: true,
                         }
@@ -1744,14 +1741,14 @@ function resetAddRoomState() {
               </button>
             </div>
             {Object.keys(formErrors).length > 0 && (
-  <div className="alert alert-error">
-    <XCircle size={18} />
-    <span>Please fix the highlighted fields below.</span>
-    <button onClick={() => setFormErrors({})}>
-      <X size={14} />
-    </button>
-  </div>
-)}
+              <div className="alert alert-error">
+                <XCircle size={18} />
+                <span>Please fix the highlighted fields below.</span>
+                <button onClick={() => setFormErrors({})}>
+                  <X size={14} />
+                </button>
+              </div>
+            )}
 
             {/* BODY */}
             <div className="nicModalBody">
@@ -1778,8 +1775,8 @@ function resetAddRoomState() {
                         g => g.guest_id.toString() === guestId
                       );
 
-                      setAssignCheckInDate(toDateOnly(guest?.entry_date ?? ""));
-                      setAssignCheckOutDate(toDateOnly(guest?.exit_date ?? ""));
+                      setAssignCheckInDate(normalizeDateOnly(guest?.entry_date ?? ""));
+                      setAssignCheckOutDate(normalizeDateOnly(guest?.exit_date ?? ""));
                     }}
                   >
                     <option value="">Select Guest</option>
@@ -1882,8 +1879,8 @@ function resetAddRoomState() {
                   {viewRoom.guest ? (
                     <>
                       <p><b>Guest Name:</b> {viewRoom.guest.guestName}</p>
-                      <p><b>Check-In:</b> {formatDate(viewRoom.guest.checkInDate) || "—"}</p>
-                      <p><b>Check-Out:</b> {formatDate(viewRoom.guest.checkOutDate) || "—"}</p>
+                      <p><b>Check-In:</b> {formatDateOnlyDDMMYYYY(viewRoom.guest.checkInDate) || "—"}</p>
+                      <p><b>Check-Out:</b> {formatDateOnlyDDMMYYYY(viewRoom.guest.checkOutDate) || "—"}</p>
                     </>
                   ) : (
                     <p>— No guest assigned —</p>

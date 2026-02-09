@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble } from 'lucide-react';
-import { downloadGuestSummaryExcel, downloadGuestSummaryPdf } from '@/api/reportsPkg.api';
+import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf } from '@/api/reportsPkg.api';
 
 export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
@@ -26,6 +26,13 @@ export function Reports() {
       title: 'Vehicle & Driver Report',
       category: 'Vehicle & Driver Reports',
       description: 'Vehicle usage logs, fuel consumption, and driver duty records',
+      icon: Car
+    },
+    {
+      id: 'driver-duty',
+      title: 'Driver Duty Report',
+      category: 'Driver Duty Reports',
+      description: 'Driver duty logs, fuel consumption, and driver duty records',
       icon: Car
     },
     {
@@ -223,7 +230,49 @@ function ReportSection({ section }: { section: any }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
- 
+  function handleDownload(
+    format: 'PDF' | 'EXCEL',
+    sectionId: string,
+    range: string,
+    startDate?: string,
+    endDate?: string
+  ) {
+    if (range === 'Custom Range' && (!startDate || !endDate)) {
+      alert('Please select start and end dates');
+      return;
+    }
+
+    const payload = {
+      rangeType: range,
+      startDate: range === 'Custom Range' ? startDate : undefined,
+      endDate: range === 'Custom Range' ? endDate : undefined,
+    };
+
+    // ---- Guest Reports ----
+    if (sectionId === 'guest') {
+      if (format === 'PDF') {
+        downloadGuestSummaryPdf(payload);
+      } else {
+        downloadGuestSummaryExcel(payload);
+      }
+      return;
+    }
+
+    // ---- Room Reports ----
+    if (sectionId === 'room') {
+      if (format === 'EXCEL') {
+        downloadRoomSummaryExcel(payload);
+      }
+      if (format === 'PDF') {
+        downloadRoomSummaryPdf(payload);
+      }
+      return;
+    }
+
+    // ---- Future hooks ----
+    // vehicle, food, network go here later
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
       <div className="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
@@ -292,51 +341,19 @@ function ReportSection({ section }: { section: any }) {
             <div className="md:col-span-3 flex gap-2">
                <button 
                   className="flex-1 px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() => {
-                    if (section.id !== 'guest') return;
+                  onClick={() =>
+                    handleDownload('PDF', section.id, range, startDate, endDate)
+                  }
 
-                    if (range === 'Custom Range') {
-                      if (!startDate || !endDate) {
-                        alert('Please select start and end dates');
-                        return;
-                      }
-
-                      downloadGuestSummaryPdf({
-                        rangeType: range,
-                        startDate: range == 'Custom Range' ? startDate : undefined,
-                        endDate: range == 'Custom Range' ? endDate : undefined,
-                      });
-                    } else {
-                      downloadGuestSummaryPdf({
-                        rangeType: range,
-                      });
-                    }
-                  }}>
+                >
                  <Download className="w-4 h-4" />
                  PDF
                </button>
                <button 
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() => {
-                    if (section.id !== 'guest') return;
-
-                    if (range === 'Custom Range') {
-                      if (!startDate || !endDate) {
-                        alert('Please select start and end dates');
-                        return;
-                      }
-
-                      downloadGuestSummaryExcel({
-                        rangeType: range,
-                        startDate: range == 'Custom Range' ? startDate : undefined,
-                        endDate: range == 'Custom Range' ? endDate : undefined,
-                      });
-                    } else {
-                      downloadGuestSummaryExcel({
-                        rangeType: range,
-                      });
-                    }
-                  }}
+                  onClick={() =>
+                    handleDownload('EXCEL', section.id, range, startDate, endDate)
+                  }
                   >
                  <FileText className="w-4 h-4" />
                  Excel

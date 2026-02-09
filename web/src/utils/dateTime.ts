@@ -180,4 +180,48 @@ export function splitDateTime(value?: string) {
     time: time?.slice(0, 5), // HH:mm
   };
 }
-  
+/**
+ * Canonical date-only normalizer.
+ * Use this for ALL check-in / check-out / task dates.
+ *
+ * Guarantees: returns YYYY-MM-DD without timezone drift.
+ */
+export function normalizeDateOnly(
+  value?: string | Date | null
+): string {
+  if (!value) return "";
+
+  // If already YYYY-MM-DD → trust it
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  // If string with time (ISO or SQL)
+  if (typeof value === "string") {
+    // "2026-02-24T19:09:36.422Z" or "2026-02-24 13:00:00"
+    return value.slice(0, 10);
+  }
+
+  // If Date object → extract LOCAL date parts (not UTC)
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return "";
+}
+export function formatDateDDMMYYYY(
+  value?: string | Date | null
+): string {
+  const iso = normalizeDateOnly(value);
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+export function formatDateOnlyDDMMYYYY(value?: string) {
+  if (!value) return "";
+  const [y, m, d] = value.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
