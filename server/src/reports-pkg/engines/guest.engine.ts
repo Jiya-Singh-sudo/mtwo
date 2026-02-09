@@ -32,29 +32,23 @@ export class GuestReportEngine {
 
     const result = await this.db.query(
       `
-      SELECT
+      SELECT DISTINCT ON (g.guest_id, gi.entry_date)
+
         g.guest_id,
         g.guest_name,
 
-        gd.designation_name                     AS designation,
-
+        gd.designation_name           AS designation,
         r.room_no,
-
-        hk.hk_name                              AS housekeeper,
-
-        fi.food_name                            AS food_remarks,
-
+        hk.hk_name                    AS housekeeper,
+        fi.food_name                  AS food_remarks,
         v.vehicle_no,
         d.driver_name,
+        gi.purpose                    AS visit_purpose,
+        ms.messenger_name             AS messenger,
 
-        gi.purpose                              AS visit_purpose,
-
-        ms.messenger_name                       AS messenger,
-
-        wp.provider_name        AS wifi_provider,
-        wp.network_type         AS network_type,
-        wp.bandwidth_mbps       AS bandwidth_mbps,
-
+        wp.provider_name              AS wifi_provider,
+        wp.network_type,
+        wp.bandwidth_mbps,
 
         gi.entry_date,
         gi.exit_date
@@ -110,7 +104,7 @@ export class GuestReportEngine {
       LEFT JOIN m_driver d
         ON d.driver_id = gdv.driver_id
 
-      /* ================= IN-OUT (PURPOSE) ================= */
+      /* ================= IN-OUT ================= */
       LEFT JOIN t_guest_inout gi
         ON gi.guest_id = g.guest_id
       AND gi.is_active = true
@@ -131,16 +125,17 @@ export class GuestReportEngine {
       LEFT JOIN m_wifi_provider wp
         ON wp.provider_id = gn.provider_id
 
-
       WHERE g.is_active = true
         AND gi.entry_date <= $2
-        AND (
-          gi.exit_date IS NULL
-          OR gi.exit_date >= $1
-        )
+        AND (gi.exit_date IS NULL OR gi.exit_date >= $1)
 
+      ORDER BY
+        g.guest_id,
+        gi.entry_date,
+        gr.check_in_date DESC,
+        gf.inserted_at DESC,
+        gn.inserted_at DESC;
 
-      ORDER BY g.guest_name;
       `,
       [fromDate, toDate]
     );

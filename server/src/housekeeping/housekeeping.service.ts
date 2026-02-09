@@ -149,6 +149,7 @@ export class HousekeepingService {
         'Primary contact and alternate contact cannot be the same'
       );
     }
+    await this.db.query(`LOCK TABLE m_housekeeping IN EXCLUSIVE MODE`);
     const hk_id = await this.generateId();
     const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 

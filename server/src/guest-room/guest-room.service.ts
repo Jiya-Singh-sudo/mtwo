@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestRoomDto } from "./dto/create-guest-room.dto";
 import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
@@ -108,6 +108,18 @@ export class GuestRoomService {
         SET status = 'Available'
         WHERE room_id = $1
       `, [roomId]);
+      await this.db.query(
+        `
+        UPDATE t_room_housekeeping
+        SET status = 'Cancelled',
+            is_active = FALSE,
+            completed_at = NOW()
+        WHERE room_id = $1
+          AND is_active = TRUE
+        `,
+        [roomId]
+      );
+
 
       await this.db.query('COMMIT');
       return { success: true };
@@ -134,8 +146,40 @@ export class GuestRoomService {
 
   async create(dto: CreateGuestRoomDto, user: string, ip: string) {
     await this.db.query('BEGIN');
-
+    await this.db.query(`LOCK TABLE t_guest_room IN EXCLUSIVE MODE`);
     try {
+      await this.db.query(
+        `
+        SELECT room_capacity
+        FROM m_rooms
+        WHERE room_id = $1
+        FOR UPDATE
+        `,
+        [dto.room_id]
+      );
+      const occupancyRes = await this.db.query(
+        `
+        SELECT COUNT(*)::int AS count
+        FROM t_guest_room
+        WHERE room_id = $1
+          AND is_active = TRUE
+        `,
+        [dto.room_id]
+      );
+
+      const capacityRes = await this.db.query(
+        `
+        SELECT room_capacity
+        FROM m_rooms
+        WHERE room_id = $1
+        `,
+        [dto.room_id]
+      );
+
+      if (occupancyRes.rows[0].count >= capacityRes.rows[0].room_capacity) {
+        throw new BadRequestException('Room has reached maximum capacity');
+      }
+
       // 1️⃣ Ensure guest is active (from t_guest_inout)
       const guestCheck = await this.db.query(`
         SELECT 1 FROM t_guest_inout
@@ -152,8 +196,50 @@ export class GuestRoomService {
         WHERE room_id = $1 AND is_active = TRUE
       `, [dto.room_id]);
 
-      if (!roomCheck.rowCount || roomCheck.rows[0].status !== 'Available') {
-        throw new Error('Room is not available');
+      if (!roomCheck.rowCount) {
+        throw new Error('Room not found or inactive');
+      }
+
+      if (roomCheck.rows[0].status !== 'Available' || occupancyRes.rows[0].count > 0) {
+        throw new BadRequestException('Room is not available');
+      }
+
+      const overlapCheck = await this.db.query(
+        `
+        SELECT 1
+        FROM t_guest_room
+        WHERE room_id = $1
+          AND is_active = TRUE
+          AND daterange(
+                check_in_date,
+                COALESCE(check_out_date, check_in_date),
+                '[]'
+              )
+              && daterange($2, $3, '[]')
+        LIMIT 1
+        `,
+        [
+          dto.room_id,
+          dto.check_in_date,
+          dto.check_out_date ?? dto.check_in_date,
+        ]
+      );
+
+
+      if (overlapCheck.rowCount > 0) {
+        throw new BadRequestException(
+          'Guest stay overlaps with an existing booking'
+        );
+      }
+      
+      
+      const roomActiveCheck = await this.db.query(
+        `SELECT is_active FROM m_rooms WHERE room_id = $1`,
+        [dto.room_id]
+      );
+
+      if (!roomActiveCheck.rows[0]?.is_active) {
+        throw new BadRequestException('Cannot assign guest to inactive room');
       }
 
       // 3️⃣ Generate guest_room_id
@@ -213,6 +299,15 @@ export class GuestRoomService {
     if (!existing) throw new Error(`Guest Room entry '${id}' not found`);
 
     await this.db.query('BEGIN');
+    if (
+      dto.room_id &&
+      dto.room_id !== existing.room_id &&
+      existing.is_active
+    ) {
+      throw new BadRequestException(
+        'Active guest cannot be moved to another room'
+      );
+    }
 
     try {
       // 🔴 If guest is being released

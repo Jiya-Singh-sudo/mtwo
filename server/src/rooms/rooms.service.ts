@@ -14,7 +14,7 @@ export class RoomsService {
       SELECT COUNT(*)::int AS count
       FROM t_guest_room
       WHERE room_id = $1
-        AND checkout_time IS NULL
+        AND is_active = TRUE
       `,
       [room_id]
     );
@@ -71,48 +71,78 @@ export class RoomsService {
   }
 
   async create(dto: CreateRoomDto, user: string, ip: string) {
-    const now = new Date()
-      .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      .replace(',', '');
-    const roomId = await this.generateRoomId();
-    
+    await this.db.query('BEGIN');
+    try {
+      await this.db.query(`
+        SELECT 1
+        FROM m_rooms
+        WHERE room_no = $1
+        FOR UPDATE
+      `, [dto.room_no]);
 
-    const sql = `
-      INSERT INTO m_rooms (
-        room_id,
-        room_no,
-        room_name,
-        building_name,
-        residence_type,
-        room_type,
-        room_capacity,
-        room_category,
-        status,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12,NULL,NULL,NULL)
-      RETURNING *;
-    `;
+      const existing = await this.db.query(
+        `
+        SELECT 1
+        FROM m_rooms
+        WHERE room_no = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [dto.room_no]
+      );
 
-    const params = [
-      roomId,
-      dto.room_no,
-      dto.room_name ?? null,
-      dto.building_name ?? null,
-      dto.residence_type ?? null,
-      dto.room_type ?? null,
-      dto.room_capacity ?? null,
-      dto.room_category ?? null,
-      dto.status,
-      now,
-      user,
-      ip,
-    ];
+      if (existing.rowCount > 0) {
+        throw new BadRequestException(
+          `Room number '${dto.room_no}' already exists`
+        );
+      }
 
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
+      const now = new Date()
+        .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
+        .replace(',', '');
+      const roomId = await this.generateRoomId();
+      
+      const sql = `
+        INSERT INTO m_rooms (
+          room_id,
+          room_no,
+          room_name,
+          building_name,
+          residence_type,
+          room_type,
+          room_capacity,
+          room_category,
+          status,
+          is_active,
+          inserted_at, inserted_by, inserted_ip,
+          updated_at, updated_by, updated_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12,NULL,NULL,NULL)
+        RETURNING *;
+      `;
+
+      const params = [
+        roomId,
+        dto.room_no,
+        dto.room_name ?? null,
+        dto.building_name ?? null,
+        dto.residence_type ?? null,
+        dto.room_type ?? null,
+        dto.room_capacity ?? null,
+        dto.room_category ?? null,
+        dto.status,
+        now,
+        user,
+        ip,
+      ];
+
+      const result = await this.db.query(sql, params);
+      await this.db.query('COMMIT');  
+      return result.rows[0];
+      } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
 
   async update(room_id: string, dto: UpdateRoomDto, user: string, ip: string) {
@@ -194,75 +224,10 @@ export class RoomsService {
     ];
 
     const result = await this.db.query(sql, params);
+    
     return result.rows[0];
   }
 
-  // async softDelete(room_no: string, user: string, ip: string) {
-  //   const existing = await this.findOneByRoomNo(room_no);
-  //   if (!existing) {
-  //     throw new NotFoundException(`Room '${room_no}' not found`);
-  //   }
-
-  //   const now = new Date().toISOString();
-
-  //   const sql = `
-  //     UPDATE m_rooms SET
-  //       is_active = false,
-  //       updated_at = $1,
-  //       updated_by = $2,
-  //       updated_ip = $3
-  //     WHERE room_id = $4
-  //     RETURNING *;
-  //   `;
-
-  //   const params = [now, user, ip, existing.room_id];
-  //   const result = await this.db.query(sql, params);
-
-  //   return result.rows[0];
-  // }
-
-  // async softDelete(room_no: string, user: string, ip: string) {
-  //   const existing = await this.findOneByRoomNo(room_no);
-  //   if (!existing) {
-  //     throw new NotFoundException(`Room '${room_no}' not found`);
-  //   }
-
-  //   // 1️⃣ Check active guest-room assignment
-  //   const assigned = await this.db.query(
-  //     `
-  //     SELECT 1
-  //     FROM t_guest_room
-  //     WHERE room_id = $1
-  //       AND is_active = TRUE
-  //     LIMIT 1
-  //     `,
-  //     [existing.room_id]
-  //   );
-
-  //   if (assigned.rowCount > 0) {
-  //     throw new BadRequestException(
-  //       'Cannot delete room: room is currently assigned to a guest'
-  //     );
-  //   }
-
-  //   // 2️⃣ Safe delete
-  //   const now = new Date().toISOString();
-
-  //   const sql = `
-  //     UPDATE m_rooms SET
-  //       is_active = FALSE,
-  //       updated_at = $1,
-  //       updated_by = $2,
-  //       updated_ip = $3
-  //     WHERE room_id = $4
-  //     RETURNING *;
-  //   `;
-
-  //   const params = [now, user, ip, existing.room_id];
-  //   const result = await this.db.query(sql, params);
-
-  //   return result.rows[0];
-  // }
   async softDelete(room_no: string, user: string, ip: string) {
     const existing = await this.findOneByRoomNo(room_no);
     if (!existing) {
@@ -275,7 +240,7 @@ export class RoomsService {
       SELECT 1
       FROM t_guest_room
       WHERE room_id = $1
-        AND checkout_time IS NULL
+        AND is_active = TRUE
       LIMIT 1
       `,
       [existing.room_id]

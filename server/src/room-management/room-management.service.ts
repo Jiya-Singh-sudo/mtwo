@@ -198,6 +198,16 @@ export class RoomManagementService {
     user: string,
     ip: string
   ) {
+    await this.db.query(
+      `
+      SELECT 1
+      FROM m_rooms
+      WHERE room_id = $1
+      FOR UPDATE
+      `,
+      [room_id]
+    );
+    
 
     const roomRes = await this.db.query(
       `SELECT * FROM m_rooms WHERE room_id = $1`,
@@ -209,13 +219,16 @@ export class RoomManagementService {
     }
 
     const room = roomRes.rows[0];
-
+    if (!room.is_active) {
+      throw new BadRequestException('Inactive room cannot be modified');
+    }
     const activeGuestRes = await this.db.query(
       `
       SELECT COUNT(*)::int AS count
       FROM t_guest_room
       WHERE room_id = $1
-        AND checkout_time IS NULL
+        AND is_active = TRUE
+
       `,
       [room_id]
     );

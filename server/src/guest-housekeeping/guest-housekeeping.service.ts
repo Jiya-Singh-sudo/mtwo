@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestHousekeepingDto } from "./dto/create-guest-housekeeping.dto";
 import { UpdateGuestHousekeepingDto } from "./dto/update-guest-housekeeping.dto";
@@ -45,7 +45,25 @@ export class GuestHousekeepingService {
       `,
       [dto.room_id]
     );
+    if (dto.task_date) {
+      const now = new Date();
+      const taskDate = new Date(dto.task_date);
+
+      if (
+        taskDate.toDateString() === now.toDateString()
+      ) {
+        const hour = now.getHours();
+
+        if (dto.task_shift === 'Morning' && hour >= 11) {
+          throw new BadRequestException(
+            'Morning shift cannot be assigned this late'
+          );
+        }
+      }
+    }
+
     const guestId = guestRes.rows[0]?.guest_id ?? null;
+    await this.db.query(`LOCK TABLE t_room_housekeeping IN EXCLUSIVE MODE`);
     const id = await this.generateId();
     const now = new Date().toISOString();
     const sql = `

@@ -168,29 +168,37 @@ export class GuestsService {
     try {
 
       const g = payload.guest;
-      if (g.guest_mobile) {
-        const dup = await this.db.query(
-          `
-          SELECT guest_id
-          FROM m_guest
-          WHERE guest_mobile = $1
-            AND is_active = TRUE
-          LIMIT 1
-          `,
-          [g.guest_mobile]
-        );
+      // if (g.guest_mobile) {
+      //   const dup = await this.db.query(
+      //     `
+      //     SELECT guest_id
+      //     FROM m_guest
+      //     WHERE guest_mobile = $1
+      //       AND is_active = TRUE
+      //     LIMIT 1
+      //     `,
+      //     [g.guest_mobile]
+      //   );
 
-        if (dup.rowCount > 0) {
-          throw new BadRequestException(
-            'A guest with this mobile number already exists'
-          );
-        }
+      //   if (dup.rowCount > 0) {
+      //     throw new BadRequestException(
+      //       'A guest with this mobile number already exists'
+      //     );
+      //   }
+      // }
+      if (g.guest_mobile) {
+        await this.assertMobileIsGloballyUnique(g.guest_mobile);
       }
+
       if (g.guest_address && g.guest_address.length > 255) {
         throw new BadRequestException(
           'Address cannot exceed 255 characters'
         );
       }
+      if (g.guest_mobile) {
+        await this.assertMobileIsGloballyUnique(g.guest_mobile);
+      }
+
       // 1. Generate ID (seconds timestamp to fit integer)
       const guest_id = await this.generateGuestId();
       // Transliteration (NON-BLOCKING & SAFE)
@@ -321,26 +329,6 @@ export class GuestsService {
         );
       }
 
-
-      // let gd_id: string | null = null;
-      // if (finalDesignationId) {
-      //   gd_id = `GD${Date.now()}`;
-      //   const insertGdSql = `
-      //     INSERT INTO t_guest_designation (gd_id, guest_id, designation_id, department, organization, office_location, is_current, is_active, inserted_by, inserted_ip)
-      //     VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
-      //     RETURNING *;
-      //   `;
-      //   await this.db.query(insertGdSql, [
-      //     gd_id,
-      //     guestRow.guest_id,
-      //     finalDesignationId,
-      //     payload.designation?.department || null,
-      //     payload.designation?.organization || null,
-      //     payload.designation?.office_location || null,
-      //     user, ip
-      //   ]);
-      // }
-
       // 5. Create t_guest_inout
       if (
         payload.inout?.entry_date &&
@@ -442,7 +430,16 @@ export class GuestsService {
     fields.push(`updated_at = NOW()`);
     fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
     fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
-    const sql = `UPDATE m_guest SET ${fields.join(', ')} WHERE guest_id = $${idx} RETURNING *;`;
+    const sql = 
+    `UPDATE m_guest
+      SET
+        ${fields.join(', ')},
+        version = version + 1
+      WHERE
+        guest_id = $${idx}
+        AND version = $${idx + 1}
+      RETURNING *;
+    `;
     vals.push(guestId);
     const r = await this.db.query(sql, vals);
     return r.rows[0];
@@ -942,7 +939,7 @@ export class GuestsService {
           is_active = TRUE
           AND status NOT IN ('Exited', 'Cancelled')
           AND exit_date IS NOT NULL
-          AND exit_date < CURRENT_DATE
+          AND exit_date < CURRENT_DATE - INTERVAL '1 day'
         FOR UPDATE SKIP LOCKED
       `);
 
@@ -1004,6 +1001,28 @@ export class GuestsService {
     if (res.rowCount > 0) {
       throw new BadRequestException(
         'Room is already allocated for the selected dates'
+      );
+    }
+  }
+  private async assertMobileIsGloballyUnique(mobile: string) {
+    const res = await this.db.query(
+      `
+      SELECT 1 FROM (
+        SELECT guest_mobile AS mobile FROM m_guest WHERE is_active = TRUE
+        UNION
+        SELECT staff_mobile FROM m_staff WHERE is_active = TRUE
+        UNION
+        SELECT driver_mobile FROM m_driver WHERE is_active = TRUE
+      ) t
+      WHERE mobile = $1
+      LIMIT 1
+      `,
+      [mobile]
+    );
+
+    if (res.rowCount > 0) {
+      throw new BadRequestException(
+        'Mobile number already exists in the system'
       );
     }
   }
