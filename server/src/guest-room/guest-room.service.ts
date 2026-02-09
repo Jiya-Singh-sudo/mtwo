@@ -38,8 +38,8 @@ export class GuestRoomService {
         r.status AS room_status,
 
         gr.guest_room_id,
-        gr.check_in_date,
-        gr.check_out_date,
+        gr.check_in_date::text  AS check_in_date,
+        gr.check_out_date::text AS check_out_date,
 
         g.guest_id,
         g.guest_name

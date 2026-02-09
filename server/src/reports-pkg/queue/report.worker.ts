@@ -1,13 +1,11 @@
 import { Worker } from 'bullmq';
 import { Pool } from 'pg';
 import { exportPdf } from '../exporters/pdf.exporter';
-import { exportGuestSummaryExcel } from '../exporters/excel.exporter';
+import { exportGuestSummaryExcel } from '../exporters/guest.excel.exporter';
 import { ReportCode } from '../registry/report.registry';
 import { GuestReportEngine } from '../engines/guest.engine';
 import { RoomReportEngine } from '../engines/room.engine';
 import { VehicleReportEngine } from '../engines/vehicle.engine';
-import { StaffReportEngine } from '../engines/staff.engine';
-import { NotificationReportEngine } from '../engines/notification.engine';
 import { FoodReportEngine } from '../engines/food.engine';
 
 /* Standalone Pool for worker (outside NestJS DI context) */
@@ -51,14 +49,6 @@ export const reportWorker = new Worker(
 
                 case reportCode.startsWith('VEHICLE_'):
                     data = await new VehicleReportEngine(db).run(reportCode, filters);
-                    break;
-
-                case reportCode.startsWith('DUTY_') || reportCode.startsWith('STAFF_'):
-                    data = await new StaffReportEngine(db).run(reportCode, filters);
-                    break;
-
-                case reportCode.startsWith('NOTIFICATION_'):
-                    data = await new NotificationReportEngine(db).run(reportCode, filters);
                     break;
 
                 case reportCode.startsWith('FOOD_'):

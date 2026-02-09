@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import pg from 'pg';
 
+pg.types.setTypeParser(1082, (val) => val);
 async function bootstrap() {
   // 1. Remove { cors: true } from here. This was enabling the "wildcard" default 
   // which caused the conflict with credentials: true.

@@ -4,16 +4,18 @@ import { ReportCode } from '../registry/report.registry';
 export class RoomReportEngine {
     constructor(private readonly db: DbClient) { }
 
-    async run(reportCode: ReportCode, filters: any) {
-        switch (reportCode) {
+    async run(reportCode: ReportCode, filters: { fromDate: string; toDate: string }) {
+      switch (reportCode) {
+        case ReportCode.ROOM_DAILY_SUMMARY:
+        case ReportCode.ROOM_WEEKLY_SUMMARY:
+        case ReportCode.ROOM_MONTHLY_SUMMARY:
+          return this.roomSummary(filters);
 
-            case ReportCode.ROOM_OCCUPANCY_TRENDS:
-                return this.occupancyTrends(filters);
-
-            default:
-                throw new Error(`Unsupported room report: ${reportCode}`);
-        }
+        default:
+          throw new Error(`Unsupported room report: ${reportCode}`);
+      }
     }
+
 
     /**
      * ROOM OCCUPANCY TRENDS
@@ -28,48 +30,36 @@ export class RoomReportEngine {
      * - m_rooms
      * - t_guest_room
      */
-    private async occupancyTrends(filters: any) {
-        const startDate =
-            filters.startDate ?? new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .slice(0, 10);
-
-        const endDate =
-            filters.endDate ?? new Date().toISOString().slice(0, 10);
-
-        return this.db.query(
-            `
-      WITH date_series AS (
-        SELECT generate_series(
-          $1::date,
-          $2::date,
-          interval '1 day'
-        )::date AS report_date
-      ),
-      room_count AS (
-        SELECT COUNT(*) AS total_rooms
-        FROM m_rooms
-        WHERE is_active = true
-      )
+  private async roomSummary(filters: { fromDate: string; toDate: string }) {
+    return this.db.query(
+      `
       SELECT
-        ds.report_date,
-        rc.total_rooms,
-        COUNT(gr.guest_room_id) AS occupied_rooms,
-        ROUND(
-          COUNT(gr.guest_room_id)::decimal
-          / NULLIF(rc.total_rooms, 0) * 100,
-          2
-        ) AS occupancy_percentage
-      FROM date_series ds
-      CROSS JOIN room_count rc
-      LEFT JOIN t_guest_room gr
-        ON gr.check_in_date <= ds.report_date
-       AND (gr.check_out_date IS NULL OR gr.check_out_date >= ds.report_date)
-       AND gr.is_active = true
-      GROUP BY ds.report_date, rc.total_rooms
-      ORDER BY ds.report_date
+        g.guest_name,
+        r.room_no,
+        hk.hk_name AS housekeeper,
+        rh.service_type AS cleaning_type,
+        gr.check_in_date,
+        gr.check_out_date,
+        gr.remarks
+      FROM t_guest_room gr
+      JOIN m_guest g ON g.guest_id = gr.guest_id
+      JOIN m_rooms r ON r.room_id = gr.room_id
+
+      LEFT JOIN t_room_housekeeping rh
+        ON rh.room_id = gr.room_id
+      AND rh.task_date BETWEEN $1 AND $2
+
+      LEFT JOIN m_housekeeping hk
+        ON hk.hk_id = rh.hk_id
+
+      WHERE (gr.is_active = true OR gr.is_active = false)
+        AND gr.check_in_date <= $2
+        AND (gr.check_out_date IS NULL OR gr.check_out_date >= $1)
+
+      ORDER BY r.room_no;
       `,
-            [startDate, endDate],
-        );
-    }
+      [filters.fromDate, filters.toDate]
+    );
+  }
+
 }

@@ -580,24 +580,57 @@ export class RoomManagementService {
       throw err;
     }
   }
+  // async findCheckedInGuestsWithoutRoom() {
+  //   const sql = `
+  //     SELECT
+  //       io.guest_id,
+  //       g.guest_name,
+  //       io.entry_date,
+  //       io.exit_date
+  //     FROM t_guest_inout io
+  //     JOIN m_guest g ON g.guest_id = io.guest_id
+  //     LEFT JOIN t_guest_room gr
+  //       ON gr.guest_id = io.guest_id
+  //     AND gr.is_active = TRUE
+  //     WHERE io.is_active = TRUE
+  //       AND gr.guest_room_id IS NULL
+  //     ORDER BY g.guest_name;
+  //   `;
+
+  //   const res = await this.db.query(sql);
+  //   return res.rows;
+  // }
   async findCheckedInGuestsWithoutRoom() {
     const sql = `
-      SELECT
+      SELECT DISTINCT ON (io.guest_id)
         io.guest_id,
         g.guest_name,
         io.entry_date,
         io.exit_date
       FROM t_guest_inout io
-      JOIN m_guest g ON g.guest_id = io.guest_id
+      JOIN m_guest g
+        ON g.guest_id = io.guest_id
+      AND g.is_active = TRUE
+
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = io.guest_id
       AND gr.is_active = TRUE
+
       WHERE io.is_active = TRUE
         AND gr.guest_room_id IS NULL
-      ORDER BY g.guest_name;
+
+        -- ✅ NEW CONSTRAINT
+        AND io.entry_date IS NOT NULL
+        AND (
+          io.exit_date IS NULL
+          OR io.exit_date >= CURRENT_DATE
+        )
+
+      ORDER BY io.guest_id, io.entry_date DESC;
     `;
 
     const res = await this.db.query(sql);
     return res.rows;
   }
+
 }

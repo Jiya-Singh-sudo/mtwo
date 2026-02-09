@@ -7,7 +7,7 @@ export class VehicleReportEngine {
     async run(reportCode: ReportCode, filters: any) {
         switch (reportCode) {
 
-            case ReportCode.VEHICLE_USAGE:
+            case ReportCode.VEHICLE_DRIVER_DAILY_SUMMARY:
                 return this.vehicleUsage(filters);
 
             default:

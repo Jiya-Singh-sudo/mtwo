@@ -8,9 +8,12 @@ import { generateCsv } from '../../common/utlis/csv.util';
 import { resolveDateRange } from './resolvers/date-range.resolver';
 import { resolveGuestSummaryReportCode } from './resolvers/guest-report.resolver';
 import { GuestReportEngine } from './engines/guest.engine';
-import { exportGuestSummaryExcel } from './exporters/excel.exporter';
+import { exportGuestSummaryExcel } from './exporters/guest.excel.exporter';
 import * as path from 'path';
 import { generatePdfFromTemplate } from '../../common/utlis/pdf/playwright-pdf.util';
+import { RoomReportEngine } from './engines/room.engine';
+import { exportRoomOccupancyExcel } from './exporters/room.excel.exporter';
+import { resolveRoomSummaryReportCode } from './resolvers/room-report.resolver';
 
 @Injectable()
 export class ReportsPkgService {
@@ -397,11 +400,11 @@ export class ReportsPkgService {
         const totalDays =
           from && to
             ? Math.max(
-                1,
-                Math.ceil(
-                  (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
-                )
+              1,
+              Math.ceil(
+                (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
               )
+            )
             : 1;
 
         return {
@@ -413,8 +416,6 @@ export class ReportsPkgService {
       }),
 
     };
-
-
 
     console.log('[Guest Summary PDF Payload]', {
       templateName,
@@ -438,5 +439,118 @@ export class ReportsPkgService {
 
     return { filePath };
   }
+  
+  //================ ROOM SUMMARY====================
+  normalizeRoomReportExcelRequest(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const reportCode = resolveRoomSummaryReportCode(input.rangeType);
+
+    const { fromDate, toDate } = resolveDateRange(input.rangeType, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+
+    return {
+      reportCode,
+      fromDate,
+      toDate,
+      format: ReportFormat.EXCEL,
+    };
+  }
+  async fetchRoomOccupancyDataForExcel(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const normalized = this.normalizeRoomReportExcelRequest(input);
+
+    const engine = new RoomReportEngine(this.db);
+
+    const result = await engine.run(normalized.reportCode, {
+      fromDate: normalized.fromDate,
+      toDate: normalized.toDate,
+    });
+
+    const rows = Array.isArray(result) ? result : result?.rows ?? [];
+    console.log('[Room Summary Data Rows]', rows.length);
+    return { ...normalized, rows };
+  }
+
+  async generateRoomOccupancyExcel(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const result = await this.fetchRoomOccupancyDataForExcel(input);
+
+    const filePath = await exportRoomOccupancyExcel({
+      rows: result.rows,
+      fromDate: result.fromDate,
+      toDate: result.toDate,
+    });
+
+    return { filePath };
+  }
+  async generateRoomSummaryPdf(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const { fromDate, toDate } = resolveDateRange(input.rangeType, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+
+    const reportCode = resolveRoomSummaryReportCode(input.rangeType);
+
+    const engine = new RoomReportEngine(this.db);
+    const result = await engine.run(reportCode, { fromDate, toDate });
+
+    // ✅ normalize DB response
+    const rows = Array.isArray(result) ? result : result?.rows ?? [];
+
+    console.log('[Room Summary PDF Rows]', rows.length);
+
+    const payload = {
+      meta: {
+        title: 'GUEST-WISE ROOM & HOUSEKEEPING REPORT',
+        location: 'Raj Bhawan, Maharashtra',
+        reportId: `RB/GMS/ROOM/${Date.now()}`,
+        fromDate,
+        toDate,
+      },
+
+      rows: rows.map(r => ({
+        guest_name: r.guest_name ?? '',
+        room_no: r.room_no ?? '',
+        housekeeper: r.housekeeper ?? '',
+        cleaning_type: r.cleaning_type ?? '',
+        check_in_date: r.check_in_date,
+        check_out_date: r.check_out_date,
+        remarks: r.remarks ?? '',
+      })),
+    };
+
+    const templatePath = path.join(
+      process.cwd(),
+      'src',
+      'reports-pkg',
+      'templates',
+      'room',
+      'room-summary.hbs'
+    );
+
+    const filePath = await generatePdfFromTemplate({
+      templatePath,
+      outputFileName: `Room_Housekeeping_${Date.now()}`,
+      payload,
+    });
+
+    return { filePath };
+  }
+
 
 }

@@ -7,22 +7,17 @@ export const REPORT_CATALOG = [
       {
         code: ReportCode.GUEST_DAILY_SUMMARY,
         title: 'Daily Guest Summary',
-        description: 'Check-ins, check-outs, and current occupancy',
+        description: 'Guests present today with stay details',
       },
       {
         code: ReportCode.GUEST_WEEKLY_SUMMARY,
-        title: 'Weekly Guest Report',
-        description: 'Week-wise guest statistics and trends',
+        title: 'Weekly Guest Summary',
+        description: 'Guests present during the current week',
       },
       {
         code: ReportCode.GUEST_MONTHLY_SUMMARY,
-        title: 'Monthly Guest Report',
-        description: 'Monthly visitor analysis by department',
-      },
-      {
-        code: ReportCode.GUEST_CATEGORY_ANALYSIS,
-        title: 'Guest Category Analysis',
-        description: 'VIP, VVIP, and Official guest breakdown',
+        title: 'Monthly Guest Summary',
+        description: 'Guests present during the current month',
       },
     ],
   },
@@ -31,19 +26,19 @@ export const REPORT_CATALOG = [
     section: 'Room Reports',
     reports: [
       {
-        code: ReportCode.ROOM_OCCUPANCY_TRENDS,
-        title: 'Room Occupancy Trends',
-        description: 'Daily, weekly, and monthly occupancy rates',
+        code: ReportCode.ROOM_DAILY_SUMMARY,
+        title: 'Daily Room Summary',
+        description: 'Room occupancy status for today',
       },
       {
-        code: ReportCode.ROOM_UTILIZATION,
-        title: 'Room Utilization Report',
-        description: 'Room-wise usage statistics',
+        code: ReportCode.ROOM_WEEKLY_SUMMARY,
+        title: 'Weekly Room Summary',
+        description: 'Room usage across the current week',
       },
       {
-        code: ReportCode.HOUSEKEEPING_PERFORMANCE,
-        title: 'Housekeeping Performance',
-        description: 'Cleaning schedules and completion rates',
+        code: ReportCode.ROOM_MONTHLY_SUMMARY,
+        title: 'Monthly Room Summary',
+        description: 'Room occupancy for the current month',
       },
     ],
   },
@@ -52,67 +47,82 @@ export const REPORT_CATALOG = [
     section: 'Vehicle Reports',
     reports: [
       {
-        code: ReportCode.VEHICLE_USAGE,
-        title: 'Vehicle Usage Report',
-        description: 'Fleet utilization and trip statistics',
+        code: ReportCode.VEHICLE_DRIVER_DAILY_SUMMARY,
+        title: 'Daily Vehicle Summary',
+        description: 'Vehicle usage for today',
       },
       {
-        code: ReportCode.DRIVER_PERFORMANCE,
-        title: 'Driver Performance Report',
-        description: 'Driver duty hours and assignments',
+        code: ReportCode.VEHICLE_DRIVER_WEEKLY_SUMMARY,
+        title: 'Weekly Vehicle Summary',
+        description: 'Vehicle usage during the week',
       },
       {
-        code: ReportCode.FUEL_MAINTENANCE,
-        title: 'Fuel & Maintenance Report',
-        description: 'Vehicle service and expense tracking',
-      },
-    ],
-  },
-
-  {
-    section: 'Staff Reports',
-    reports: [
-      {
-        code: ReportCode.DUTY_PERFORMANCE,
-        title: 'Duty Performance Report',
-        description: 'Staff duty completion and compliance',
-      },
-      {
-        code: ReportCode.DEPARTMENT_WORKLOAD,
-        title: 'Department Workload',
-        description: 'Department-wise task distribution',
-      },
-      {
-        code: ReportCode.STAFF_RESPONSE_TIME,
-        title: 'Staff Response Time',
-        description: 'Average response time analysis',
+        code: ReportCode.VEHICLE_DRIVER_MONTHLY_SUMMARY,
+        title: 'Monthly Vehicle Summary',
+        description: 'Vehicle usage during the month',
       },
     ],
   },
 
   {
-    section: 'Notification Reports',
+    section: 'Driver Duty Reports',
     reports: [
       {
-        code: ReportCode.NOTIFICATION_LOGS,
-        title: 'Notification Logs',
-        description: 'Sent, delivered, and failed notifications',
+        code: ReportCode.DRIVER_DUTY_DAILY_SUMMARY,
+        title: 'Daily Driver Duty Summary',
+        description: 'Driver duty assignments for today',
       },
       {
-        code: ReportCode.COMMUNICATION_ANALYTICS,
-        title: 'Communication Analytics',
-        description: 'Channel-wise communication statistics',
+        code: ReportCode.DRIVER_DUTY_WEEKLY_SUMMARY,
+        title: 'Weekly Driver Duty Summary',
+        description: 'Driver duty assignments for the week',
+      },
+      {
+        code: ReportCode.DRIVER_DUTY_MONTHLY_SUMMARY,
+        title: 'Monthly Driver Duty Summary',
+        description: 'Driver duty assignments for the month',
       },
     ],
   },
 
   {
-    section: 'Food & Service Reports',
+    section: 'Food Service Reports',
     reports: [
       {
-        code: ReportCode.FOOD_SERVICE_UTILIZATION,
-        title: 'Food Service Utilization',
-        description: 'Food orders and service statistics',
+        code: ReportCode.FOOD_SERVICE_DAILY_SUMMARY,
+        title: 'Daily Food Service Summary',
+        description: 'Food services provided today',
+      },
+      {
+        code: ReportCode.FOOD_SERVICE_WEEKLY_SUMMARY,
+        title: 'Weekly Food Service Summary',
+        description: 'Food services during the week',
+      },
+      {
+        code: ReportCode.FOOD_SERVICE_MONTHLY_SUMMARY,
+        title: 'Monthly Food Service Summary',
+        description: 'Food services during the month',
+      },
+    ],
+  },
+
+  {
+    section: 'Network Reports',
+    reports: [
+      {
+        code: ReportCode.NETWORK_DAILY_SUMMARY,
+        title: 'Daily Network Summary',
+        description: 'Network usage for today',
+      },
+      {
+        code: ReportCode.NETWORK_WEEKLY_SUMMARY,
+        title: 'Weekly Network Summary',
+        description: 'Network usage during the week',
+      },
+      {
+        code: ReportCode.NETWORK_MONTHLY_SUMMARY,
+        title: 'Monthly Network Summary',
+        description: 'Network usage during the month',
       },
     ],
   },

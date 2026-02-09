@@ -7,7 +7,7 @@ export class FoodReportEngine {
     async run(reportCode: ReportCode, filters: any) {
         switch (reportCode) {
 
-            case ReportCode.FOOD_SERVICE_UTILIZATION:
+            case ReportCode.FOOD_SERVICE_DAILY_SUMMARY:
                 return this.foodServiceUtilization(filters);
 
             default:

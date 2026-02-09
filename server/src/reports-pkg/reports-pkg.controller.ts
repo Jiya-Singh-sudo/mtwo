@@ -4,10 +4,11 @@ import { ReportsPkgService } from './reports-pkg.service';
 import { ReportPreviewDto } from './dto/report-preview.dto';
 import { ReportGenerateDto } from './dto/report-generate.dto';
 import { normalizeRangeType } from './utils/range-normalizer.util';
+import type { Response } from 'express';
 
 @Controller('reports-pkg')
 export class ReportsPkgController {
-  constructor(private readonly service: ReportsPkgService) {}
+  constructor(private readonly service: ReportsPkgService) { }
 
   /* ---------- DASHBOARD METRICS ---------- */
   @Get('metrics')
@@ -110,4 +111,85 @@ export class ReportsPkgController {
       );
     }
   }
+  /* =====================================================
+   ROOM & HOUSEKEEPING – EXCEL -PDF
+  ===================================================== */
+
+  @Post('room-summary/excel')
+  async generateRoomSummaryExcel(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response,
+  ) {
+    try {
+      console.log('[Room Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Room Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateRoomOccupancyExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Room Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Room Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Room report generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+  @Post('room-summary/pdf')
+  async generateRoomSummaryPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateRoomSummaryPdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Room PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Room PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Room PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
 }
