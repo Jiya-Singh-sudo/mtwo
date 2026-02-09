@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { InfoPackageSearchDto } from './dto/info-package-search.dto';
 import { infoPackageTemplate } from './templates/info-package.template';
-import { generatePdfBuffer } from '../../common/utlis/pdf.utils';
+import { generatePdfBuffer } from '../../common/utlis/pdf/pdf.utils';
 import { sendWhatsappDocument } from '../../common/utlis/whatsapp.util';
 import { logInfoPackageAudit } from '../../common/utlis/info-package-audit.util';
 import { NotFoundException, BadRequestException } from '@nestjs/common';

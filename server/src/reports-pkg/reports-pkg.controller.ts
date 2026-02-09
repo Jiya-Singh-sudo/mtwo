@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Res, HttpException, HttpStatus } from '@nestjs/common';
+import express from 'express';
 import { ReportsPkgService } from './reports-pkg.service';
 import { ReportPreviewDto } from './dto/report-preview.dto';
 import { ReportGenerateDto } from './dto/report-generate.dto';
+import { normalizeRangeType } from './utils/range-normalizer.util';
 
 @Controller('reports-pkg')
 export class ReportsPkgController {
@@ -35,5 +37,77 @@ export class ReportsPkgController {
   @Get('history')
   history() {
     return this.service.getHistory();
+  }
+  /* ---------- GUSET SUMMARY EXCEL ---------- */
+  @Post('guest-summary/excel')
+  async generateGuestSummaryExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      console.log('[Guest Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Guest Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateGuestSummaryExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Guest Summary Excel Error:', error.message);
+      throw new HttpException(
+        error.message || 'Report generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+  /* ---------- GUEST SUMMARY PDF ---------- */
+  @Post('guest-summary/pdf')
+  async generateGuestSummaryPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response,
+  ) {
+    try {
+      const result =
+        await this.service.generateGuestSummaryPdf(body);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Guest Summary PDF',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Guest Summary PDF Error:', error);
+
+      throw new HttpException(
+        error.message || 'Guest Summary PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import { Pool } from 'pg';
 import { exportPdf } from '../exporters/pdf.exporter';
-import { exportExcel } from '../exporters/excel.exporter';
+import { exportGuestSummaryExcel } from '../exporters/excel.exporter';
 import { ReportCode } from '../registry/report.registry';
 import { GuestReportEngine } from '../engines/guest.engine';
 import { RoomReportEngine } from '../engines/room.engine';
@@ -72,7 +72,11 @@ export const reportWorker = new Worker(
             const filePath =
                 format === 'PDF'
                     ? await exportPdf(reportCode, data)
-                    : await exportExcel(reportCode, data);
+                    : await exportGuestSummaryExcel({
+                        rows: data,
+                        fromDate: filters.fromDate,
+                        toDate: filters.toDate,
+                    });
 
             await db.query(
                 `UPDATE t_report_jobs
