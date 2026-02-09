@@ -365,18 +365,21 @@ export function RoomManagement() {
       loadRooms(),              // refresh rooms
       loadAssignableGuests(),   // 🔥 refresh dropdown source
     ]);
+  } catch (err: any) {
+      if (err instanceof ZodError) {
+        const errors: Record<string, string> = {};
+        err.issues.forEach(i => {
+          errors[i.path.join(".")] = i.message;
+        });
+        setFormErrors(errors);
+        return;
+      }
+      const message =
+        err?.response?.data?.message ||
+        'Failed to assign guest due to a conflict';
+      setFormErrors({ guest: message });
+    }
   }
-    catch (err) {
-    if (err instanceof ZodError) {
-      const errors: Record<string, string> = {};
-      err.issues.forEach(i => {
-        errors[i.path.join(".")] = i.message;
-      });
-      setFormErrors(errors);
-      return;
-    }
-    }
-    }
 
   /* ================= OPEN ASSIGN MODAL ================= */
   async function openAssignRoomBoyModal(room: RoomRow) {

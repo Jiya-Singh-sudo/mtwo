@@ -8,8 +8,11 @@ export interface GuestFood {
 
   food_id: string;
   quantity: number;
+  meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+  plan_date: string;
+  food_stage: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
 
-  request_type: "Room-Service" | "Dine-In" | "Buffet" | "Takeaway" | "Other";
+
   delivery_status: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
 
   order_datetime: string;
@@ -34,8 +37,10 @@ export interface GuestFoodCreateDto {
 
   food_id: string;
   quantity?: number;
+  meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+  plan_date: string;
+  food_stage: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
 
-  request_type?: "Room-Service" | "Dine-In" | "Buffet" | "Takeaway" | "Other";
   delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
 
   order_datetime?: string;
@@ -45,12 +50,11 @@ export interface GuestFoodCreateDto {
 }
 
 export interface GuestFoodUpdateDto {
-  delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
-  delivered_datetime?: string;
+  meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+  plan_date: string;
+  food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
   remarks?: string;
 }
-
-
 
 export interface FoodDashboard {
   totalGuests: number;

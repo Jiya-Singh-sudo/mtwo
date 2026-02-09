@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Search, Pencil, AlertTriangle, XCircle } from "lucide-react";
 import "./FoodService.css";
-import { getFoodDashboard, getTodayGuestOrders, updateFoodStatus } from "@/api/guestFood.api";
+import { getFoodDashboard, getTodayGuestOrders, updateFoodStatus, createGuestFood, getTodayMealPlanOverview } from "@/api/guestFood.api";
 import { getActiveGuests } from "@/api/guest.api";
 import { FoodDashboard } from "../../../types/guestFood";
 import { ActiveGuestRow } from "@/types/guests";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
-import { createGuestButler, softDeleteGuestButler } from "@/api/guestButler.api";
+import { createGuestButler, softDeleteGuestButler, updateGuestButler } from "@/api/guestButler.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { Butler } from "@/types/butler";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -39,7 +39,10 @@ export type TodayGuestOrderRow = {
   food_name: string;
   food_type: string;
 
-  meal: "Breakfast" | "Lunch" | "Dinner";
+  meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+  plan_date: string;
+  food_stage: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
+
   delivery_status: string;
 
   order_datetime: string;
@@ -47,6 +50,7 @@ export type TodayGuestOrderRow = {
 
   butler_id?: string | null;
   butler_name?: string | null;
+  specialrequest?: string | null;
 };
 
 type GuestWithButler = ActiveGuestRow & {
@@ -56,12 +60,15 @@ type GuestWithButler = ActiveGuestRow & {
     guestButlerId?: string;
   };
 
-  foodItems: {
-    guest_food_id: string;
-    food_name: string;
-    food_type: string;
-    delivery_status: string;
-  }[];
+  foodItems: Record<
+    "Breakfast" | "Lunch" | "High Tea" | "Dinner",
+    {
+      guest_food_id: string;
+      food_name: string;
+      delivery_status: string;
+    }[]
+  >;
+
 
   foodStatus: "Served" | "Not Served";
   specialRequest?: string;
@@ -92,7 +99,7 @@ export function FoodService() {
 
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
-  const [_foodItems, setFoodItems] = useState<any[]>([]);
+  const [foodItems, setFoodItems] = useState<any[]>([]);
 
 
   const [menuModalOpen, setMenuModalOpen] = useState(false);
@@ -127,6 +134,47 @@ export function FoodService() {
     remarks: "",
   });
 
+  // function normalizeMealType(
+  //   meal: string | null | undefined
+  // ): "Breakfast" | "Lunch" | "High Tea" | "Dinner" | null {
+  //   if (!meal) return null;
+
+  //   switch (meal.trim().toLowerCase()) {
+  //     case "breakfast":
+  //       return "Breakfast";
+  //     case "lunch":
+  //       return "Lunch";
+  //     case "high tea":
+  //     case "hightea":
+  //     case "high_tea":
+  //       return "High Tea";
+  //     case "dinner":
+  //       return "Dinner";
+  //     default:
+  //       return null;
+  //   }
+  // }
+  function normalizeMealType(
+    meal?: string | null
+  ): "Breakfast" | "Lunch" | "High Tea" | "Dinner" | null {
+    if (!meal) return null;
+
+    switch (meal.trim().toLowerCase()) {
+      case "breakfast":
+        return "Breakfast";
+      case "lunch":
+        return "Lunch";
+      case "high tea":
+      case "hightea":
+      case "high_tea":
+        return "High Tea";
+      case "dinner":
+        return "Dinner";
+      default:
+        return null;
+    }
+  }
+
   /* ---------------- LOADERS ---------------- */
   async function loadFoodData() {
     try {
@@ -135,6 +183,16 @@ export function FoodService() {
     } catch (err) {
       console.error(err);
     }
+  }
+  async function loadTodayMealPlan() {
+    const data = await getTodayMealPlanOverview();
+
+    setDailyPlan({
+      breakfast: data.Breakfast ?? [],
+      lunch: data.Lunch ?? [],
+      highTea: data["High Tea"] ?? [],
+      dinner: data.Dinner ?? [],
+    });
   }
 
   async function loadGuests() {
@@ -154,25 +212,32 @@ export function FoodService() {
         const guest = guestMap.get(row.guest_id);
         if (!guest) continue;
 
-        // Food
-        guest.foodItems.push({
+        const mealKey = normalizeMealType(row.meal_type);
+        if (!mealKey) {
+          console.warn("Unknown meal_type:", row.meal_type);
+          continue;
+        }
+        guest.foodItems[mealKey].push({
           guest_food_id: row.guest_food_id,
           food_name: row.food_name,
-          food_type: row.food_type,
           delivery_status: row.delivery_status,
         });
 
-        if (row.delivery_status === "Delivered") {
+        if (row.food_stage === "DELIVERED") {
           guest.foodStatus = "Served";
         }
-
 
         // Butler (once)
         if (!guest.butler && row.butler_id) {
           guest.butler = {
             id: row.butler_id,
             name: row.butler_name,
+            guestButlerId: row.guest_butler_id,
           };
+        }
+        // ✅ SPECIAL REQUEST MERGE
+        if (row.specialrequest && !guest.specialRequest) {
+          guest.specialRequest = row.specialrequest;
         }
       }
 
@@ -191,10 +256,15 @@ export function FoodService() {
 
     return res.data.map((g: ActiveGuestRow) => ({
       ...g,
-      foodItems: [],
+      foodItems: {
+        Breakfast: [],
+        Lunch: [],
+        "High Tea": [],
+        Dinner: [],
+      },
       butler: undefined,
       foodStatus: "Not Served",
-      specialRequest: "",
+      specialRequest: undefined,
     }));
   }
 
@@ -232,6 +302,7 @@ export function FoodService() {
     loadFoodData();
     loadButlers();
     loadGuests(); // Now loading from getActiveGuests!
+    loadTodayMealPlan();
   }, []);
 
 
@@ -267,46 +338,53 @@ export function FoodService() {
 
 
   /* ---------------- BUTLER ASSIGNMENT ---------------- */
-  async function handleAssignButler(guestId: string, roomId: string | null | undefined, butlerId: string) {
+  async function handleAssignButler(
+    guestId: string,
+    roomId: string | null | undefined,
+    butlerId: string
+  ) {
+    const guest = guests.find(g => g.guest_id === guestId);
+
+    // 🚫 Guest already has a butler
+    if (guest?.butler?.guestButlerId) {
+      alert("This guest already has a butler assigned");
+      return;
+    }
+
     try {
-      await createGuestButler({
+      const res = await createGuestButler({
         guest_id: guestId,
         room_id: roomId ?? undefined,
         butler_id: butlerId,
-        // service_type: "Food",
-        // service_date: new Date().toISOString().split("T")[0],
       });
 
-      // Find the butler name
-      const butler = butlers.find(b => b.butler_id === butlerId);
-
-      // Update local state to show butler immediately
-      setGuests(prev => prev.map(g =>
-        g.guest_id === guestId
-          ? {
-            ...g,
-            butler: butler ? {
-              id: butler.butler_id,
-              name: butler.butler_name,
-              guestButlerId: undefined, // Will be set on reload
-            } : undefined
-          }
-          : g
-      ));
-
-      // Don't reload guests - backend doesn't return butler info with getActiveGuests
-      // Local state update above is sufficient
-    } catch (err) {
-      console.error("Failed to assign butler", err);
-      alert("Failed to assign butler");
+      setGuests(prev =>
+        prev.map(g =>
+          g.guest_id === guestId
+            ? {
+                ...g,
+                butler: {
+                  id: butlerId,
+                  name:
+                    butlers.find(b => b.butler_id === butlerId)?.butler_name ?? "",
+                  guestButlerId: res.guest_butler_id,
+                },
+              }
+            : g
+        )
+      );
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to assign butler");
     }
   }
+
 
   async function handleUnassignButler(guestButlerId: string) {
     if (!confirm("Unassign this butler from the guest?")) return;
     try {
       await softDeleteGuestButler(guestButlerId);
       await loadGuests();
+      await loadTodayMealPlan();
     } catch (err) {
       console.error("Failed to unassign butler", err);
       alert("Failed to unassign butler");
@@ -314,21 +392,52 @@ export function FoodService() {
   }
 
   /* ---------------- DAILY MEAL PLANNING (UI-ONLY) ---------------- */
-  async function handleAddMenuItem() {
+  // async function handleAddMenuItem() {
+  //   if (!menuInput.trim()) return;
+
+  //   await createMeal({
+  //     food_name: menuInput.trim(),
+  //     food_type: (
+  //       selectedMeal === "highTea"
+  //         ? "Veg"
+  //         : "Veg"
+  //     ) as "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg",
+  //   });
+
+  //   setMenuInput("");
+  //   const updated = await getActiveMeals();
+  //   setFoodItems(updated);
+  // }
+  // async function handleAddMenuItem() {
+  //   if (!menuInput.trim()) return;
+
+  //   // 1. Create master food item
+  //   await createMeal({
+  //     food_name: menuInput.trim(),
+  //     food_type: "Veg",
+  //   });
+
+  //   // 2. Update UI meal plan immediately
+  //   setDailyPlan((prev) => ({
+  //     ...prev,
+  //     [selectedMeal]: [...prev[selectedMeal], menuInput.trim()],
+  //   }));
+
+  //   // 3. Refresh food master list
+  //   const updated = await getActiveMeals();
+  //   setFoodItems(updated);
+
+  //   setMenuInput("");
+  // }
+  function handleAddMenuItem() {
     if (!menuInput.trim()) return;
 
-    await createMeal({
-      food_name: menuInput.trim(),
-      food_type: (
-        selectedMeal === "highTea"
-          ? "Veg"
-          : "Veg"
-      ) as "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg",
-    });
+    setDailyPlan((prev) => ({
+      ...prev,
+      [selectedMeal]: [...prev[selectedMeal], menuInput.trim()],
+    }));
 
     setMenuInput("");
-    const updated = await getActiveMeals();
-    setFoodItems(updated);
   }
 
   function handleRemoveMenuItem(meal: keyof DailyMealPlan, index: number) {
@@ -345,18 +454,20 @@ export function FoodService() {
   ) {
     try {
       await updateFoodStatus(guestFoodId, {
+        food_stage: status === "Served" ? "DELIVERED" : "ORDERED",
         delivery_status: status === "Served" ? "Delivered" : "Preparing",
         delivered_datetime:
           status === "Served" ? new Date().toISOString() : undefined,
       });
 
+
       await loadGuests();
+      await loadTodayMealPlan();
     } catch (err) {
       console.error("Failed to update food status", err);
       alert("Failed to update food status");
     }
   }
-
 
   function handleDeleteGuestPlan(guestId: string) {
     if (!confirm("Clear today's meal plan for this guest?")) return;
@@ -378,11 +489,20 @@ export function FoodService() {
     setSpecialReqModalOpen(true);
   }
 
-  function saveSpecialRequest() {
-    if (!activeGuestForRequest) return;
+  async function saveSpecialRequest() {
+    if (!activeGuestForRequest?.butler?.guestButlerId) {
+      alert("No butler assignment found");
+      return;
+    }
 
-    setGuests((prev) =>
-      prev.map((g) =>
+    await updateGuestButler(
+      activeGuestForRequest.butler.guestButlerId,
+      { specialRequest: specialReqText }
+    );
+
+    // 🔥 Update UI immediately
+    setGuests(prev =>
+      prev.map(g =>
         g.guest_id === activeGuestForRequest.guest_id
           ? { ...g, specialRequest: specialReqText }
           : g
@@ -390,8 +510,6 @@ export function FoodService() {
     );
 
     setSpecialReqModalOpen(false);
-    setActiveGuestForRequest(null);
-    setSpecialReqText("");
   }
 
   /* ---------------- DERIVED STATS (LIVE FROM UI STATE) ---------------- */
@@ -455,18 +573,6 @@ export function FoodService() {
       remarks: butler.remarks ?? "",
     });
     setButlerModalOpen(true);
-  }
-
-  async function removeButler(butler: Butler) {
-    if (!confirm(`Deactivate ${butler.butler_name}?`)) return;
-
-    try {
-      await softDeleteButler(butler.butler_id);
-      loadButlers();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete butler");
-    }
   }
 
   async function saveButler() {
@@ -591,12 +697,15 @@ export function FoodService() {
                 <button
                   className="iconBtn danger"
                   title="Mark not served"
-                  onClick={() =>
-                    onToggleFoodStatus(
-                      guest.foodItems[0].guest_food_id,
-                      "Not Served"
-                    )
-                  }
+                  onClick={() => {
+                    const latestFood = Object.values(guest.foodItems)
+                      .flat()
+                      .find(f => f.delivery_status !== 'Cancelled');
+
+                    if (!latestFood) return;
+
+                    onToggleFoodStatus(latestFood.guest_food_id, "Not Served");
+                  }}
                 >
                   <XCircle size={14} />
                 </button>
@@ -604,12 +713,15 @@ export function FoodService() {
                 <button
                   className="iconBtn success"
                   title="Mark served"
-                  onClick={() =>
-                    onToggleFoodStatus(
-                      guest.foodItems[0].guest_food_id,
-                      "Served"
-                    )
-                  }
+                  onClick={() => {
+                    const latestFood = Object.values(guest.foodItems)
+                      .flat()
+                      .find(f => f.delivery_status !== 'Cancelled');
+
+                    if (!latestFood) return;
+
+                    onToggleFoodStatus(latestFood.guest_food_id, "Served");
+                  }}
                 >
                   <CheckCircle size={14} />
                 </button>
@@ -641,18 +753,28 @@ export function FoodService() {
             <strong>Today's Food</strong>
           </div>
 
-          {!guest.foodItems || guest.foodItems.length === 0 ? (
+          {Object.values(guest.foodItems).every(items => items.length === 0) ? (
             <p className="emptyText">No food ordered yet</p>
           ) : (
             <ul className="menuList">
-              {guest.foodItems.map((f) => (
-                <li key={f.guest_food_id}>
-                  {f.food_name}
-                  <span className={`statusTag ${f.delivery_status}`}>
-                    {f.delivery_status}
-                  </span>
-                </li>
-              ))}
+              {Object.entries(guest.foodItems).map(([meal, items]) =>
+                items.length > 0 ? (
+                  <div key={meal} className="mealGroup">
+                    <span className="mealLabel">{meal}</span>
+                    <ul className="menuList">
+                      {items.map((f) => (
+                        <li key={f.guest_food_id}>
+                          {f.food_name}
+                          <span className={`statusTag ${f.delivery_status}`}>
+                            {f.delivery_status}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null
+              )}
+
             </ul>
           )}
         </div>
@@ -1313,7 +1435,39 @@ export function FoodService() {
             </div>
 
             <div className="nicModalActions">
-              <button className="saveBtn" onClick={() => setMenuModalOpen(false)}>
+              <button
+                className="saveBtn"
+                onClick={async () => {
+                  if (menuMode === "create") {
+                    setMenuModalOpen(false);
+                    return;
+                  }
+
+                  if (!activeGuestForEdit) return;
+
+                  for (const foodName of dailyPlan[selectedMeal]) {
+                    const food = foodItems.find((f: { food_id: string; food_name: string }) =>
+                      f.food_name === foodName
+                    );
+
+                    if (!food) continue;
+
+                    await createGuestFood({
+                      guest_id: activeGuestForEdit.guest_id,
+                      room_id: activeGuestForEdit.room_id ?? undefined,
+                      food_id: food.food_id,
+                      quantity: 1,
+                      meal_type: mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner",
+                      plan_date: new Date().toISOString().split("T")[0],
+                      food_stage: "PLANNED",
+                    });
+                  }
+
+                  await loadGuests();
+                  await loadTodayMealPlan();
+                  setMenuModalOpen(false);
+                }}
+              >
                 {menuMode === "create" ? "Save Plan" : "Save Changes"}
               </button>
             </div>

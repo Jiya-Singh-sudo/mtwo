@@ -38,6 +38,20 @@ export async function createGuestButler(
 //   );
 //   return res.data;
 // }
+export async function updateGuestButler(
+  guestButlerId: string,
+  data: { specialRequest?: string },
+  user = "system"
+) {
+  const res = await api.put(
+    `/guest-butler/${encodeURIComponent(guestButlerId)}`,
+    data,
+    {
+      headers: { "x-user": user },
+    }
+  );
+  return res.data;
+}
 
 // SOFT DELETE
 export async function softDeleteGuestButler(id: string, user = "system") {
