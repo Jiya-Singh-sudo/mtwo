@@ -25,20 +25,23 @@ export class GuestFoodService {
       SELECT COUNT(DISTINCT guest_id) AS count
       FROM t_guest_inout
       WHERE is_active = TRUE
-        AND status = 'Entered';
+        AND guest_inout = TRUE
+        AND exit_date IS NULL;
+
     `;
 
     const mealsServedSql = `
       SELECT COUNT(*) AS count
       FROM t_guest_food
-      WHERE delivery_status = 'Delivered'
-        AND DATE(order_datetime) = $1;
+      WHERE food_stage = 'DELIVERED'
+      AND plan_date = $1;
     `;
 
     const specialRequestsSql = `
       SELECT COUNT(*) AS count
-      FROM t_guest_food
-      WHERE request_type != 'Room-Service'
+      FROM t_guest_butler
+      WHERE specialrequest IS NOT NULL
+        AND TRIM(specialrequest) <> ''
         AND is_active = TRUE;
     `;
 
@@ -86,13 +89,14 @@ export class GuestFoodService {
           mi.food_type
         FROM t_guest_food gf
         JOIN m_food_items mi ON mi.food_id = gf.food_id
-        WHERE DATE(gf.order_datetime) = CURRENT_DATE
-          AND gf.order_datetime::time BETWEEN $1 AND $2
+        WHERE gf.plan_date = CURRENT_DATE
+          AND gf.food_stage IN ('ORDERED', 'DELIVERED')
+          AND gf.meal_type = $1
           AND gf.is_active = TRUE
-        GROUP BY mi.food_type;
+        GROUP BY mi.food_type
       `;
 
-      const res = await this.db.query(sql, [meal.start, meal.end]);
+      const res = await this.db.query(sql, [meal.name]);
 
       result.push({
         meal: meal.name,
@@ -108,8 +112,8 @@ export class GuestFoodService {
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
-      ? `SELECT * FROM t_guest_food WHERE is_active = $1 ORDER BY order_datetime DESC`
-      : `SELECT * FROM t_guest_food ORDER BY order_datetime DESC`;
+      ? `SELECT * FROM t_guest_food WHERE is_active = $1 ORDER BY plan_date DESC, meal_type`
+      : `SELECT * FROM t_guest_food ORDER BY plan_date DESC, meal_type`;
 
     const res = await this.db.query(sql, activeOnly ? [true] : []);
     return res.rows;
@@ -124,40 +128,56 @@ export class GuestFoodService {
   async create(dto: CreateGuestFoodDto, user: string, ip: string) {
     const id = await this.generateId();
     const now = new Date().toISOString();
-
     const sql = `
       INSERT INTO t_guest_food (
-        guest_food_id, guest_id, room_id,
-        food_id, quantity,
-        request_type, delivery_status,
-        order_datetime, delivered_datetime,
+        guest_food_id,
+        guest_id,
+        room_id,
+
+        food_id,
+        quantity,
+
+        meal_type,
+        plan_date,
+        food_stage,
+
+        delivery_status,
+
+        order_datetime,
+        delivered_datetime,
+
         remarks,
         is_active,
-        inserted_at, inserted_by, inserted_ip
+
+        inserted_at,
+        inserted_by,
+        inserted_ip
       )
       VALUES (
-        $1,$2,$3,
-        $4,$5,
-        $6,$7,
-        $8,$9,
-        $10,
-        true,
-        $11,$12,$13
+        $1, $2, $3,
+        $4, $5,
+        $6, $7, $8,
+        $9,
+        $10, $11,
+        $12, true,
+        $13, $14, $15
       )
       RETURNING *;
     `;
 
     const params = [
       id,
-
       dto.guest_id,
       dto.room_id ?? null,
 
       dto.food_id,
       dto.quantity,
 
-      dto.request_type ?? "Room-Service",
-      dto.delivery_status ?? "Requested",
+      dto.meal_type,
+      dto.plan_date ?? new Date().toISOString().split("T")[0],
+      dto.food_stage ?? "PLANNED",
+
+      dto.delivery_status ?? null,
 
       dto.order_datetime ?? null,
       dto.delivered_datetime ?? null,
@@ -184,16 +204,18 @@ export class GuestFoodService {
         room_id = $1,
         food_id = $2,
         quantity = $3,
-        request_type = $4,
-        delivery_status = $5,
-        order_datetime = $6,
-        delivered_datetime = $7,
-        remarks = $8,
-        is_active = $9,
-        updated_at = $10,
-        updated_by = $11,
-        updated_ip = $12
-      WHERE guest_food_id = $13
+        delivery_status = $4,
+        meal_type = $5,
+        plan_date = $6,
+        food_stage = $7,
+        order_datetime = $8,
+        delivered_datetime = $9,
+        remarks = $10,
+        is_active = $11,
+        updated_at = $12,
+        updated_by = $13,
+        updated_ip = $14
+      WHERE guest_food_id = $15
       RETURNING *;
     `;
 
@@ -201,8 +223,10 @@ export class GuestFoodService {
       dto.room_id ?? existing.room_id,
       dto.food_id ?? existing.food_id,
       dto.quantity ?? existing.quantity,
-      dto.request_type ?? existing.request_type,
       dto.delivery_status ?? existing.delivery_status,
+      dto.meal_type ?? existing.meal_type,
+      dto.plan_date ?? existing.plan_date,
+      dto.food_stage ?? existing.food_stage,
       dto.order_datetime ?? existing.order_datetime,
       dto.delivered_datetime ?? existing.delivered_datetime,
       dto.remarks ?? existing.remarks,
@@ -244,6 +268,9 @@ export class GuestFoodService {
         mi.food_name,
         mi.food_type,
         gf.delivery_status,
+        gf.meal_type,
+        gf.plan_date,
+        gf.food_stage,
 
         gb.guest_butler_id,
         b.butler_id,
@@ -258,7 +285,8 @@ export class GuestFoodService {
       LEFT JOIN t_guest_food gf
         ON gf.guest_id = g.guest_id
       AND gf.is_active = TRUE
-      AND DATE(gf.order_datetime) = CURRENT_DATE
+      AND gf.plan_date = CURRENT_DATE
+      AND gf.food_stage != 'CANCELLED'
 
       LEFT JOIN m_food_items mi
         ON mi.food_id = gf.food_id
@@ -271,12 +299,47 @@ export class GuestFoodService {
         ON b.butler_id = gb.butler_id
 
       WHERE gi.is_active = TRUE
+        AND gi.guest_inout = TRUE
         AND gi.status = 'Entered'
+        AND gi.exit_date IS NULL
 
-      ORDER BY g.guest_name, gf.order_datetime;
+      ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
     `;
 
     const res = await this.db.query(sql);
     return res.rows;
+  }
+  async getTodayMealPlanOverview() {
+    const sql = `
+      SELECT
+        gf.meal_type,
+        ARRAY_AGG(DISTINCT mi.food_name ORDER BY mi.food_name) AS items
+      FROM t_guest_food gf
+      JOIN m_food_items mi
+        ON mi.food_id = gf.food_id
+      WHERE gf.plan_date = CURRENT_DATE
+        AND gf.is_active = TRUE
+        AND gf.food_stage != 'CANCELLED'
+        AND gf.meal_type IS NOT NULL
+      GROUP BY gf.meal_type;
+    `;
+
+    const res = await this.db.query(sql);
+
+    // Normalize into fixed shape for frontend
+    const result = {
+      Breakfast: [] as string[],
+      Lunch: [] as string[],
+      "High Tea": [] as string[],
+      Dinner: [] as string[],
+    };
+
+    for (const row of res.rows) {
+      if (result[row.meal_type as keyof typeof result]) {
+        result[row.meal_type as keyof typeof result] = row.items ?? [];
+      }
+    }
+
+    return result;
   }
 }

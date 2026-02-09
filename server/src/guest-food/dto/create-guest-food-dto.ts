@@ -23,21 +23,43 @@ export class CreateGuestFoodDto {
   @IsInt()
   @Min(1)
   quantity: number;
+  
+  @IsOptional()
+  @IsIn([
+    'PLANNED',
+    'ORDERED',
+    'DELIVERED',
+    'CANCELLED',
+  ])
+  food_stage?: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
 
   @IsOptional()
   @IsIn([
-    'Room-Service',
-    'Dine-In',
-    'Buffet',
-    'Takeaway',
-    'Other',
+    'Breakfast',
+    'Lunch',
+    'High Tea',
+    'Dinner',
   ])
-  request_type?:
-    | 'Room-Service'
-    | 'Dine-In'
-    | 'Buffet'
-    | 'Takeaway'
-    | 'Other';
+  meal_type?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
+
+  @IsOptional()
+  @IsString()
+  plan_date?: string;
+
+  // @IsOptional()
+  // @IsIn([
+  //   'Room-Service',
+  //   'Dine-In',
+  //   'Buffet',
+  //   'Takeaway',
+  //   'Other',
+  // ])
+  // request_type?:
+  //   | 'Room-Service'
+  //   | 'Dine-In'
+  //   | 'Buffet'
+  //   | 'Takeaway'
+  //   | 'Other';
 
   @IsOptional()
   @IsIn([

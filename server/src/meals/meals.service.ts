@@ -6,6 +6,16 @@ import { UpdateMealDto } from './dto/update-meals.dto';
 @Injectable()
 export class MealsService {
   constructor(private readonly db: DatabaseService) {}
+  // private async generateFoodId(): Promise<string> {
+  //   const res = await this.db.query(
+  //     `SELECT food_id FROM m_food_items ORDER BY food_id DESC LIMIT 1`
+  //   );
+
+  //   if (res.rows.length === 0) return "F001";
+
+  //   const last = res.rows[0].food_id.replace("F", "");
+  //   return `F${(Number(last) + 1).toString().padStart(3, "0")}`;
+  // }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -28,29 +38,71 @@ export class MealsService {
     return result.rows[0];
   }
 
+//   async create(dto: CreateMealDto, user: string, ip: string) {
+//     const now = new Date()
+//       .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
+//       .replace(',', '');
+
+//     const foodId = await this.generateFoodId();
+
+//     const sql = `
+//       INSERT INTO m_food_items (
+//         food_id,
+//         food_name,
+//         food_desc,
+//         food_type,
+//         is_active,
+//         inserted_at, inserted_by, inserted_ip,
+//         updated_at, updated_by, updated_ip
+//       )
+//       VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,NULL,NULL,NULL)
+//       RETURNING *;
+//     `;
+
+// const params = [
+//   foodId,
+//   dto.food_name,
+//   dto.food_desc ?? null,
+//   dto.food_type,
+//   now,
+//   user,
+//   ip,
+// ];
+
+
+//     const result = await this.db.query(sql, params);
+//     return result.rows[0];
+//   }
   async create(dto: CreateMealDto, user: string, ip: string) {
     const now = new Date()
-      .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      .replace(',', '');
+      .toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour12: false })
+      .replace(",", "");
 
+    // ✅ 1. Check for existing food by name (because UNIQUE constraint exists)
+    const existing = await this.findOneByName(dto.food_name.trim());
+    if (existing) {
+      return existing; // ⬅️ IMPORTANT: do NOT insert again
+    }
+
+    // ✅ 2. Insert without food_id (Postgres generates it)
     const sql = `
       INSERT INTO m_food_items (
         food_name,
         food_desc,
         food_type,
         is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
+        inserted_at,
+        inserted_by,
+        inserted_ip
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,NULL,NULL)
+      VALUES ($1, $2, $3, TRUE, $4, $5, $6)
       RETURNING *;
     `;
 
     const params = [
-      dto.food_name,
+      dto.food_name.trim(),
       dto.food_desc ?? null,
       dto.food_type,
-      true,
       now,
       user,
       ip,
@@ -59,6 +111,7 @@ export class MealsService {
     const result = await this.db.query(sql, params);
     return result.rows[0];
   }
+
 
   async update(name: string, dto: UpdateMealDto, user: string, ip: string) {
     const existing = await this.findOneByName(name);

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestButlerDto } from "./dto/create-guest-butler.dto";
 import { UpdateGuestButlerDto } from "./dto/update-guest-butler.dto";
@@ -35,6 +35,20 @@ export class GuestButlerService {
   }
 
   async create(dto: CreateGuestButlerDto, user: string, ip: string) {
+    const existingSql = `
+      SELECT guest_butler_id
+      FROM t_guest_butler
+      WHERE guest_id = $1
+        AND is_active = TRUE
+    `;
+    const existingRes = await this.db.query(existingSql, [dto.guest_id]);
+
+    if (existingRes.rows.length > 0) {
+      throw new BadRequestException(
+        "This guest already has a butler assigned"
+      );
+    }
+
     // 🔒 ENFORCE BUTLER CAPACITY (MAX 3)
     const countSql = `
       SELECT COUNT(*) AS count
@@ -44,7 +58,9 @@ export class GuestButlerService {
     const countRes = await this.db.query(countSql, [dto.butler_id]);
 
     if (Number(countRes.rows[0].count) >= 3) {
-      throw new Error("Butler already assigned to 3 active guests");
+      throw new BadRequestException(
+        "Butler already assigned to 3 active guests"
+      );
     }
 
     const id = await this.generateId();
@@ -184,6 +200,36 @@ export class GuestButlerService {
   //   const res = await this.db.query(sql, params);
   //   return res.rows[0];
   // }
+  async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
+    const existing = await this.findOne(id);
+    if (!existing) {
+      throw new Error(`Guest-Butler assignment '${id}' not found`);
+    }
+
+    const now = new Date().toISOString();
+
+    const sql = `
+      UPDATE t_guest_butler
+      SET
+        specialrequest = $1,
+        updated_at = $2,
+        updated_by = $3,
+        updated_ip = $4
+      WHERE guest_butler_id = $5
+      RETURNING *;
+    `;
+
+    const params = [
+      dto.specialRequest ?? existing.specialrequest,
+      now,
+      user,
+      ip,
+      id,
+    ];
+
+    const res = await this.db.query(sql, params);
+    return res.rows[0];
+  }
 
   async softDelete(id: string, user: string, ip: string) {
     const now = new Date().toISOString();

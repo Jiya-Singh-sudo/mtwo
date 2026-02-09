@@ -27,7 +27,10 @@ export class GuestFoodController {
     return this.service.getTodaySchedule();
   }
 
-
+@Get("plan/today")
+getTodayMealPlanOverview() {
+  return this.service.getTodayMealPlanOverview();
+}
 
   @Get()
   getActive() {
