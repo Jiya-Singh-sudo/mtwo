@@ -25,8 +25,6 @@ export function toDateInputValue(value?: string | null): string {
   return value;
 }
 
-
-
 export function to24Hour(
   hour: number,
   minute: string,

@@ -1,273 +1,349 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Download, FileText, TrendingUp, Eye } from 'lucide-react';
-
-import {
-  getDashboardMetrics,
-  getReportCatalog,
-  previewReport,
-  generateReport,
-  getReportHistory,
-} from '@/api/reportsPkg.api';
-
-import {
-  ReportCode,
-  ReportFormat,
-  DashboardMetrics,
-  GeneratedReport,
-} from '@/types/reports.types';
-
-import { ReportPreviewModal } from './ReportPreviewModal';
-import { RoomOccupancyChart } from './charts/RoomOccupancyChart';
-import { VehicleUsageChart } from './charts/VehicleUsageChart';
-import { TrendLineChart } from './charts/TrendLineChart';
-import { getDateRange } from '@/utils/dateRange';
+import { useState } from 'react';
+import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble } from 'lucide-react';
+import { downloadGuestSummaryExcel, downloadGuestSummaryPdf } from '@/api/reportsPkg.api';
 
 export function Reports() {
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [catalog, setCatalog] = useState<any[]>([]);
-  const [history, setHistory] = useState<GeneratedReport[]>([]);
-
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewTitle, setPreviewTitle] = useState('');
-  const [previewData, setPreviewData] = useState<any[]>([]);
-
-  const [roomChart, setRoomChart] = useState<any[]>([]);
-  const [vehicleChart, setVehicleChart] = useState<any[]>([]);
-  const [roomTrend, setRoomTrend] = useState<any[]>([]);
-
-  const [dateRange, setDateRange] = useState<'Today' | 'This Week' | 'This Month'>('Today');
-
-  /* ================= DERIVED FLAGS ================= */
-  const hasRoomData = roomChart.length > 0;
-  const hasVehicleData = vehicleChart.length > 0;
-  const hasTrendData = roomTrend.length > 0;
-
-  /* ================= INITIAL LOAD ================= */
-
-  useEffect(() => {
-    (async () => {
-      const [m, c, h] = await Promise.all([
-        getDashboardMetrics(),
-        getReportCatalog(),
-        getReportHistory(),
-      ]);
-      setMetrics(m);
-      setCatalog(c);
-      setHistory(h);
-    })();
-  }, []);
-
-  /* ================= DATE-AWARE LOADERS ================= */
-
-  const loadCharts = useCallback(async () => {
-    const { fromDate, toDate } = getDateRange(dateRange);
-
-    const [rooms, vehicles, trend] = await Promise.all([
-      previewReport({ reportCode: ReportCode.ROOM_OCCUPANCY, fromDate, toDate }),
-      previewReport({ reportCode: ReportCode.VEHICLE_USAGE, fromDate, toDate }),
-      previewReport({ reportCode: ReportCode.ROOM_OCCUPANCY_TREND, fromDate, toDate }),
-    ]);
-
-    setRoomChart(Array.isArray(rooms) ? rooms : []);
-    setVehicleChart(Array.isArray(vehicles) ? vehicles : []);
-    setRoomTrend(Array.isArray(trend) ? trend : []);
-  }, [dateRange]);
-
-  useEffect(() => {
-    loadCharts();
-  }, [loadCharts]);
-
-  /* ================= ACTIONS ================= */
-
-  async function handlePreview(code: ReportCode, title: string) {
-    const { fromDate, toDate } = getDateRange(dateRange);
-    const data = await previewReport({ reportCode: code, fromDate, toDate });
-    setPreviewTitle(title);
-    setPreviewData(Array.isArray(data) ? data : []);
-    setPreviewOpen(true);
-  }
-
-  async function handleGenerate(code: ReportCode, format: ReportFormat) {
-    const res = await generateReport({ reportCode: code, format });
-
-    if (!res.filePath) return;
-
-    window.open(res.filePath);
-    setHistory(await getReportHistory());
-  }
-
-  /* ================= UI ================= */
+  const [globalRange, setGlobalRange] = useState('Today');
+ 
+  // Configuration for all report sections
+  const reportSections = [
+    {
+      id: 'guest',
+      title: 'Guest Summary Report',
+      category: 'Guest Reports',
+      description: 'Daily, Weekly, Monthly guest statistics and occupancy analysis',
+      icon: Users
+    },
+    {
+      id: 'room',
+      title: 'Room & Housekeeping Report',
+      category: 'Room & Housekeeping Reports',
+      description: 'Room utilization, occupancy trends, and housekeeping performance',
+      icon: BedDouble
+    },
+    {
+      id: 'vehicle',
+      title: 'Vehicle & Driver Report',
+      category: 'Vehicle & Driver Reports',
+      description: 'Vehicle usage logs, fuel consumption, and driver duty records',
+      icon: Car
+    },
+    {
+      id: 'food',
+      title: 'Food Service Report',
+      category: 'Food Service Reports',
+      description: 'Kitchen inventory, meal orders, and catering summaries',
+      icon: Utensils
+    },
+    {
+      id: 'network',
+      title: 'Network Report',
+      category: 'Network Reports',
+      description: 'Wi-Fi usage, downtime logs, and bandwidth analysis',
+      icon: Wifi
+    }
+  ];
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+      {/* Header */}
       <div>
-        <h2 className="text-[#00247D]">Reports & Analytics</h2>
-        <p className="text-sm text-gray-600">
-          रिपोर्ट और विश्लेषण – Generate comprehensive reports and analytics
-        </p>
+        <h2 className="text-[#00247D] text-2xl font-bold">Reports & Analytics</h2>
+        <p className="text-sm text-gray-600">रिपोर्ट और विश्लेषण - Generate comprehensive reports and analytics</p>
       </div>
 
-      {/* METRICS */}
+      {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Stat label="Occupancy Rate" value={`${metrics?.occupancyRate ?? 0}%`} color="blue" />
-        <Stat label="Vehicle Utilization" value={`${metrics?.vehicleUtilization ?? 0}%`} color="green" />
-        <Stat label="Staff Efficiency" value={`${metrics?.staffEfficiency ?? 0}%`} color="purple" />
-        <Stat label="Guest Satisfaction" value={`${metrics?.guestSatisfaction ?? 0}%`} color="orange" />
+        <div className="bg-white border-2 border-blue-200 rounded-sm p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-blue-600" />
+            <div>
+              <p className="text-sm text-gray-600 font-medium">Occupancy Rate</p>
+              <p className="text-3xl font-bold text-blue-600">70%</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border-2 border-green-200 rounded-sm p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-green-600" />
+            <div>
+              <p className="text-sm text-gray-600 font-medium">Vehicle Utilization</p>
+              <p className="text-3xl font-bold text-green-600">53%</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border-2 border-purple-200 rounded-sm p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-purple-600" />
+            <div>
+              <p className="text-sm text-gray-600 font-medium">Staff Efficiency</p>
+              <p className="text-3xl font-bold text-purple-600">85%</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border-2 border-orange-200 rounded-sm p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-10 h-10 text-orange-600" />
+            <div>
+              <p className="text-sm text-gray-600 font-medium">Guest Satisfaction</p>
+              <p className="text-3xl font-bold text-orange-600">92%</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* DATE FILTER */}
-      <div className="flex gap-2">
-        {(['Today', 'This Week', 'This Month'] as const).map((r) => (
-          <button
-            key={r}
-            onClick={() => setDateRange(r)}
-            className={`px-4 py-2 border rounded-sm ${dateRange === r
-              ? 'bg-[#00247D] text-white border-[#00247D]'
-              : 'bg-white hover:bg-gray-50'
-              }`}
-          >
-            {r}
-          </button>
+      {/* Global Report Generator */}
+      <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm">
+        <h3 className="text-[#00247D] text-lg font-semibold mb-4 border-b pb-2 border-gray-100">Generate Custom Report</h3>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+            <select className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]">
+              <option>Guest Summary</option>
+              <option>Room Occupancy</option>
+              <option>Vehicle Usage</option>
+              <option>Duty Performance</option>
+              <option>Financial Summary</option>
+            </select>
+          </div>
+         
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+            <select
+              value={globalRange}
+              onChange={(e) => setGlobalRange(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+            >
+              <option value="Today">Today</option>
+              <option value="This Week">This Week</option>
+              <option value="This Month">This Month</option>
+              <option value="Last Month">Last Month</option>
+              <option value="Custom Range">Custom Range</option>
+            </select>
+          </div>
+
+          {globalRange === 'Custom Range' && (
+            <div className="md:col-span-4 grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+              </div>
+            </div>
+          )}
+
+          <div className={globalRange === 'Custom Range' ? "md:col-span-2" : "md:col-span-3"}>
+             <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+             <select className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]">
+               <option>PDF</option>
+               <option>Excel (XLSX)</option>
+               <option>CSV</option>
+             </select>
+          </div>
+
+          <div className="md:col-span-3">
+            <button className="w-full px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 font-medium">
+              <Download className="w-4 h-4" />
+              Generate
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Available Reports - Consolidated Sections */}
+      <div className="space-y-6">
+        {reportSections.map((section) => (
+          <ReportSection key={section.id} section={section} />
         ))}
       </div>
 
-      {/* CHARTS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <RoomOccupancyChart data={roomChart} />
-        <VehicleUsageChart data={vehicleChart} />
-      </div>
-
-      {/* TREND */}
-      <div className="bg-white border rounded-sm p-6">
-        <h3 className="text-[#00247D] mb-4">Room Occupancy Trend</h3>
-        {hasTrendData ? (
-          <TrendLineChart data={roomTrend} label="Rooms Occupied" />
-        ) : (
-          <p className="text-gray-500 text-sm">No trend data available</p>
-        )}
-      </div>
-
-      {/* CATALOG */}
-      {Array.isArray(catalog) && catalog.map((section, i) => (
-        <div key={i} className="bg-white border rounded-sm">
-          <div className="border-b px-6 py-4 bg-gray-50">
-            <h3 className="text-[#00247D]">{section.category}</h3>
-          </div>
-
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.isArray(section.reports) && section.reports.map((r: any) => (
-              <div key={r.code} className="border rounded-sm p-4">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-[#00247D]/10 flex items-center justify-center">
-                    <FileText className="text-[#00247D]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{r.title}</p>
-                    <p className="text-sm text-gray-600 mb-3">{r.description}</p>
-
-                    <div className="flex gap-2">
-                      <button
-                        disabled={
-                          (r.code === ReportCode.ROOM_OCCUPANCY && !hasRoomData) ||
-                          (r.code === ReportCode.VEHICLE_USAGE && !hasVehicleData) ||
-                          (r.code === ReportCode.ROOM_OCCUPANCY_TREND && !hasTrendData)
-                        }
-                        onClick={() => handleGenerate(r.code, ReportFormat.PDF)}
-                        className="bg-[#00247D] text-white px-3 py-1.5 text-sm rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Download size={12} /> PDF
-                      </button>
-
-                      <button
-                        disabled={
-                          (r.code === ReportCode.ROOM_OCCUPANCY && !hasRoomData) ||
-                          (r.code === ReportCode.VEHICLE_USAGE && !hasVehicleData) ||
-                          (r.code === ReportCode.ROOM_OCCUPANCY_TREND && !hasTrendData)
-                        }
-                        onClick={() => handleGenerate(r.code, ReportFormat.EXCEL)}
-                        className="bg-green-600 text-white px-3 py-1.5 text-sm rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Download size={12} /> Excel
-                      </button>
-
-                      <button
-                        onClick={() => handlePreview(r.code, r.title)}
-                        className="border px-3 py-1.5 text-sm rounded-sm"
-                      >
-                        <Eye size={12} /> View
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Recent Reports Table */}
+      <div className="bg-white border border-gray-200 rounded-sm shadow-sm">
+        <div className="border-b border-gray-200 px-6 py-4 bg-gray-50">
+          <h3 className="text-[#00247D] font-semibold">Recently Generated Reports</h3>
         </div>
-      ))}
-
-      {/* HISTORY */}
-      <div className="bg-white border rounded-sm">
-        <div className="border-b px-6 py-4">
-          <h3 className="text-[#00247D]">Recently Generated Reports</h3>
-        </div>
-
-        <table className="w-full">
-          <thead className="bg-[#F5A623] text-white">
-            <tr>
-              <th className="px-6 py-3 text-left">Report</th>
-              <th className="px-6 py-3 text-left">Type</th>
-              <th className="px-6 py-3 text-left">Generated On</th>
-              <th className="px-6 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.isArray(history) && history.map((r) => (
-              <tr key={r.report_id} className="border-t">
-                <td className="px-6 py-3">{r.report_name}</td>
-                <td className="px-6 py-3">{r.report_type}</td>
-                <td className="px-6 py-3">{new Date(r.generated_at).toLocaleString()}</td>
-                <td className="px-6 py-3">
-                  <button
-                    className="text-blue-600"
-                    onClick={() => window.open(r.file_path)}
-                  >
-                    Download
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated On</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              <tr className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">Monthly Guest Summary - November 2025</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Guest Report</td>
+                <td className="px-6 py-4 text-sm text-gray-700">2025-12-01 10:30 AM</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Admin User</td>
+                <td className="px-6 py-4">
+                  <button className="text-[#00247D] hover:text-blue-900 text-sm font-medium flex items-center gap-1">
+                    <Download className="w-4 h-4" /> Download
                   </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+              <tr className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">Vehicle Usage Report - Week 48</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Vehicle Report</td>
+                <td className="px-6 py-4 text-sm text-gray-700">2025-12-03 02:15 PM</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Admin User</td>
+                <td className="px-6 py-4">
+                  <button className="text-[#00247D] hover:text-blue-900 text-sm font-medium flex items-center gap-1">
+                    <Download className="w-4 h-4" /> Download
+                  </button>
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm text-gray-900 font-medium">Room Occupancy Trends - November</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Room Report</td>
+                <td className="px-6 py-4 text-sm text-gray-700">2025-12-05 09:00 AM</td>
+                <td className="px-6 py-4 text-sm text-gray-700">Admin User</td>
+                <td className="px-6 py-4">
+                  <button className="text-[#00247D] hover:text-blue-900 text-sm font-medium flex items-center gap-1">
+                    <Download className="w-4 h-4" /> Download
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      <ReportPreviewModal
-        open={previewOpen}
-        title={previewTitle}
-        data={previewData}
-        onClose={() => setPreviewOpen(false)}
-      />
     </div>
   );
 }
 
-/* ================= STAT CARD ================= */
+function ReportSection({ section }: { section: any }) {
+  const [range, setRange] = useState('Daily');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-function Stat({ label, value, color }: any) {
-  const map: any = {
-    blue: 'text-blue-600 border-blue-200',
-    green: 'text-green-600 border-green-200',
-    purple: 'text-purple-600 border-purple-200',
-    orange: 'text-orange-600 border-orange-200',
-  };
-
+ 
   return (
-    <div className={`bg-white border-2 ${map[color]} rounded-sm p-6`}>
-      <div className="flex items-center gap-3">
-        <TrendingUp className={map[color].split(' ')[0]} />
+    <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
+      <div className="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
+        <div className="p-2 bg-[#00247D] bg-opacity-10 rounded-sm">
+          <section.icon className="w-5 h-5 text-[#00247D]" />
+        </div>
         <div>
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className={`text-3xl ${map[color].split(' ')[0]}`}>{value}</p>
+          <h3 className="text-[#00247D] font-semibold text-lg">{section.category}</h3>
+          <p className="text-xs text-gray-500">Report Generation Module</p>
+        </div>
+      </div>
+     
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+          {/* Info Column */}
+          <div className="md:col-span-12 lg:col-span-3">
+             <h4 className="font-medium text-gray-900 mb-1">{section.title}</h4>
+             <p className="text-sm text-gray-500">{section.description}</p>
+          </div>
+
+          {/* Controls Column */}
+          <div className="md:col-span-12 lg:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+           
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Range Type</label>
+              <select
+                value={range}
+                onChange={(e) => setRange(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              >
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Custom Range">Custom Range</option>
+              </select>
+            </div>
+
+            {range === 'Custom Range' ? (
+              <>
+                <div className="md:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+                </div>
+              </>
+            ) : (
+              // Spacer or alternative inputs for standard ranges could go here, but for now we keep it clean
+              <div className="md:col-span-6 flex items-center text-sm text-gray-500 italic pb-3">
+                {range === 'Daily' && 'Generates report for today'}
+                {range === 'Weekly' && 'Generates report for current week'}
+                {range === 'Monthly' && 'Generates report for current month'}
+              </div>
+            )}
+
+            <div className="md:col-span-3 flex gap-2">
+               <button 
+                  className="flex-1 px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() => {
+                    if (section.id !== 'guest') return;
+
+                    if (range === 'Custom Range') {
+                      if (!startDate || !endDate) {
+                        alert('Please select start and end dates');
+                        return;
+                      }
+
+                      downloadGuestSummaryPdf({
+                        rangeType: range,
+                        startDate: range == 'Custom Range' ? startDate : undefined,
+                        endDate: range == 'Custom Range' ? endDate : undefined,
+                      });
+                    } else {
+                      downloadGuestSummaryPdf({
+                        rangeType: range,
+                      });
+                    }
+                  }}>
+                 <Download className="w-4 h-4" />
+                 PDF
+               </button>
+               <button 
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() => {
+                    if (section.id !== 'guest') return;
+
+                    if (range === 'Custom Range') {
+                      if (!startDate || !endDate) {
+                        alert('Please select start and end dates');
+                        return;
+                      }
+
+                      downloadGuestSummaryExcel({
+                        rangeType: range,
+                        startDate: range == 'Custom Range' ? startDate : undefined,
+                        endDate: range == 'Custom Range' ? endDate : undefined,
+                      });
+                    } else {
+                      downloadGuestSummaryExcel({
+                        rangeType: range,
+                      });
+                    }
+                  }}
+                  >
+                 <FileText className="w-4 h-4" />
+                 Excel
+               </button>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
