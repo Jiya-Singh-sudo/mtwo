@@ -209,8 +209,7 @@ export class AuthService {
 
     // ✅ Load permissions
     const permissions = await this.loadPermissions(user.role_id);
-    console.log(typeof dto.password, dto.password);
-
+    // console.log(typeof dto.password, dto.password);
 
     // ✅ JWT payload
     const payload = {
