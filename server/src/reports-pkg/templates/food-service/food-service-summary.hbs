@@ -1,0 +1,33 @@
+<h1 style="text-align:center">FOOD SERVICE TRANSACTION REPORT</h1>
+<p style="text-align:center">
+  Period: {{ddmmyyyy meta.fromDate}} – {{ddmmyyyy meta.toDate}}
+</p>
+
+<table width="100%" border="1" cellspacing="0" cellpadding="4">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Guest</th>
+      <th>Room</th>
+      <th>Butler</th>
+      <th>Food</th>
+      <th>Meal</th>
+      <th>Qty</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each rows}}
+    <tr>
+      <td>{{ddmmyyyy plan_date}}</td>
+      <td>{{guest_name}}</td>
+      <td>{{room_id}}</td>
+      <td>{{butler_name}}</td>
+      <td>{{food_name}}</td>
+      <td>{{meal_type}}</td>
+      <td>{{quantity}}</td>
+      <td>{{delivery_status}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>

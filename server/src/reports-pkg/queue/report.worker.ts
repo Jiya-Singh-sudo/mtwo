@@ -5,8 +5,8 @@ import { exportGuestSummaryExcel } from '../exporters/guest.excel.exporter';
 import { ReportCode } from '../registry/report.registry';
 import { GuestReportEngine } from '../engines/guest.engine';
 import { RoomReportEngine } from '../engines/room.engine';
-import { VehicleReportEngine } from '../engines/vehicle.engine';
-import { FoodReportEngine } from '../engines/food.engine';
+import { VehicleDriverReportEngine } from '../engines/vehicle-driver.engine';
+import { FoodServiceReportEngine } from '../engines/food-service.engine';
 
 /* Standalone Pool for worker (outside NestJS DI context) */
 const pool = new Pool({
@@ -48,11 +48,11 @@ export const reportWorker = new Worker(
                     break;
 
                 case reportCode.startsWith('VEHICLE_'):
-                    data = await new VehicleReportEngine(db).run(reportCode, filters);
+                    data = await new VehicleDriverReportEngine(db).run(reportCode, filters);
                     break;
 
                 case reportCode.startsWith('FOOD_'):
-                    data = await new FoodReportEngine(db).run(reportCode, filters);
+                    data = await new FoodServiceReportEngine(db).run(reportCode, filters);
                     break;
 
                 default:

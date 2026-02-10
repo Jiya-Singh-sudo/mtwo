@@ -191,5 +191,314 @@ export class ReportsPkgController {
       );
     }
   }
+  /* ---------- VEHICLE & DRIVER TRANSACTION EXCEL ---------- */
+  @Post('vehicle-driver/excel')
+  async generateVehicleDriverExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      console.log('[Vehicle Driver Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Vehicle Driver Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateVehicleDriverExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Vehicle & Driver Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Vehicle Driver Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Vehicle & Driver Excel generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+  /* ---------- VEHICLE & DRIVER TRANSACTION PDF ---------- */
+  @Post('vehicle-driver/pdf')
+  async generateVehicleDriverPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateVehicleDriverPdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Vehicle & Driver PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Vehicle Driver PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Vehicle & Driver PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+  /* ---------- FOOD SERVICE TRANSACTION EXCEL ---------- */
+  @Post('food-service/excel')
+  async generateFoodServiceExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      console.log('[Food Service Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Food Service Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateFoodServiceExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Food Service Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Food Service Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Food Service Excel generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+  /* ---------- FOOD SERVICE TRANSACTION PDF ---------- */
+  @Post('food-service/pdf')
+  async generateFoodServicePdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateFoodServicePdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Food Service PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Food Service PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Food Service PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+  /* ---------- NETWORK TRANSACTION EXCEL ---------- */
+  @Post('network/excel')
+  async generateNetworkExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      console.log('[Network Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Network Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateNetworkExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Network Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Network Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Network Excel generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+  /* ---------- NETWORK TRANSACTION PDF ---------- */
+  @Post('network/pdf')
+  async generateNetworkPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateNetworkPdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Network PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Network PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Network PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+  /* ---------- DRIVER DUTY TRANSACTION EXCEL ---------- */
+  @Post('driver-duty/excel')
+  async generateDriverDutyExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateDriverDutyExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Driver Duty Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Driver Duty Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Driver Duty Excel generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  /* ---------- DRIVER DUTY TRANSACTION PDF ---------- */
+  @Post('driver-duty/pdf')
+  async generateDriverDutyPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateDriverDutyPdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Driver Duty PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error) {
+      console.error('Driver Duty PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Driver Duty PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
 
 }

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{{meta.title}}</title>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      margin: 30px;
+      color: #000;
+    }
+    h1, h2, h3 {
+      text-align: center;
+      margin: 4px 0;
+    }
+    .meta {
+      margin: 20px 0;
+      font-size: 11px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      vertical-align: top;
+    }
+    th {
+      background-color: #e6e6e6;
+      font-weight: bold;
+      text-align: center;
+    }
+    .footer-table {
+      margin-top: 40px;
+    }
+    .footer-table td {
+      height: 60px;
+      text-align: center;
+    }
+    .note {
+      margin-top: 15px;
+      font-size: 10px;
+      font-style: italic;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>GUEST MANAGEMENT SYSTEM (GMS)</h1>
+  <h2>{{meta.title}}</h2>
+  <h3>{{meta.location}}</h3>
+
+  <div class="meta">
+    <strong>Period:</strong>
+    {{ddmmyyyy meta.fromDate}}
+    {{#if meta.toDate}} – {{ddmmyyyy meta.toDate}}{{/if}}
+    &nbsp;&nbsp;&nbsp;
+    <strong>Report ID:</strong> {{meta.reportId}}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Start Date</th>
+        <th>Start Time</th>
+        <th>End Date</th>
+        <th>End Time</th>
+        <th>Guest Name</th>
+        <th>Room No</th>
+        <th>Provider</th>
+        <th>Network Type</th>
+        <th>Bandwidth</th>
+        <th>Zone From</th>
+        <th>Zone To</th>
+        <th>Status</th>
+        <th>Messenger</th>
+        <th>Description</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+
+    <tbody>
+    {{#each rows}}
+      <tr>
+        <td>{{ddmmyyyy start_date}}</td>
+        <td>{{start_time}}</td>
+        <td>{{ddmmyyyy end_date}}</td>
+        <td>{{end_time}}</td>
+        <td>{{guest_name}}</td>
+        <td>{{room_id}}</td>
+        <td>{{provider_name}}</td>
+        <td>{{network_type}}</td>
+        <td>{{bandwidth_mbps}}</td>
+        <td>{{network_zone_from}}</td>
+        <td>{{network_zone_to}}</td>
+        <td>{{network_status}}</td>
+        <td>{{messenger_name}}</td>
+        <td>{{description}}</td>
+        <td>{{remarks}}</td>
+      </tr>
+    {{/each}}
+    </tbody>
+  </table>
+
+  <table class="footer-table">
+    <tr>
+      <td>
+        Prepared By<br/><br/>
+        (GMS Admin)
+      </td>
+      <td>
+        Verified By<br/><br/>
+        (Secretary, Raj Bhawan)
+      </td>
+      <td>
+        Approved By<br/><br/>
+        Honourable Governor of Maharashtra
+      </td>
+    </tr>
+  </table>
+
+  <div class="note">
+    This is a system-generated report from the Guest Management System (GMS), Raj Bhawan, Maharashtra.
+  </div>
+
+</body>
+</html>
