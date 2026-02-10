@@ -257,10 +257,11 @@ export default function DriverDutyRoasterPage() {
       }
 
       setEditForm(null);
+      setFormErrors({});
       await load();
-    } catch (err) {
-      console.error("Save failed:", err);
-      alert("Failed to save duty");
+    } catch (err: any) {
+        console.error("Save failed:", err?.response?.data || err);
+        alert(err?.response?.data?.message || "Failed to save duty");
     } finally {
       setSaving(false);
     }
@@ -379,7 +380,7 @@ export default function DriverDutyRoasterPage() {
           <div className="nicModal large">
             <div className="nicModalHeader">
               <h3>Edit Duty</h3>
-              <button onClick={() => setEditForm(null)}>
+              <button onClick={() => {setEditForm(null); setFormErrors({});}}>
                 <X />
               </button>
             </div>
@@ -388,7 +389,7 @@ export default function DriverDutyRoasterPage() {
               <label>
                 Shift
                 <select
-                  value={editForm.shift}
+                  value={editForm.shift ?? ""}
                   onChange={(e) =>
                     setEditForm({ ...editForm, shift: e.target.value as any })
                   }

@@ -21,7 +21,7 @@ const parseTime = (t: string) => {
 
 export const driverDutyEditSchema = z
     .object({
-        shift: z.enum(["Morning", "Evening", "Night", "Full-Day"], {
+        shift: z.enum(["morning", "afternoon", "night"], {
             message: "Shift is required",
         }),
 

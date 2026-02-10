@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDutyDto } from '../driver-duty/dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from '../driver-duty/dto/updateDriverDuty.dto';
-
+ 
 @Injectable()
 export class DriverDutyService {
   constructor(private readonly db: DatabaseService) { }
@@ -24,10 +24,10 @@ export class DriverDutyService {
   }
 // ================= TIME HELPERS =================
 
-private timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-}
+// private timeToMinutes(time: string): number {
+//   const [h, m] = time.split(':').map(Number);
+//   return h * 60 + m;
+// }
 
   private isPastDate(date: string): boolean {
     const today = new Date();
@@ -37,102 +37,193 @@ private timeToMinutes(time: string): number {
     return dutyDate < today;
   }
 
-  private readonly SHIFT_WINDOWS: Record<
-    'morning' | 'afternoon' | 'night',
-    { start: number; end: number }
-  > = {
-    morning: { start: 6 * 60, end: 14 * 60 },
-    afternoon: { start: 14 * 60, end: 22 * 60 },
-    night: { start: 22 * 60, end: 30 * 60 }, // crosses midnight
-  };
-  async create(dto: CreateDriverDutyDto) {
-    try {
-      const driverCheck = await this.db.query(
-        `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true`,
-        [dto.driver_id]
-      );
-      if (!driverCheck.rows.length) {
-        throw new BadRequestException('Driver is inactive or does not exist');
-      }
+  // private readonly SHIFT_WINDOWS: Record<
+  //   'morning' | 'afternoon' | 'night',
+  //   { start: number; end: number }
+  // > = {
+  //   morning: { start: 6 * 60, end: 14 * 60 },
+  //   afternoon: { start: 14 * 60, end: 22 * 60 },
+  //   night: { start: 22 * 60, end: 30 * 60 },
+  // };
 
-      if (dto.is_week_off && (dto.duty_in_time || dto.duty_out_time)) {
-        throw new BadRequestException(
-          'Week off cannot have duty timings'
-        );
-      }
+  // async create(dto: CreateDriverDutyDto) {
+  //   try {
+  //     const driverCheck = await this.db.query(
+  //       `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true`,
+  //       [dto.driver_id]
+  //     );
+  //     if (!driverCheck.rows.length) {
+  //       throw new BadRequestException('Driver is inactive or does not exist');
+  //     }
 
-      if (!driverCheck.rows.length) {
-        throw new BadRequestException('Driver is inactive or does not exist');
-      }
-      if (!dto.is_week_off && dto.duty_in_time && dto.duty_out_time) {
-        const inMin = this.timeToMinutes(dto.duty_in_time);
-        let outMin = this.timeToMinutes(dto.duty_out_time);
+  //     if (dto.is_week_off && (dto.duty_in_time || dto.duty_out_time)) {
+  //       throw new BadRequestException(
+  //         'Week off cannot have duty timings'
+  //       );
+  //     }
 
-        // Overnight shift support
-        if (outMin < inMin) {
-          outMin += 24 * 60;
-        }
+  //     if (!driverCheck.rows.length) {
+  //       throw new BadRequestException('Driver is inactive or does not exist');
+  //     }
+  //     // if (!dto.is_week_off && dto.duty_in_time && dto.duty_out_time) {
+  //     //   const inMin = this.timeToMinutes(dto.duty_in_time);
+  //     //   let outMin = this.timeToMinutes(dto.duty_out_time);
 
-        const window = this.SHIFT_WINDOWS[dto.shift];
+  //       // Overnight shift support
+  //       // if (outMin < inMin) {
+  //       //   outMin += 24 * 60;
+  //       // }
 
-        if (!window) {
-          throw new BadRequestException('Invalid shift');
-        }
+  //       // const window = this.SHIFT_WINDOWS[dto.shift];
 
-        if (inMin < window.start || outMin > window.end) {
-          throw new BadRequestException(
-            `Duty time does not match ${dto.shift} shift`
-          );
-        }
-      }
-      const res = await this.db.query(
-        `
-        INSERT INTO t_driver_duty (
-          duty_id,
-          driver_id,
-          duty_date,
-          shift,
-          duty_in_time,
-          duty_out_time,
-          is_week_off,
-          is_active
-        )
-        VALUES (
-          COALESCE(
-            (
-              SELECT duty_id
-              FROM t_driver_duty
-              WHERE driver_id = $1 AND duty_date = $2
-            ),
-            $3
+  //       // if (!window) {
+  //       //   throw new BadRequestException('Invalid shift');
+  //       // }
+
+  //       // if (inMin < window.start || outMin > window.end) {
+  //       //   throw new BadRequestException(
+  //       //     `Duty time does not match ${dto.shift} shift`
+  //       //   );
+  //       // }
+  //     }
+  //     const res = await this.db.query(
+  //       `
+  //       INSERT INTO t_driver_duty (
+  //         duty_id,
+  //         driver_id,
+  //         duty_date,
+  //         shift,
+  //         duty_in_time,
+  //         duty_out_time,
+  //         is_week_off,
+  //         is_active
+  //       )
+  //       VALUES (
+  //         COALESCE(
+  //           (
+  //             SELECT duty_id
+  //             FROM t_driver_duty
+  //             WHERE driver_id = $1 AND duty_date = $2
+  //           ),
+  //           $3
+  //         ),
+  //         $1, $2, $4, $5, $6, $7, true
+  //       )
+  //       ON CONFLICT (driver_id, duty_date)
+  //       DO UPDATE SET
+  //         shift = EXCLUDED.shift,
+  //         duty_in_time = EXCLUDED.duty_in_time,
+  //         duty_out_time = EXCLUDED.duty_out_time,
+  //         is_week_off = EXCLUDED.is_week_off,
+  //         is_active = true,
+  //         updated_at = now()
+  //       RETURNING *;
+  //       `,
+  //       [
+  //         dto.driver_id,
+  //         dto.duty_date,
+  //         await this.generateId(),
+  //         dto.shift,
+  //         dto.duty_in_time ?? null,
+  //         dto.duty_out_time ?? null,
+  //         dto.is_week_off ?? false,
+  //       ],
+  //     );
+  //   const duty = res.rows[0];
+
+  //   /* ===============================
+  //     HANDLE WEEKLY OFF RULE
+  //   ================================ */
+  //   if (dto.is_week_off && dto.repeat_weekly) {
+  //     const weekday = this.getWeekday(dto.duty_date);
+
+  //     await this.db.query(
+  //       `
+  //       INSERT INTO t_driver_week_off (driver_id, weekday)
+  //       VALUES ($1, $2)
+  //       ON CONFLICT (driver_id, weekday)
+  //       DO UPDATE SET
+  //         is_active = true,
+  //         updated_at = now()
+  //       `,
+  //       [dto.driver_id, weekday]
+  //     );
+  //   }
+
+  //   return duty;
+  //     // return res.rows[0];
+  //   } catch (err) {
+  //     if (err.code === '23503') {
+  //       throw new BadRequestException('Driver no longer exists');
+  //     }
+
+  //     console.error('UPSERT DRIVER DUTY FAILED', err);
+  //     throw err;
+      
+  //   }
+  // }
+async create(dto: CreateDriverDutyDto) {
+  try {
+    const driverCheck = await this.db.query(
+      `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true`,
+      [dto.driver_id]
+    );
+
+    if (!driverCheck.rows.length) {
+      throw new BadRequestException('Driver is inactive or does not exist');
+    }
+
+    if (dto.is_week_off && (dto.duty_in_time || dto.duty_out_time)) {
+      throw new BadRequestException('Week off cannot have duty timings');
+    }
+
+    const res = await this.db.query(
+      `
+      INSERT INTO t_driver_duty (
+        duty_id,
+        driver_id,
+        duty_date,
+        shift,
+        duty_in_time,
+        duty_out_time,
+        is_week_off,
+        is_active
+      )
+      VALUES (
+        COALESCE(
+          (
+            SELECT duty_id
+            FROM t_driver_duty
+            WHERE driver_id = $1 AND duty_date = $2
           ),
-          $1, $2, $4, $5, $6, $7, true
-        )
-        ON CONFLICT (driver_id, duty_date)
-        DO UPDATE SET
-          shift = EXCLUDED.shift,
-          duty_in_time = EXCLUDED.duty_in_time,
-          duty_out_time = EXCLUDED.duty_out_time,
-          is_week_off = EXCLUDED.is_week_off,
-          is_active = true,
-          updated_at = now()
-        RETURNING *;
-        `,
-        [
-          dto.driver_id,
-          dto.duty_date,
-          await this.generateId(),
-          dto.shift,
-          dto.duty_in_time ?? null,
-          dto.duty_out_time ?? null,
-          dto.is_week_off ?? false,
-        ],
-      );
+          $3
+        ),
+        $1, $2, $4, $5, $6, $7, true
+      )
+      ON CONFLICT (driver_id, duty_date)
+      DO UPDATE SET
+        shift = EXCLUDED.shift,
+        duty_in_time = EXCLUDED.duty_in_time,
+        duty_out_time = EXCLUDED.duty_out_time,
+        is_week_off = EXCLUDED.is_week_off,
+        is_active = true,
+        updated_at = now()
+      RETURNING *;
+      `,
+      [
+        dto.driver_id,
+        dto.duty_date,
+        await this.generateId(),
+        dto.shift,
+        dto.duty_in_time ?? null,
+        dto.duty_out_time ?? null,
+        dto.is_week_off ?? false,
+      ],
+    );
+
     const duty = res.rows[0];
 
-    /* ===============================
-      HANDLE WEEKLY OFF RULE
-    ================================ */
+    // ===== WEEKLY OFF RULE =====
     if (dto.is_week_off && dto.repeat_weekly) {
       const weekday = this.getWeekday(dto.duty_date);
 
@@ -150,18 +241,15 @@ private timeToMinutes(time: string): number {
     }
 
     return duty;
-      // return res.rows[0];
-    } catch (err) {
-      if (err.code === '23503') {
-        throw new BadRequestException('Driver no longer exists');
-      }
-
-      console.error('UPSERT DRIVER DUTY FAILED', err);
-      throw err;
-      
+  } catch (err: any) {
+    if (err.code === '23503') {
+      throw new BadRequestException('Driver no longer exists');
     }
-    
+
+    console.error('UPSERT DRIVER DUTY FAILED', err);
+    throw err;
   }
+}
 
   async update(dutyId: string, dto: UpdateDriverDutyDto) {
     const existing = await this.findOne(dutyId);
@@ -187,24 +275,24 @@ private timeToMinutes(time: string): number {
         'Week off cannot have duty timings'
       );
     }
-    if (!isWeekOff && inTime && outTime) {
-      const inMin = this.timeToMinutes(inTime);
-      let outMin = this.timeToMinutes(outTime);
+    // if (!isWeekOff && inTime && outTime) {
+    //   const inMin = this.timeToMinutes(inTime);
+    //   let outMin = this.timeToMinutes(outTime);
 
-      if (outMin < inMin) {
-        outMin += 24 * 60;
-      }
+    //   if (outMin < inMin) {
+    //     outMin += 24 * 60;
+    //   }
 
-      const window = this.SHIFT_WINDOWS[shift];
-      if (!window) {
-        throw new BadRequestException('Invalid shift');
-      }
-      if (inMin < window.start || outMin > window.end) {
-        throw new BadRequestException(
-          `Duty time does not match ${shift} shift`
-        );
-      }
-    }
+    //   const window = this.SHIFT_WINDOWS[shift];
+    //   if (!window) {
+    //     throw new BadRequestException('Invalid shift');
+    //   }
+    //   if (inMin < window.start || outMin > window.end) {
+    //     throw new BadRequestException(
+    //       `Duty time does not match ${shift} shift`
+    //     );
+    //   }
+    // }
 
     const sql = `
       UPDATE t_driver_duty

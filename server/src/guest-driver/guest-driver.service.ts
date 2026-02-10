@@ -120,6 +120,7 @@ export class GuestDriverService {
     user: string,
     ip: string
   ) {
+    
     const id = await this.generateId();
     const now = new Date().toISOString();
 
@@ -284,75 +285,6 @@ export class GuestDriverService {
     const res = await this.db.query(sql, params);
     return res.rows[0];
   }
-
-  // async update(id: string, dto: UpdateGuestDriverDto, user: string, ip: string) {
-  //   const existing = await this.findOne(id);
-  //   if (!existing) throw new BadRequestException(`Guest Driver Entry '${id}' not found`);
-
-  //   const now = new Date().toISOString();
-
-  //   const sql = `
-  //     UPDATE t_guest_driver SET
-  //       driver_id = $1,
-  //       vehicle_no = $2,
-  //       room_id = $3,
-
-  //       from_location = $4,
-  //       to_location = $5,
-  //       pickup_location = $6,
-  //       drop_location = $7,
-
-  //       trip_date = $8,
-  //       start_time = $9,
-  //       end_time = $10,
-
-  //       drop_date = $11,
-  //       drop_time = $12,
-
-  //       remarks = $13,
-  //       is_active = $14,
-
-  //       updated_at = $15,
-  //       updated_by = $16,
-  //       updated_ip = $17
-  //     WHERE guest_driver_id = $18
-  //     RETURNING *;
-  //   `;
-
-  //   const params = [
-  //     dto.driver_id ?? existing.driver_id,
-  //     dto.vehicle_no ?? existing.vehicle_no,
-  //     dto.room_id ?? existing.room_id,
-
-  //     dto.from_location ?? existing.from_location,
-  //     dto.to_location ?? existing.to_location,
-  //     dto.pickup_location ?? existing.pickup_location,
-  //     dto.drop_location ?? existing.drop_location,
-
-  //     dto.trip_date ?? existing.trip_date,
-  //     dto.start_time ?? existing.start_time,
-  //     dto.end_time ?? existing.end_time,
-
-  //     dto.drop_date ?? existing.drop_date,
-  //     dto.drop_time ?? existing.drop_time,
-
-  //     // dto.pickup_status ?? existing.pickup_status,
-  //     // dto.drop_status ?? existing.drop_status,
-  //     // dto.trip_status ?? existing.trip_status,
-
-  //     dto.remarks ?? existing.remarks,
-  //     dto.is_active ?? existing.is_active,
-
-  //     now,
-  //     user,
-  //     ip,
-
-  //     id
-  //   ];
-
-  //   const res = await this.db.query(sql, params);
-  //   return res.rows[0];
-  // }
 
   /**
    * Closes a trip by setting is_active = false.
@@ -546,10 +478,16 @@ export class GuestDriverService {
         AND is_active = TRUE
         AND (
           (trip_date::timestamp + start_time::time),
-          COALESCE(
-            (drop_date::timestamp + drop_time::time),
-            'infinity'
-          )
+          CASE
+            WHEN drop_date IS NOT NULL
+                AND drop_time IS NOT NULL
+                AND drop_time < start_time
+              THEN drop_date::timestamp + drop_time::time + INTERVAL '1 day'
+            WHEN drop_date IS NOT NULL
+                AND drop_time IS NOT NULL
+              THEN drop_date::timestamp + drop_time::time
+            ELSE 'infinity'
+          END
         )
         OVERLAPS
         (
@@ -571,86 +509,7 @@ export class GuestDriverService {
       throw new BadRequestException("DRIVER_ALREADY_ASSIGNED");
     }
   }
-  // private async assertDriverOnDuty(
-  //   driverId: string,
-  //   tripDate: string,
-  //   startTime: string,
-  //   dropDate?: string,
-  //   dropTime?: string
-  // ) {
-  //   const res = await this.db.query(
-  //     `
-  //     SELECT 1
-  //     FROM t_driver_duty
-  //     WHERE driver_id = $1
-  //       AND duty_date = $2
-  //       AND is_active = TRUE
-  //       AND is_week_off = FALSE
-  //       AND (
-  //         (duty_date::timestamp + duty_in_time::time),
-  //         (duty_date::timestamp + duty_out_time::time)
-  //       )
-  //       OVERLAPS
-  //       (
-  //         ($2::date + $3::time),
-  //         COALESCE(($4::date + $5::time), 'infinity')
-  //       )
-  //     `,
-  //     [driverId, tripDate, startTime, dropDate ?? tripDate, dropTime ?? null]
-  //   );
 
-  //   if (!res.rows.length) {
-  //     throw new BadRequestException(
-  //       'Driver is not on duty during the selected time'
-  //     );
-  //   }
-  // }
-  // private async assertDriverOnDuty(
-  //   driverId: string,
-  //   tripDate: string,
-  //   startTime: string,
-  //   dropDate?: string,
-  //   dropTime?: string
-  // ) {
-  //   const res = await this.db.query(
-  //     `
-  //     SELECT 1
-  //     FROM t_driver_duty
-  //     WHERE driver_id = $1
-  //       AND duty_date = $2
-  //       AND is_active = TRUE
-  //       AND is_week_off = FALSE
-  //       AND (
-  //         /* ---------- DUTY WINDOW (handles night shifts) ---------- */
-  //         (
-  //           duty_date::timestamp + duty_in_time::time,
-  //           CASE
-  //             WHEN duty_out_time < duty_in_time
-  //               THEN duty_date::timestamp + duty_out_time::time + INTERVAL '1 day'
-  //             ELSE duty_date::timestamp + duty_out_time::time
-  //           END
-  //         )
-  //       )
-  //       OVERLAPS
-  //       (
-  //         /* ---------- TRIP WINDOW ---------- */
-  //         ($2::date + $3::time),
-  //         COALESCE(($4::date + $5::time), 'infinity')
-  //       )
-  //     `,
-  //     [
-  //       driverId,
-  //       tripDate,
-  //       startTime,
-  //       dropDate ?? tripDate,
-  //       dropTime ?? null
-  //     ]
-  //   );
-
-  //   if (!res.rows.length) {
-  //     throw new BadRequestException('Driver is not on duty during the selected time');
-  //   }
-  // }
   private async assertDriverOnDuty(
     driverId: string,
     tripDate: string,
@@ -678,7 +537,13 @@ export class GuestDriverService {
           OVERLAPS
           (
             $2::date + $3::time,
-            COALESCE($4::date + $5::time, 'infinity')
+            CASE
+              WHEN $4 IS NOT NULL AND $5 IS NOT NULL AND $5 < $3
+                THEN $4::date + $5::time + INTERVAL '1 day'
+              WHEN $4 IS NOT NULL AND $5 IS NOT NULL
+                THEN $4::date + $5::time
+              ELSE 'infinity'
+            END
           )
       `,
       [
