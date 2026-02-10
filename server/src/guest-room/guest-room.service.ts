@@ -17,14 +17,34 @@ export class GuestRoomService {
   }
   //Guest Management page - table view(guests, rooms)
   async getRoomOverview() {
-    // 1️⃣ Auto-close expired stays (checkout date = today)
+    // 1️⃣ Close guest-room rows for exited / cancelled guests
     await this.db.query(`
-      UPDATE t_guest_room
-      SET is_active = FALSE,
-          updated_at = NOW()
-      WHERE is_active = TRUE
-        AND check_out_date IS NOT NULL
-        AND check_out_date <= CURRENT_DATE
+      UPDATE t_guest_room gr
+      SET
+        is_active = FALSE,
+        check_out_date = COALESCE(gr.check_out_date, CURRENT_DATE),
+        action_type = 'Room-Released',
+        action_description = 'Auto-release on guest exit',
+        updated_at = NOW()
+      FROM t_guest_inout io
+      WHERE
+        gr.guest_id = io.guest_id
+        AND gr.is_active = TRUE
+        AND io.is_active = FALSE
+        AND io.status IN ('Exited', 'Cancelled')
+    `);
+
+    // 2️⃣ ALWAYS resync room status
+    await this.db.query(`
+      UPDATE m_rooms r
+      SET status = 'Available'
+      WHERE r.status = 'Occupied'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM t_guest_room gr
+          WHERE gr.room_id = r.room_id
+            AND gr.is_active = TRUE
+        )
     `);
 
     // 2️⃣ Fetch room state snapshot

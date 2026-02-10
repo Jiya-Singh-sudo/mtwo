@@ -603,6 +603,19 @@ export class GuestsService {
     // return res.rows[0];
     const res = await this.db.query(sql, values);
     const updated = res.rows[0];
+    
+    // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
+    if (
+      updated.guest_id &&
+      (payload.status === 'Exited' || payload.status === 'Cancelled')
+    ) {
+      await this.cascadeGuestExit(
+        updated.guest_id,
+        this.db,
+        user,
+        ip
+      );
+    } 
 
     // 🔴 ADD THIS BLOCK
     let warnings = [];
@@ -689,7 +702,7 @@ export class GuestsService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    /* ================= ROOMS (SAFE) ================= */
+    /* ================= ROOMS (FULL VACATE LOGIC) ================= */
 
     try {
       const guestRooms = await trx.query(
@@ -701,21 +714,25 @@ export class GuestsService {
         [guestId]
       );
 
-      await trx.query(
-        `
-        UPDATE t_guest_room
-        SET is_active = FALSE,
+      for (const gr of guestRooms.rows) {
+        // 1️⃣ Close guest-room assignment
+        await trx.query(
+          `
+          UPDATE t_guest_room
+          SET
+            is_active = FALSE,
+            check_out_date = CURRENT_DATE,
             action_type = 'Room-Released',
             action_description = 'Auto-released on guest exit',
             updated_at = NOW(),
             updated_by = $2,
             updated_ip = $3
-        WHERE guest_id = $1 AND is_active = TRUE
-        `,
-        [guestId, user, ip]
-      );
+          WHERE guest_room_id = $1
+          `,
+          [gr.guest_room_id, user, ip]
+        );
 
-      for (const gr of guestRooms.rows) {
+        // 2️⃣ Free the room
         await trx.query(
           `
           UPDATE m_rooms
@@ -727,10 +744,122 @@ export class GuestsService {
           `,
           [gr.room_id, user, ip]
         );
+
+        // 3️⃣ Cancel housekeeping
+        await trx.query(
+          `
+          UPDATE t_room_housekeeping
+          SET
+            status = 'Cancelled',
+            is_active = FALSE,
+            completed_at = NOW()
+          WHERE room_id = $1
+            AND is_active = TRUE
+          `,
+          [gr.room_id]
+        );
       }
     } catch (err) {
       console.warn('Room cascade skipped:', err.message);
     }
+
+
+    // try {
+    //   const guestRooms = await trx.query(
+    //     `
+    //     SELECT guest_room_id, room_id
+    //     FROM t_guest_room
+    //     WHERE guest_id = $1 AND is_active = TRUE
+    //     `,
+    //     [guestId]
+    //   );
+
+    //   // await trx.query(
+    //   //   `
+    //   //   UPDATE t_guest_room
+    //   //   SET is_active = FALSE,
+    //   //       action_type = 'Room-Released',
+    //   //       action_description = 'Auto-released on guest exit',
+    //   //       updated_at = NOW(),
+    //   //       updated_by = $2,
+    //   //       updated_ip = $3
+    //   //   WHERE guest_id = $1 AND is_active = TRUE
+    //   //   `,
+    //   //   [guestId, user, ip]
+    //   // );
+    //   // ================= ROOMS (FULL VACATE LOGIC) =================
+
+    //   const guestRooms = await trx.query(
+    //     `
+    //     SELECT guest_room_id, room_id
+    //     FROM t_guest_room
+    //     WHERE guest_id = $1 AND is_active = TRUE
+    //     `,
+    //     [guestId]
+    //   );
+
+    //   for (const gr of guestRooms.rows) {
+    //     // 1️⃣ Close guest-room assignment
+    //     await trx.query(
+    //       `
+    //       UPDATE t_guest_room
+    //       SET
+    //         is_active = FALSE,
+    //         check_out_date = CURRENT_DATE,
+    //         action_type = 'Room-Released',
+    //         action_description = 'Auto-released on guest exit',
+    //         updated_at = NOW(),
+    //         updated_by = $2,
+    //         updated_ip = $3
+    //       WHERE guest_room_id = $1
+    //       `,
+    //       [gr.guest_room_id, user, ip]
+    //     );
+
+    //     // 2️⃣ Free the room
+    //     await trx.query(
+    //       `
+    //       UPDATE m_rooms
+    //       SET status = 'Available',
+    //           updated_at = NOW(),
+    //           updated_by = $2,
+    //           updated_ip = $3
+    //       WHERE room_id = $1
+    //       `,
+    //       [gr.room_id, user, ip]
+    //     );
+
+    //     // 3️⃣ Cancel housekeeping
+    //     await trx.query(
+    //       `
+    //       UPDATE t_room_housekeeping
+    //       SET
+    //         status = 'Cancelled',
+    //         is_active = FALSE,
+    //         completed_at = NOW()
+    //       WHERE room_id = $1
+    //         AND is_active = TRUE
+    //       `,
+    //       [gr.room_id]
+    //     );
+    //   }
+
+    //   for (const gr of guestRooms.rows) {
+    //     await trx.query(
+    //       `
+    //       UPDATE m_rooms
+    //       SET status = 'Available',
+    //           updated_at = NOW(),
+    //           updated_by = $2,
+    //           updated_ip = $3
+    //       WHERE room_id = $1
+    //       `,
+    //       [gr.room_id, user, ip]
+    //     );
+    //   }
+    // } catch (err) {
+    //   console.warn('Room cascade skipped:', err.message);
+    // }
 
 
     /* ================= HOUSEKEEPING ================= */
