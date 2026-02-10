@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble } from 'lucide-react';
-import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf } from '@/api/reportsPkg.api';
+import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf } from '@/api/reportsPkg.api';
 
 export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
@@ -268,7 +268,38 @@ function ReportSection({ section }: { section: any }) {
       }
       return;
     }
-
+    if (sectionId === 'vehicle') {
+      if (format === 'PDF') {
+        downloadVehicleDriverPdf(payload);
+      } else {
+        downloadVehicleDriverExcel(payload);
+      }
+      return;
+    }
+    if (sectionId === 'food') {
+      if (format === 'PDF') {
+        downloadFoodServicePdf(payload);
+      } else {
+        downloadFoodServiceExcel(payload);
+      }
+      return;
+    }
+    if (sectionId === 'network') {
+      if (format === 'PDF') {
+        downloadNetworkPdf(payload);
+      } else {
+        downloadNetworkExcel(payload);
+      }
+      return;
+    }
+    if (sectionId === 'driver') {
+      if (format === 'PDF') {
+        downloadDriverDutyPdf(payload);
+      } else {
+        downloadDriverDutyExcel(payload);
+      }
+      return;
+    }
     // ---- Future hooks ----
     // vehicle, food, network go here later
   }
