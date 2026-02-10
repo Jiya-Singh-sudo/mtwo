@@ -55,3 +55,23 @@ export const getTodayMealPlanOverview = async () => {
   const res = await apiClient.get("/guest-food/plan/today");
   return res.data;
 };
+export const getGuestFoodTable = async (params: {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: 'All' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
+  mealType?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
+  sortBy?: 'entry_date' | 'guest_name' | 'meal_status';
+  sortOrder?: 'asc' | 'desc';
+}) => {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      query.append(key, String(value));
+    }
+  });
+
+  const res = await apiClient.get(`/guest-food/table?${query.toString()}`);
+  return res.data; // { data, totalCount }
+};

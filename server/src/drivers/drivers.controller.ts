@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Delete, Req, Patch, Query } fr
 import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
+import { BadRequestException } from '@nestjs/common';
 
 @Controller('drivers')
 export class DriversController {
@@ -80,6 +81,17 @@ export class DriversController {
     const user = req.user?.username || 'system';
     const ip = req.ip || '0.0.0.0';
     return this.service.assignDriver(body, user, ip);
+  }
+
+  @Get('assignable-by-date')
+  getAssignableDriversByDate(
+    @Query('date') date: string
+  ) {
+    if (!date) {
+      throw new BadRequestException('date is required');
+    }
+
+    return this.service.findDriversOnDutyByDate(date);
   }
 
   // GET only active drivers

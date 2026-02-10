@@ -348,6 +348,27 @@ export class DriversService {
     return res.rows[0];
   }
 
+  async findDriversOnDutyByDate(dutyDate: string) {
+    const sql = `
+      SELECT DISTINCT
+        d.driver_id,
+        d.driver_name,
+        d.driver_contact
+      FROM m_driver d
+      JOIN t_driver_duty dd
+        ON dd.driver_id = d.driver_id
+      WHERE
+        d.is_active = TRUE
+        AND dd.is_active = TRUE
+        AND dd.is_week_off = FALSE
+        AND dd.duty_date = $1
+      ORDER BY d.driver_name;
+    `;
+
+    const res = await this.db.query(sql, [dutyDate]);
+    return res.rows;
+  }
+
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM m_driver WHERE is_active = $1 ORDER BY driver_name`
@@ -368,7 +389,6 @@ export class DriversService {
     const result = await this.db.query(sql, [driver_id]);
     return result.rows[0];
   }
-
 
   async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
     const existing = await this.findOneById(driver_id);

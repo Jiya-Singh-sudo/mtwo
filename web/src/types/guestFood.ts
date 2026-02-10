@@ -1,5 +1,25 @@
 
 type FoodType = "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg";
+export type GuestFoodTableRow = {
+  guest_id: string;
+  guest_name: string;
+  guest_name_local_language?: string;
+  guest_mobile?: string;
+
+  inout_id: string;
+  entry_date: string;
+  entry_time?: string;
+  inout_status: 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
+
+  guest_food_id?: string;
+  meal_type?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
+  food_stage?: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
+  delivery_status?: string;
+
+  butler_name?: string;
+  specialrequest?: string;
+};
+
 export interface GuestFood {
   guest_food_id: string;
 

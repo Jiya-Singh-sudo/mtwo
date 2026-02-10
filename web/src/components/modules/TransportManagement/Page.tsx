@@ -18,6 +18,7 @@ import {
   // unassignDriver,
   // unassignVehicle,
   getAssignableDrivers,
+  getAssignableDriversByDate,
   getAssignableVehicles,
   // updateDriverTrip,
   // updateVehicleAssignment,
@@ -278,6 +279,26 @@ function GuestTransportManagement() {
   }, [GuestTable.query]);
 
   useEffect(() => {
+    async function loadDriversByTripDate() {
+      if (!driverModalOpen) return;
+      if (!driverForm.trip_date) {
+        setDrivers([]);
+        return;
+      }
+
+      try {
+        const list = await getAssignableDriversByDate(driverForm.trip_date);
+        setDrivers(list);
+      } catch (err) {
+        console.error("Failed to load drivers by date", err);
+        setDrivers([]);
+      }
+    }
+
+    loadDriversByTripDate();
+  }, [driverModalOpen, editDriverModalOpen, driverForm.trip_date]);
+
+  useEffect(() => {
     if (driverModalOpen || editDriverModalOpen) {
       setFormErrors({});
       setHasBackendError(false);
@@ -297,37 +318,37 @@ function GuestTransportManagement() {
      DRIVER ACTIONS
      ======================= */
 
-  async function openAssignDriver(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
-    if (isGuestLocked(inout_status)) return;
+  // async function openAssignDriver(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
+  //   if (isGuestLocked(inout_status)) return;
 
-    const list = await getAssignableDrivers();
-    // const min = addDays(entry_date, -1);
-    // const max = addDays(exit_date, 1);
-    const min = entry_date;
-    const max = exit_date;
+  //   const list = await getAssignableDrivers();
+  //   // const min = addDays(entry_date, -1);
+  //   // const max = addDays(exit_date, 1);
+  //   const min = entry_date;
+  //   const max = exit_date;
 
-    setAssignWindow({
-      minDate: toISODateOnly(min),
-      maxDate: toISODateOnly(max),
-      minDateTime: toISOLocalDateTime(min),
-      maxDateTime: toISOLocalDateTime(max),
-    });
-    setDrivers(list);
-    setDriverForm({
-      guest_id: String(guest_id),
-      driver_id: "",
-      pickup_location: "",
-      drop_location: "",
-      trip_date: "",
-      start_time: "",
-      end_time: "",
-      drop_date: "",
-      drop_time: "",
-      trip_status: "Scheduled"
-    });
-    setFormErrors({});
-    setDriverModalOpen(true);
-  }
+  //   setAssignWindow({
+  //     minDate: toISODateOnly(min),
+  //     maxDate: toISODateOnly(max),
+  //     minDateTime: toISOLocalDateTime(min),
+  //     maxDateTime: toISOLocalDateTime(max),
+  //   });
+  //   setDrivers(list);
+  //   setDriverForm({
+  //     guest_id: String(guest_id),
+  //     driver_id: "",
+  //     pickup_location: "",
+  //     drop_location: "",
+  //     trip_date: "",
+  //     start_time: "",
+  //     end_time: "",
+  //     drop_date: "",
+  //     drop_time: "",
+  //     trip_status: "Scheduled"
+  //   });
+  //   setFormErrors({});
+  //   setDriverModalOpen(true);
+  // }
 
   // async function submitAssignDriver() {
   //   if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
@@ -359,6 +380,43 @@ function GuestTransportManagement() {
   //   setDriverModalOpen(false);
   //   GuestTable.setPage(1);
   // }
+  async function openAssignDriver(
+    guest_id: string,
+    entry_date: string,
+    exit_date: string,
+    inout_status?: string | null
+  ) {
+    if (isGuestLocked(inout_status)) return;
+
+    const min = entry_date;
+    const max = exit_date;
+
+    setAssignWindow({
+      minDate: toISODateOnly(min),
+      maxDate: toISODateOnly(max),
+      minDateTime: toISOLocalDateTime(min),
+      maxDateTime: toISOLocalDateTime(max),
+    });
+
+    // 👇 IMPORTANT: do NOT load drivers yet
+    setDrivers([]);
+
+    setDriverForm({
+      guest_id: String(guest_id),
+      driver_id: "",
+      pickup_location: "",
+      drop_location: "",
+      trip_date: "",
+      start_time: "",
+      end_time: "",
+      drop_date: "",
+      drop_time: "",
+      trip_status: "Scheduled"
+    });
+
+    setFormErrors({});
+    setDriverModalOpen(true);
+  }
 
   async function submitAssignDriver() {
     if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
@@ -1175,14 +1233,24 @@ function GuestTransportManagement() {
                 <select
                   className="nicInput"
                   value={driverForm.driver_id}
+                  disabled={!driverForm.trip_date}
                   onChange={(e) =>
                     setDriverForm({ ...driverForm, driver_id: e.target.value })
                   }
-                  onBlur={() => validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors)}
-                  onKeyUp={() => validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors)}
+                  onBlur={() => {
+                    if (!driverForm.trip_date) return;
+                    validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors);
+                  }}
+                  onKeyUp={() => {
+                    if (!driverForm.trip_date) return;
+                    validateSingleField(assignDriverSchema, "driver_id", driverForm.driver_id, setFormErrors);
+                  }}
+
                 >
 
-                  <option value="">Select Driver</option>
+                  <option value="">
+                    {driverForm.trip_date ? "Select Driver" : "Select trip date first"}
+                  </option>
                   {drivers.map((d) => (
                     <option key={d.driver_id} value={d.driver_id}>
                       {d.driver_name}
@@ -1228,8 +1296,13 @@ function GuestTransportManagement() {
                   max={assignWindow?.maxDate}
                   value={driverForm.trip_date}
                   onChange={(e) =>
-                    setDriverForm({ ...driverForm, trip_date: e.target.value })
+                    setDriverForm({
+                      ...driverForm,
+                      trip_date: e.target.value,
+                      driver_id: "", // ✅ RESET driver when date changes
+                    })
                   }
+
                   // onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                   onBlur={() => {
                     if (hasBackendError) return;

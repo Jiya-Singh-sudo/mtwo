@@ -1,10 +1,8 @@
-import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Req
-} from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Query } from "@nestjs/common";
 import { GuestFoodService } from "./guest-food.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
+import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 
 @Controller("guest-food")
 export class GuestFoodController {
@@ -62,5 +60,25 @@ getTodayMealPlanOverview() {
   @Get("guests/today")
   getTodayOrders() {
     return this.service.getTodayGuestOrders();
+  }
+  @Get('table')
+  getGuestFoodTable(
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search = '',
+    @Query('status') status?: string,
+    @Query('mealType') mealType?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'desc'
+  ) {
+    return this.service.getGuestFoodTable({
+      page: Number(page),
+      limit: Number(limit),
+      search,
+      status: status as GuestFoodTableQueryDto['status'],
+      mealType: mealType as GuestFoodTableQueryDto['mealType'],
+      sortBy: sortBy as GuestFoodTableQueryDto['sortBy'],
+      sortOrder
+    });
   }
 }

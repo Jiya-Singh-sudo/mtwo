@@ -116,6 +116,14 @@ export async function getAssignableDrivers() {
   return res.data;
 }
 
+// src/api/driver.api.ts
+export async function getAssignableDriversByDate(date: string) {
+  const res = await api.get('/drivers/assignable-by-date', {
+    params: { date },
+  });
+  return res.data;
+}
+
 /* =======================
    DRIVER — WRITE
    ======================= */

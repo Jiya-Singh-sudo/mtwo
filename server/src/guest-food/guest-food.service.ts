@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
+import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 
 @Injectable()
 export class GuestFoodService {
@@ -342,4 +343,137 @@ export class GuestFoodService {
 
     return result;
   }
+
+  async getGuestFoodTable(
+    params: GuestFoodTableQueryDto
+  ) {
+    const {
+      page,
+      limit,
+      search,
+      status,
+      sortBy = 'entry_date',
+      sortOrder = 'desc',
+      mealType
+    } = params;
+
+    const offset = (page - 1) * limit;
+
+    /* ---------- SORT MAP ---------- */
+    const SORT_MAP: Record<string, string> = {
+      entry_date: `(io.entry_date::timestamp + COALESCE(io.entry_time, TIME '00:00'))`,
+      guest_name: 'g.guest_name',
+      meal_status: 'gf.food_stage'
+    };
+
+    const sortColumn = SORT_MAP[sortBy] ?? SORT_MAP.entry_date;
+    const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    /* ---------- WHERE ---------- */
+    const where: string[] = [
+      'io.is_active = TRUE',
+      'g.is_active = TRUE'
+    ];
+
+    const sqlParams: any[] = [];
+    let idx = 1;
+
+    /* SEARCH */
+    if (search) {
+      where.push(`
+        (
+          g.guest_name ILIKE $${idx}
+          OR g.guest_mobile ILIKE $${idx}
+          OR g.guest_id ILIKE $${idx}
+        )
+      `);
+      sqlParams.push(`%${search}%`);
+      idx++;
+    }
+
+    /* STATUS FILTER */
+    if (status && status !== 'All') {
+      where.push(`io.status = $${idx}`);
+      sqlParams.push(status);
+      idx++;
+    }
+
+    /* MEAL FILTER */
+    if (mealType) {
+      where.push(`gf.meal_type = $${idx}`);
+      sqlParams.push(mealType);
+      idx++;
+    }
+
+    const whereSql = `WHERE ${where.join(' AND ')}`;
+
+    /* ---------- COUNT ---------- */
+    const countSql = `
+      SELECT COUNT(DISTINCT g.guest_id)::int AS total
+      FROM t_guest_inout io
+      JOIN m_guest g ON g.guest_id = io.guest_id
+
+      LEFT JOIN t_guest_food gf
+        ON gf.guest_id = g.guest_id
+        AND gf.is_active = TRUE
+        AND gf.plan_date = CURRENT_DATE
+
+      ${whereSql};
+    `;
+
+    /* ---------- DATA ---------- */
+    const dataSql = `
+      SELECT
+        g.guest_id,
+        g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+
+        io.inout_id,
+        io.entry_date,
+        io.entry_time,
+        io.status AS inout_status,
+        io.room_id,
+
+        gf.guest_food_id,
+        gf.meal_type,
+        gf.food_stage,
+        gf.delivery_status,
+
+        gb.guest_butler_id,
+        b.butler_name,
+        gb.specialrequest
+
+      FROM t_guest_inout io
+      JOIN m_guest g
+        ON g.guest_id = io.guest_id
+
+      LEFT JOIN t_guest_food gf
+        ON gf.guest_id = g.guest_id
+        AND gf.is_active = TRUE
+        AND gf.plan_date = CURRENT_DATE
+
+      LEFT JOIN t_guest_butler gb
+        ON gb.guest_id = g.guest_id
+        AND gb.is_active = TRUE
+
+      LEFT JOIN m_butler b
+        ON b.butler_id = gb.butler_id
+
+      ${whereSql}
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $${idx} OFFSET $${idx + 1};
+    `;
+
+    const countRes = await this.db.query(countSql, sqlParams);
+
+    sqlParams.push(limit, offset);
+    const dataRes = await this.db.query(dataSql, sqlParams);
+
+    return {
+      data: dataRes.rows,
+      totalCount: countRes.rows[0].total
+    };
+  }
+
 }

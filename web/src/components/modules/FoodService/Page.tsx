@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Search, Pencil, AlertTriangle, XCircle } from "lucide-react";
 import "./FoodService.css";
-import { getFoodDashboard, getTodayGuestOrders, updateFoodStatus, createGuestFood, getTodayMealPlanOverview } from "@/api/guestFood.api";
+import { getFoodDashboard, getTodayGuestOrders, updateFoodStatus, createGuestFood, getTodayMealPlanOverview, getGuestFoodTable } from "@/api/guestFood.api";
 import { getActiveGuests } from "@/api/guest.api";
-import { FoodDashboard } from "../../../types/guestFood";
+import { FoodDashboard, GuestFoodTableRow } from "../../../types/guestFood";
 import { ActiveGuestRow } from "@/types/guests";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, softDeleteGuestButler, updateGuestButler } from "@/api/guestButler.api";
@@ -53,12 +53,35 @@ export type TodayGuestOrderRow = {
   specialrequest?: string | null;
 };
 
-type GuestWithButler = ActiveGuestRow & {
-  butler?: {
-    id: string;
-    name: string;
-    guestButlerId?: string;
-  };
+// type GuestWithButler = ActiveGuestRow & {
+//   butler?: {
+//     id: string;
+//     name: string;
+//     guestButlerId?: string;
+//   };
+
+//   foodItems: Record<
+//     "Breakfast" | "Lunch" | "High Tea" | "Dinner",
+//     {
+//       guest_food_id: string;
+//       food_name: string;
+//       delivery_status: string;
+//     }[]
+//   >;
+
+
+//   foodStatus: "Served" | "Not Served";
+//   specialRequest?: string;
+// };
+type GuestWithButler = {
+  guest_id: string;
+  guest_name: string;
+  guest_name_local_language?: string | null;
+  guest_mobile?: string | null;
+
+  room_id?: string | null;
+  designation_name?: string | null;
+  organization?: string | null;
 
   foodItems: Record<
     "Breakfast" | "Lunch" | "High Tea" | "Dinner",
@@ -69,8 +92,14 @@ type GuestWithButler = ActiveGuestRow & {
     }[]
   >;
 
-
   foodStatus: "Served" | "Not Served";
+
+  butler?: {
+    id: string;
+    name: string;
+    guestButlerId?: string;
+  };
+
   specialRequest?: string;
 };
 
@@ -79,6 +108,15 @@ export function FoodService() {
     sortBy: "butler_name",
     sortOrder: "asc",
   });
+  const foodTable = useTableQuery({
+    page: 1,
+    limit: 6,
+    sortBy: "entry_date",
+    sortOrder: "desc",
+    status: "Entered" as const,
+  });
+
+
 
   /* ---------------- TAB STATE ---------------- */
   const [activeTab, setActiveTab] =
@@ -88,8 +126,8 @@ export function FoodService() {
   const [_formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<FoodDashboard | null>(null);
   const [guests, setGuests] = useState<GuestWithButler[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statsFilter, setStatsFilter] = useState<"ALL" | "SERVED" | "SPECIAL" | "MENU">("ALL");
+  // const [searchQuery, setSearchQuery] = useState("");
+  // const [statsFilter, setStatsFilter] = useState<"ALL" | "SERVED" | "SPECIAL" | "MENU">("ALL");
   const [dailyPlan, setDailyPlan] = useState<DailyMealPlan>({
     breakfast: [],
     lunch: [],
@@ -100,8 +138,6 @@ export function FoodService() {
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
   const [foodItems, setFoodItems] = useState<any[]>([]);
-
-
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<keyof DailyMealPlan>("breakfast");
   const [menuInput, setMenuInput] = useState("");
@@ -123,7 +159,6 @@ export function FoodService() {
   const [activeButler, setActiveButler] = useState<Butler | null>(null);
   const [deleteButler, setDeleteButler] = useState<Butler | null>(null);
 
-
   const [butlerForm, setButlerForm] = useState({
     butler_name: "",
     butler_name_local_language: "",
@@ -134,26 +169,6 @@ export function FoodService() {
     remarks: "",
   });
 
-  // function normalizeMealType(
-  //   meal: string | null | undefined
-  // ): "Breakfast" | "Lunch" | "High Tea" | "Dinner" | null {
-  //   if (!meal) return null;
-
-  //   switch (meal.trim().toLowerCase()) {
-  //     case "breakfast":
-  //       return "Breakfast";
-  //     case "lunch":
-  //       return "Lunch";
-  //     case "high tea":
-  //     case "hightea":
-  //     case "high_tea":
-  //       return "High Tea";
-  //     case "dinner":
-  //       return "Dinner";
-  //     default:
-  //       return null;
-  //   }
-  // }
   function normalizeMealType(
     meal?: string | null
   ): "Breakfast" | "Lunch" | "High Tea" | "Dinner" | null {
@@ -195,77 +210,196 @@ export function FoodService() {
     });
   }
 
+  // async function loadGuests() {
+  //   try {
+  //     const baseGuests = await loadGuestsBase();
+  //     const todayOrders = await getTodayGuestOrders();
+
+  //     const guestMap = new Map<string, GuestWithButler>();
+
+  //     // 1️⃣ Seed with active guests
+  //     for (const g of baseGuests) {
+  //       guestMap.set(g.guest_id, g);
+  //     }
+
+  //     // 2️⃣ Merge food + butler
+  //     for (const row of todayOrders) {
+  //       const guest = guestMap.get(row.guest_id);
+  //       if (!guest) continue;
+
+  //       const mealKey = normalizeMealType(row.meal_type);
+  //       if (!mealKey) {
+  //         console.warn("Unknown meal_type:", row.meal_type);
+  //         continue;
+  //       }
+  //       guest.foodItems[mealKey].push({
+  //         guest_food_id: row.guest_food_id,
+  //         food_name: row.food_name,
+  //         delivery_status: row.delivery_status,
+  //       });
+
+  //       if (row.food_stage === "DELIVERED") {
+  //         guest.foodStatus = "Served";
+  //       }
+
+  //       // Butler (once)
+  //       if (!guest.butler && row.butler_id) {
+  //         guest.butler = {
+  //           id: row.butler_id,
+  //           name: row.butler_name,
+  //           guestButlerId: row.guest_butler_id,
+  //         };
+  //       }
+  //       // ✅ SPECIAL REQUEST MERGE
+  //       if (row.specialrequest && !guest.specialRequest) {
+  //         guest.specialRequest = row.specialrequest;
+  //       }
+  //     }
+
+  //     setGuests(Array.from(guestMap.values()));
+  //   } catch (err) {
+  //     console.error("Failed to load guests", err);
+  //   }
+  // }
+  // async function loadGuests() {
+  //   try {
+  //     const res = await getGuestFoodTable({
+  //       page: 1,
+  //       limit: 1000,              // cards need full list
+  //       search: searchQuery || undefined,
+  //       status: "Entered",
+  //       sortBy: "entry_date",
+  //       sortOrder: "desc",
+  //     });
+
+  //     const guestMap = new Map<string, GuestWithButler>();
+
+  //     for (const row of res.data) {
+  //       if (!guestMap.has(row.guest_id)) {
+  //         guestMap.set(row.guest_id, {
+  //           guest_id: row.guest_id,
+  //           guest_name: row.guest_name,
+  //           guest_name_local_language: row.guest_name_local_language,
+  //           guest_mobile: row.guest_mobile,
+  //           room_id: row.room_id ?? null,
+
+  //           designation_name: row.designation_name,
+  //           organization: row.organization,
+
+  //           foodItems: {
+  //             Breakfast: [],
+  //             Lunch: [],
+  //             "High Tea": [],
+  //             Dinner: [],
+  //           },
+
+  //           foodStatus: "Not Served",
+
+  //           butler: row.butler_name
+  //             ? {
+  //                 id: "",
+  //                 name: row.butler_name,
+  //                 guestButlerId: row.guest_butler_id,
+  //               }
+  //             : undefined,
+
+  //           specialRequest: row.specialrequest ?? undefined,
+  //         });
+  //       }
+
+  //       if (row.guest_food_id && row.meal_type) {
+  //         const guest = guestMap.get(row.guest_id)!;
+
+  //         const meal = row.meal_type as keyof GuestWithButler["foodItems"];
+
+  //         guest.foodItems[meal].push({
+  //           guest_food_id: row.guest_food_id,
+  //           food_name: row.food_name,
+  //           delivery_status: row.delivery_status,
+  //         });
+
+
+  //         if (row.food_stage === "DELIVERED") {
+  //           guest.foodStatus = "Served";
+  //         }
+  //       }
+  //     }
+
+  //     setGuests(Array.from(guestMap.values()));
+  //   } catch (err) {
+  //     console.error("Failed to load guests", err);
+  //   }
+  // }
   async function loadGuests() {
+    foodTable.setLoading(true);
+
     try {
-      const baseGuests = await loadGuestsBase();
-      const todayOrders = await getTodayGuestOrders();
+      const res = await getGuestFoodTable({
+        page: foodTable.query.page,
+        limit: foodTable.query.limit,
+        search: foodTable.query.search || undefined,
+        status: (foodTable.query.status as "Entered" | "All" | "Inside" | "Exited" | "Cancelled") ?? "Entered",
+        sortBy: foodTable.query.sortBy as "entry_date" | "guest_name" | "meal_status",
+        sortOrder: foodTable.query.sortOrder as "asc" | "desc",
+      });
 
       const guestMap = new Map<string, GuestWithButler>();
 
-      // 1️⃣ Seed with active guests
-      for (const g of baseGuests) {
-        guestMap.set(g.guest_id, g);
-      }
+      for (const row of res.data) {
+        if (!guestMap.has(row.guest_id)) {
+          guestMap.set(row.guest_id, {
+            guest_id: row.guest_id,
+            guest_name: row.guest_name,
+            guest_name_local_language: row.guest_name_local_language,
+            guest_mobile: row.guest_mobile,
+            room_id: row.room_id ?? null,
+            designation_name: row.designation_name,
+            organization: row.organization,
 
-      // 2️⃣ Merge food + butler
-      for (const row of todayOrders) {
-        const guest = guestMap.get(row.guest_id);
-        if (!guest) continue;
+            foodItems: {
+              Breakfast: [],
+              Lunch: [],
+              "High Tea": [],
+              Dinner: [],
+            },
 
-        const mealKey = normalizeMealType(row.meal_type);
-        if (!mealKey) {
-          console.warn("Unknown meal_type:", row.meal_type);
-          continue;
+            foodStatus: "Not Served",
+
+            butler: row.butler_name
+              ? {
+                id: "",
+                name: row.butler_name,
+                guestButlerId: row.guest_butler_id,
+              }
+              : undefined,
+
+            specialRequest: row.specialrequest ?? undefined,
+          });
         }
-        guest.foodItems[mealKey].push({
-          guest_food_id: row.guest_food_id,
-          food_name: row.food_name,
-          delivery_status: row.delivery_status,
-        });
 
-        if (row.food_stage === "DELIVERED") {
-          guest.foodStatus = "Served";
-        }
+        if (row.guest_food_id && row.meal_type) {
+          const guest = guestMap.get(row.guest_id)!;
 
-        // Butler (once)
-        if (!guest.butler && row.butler_id) {
-          guest.butler = {
-            id: row.butler_id,
-            name: row.butler_name,
-            guestButlerId: row.guest_butler_id,
-          };
-        }
-        // ✅ SPECIAL REQUEST MERGE
-        if (row.specialrequest && !guest.specialRequest) {
-          guest.specialRequest = row.specialrequest;
+          const meal = row.meal_type as keyof GuestWithButler["foodItems"];
+
+          guest.foodItems[meal].push({
+            guest_food_id: row.guest_food_id,
+            food_name: row.food_name,
+            delivery_status: row.delivery_status,
+          });
+
+          if (row.food_stage === "DELIVERED") {
+            guest.foodStatus = "Served";
+          }
         }
       }
 
       setGuests(Array.from(guestMap.values()));
-    } catch (err) {
-      console.error("Failed to load guests", err);
+      foodTable.setTotal(res.totalCount);
+
+    } finally {
+      foodTable.setLoading(false);
     }
-  }
-
-  async function loadGuestsBase(): Promise<GuestWithButler[]> {
-    const res = await getActiveGuests({
-      page: 1,
-      limit: 1000,
-      status: "Entered",
-    });
-
-    return res.data.map((g: ActiveGuestRow) => ({
-      ...g,
-      foodItems: {
-        Breakfast: [],
-        Lunch: [],
-        "High Tea": [],
-        Dinner: [],
-      },
-      butler: undefined,
-      foodStatus: "Not Served",
-      specialRequest: undefined,
-    }));
   }
 
   async function loadButlers() {
@@ -301,41 +435,44 @@ export function FoodService() {
   useEffect(() => {
     loadFoodData();
     loadButlers();
-    loadGuests(); // Now loading from getActiveGuests!
     loadTodayMealPlan();
   }, []);
 
+  // useEffect(() => {
+  //   loadGuests();
+  // }, [searchQuery, statsFilter]);
+  useEffect(() => {
+    loadGuests();
+  }, [foodTable.query]);
 
   /* ---------------- GUEST FILTERING ---------------- */
-  const hasMealPlan = Object.values(dailyPlan).some((items) => items.length > 0);
+  // const hasMealPlan = Object.values(dailyPlan).some((items) => items.length > 0);
 
-  const filteredGuests = guests.filter((g) => {
-    // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      if (
-        !g.guest_name.toLowerCase().includes(q) &&
-        !String(g.room_id ?? "").toLowerCase().includes(q)
-      ) {
-        return false;
-      }
-    }
+  // const filteredGuests = guests.filter((g) => {
+  //   // Search filter
+  //   if (searchQuery.trim()) {
+  //     const q = searchQuery.toLowerCase();
+  //     if (
+  //       !g.guest_name.toLowerCase().includes(q) &&
+  //       !String(g.room_id ?? "").toLowerCase().includes(q)
+  //     ) {
+  //       return false;
+  //     }
+  //   }
 
-    // Stats filter
-    switch (statsFilter) {
-      case "SERVED":
-        return g.foodStatus === "Served";
-      case "SPECIAL":
-        return Boolean(g.specialRequest && g.specialRequest.trim());
-      case "MENU":
-        return hasMealPlan; // Show all guests if menu exists
-      case "ALL":
-      default:
-        return true;
-    }
-  });
-
-
+  //   // Stats filter
+  //   switch (statsFilter) {
+  //     case "SERVED":
+  //       return g.foodStatus === "Served";
+  //     case "SPECIAL":
+  //       return Boolean(g.specialRequest && g.specialRequest.trim());
+  //     case "MENU":
+  //       return hasMealPlan; // Show all guests if menu exists
+  //     case "ALL":
+  //     default:
+  //       return true;
+  //   }
+  // });
 
   /* ---------------- BUTLER ASSIGNMENT ---------------- */
   async function handleAssignButler(
@@ -362,14 +499,14 @@ export function FoodService() {
         prev.map(g =>
           g.guest_id === guestId
             ? {
-                ...g,
-                butler: {
-                  id: butlerId,
-                  name:
-                    butlers.find(b => b.butler_id === butlerId)?.butler_name ?? "",
-                  guestButlerId: res.guest_butler_id,
-                },
-              }
+              ...g,
+              butler: {
+                id: butlerId,
+                name:
+                  butlers.find(b => b.butler_id === butlerId)?.butler_name ?? "",
+                guestButlerId: res.guest_butler_id,
+              },
+            }
             : g
         )
       );
@@ -622,6 +759,46 @@ export function FoodService() {
       alert("Failed to save butler");
     }
   }
+  // const foodColumns: Column<GuestFoodTableRow>[] = [
+  //   {
+  //     header: 'Guest Name',
+  //     accessor: 'guest_name',
+  //     sortable: true,
+  //     sortKey: 'guest_name',
+  //   },
+  //   {
+  //     header: 'Meal',
+  //     accessor: 'meal_type',
+  //   },
+  //   {
+  //     header: 'Food Status',
+  //     sortable: true,
+  //     sortKey: 'meal_status',
+  //     render: (r) => (
+  //       <span className={`statusPill ${r.food_stage?.toLowerCase()}`}>
+  //         {r.food_stage ?? '—'}
+  //       </span>
+  //     ),
+  //   },
+  //   {
+  //     header: 'Delivery',
+  //     accessor: 'delivery_status',
+  //   },
+  //   {
+  //     header: 'Butler',
+  //     accessor: 'butler_name',
+  //     emptyFallback: '—',
+  //   },
+  //   {
+  //     header: 'Special Request',
+  //     render: (r) =>
+  //       r.specialrequest ? (
+  //         <span className="specialReqBadge">Yes</span>
+  //       ) : (
+  //         '—'
+  //       ),
+  //   },
+  // ];
 
   /* ---------------- GUEST FOOD CARD COMPONENT ---------------- */
   type GuestFoodCardProps = {
@@ -846,12 +1023,12 @@ export function FoodService() {
   }
 
   const butlerColumns: Column<Butler>[] = [
-    {
-      header: "Butler ID",
-      accessor: "butler_id",
-      sortable: true,
-      sortKey: "butler_id",
-    },
+    // {
+    //   header: "Butler ID",
+    //   accessor: "butler_id",
+    //   sortable: true,
+    //   sortKey: "butler_id",
+    // },
     {
       header: "Name",
       accessor: "butler_name",
@@ -906,8 +1083,17 @@ export function FoodService() {
       {/* STATS - Clickable filters */}
       <div className="statsGrid">
         <div
-          className={`statCard blue ${statsFilter === "ALL" ? "active" : ""}`}
-          onClick={() => setStatsFilter("ALL")}
+          className="statCard blue"
+          onClick={() =>
+            foodTable.batchUpdate(prev => ({
+              page: 1,
+              limit: prev.limit,
+              search: prev.search,
+              status: "Entered",
+              sortBy: prev.sortBy,
+              sortOrder: prev.sortOrder,
+            }))
+          }
         >
           <Users />
           <div>
@@ -917,8 +1103,17 @@ export function FoodService() {
         </div>
 
         <div
-          className={`statCard green ${statsFilter === "SERVED" ? "active" : ""}`}
-          onClick={() => setStatsFilter("SERVED")}
+          className={`statCard green`}
+          onClick={() =>
+            foodTable.batchUpdate(prev => ({
+              page: 1,
+              limit: prev.limit,
+              search: prev.search,
+              status: "Entered",
+              sortBy: "meal_status",
+              sortOrder: "desc",
+            }))
+          }
         >
           <CheckCircle />
           <div>
@@ -928,8 +1123,17 @@ export function FoodService() {
         </div>
 
         <div
-          className={`statCard orange ${statsFilter === "SPECIAL" ? "active" : ""}`}
-          onClick={() => setStatsFilter("SPECIAL")}
+          className={`statCard orange`}
+          onClick={() =>
+            foodTable.batchUpdate(prev => ({
+              page: 1,
+              limit: prev.limit,
+              search: prev.search,
+              status: prev.status,
+              sortBy: "meal_status",
+              sortOrder: "asc",
+            }))
+          }
         >
           <AlertCircle />
           <div>
@@ -939,8 +1143,17 @@ export function FoodService() {
         </div>
 
         <div
-          className={`statCard purple ${statsFilter === "MENU" ? "active" : ""}`}
-          onClick={() => setStatsFilter("MENU")}
+          className={`statCard purple`}
+          onClick={() =>
+            foodTable.batchUpdate(prev => ({
+              page: 1,
+              limit: prev.limit,
+              search: prev.search,
+              status: prev.status,
+              sortBy: "meal_status",
+              sortOrder: "asc",
+            }))
+          }
         >
           <UtensilsCrossed />
           <div>
@@ -977,8 +1190,8 @@ export function FoodService() {
               <input
                 className="nicInput searchInput"
                 placeholder="Search guest / room..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={foodTable.searchInput}
+                onChange={(e) => foodTable.setSearchInput(e.target.value)}
               />
             </div>
             <button
@@ -1030,7 +1243,7 @@ export function FoodService() {
           )}
 
           {/* GUEST GRID */}
-          {filteredGuests.length === 0 ? (
+          {guests.length === 0 ? (
             <div className="emptyState">
               <UtensilsCrossed size={32} />
               <p>No active guests found</p>
@@ -1040,7 +1253,7 @@ export function FoodService() {
             </div>
           ) : (
             <div className="guestFoodGrid">
-              {filteredGuests.map((g) => (
+              {guests.map((g) => (
                 <GuestFoodCard
                   key={g.guest_id}
                   guest={g}
@@ -1054,7 +1267,36 @@ export function FoodService() {
                   onEditMenu={handleEditMenu}
                 />
               ))}
+              <div className="flex justify-between items-center mt-6">
+                <div className="text-sm text-gray-600">
+                  Page {foodTable.query.page} of{" "}
+                  {Math.ceil(foodTable.total / foodTable.query.limit)}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    className="secondaryBtn"
+                    disabled={foodTable.query.page === 1}
+                    onClick={() => foodTable.setPage(foodTable.query.page - 1)}
+                  >
+                    Previous
+                  </button>
+
+                  <button
+                    className="secondaryBtn"
+                    disabled={
+                      foodTable.query.page >=
+                      Math.ceil(foodTable.total / foodTable.query.limit)
+                    }
+                    onClick={() => foodTable.setPage(foodTable.query.page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
+
+
           )}
         </div>
       )}
