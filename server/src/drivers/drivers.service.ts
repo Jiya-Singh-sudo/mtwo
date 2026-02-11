@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
@@ -393,7 +393,7 @@ export class DriversService {
   async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
     const existing = await this.findOneById(driver_id);
     if (!existing) {
-      throw new Error(`Driver '${driver_id}' not found`);
+      throw new NotFoundException(`Driver '${driver_id}' not found`);
     }
     const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
     const updatedName = dto.driver_name?.trim();
@@ -507,7 +507,7 @@ export class DriversService {
   async softDelete(driver_id: string, user: string, ip: string) {
     const existing = await this.findOneById(driver_id);
     if (!existing) {
-      throw new Error(`Driver '${driver_id}' not found`);
+      throw new NotFoundException(`Driver '${driver_id}' not found`);
     }
 
     // 🚫 CHECK: Is driver currently assigned?

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestHousekeepingDto } from "./dto/create-guest-housekeeping.dto";
 import { UpdateGuestHousekeepingDto } from "./dto/update-guest-housekeeping.dto";
@@ -103,7 +103,7 @@ export class GuestHousekeepingService {
 
   async update(id: string, dto: UpdateGuestHousekeepingDto, user: string, ip: string) {
     const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Housekeeping task '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Housekeeping task '${id}' not found`);
 
     const now = new Date().toISOString();
 
@@ -150,14 +150,14 @@ export class GuestHousekeepingService {
     );
 
     if (!check.rowCount) {
-      throw new Error('Housekeeping task not found');
+      throw new NotFoundException('Housekeeping task not found');
     }
 
     const hk = check.rows[0];
 
     // 2️⃣ BLOCK if assigned to guest
     if (hk.is_active && hk.guest_id) {
-      throw new Error(
+      throw new BadRequestException(
         'Cannot delete housekeeping: it is assigned to an active guest'
       );
     }

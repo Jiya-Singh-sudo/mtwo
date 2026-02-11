@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -228,7 +228,7 @@ export class VehiclesService {
 
         const existing = await this.findOne(vehicle_no);
         if (!existing) {
-            throw new Error(`Vehicle '${vehicle_no}' not found`);
+            throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
         }
       if (dto.is_active === false && existing.is_active === true) {
         const assignmentCheck = await this.db.query(
@@ -316,7 +316,7 @@ export class VehiclesService {
   async softDelete(vehicle_no: string, user: string, ip: string) {
     const existing = await this.findOne(vehicle_no);
     if (!existing) {
-      throw new Error(`Vehicle '${vehicle_no}' not found`);
+      throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
     }
 
     const assignmentCheck = await this.db.query(

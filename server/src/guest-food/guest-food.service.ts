@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
@@ -196,7 +196,7 @@ export class GuestFoodService {
 
   async update(id: string, dto: UpdateGuestFoodDto, user: string, ip: string) {
     const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Food "${id}" not found`);
+    if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
 
     const now = new Date().toISOString();
 

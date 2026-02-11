@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateMealDto } from './dto/create-meals.dto';
 import { UpdateMealDto } from './dto/update-meals.dto';
@@ -116,7 +116,7 @@ export class MealsService {
   async update(name: string, dto: UpdateMealDto, user: string, ip: string) {
     const existing = await this.findOneByName(name);
     if (!existing) {
-      throw new Error(`Meal '${name}' not found`);
+      throw new NotFoundException(`Meal '${name}' not found`);
     }
 
     const now = new Date()
@@ -154,7 +154,7 @@ export class MealsService {
   async softDelete(name: string, user: string, ip: string) {
     const existing = await this.findOneByName(name);
     if (!existing) {
-      throw new Error(`Meal '${name}' not found`);
+      throw new NotFoundException(`Meal '${name}' not found`);
     }
 
     const now = new Date().toISOString();

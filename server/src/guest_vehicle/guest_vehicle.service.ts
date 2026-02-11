@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
 
@@ -40,13 +40,13 @@ export class GuestVehicleService {
     const res = await this.db.query(sql, [guestId]);
 
     if (!res.rows.length) {
-      throw new Error("Guest status not found");
+      throw new NotFoundException("Guest status not found");
     }
 
     const status = res.rows[0].status;
 
     if (["Exited", "Cancelled"].includes(status)) {
-      throw new Error(
+      throw new BadRequestException(
         `Cannot assign vehicle to guest with status '${status}'`
       );
     }
@@ -322,11 +322,11 @@ export class GuestVehicleService {
     );
 
     if (!old.rows.length) {
-      throw new Error("Vehicle assignment not found");
+      throw new NotFoundException("Vehicle assignment not found");
     }
 
     if (!old.rows[0].is_active) {
-      throw new Error("Cannot reassign an expired vehicle assignment");
+      throw new BadRequestException("Cannot reassign an expired vehicle assignment");
     }
 
     await this.assertGuestIsAssignable(old.rows[0].guest_id);
@@ -425,7 +425,7 @@ export class GuestVehicleService {
     ]);
 
     if (res.rows.length) {
-      throw new Error(
+      throw new BadRequestException(
         `Vehicle ${vehicleNo} is already assigned during the selected time`
       );
     }
@@ -457,7 +457,7 @@ export class GuestVehicleService {
       assignedAt < entry_ts ||
       (releasedAt && releasedAt > exit_ts)
     ) {
-      throw new Error(
+      throw new BadRequestException(
         'Vehicle assignment is outside guest check-in / check-out period'
       );
     }

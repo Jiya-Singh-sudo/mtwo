@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestRoomDto } from "./dto/create-guest-room.dto";
 import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
@@ -106,7 +106,7 @@ export class GuestRoomService {
       `, [guestRoomId]);
 
       if (!res.rowCount) {
-        throw new Error('No active room assignment found');
+        throw new NotFoundException('No active room assignment found');
       }
 
       const roomId = res.rows[0].room_id;
@@ -207,7 +207,7 @@ export class GuestRoomService {
       `, [dto.guest_id]);
 
       if (!guestCheck.rowCount) {
-        throw new Error('Guest is not currently active');
+        throw new BadRequestException('Guest is not currently active');
       }
 
       // 2️⃣ Ensure room is available
@@ -217,7 +217,7 @@ export class GuestRoomService {
       `, [dto.room_id]);
 
       if (!roomCheck.rowCount) {
-        throw new Error('Room not found or inactive');
+        throw new BadRequestException('Room not found or inactive');
       }
 
       if (roomCheck.rows[0].status !== 'Available' || occupancyRes.rows[0].count > 0) {
@@ -309,14 +309,14 @@ export class GuestRoomService {
 
     } catch (err) {
       await this.db.query('ROLLBACK');
-      console.error("GuestRoom Create Error:", err);
+      // console.error("GuestRoom Create Error:", err);
       throw err;
     }
   }
 
   async update(id: string, dto: UpdateGuestRoomDto, user: string, ip: string) {
     const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Room entry '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Guest Room entry '${id}' not found`);
 
     await this.db.query('BEGIN');
     if (

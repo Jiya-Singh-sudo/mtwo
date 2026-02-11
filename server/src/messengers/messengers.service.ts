@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateMessengerDto } from './dto/create-messenger.dto';
 import { UpdateMessengerDto } from './dto/update-messenger.dto';
@@ -89,7 +89,7 @@ export class MessengerService {
   /* ---------- UPDATE ---------- */
   async update(id: string, dto: UpdateMessengerDto, user: string, ip: string) {
     const existing = await this.findOneById(id);
-    if (!existing) throw new Error(`Messenger '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Messenger '${id}' not found`);
 
     const now = new Date().toISOString();
     const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);

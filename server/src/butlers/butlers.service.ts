@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
@@ -187,7 +187,7 @@ export class ButlersService {
 
   async update(id: string, dto: UpdateButlerDto, user: string, ip: string) {
     const existing = await this.findOneById(id);
-    if (!existing) throw new Error(`Butler '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Butler '${id}' not found`);
 
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
@@ -233,7 +233,7 @@ export class ButlersService {
 
   async softDelete(id: string, user: string, ip: string) {
     const existing = await this.findOneById(id);
-    if (!existing) throw new Error(`Butler '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Butler '${id}' not found`);
 
     const now = new Date().toISOString();
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { ReportPreviewDto, ReportCodePrev } from './dto/report-preview.dto';
 import { ReportCode } from './registry/report.registry';
@@ -1355,7 +1355,7 @@ export class ReportsPkgService {
     const config = this.sectionRegistry[input.section];
 
     if (!config) {
-      throw new Error(`Unsupported section: ${input.section}`);
+      throw new BadRequestException(`Unsupported section: ${input.section}`);
     }
 
     const language: 'en' | 'mr' = input.language ?? 'en';
@@ -1448,7 +1448,7 @@ export class ReportsPkgService {
       return { filePath };
     }
 
-    throw new Error('Unsupported format');
+    throw new BadRequestException('Unsupported format');
   }
 
 
@@ -1508,7 +1508,7 @@ export class ReportsPkgService {
         break;
 
       default:
-        throw new Error(`Unsupported section for view: ${input.section}`);
+        throw new BadRequestException(`Unsupported section for view: ${input.section}`);
     }
 
     const result = await engine.run(reportCode, {

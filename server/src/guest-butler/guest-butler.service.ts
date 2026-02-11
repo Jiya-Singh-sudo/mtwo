@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestButlerDto } from "./dto/create-guest-butler.dto";
 import { UpdateGuestButlerDto } from "./dto/update-guest-butler.dto";
@@ -203,7 +203,7 @@ export class GuestButlerService {
   async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
     const existing = await this.findOne(id);
     if (!existing) {
-      throw new Error(`Guest-Butler assignment '${id}' not found`);
+      throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
     }
 
     const now = new Date().toISOString();

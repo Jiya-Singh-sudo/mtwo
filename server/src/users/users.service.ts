@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -250,7 +250,7 @@ export class UsersService {
 
     const res = await this.db.query(sql, [dto.token]);
     if (res.rows.length === 0) {
-      throw new Error('Invalid or expired reset token');
+      throw new BadRequestException('Invalid or expired reset token');
     }
 
     const userId = res.rows[0].user_id;
@@ -278,7 +278,7 @@ export class UsersService {
 
   async update(username: string, dto: UpdateUserDto, user: string, ip: string) {
     const existing = await this.findOneByUsername(username);
-    if (!existing) throw new Error(`User '${username}' not found`);
+    if (!existing) throw new NotFoundException(`User '${username}' not found`);
 
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
 
@@ -338,7 +338,7 @@ export class UsersService {
 
   async softDelete(username: string, user: string, ip: string) {
     const existing = await this.findOneByUsername(username);
-    if (!existing) throw new Error(`User '${username}' not found`);
+    if (!existing) throw new NotFoundException(`User '${username}' not found`);
 
     const now = new Date().toISOString();
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -124,7 +124,7 @@ export class RolesService {
     const existing = await this.findOne(role_id);
 
     if (!existing) {
-      throw new Error(`Role with id ${role_id} not found`);
+      throw new NotFoundException(`Role with id ${role_id} not found`);
     }
 
     // 🔥 FIX: convert "1"/"0"/1/0/true/false → boolean

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDesignationDto } from './dto/create-designation.dto';
 import { UpdateDesignationDto } from './dto/update-designation.dto';
@@ -85,7 +85,7 @@ export class DesignationService {
 
   async update(name: string, dto: UpdateDesignationDto, user: string, ip: string) {
     const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Designation '${name}' not found`);
+    if (!existing) throw new NotFoundException(`Designation '${name}' not found`);
 
     const now = new Date().toISOString();
 
@@ -117,7 +117,7 @@ export class DesignationService {
 
   async softDelete(name: string, user: string, ip: string) {
     const existing = await this.findOneByName(name);
-    if (!existing) throw new Error(`Designation '${name}' not found`);
+    if (!existing) throw new NotFoundException(`Designation '${name}' not found`);
 
     const now = new Date().toISOString();
 

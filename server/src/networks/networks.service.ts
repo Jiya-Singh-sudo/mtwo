@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateNetworkDto } from './dto/create-network.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
@@ -273,7 +273,7 @@ export class NetworksService {
 
   async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
     const existing = await this.findOneById(id);
-    if (!existing) throw new Error(`Provider '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Provider '${id}' not found`);
 
     const now = new Date()
       .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
