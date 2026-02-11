@@ -4,12 +4,26 @@
   <meta charset="utf-8" />
   <title>{{meta.title}}</title>
   <style>
+    @font-face {
+      font-family: 'MarathiFont';
+      src: url('./fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+    }
     body {
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: {{#if (eq language "mr")}}
+        'MarathiFont'
+      {{else}}
+        Arial, Helvetica, sans-serif
+      {{/if}};
       font-size: 11px;
       margin: 30px;
       color: #000;
     }
+    {{!-- body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      margin: 30px;
+      color: #000;
+    } --}}
     h1, h2, h3 {
       text-align: center;
       margin: 4px 0;
@@ -52,37 +66,146 @@
 
 <body>
 
-  <h1>GUEST MANAGEMENT SYSTEM (GMS)</h1>
+  <h1>
+  {{#if (eq language "mr")}}
+    अतिथी व्यवस्थापन प्रणाली (GMS)
+  {{else}}
+    GUEST MANAGEMENT SYSTEM (GMS)
+  {{/if}}
+</h1>
+
   <h2>{{meta.title}}</h2>
   <h3>{{meta.location}}</h3>
 
   <div class="meta">
-    <strong>Period:</strong>
-    {{ddmmyyyy meta.fromDate}}
-    {{#if meta.toDate}} – {{ddmmyyyy meta.toDate}}{{/if}}
+    <strong>
+      {{#if (eq language "mr")}}
+      कालावधी:
+      {{else}}
+      Period:
+      {{/if}}
+    </strong>
+    {{labels.fromDate}}: {{ddmmyyyy meta.fromDate}}
+    {{#if meta.toDate}} {{labels.toDate}}: {{ddmmyyyy meta.toDate}}{{/if}}
     &nbsp;&nbsp;&nbsp;
-    <strong>Report ID:</strong> {{meta.reportId}}
+    <strong>
+      {{#if (eq language "mr")}}
+      अहवाल क्र.:
+      {{else}}
+      Report ID:
+      {{/if}}
+    </strong> {{meta.reportId}}
   </div>
 
 
   <table>
   <thead>
     <tr>
-      <th>Guest Name & Designation</th>
-      <th>Room No.</th>
-      <th>Housekeeper</th>
-      <th>Butler</th>
-      <th>Food / Remarks</th>
-      <th>Vehicle No.</th>
-      <th>Driver Name</th>
-      <th>Pickup - Drop</th>
-      <th>Messenger</th>
-      <th>Network</th>
-      <th>Stay From</th>
-      <th>Stay To</th>
-      <th>Total Days</th>
-      <th>Visit Type</th>
-      <th>Exceptions</th>
+      <th>
+      {{#if (eq language "mr")}}
+      अतिथी नाव व पद
+      {{else}}
+      Guest Name & Designation
+      {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        कक्ष क्र.
+        {{else}}
+        Room No.
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        हाऊसकीपर
+        {{else}}
+        Housekeeper
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        बटलर
+        {{else}}
+        Butler
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        अन्न / नोंदी
+        {{else}}
+        Food / Remarks
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        वाहन क्र.
+        {{else}}
+        Vehicle No.
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        चालक नाव
+        {{else}}
+        Driver Name
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        पिकअप - ड्रॉप
+        {{else}}
+        Pickup - Drop
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        मेसेन्जर
+        {{else}}
+        Messenger
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        नेटवर्क
+        {{else}}
+        Network
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        प्रवेश तारीख
+        {{else}}
+        Stay From
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        निर्गमन तारीख
+        {{else}}
+        Stay To
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        एकूण दिवस
+        {{else}}
+        Total Days
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        भेट प्रकार
+        {{else}}
+        Visit Type
+        {{/if}}
+      </th>
+      <th>
+        {{#if (eq language "mr")}}
+        विशेष नोंदी
+        {{else}}
+        Exceptions
+        {{/if}}
+      </th>
     </tr>
   </thead>
 
@@ -114,32 +237,87 @@
   <table class="footer-table">
     <tr>
       <td>
-        Prepared By<br/><br/>
+        {{#if (eq language "mr")}}
+        तयार केले
+        {{else}}
+        Prepared By
+        {{/if}}
+        <br/><br/>
         (GMS Admin)
       </td>
       <td>
-        Verified By<br/><br/>
+        {{#if (eq language "mr")}}
+        तपासले
+        {{else}}
+        Verified By
+        {{/if}}
+        <br/><br/>
         (Secretary, Raj Bhawan)
       </td>
       <td>
-        Approved By<br/><br/>
+        {{#if (eq language "mr")}}
+        मंजूर केले
+        {{else}}
+        Approved By
+        {{/if}}
+        <br/><br/>
         Honourable Governor of Maharashtra
       </td>
     </tr>
     <tr>
-      <td>Signature:</td>
-      <td>Signature:</td>
-      <td>Signature:</td>
+      <td>
+        {{#if (eq language "mr")}} 
+        सही
+        {{else}}
+        Signature
+        {{/if}}
+      </td>
+      <td>
+        {{#if (eq language "mr")}} 
+        सही
+        {{else}}
+        Signature
+        {{/if}}
+      </td>
+      <td>
+        {{#if (eq language "mr")}} 
+        सही
+        {{else}}
+        Signature
+        {{/if}}
+      </td>
     </tr>
     <tr>
-      <td>Date:</td>
-      <td>Date:</td>
-      <td>Date:</td>
+      <td>
+        {{#if (eq language "mr")}} 
+        तारीख
+        {{else}}
+        Date
+        {{/if}}
+      </td>
+      <td>
+        {{#if (eq language "mr")}} 
+        तारीख
+        {{else}}
+        Date
+        {{/if}}
+      </td>
+      <td>
+        {{#if (eq language "mr")}} 
+        तारीख
+        {{else}}
+        Date
+        {{/if}}
+      </td>
     </tr>
   </table>
 
   <div class="note">
+    {{#if (eq language "mr")}} 
+    हा अतिथी व्यवस्थापन प्रणाली (GMS), राज भवन, महाराष्ट्र मधून तयार केलेला अहवाल आहे.
+    {{else}}
     This is a system-generated report from the Guest Management System (GMS), Raj Bhawan, Maharashtra.
+    {{/if}}
   </div>
 
 </body>

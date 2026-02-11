@@ -7,6 +7,7 @@ export async function exportFoodServiceExcel(payload: {
   rows: any[];
   fromDate: string;
   toDate: string;
+  language?: 'en' | 'mr';
 }): Promise<string> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Food Service');

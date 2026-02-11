@@ -8,7 +8,7 @@ export class GuestReportEngine {
 
   async run(
     reportCode: ReportCode,
-    filters: { fromDate: string; toDate: string }
+    filters: { fromDate: string; toDate: string; language?: 'en' | 'mr' }
   ) {
     switch (reportCode) {
       case ReportCode.GUEST_DAILY_SUMMARY:
@@ -27,6 +27,7 @@ export class GuestReportEngine {
   private async guestSummary(filters: {
     fromDate: string;
     toDate: string;
+    language?: 'en' | 'mr';
   }) {
     const { fromDate, toDate } = filters;
 

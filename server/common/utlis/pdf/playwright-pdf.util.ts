@@ -12,6 +12,7 @@ interface GeneratePdfOptions {
 Handlebars.registerHelper('ddmmyyyy', (value) =>
   formatDDMMYYYY(value),
 );
+Handlebars.registerHelper('eq', (a, b) => a === b);
 /**
  * Generate PDF from Handlebars template using Playwright
  */

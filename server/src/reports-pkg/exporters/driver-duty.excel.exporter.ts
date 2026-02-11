@@ -6,6 +6,7 @@ export async function exportDriverDutyExcel(input: {
   rows: any[];
   fromDate: string;
   toDate: string;
+  language?: 'en' | 'mr';
 }) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Driver Duty');

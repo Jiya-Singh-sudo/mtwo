@@ -28,13 +28,7 @@ export class ReportsPkgController {
   preview(@Query() dto: ReportPreviewDto) {
     return this.service.previewReport(dto);
   }
-
-  /* ---------- GENERATE ---------- */
-  @Post('generate')
-  generate(@Body() dto: ReportGenerateDto) {
-    return this.service.generateReport(dto);
-  }
-
+  
   /* ---------- HISTORY ---------- */
   @Get('history')
   history() {
@@ -550,6 +544,38 @@ export class ReportsPkgController {
         HttpStatus.BAD_REQUEST,
       );
     }
+  }
+  @Post('generate')
+  async generateSectionReport(
+    @Body()
+    body: {
+      section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+      rangeType: string;
+      format: 'PDF' | 'EXCEL' | 'VIEW';
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    const normalizedBody = {
+      ...body,
+      rangeType: normalizeRangeType(body.rangeType),
+    };
+
+    const result = await this.service.generateReportGeneric(normalizedBody);
+
+    if (body.format === 'VIEW') {
+      return result;
+    }
+
+    if (!('filePath' in result) || !result.filePath) {
+      throw new HttpException(
+        'Failed to generate report',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return res.download(result.filePath);
   }
 
 

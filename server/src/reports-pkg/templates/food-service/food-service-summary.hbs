@@ -1,6 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    @font-face {
+      font-family: 'MarathiFont';
+      src: url('./fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+    }
+    body {
+      font-family: 'MarathiFont', sans-serif;
+    }
+  </style>
+</head>
+<body>
 <h1 style="text-align:center">FOOD SERVICE TRANSACTION REPORT</h1>
 <p style="text-align:center">
-  Period: {{ddmmyyyy meta.fromDate}} – {{ddmmyyyy meta.toDate}}
+  Period: {{labels.fromDate}}: {{ddmmyyyy meta.fromDate}} – {{labels.toDate}}: {{ddmmyyyy meta.toDate}}
 </p>
 
 <table width="100%" border="1" cellspacing="0" cellpadding="4">
@@ -31,3 +45,5 @@
     {{/each}}
   </tbody>
 </table>
+</body>
+</html>

@@ -38,6 +38,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionModule } from './role-permission/role-permission.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LiasoningOfficerModule } from './liasoning-officer/liasoning-officer.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ReportsPkgModule,
     PermissionsModule,
     RolePermissionModule,
+    LiasoningOfficerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
