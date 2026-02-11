@@ -223,6 +223,7 @@ function GuestTransportManagement() {
             entry_date: row.entry_date,
             exit_date: row.exit_date,
             inout_status: row.inout_status,
+            requires_driver: row.requires_driver, 
           },
 
           driver: row.driver_id
@@ -984,8 +985,107 @@ function GuestTransportManagement() {
                     {/* ================= DRIVER ================= */}
                     <div className="infoSection">
                       <h4><UserCheck size={16} /> Driver</h4>
+                      {!guest.requires_driver ? (
 
-                      {driver ? (
+                        <span className="text-sm text-gray-500">
+                          Driver not required
+                        </span>
+
+                      ) : driver ? (
+
+                        <>
+                          <div className="infoGrid">
+                            <div><strong>Name:</strong> {driver.driver_name}</div>
+                            <div><strong>Contact:</strong> {driver.driver_contact}</div>
+                            <div><strong>Pickup:</strong> {driver.pickup_location ?? "-"}</div>
+                            <div><strong>Drop:</strong> {driver.drop_location ?? "-"}</div>
+                            <div><strong>Date:</strong> {formatISTDate(driver.trip_date)}</div>
+                            <div>
+                              <strong>Time:</strong>{" "}
+                              {driver.start_time
+                                ? formatISTTime(`${driver.trip_date}T${driver.start_time}`)
+                                : "-"}
+                              {" → "}
+                              {driver.end_time
+                                ? formatISTTime(`${driver.trip_date}T${driver.end_time}`)
+                                : "-"}
+                            </div>
+                            <div><strong>Status:</strong> {driver.trip_status}</div>
+                          </div>
+
+                          <div className="actionRow">
+                            {!isGuestLocked(guest.inout_status || undefined) && !isDriverExpired(driver) ? (
+                              <>
+                                <button
+                                  className="secondaryBtn"
+                                  onClick={() => {
+                                    setEditingGuestDriverId(driver.guest_driver_id);
+                                    setDriverForm({
+                                      guest_id: String(guest.guest_id),
+                                      driver_id: driver.driver_id,
+                                      pickup_location: driver.pickup_location ?? "",
+                                      drop_location: driver.drop_location ?? "",
+                                      trip_date: driver.trip_date,
+                                      start_time: driver.start_time,
+                                      end_time: driver.end_time ?? "",
+                                      drop_date: driver.drop_date,
+                                      drop_time: driver.drop_time,
+                                      trip_status: driver.trip_status,
+                                    });
+                                    setEditDriverModalOpen(true);
+                                  }}
+                                >
+                                  Edit Driver Trip
+                                </button>
+
+                                <button
+                                  className="dangerBtn"
+                                  onClick={async () => {
+                                    await closeGuestDriver(driver.guest_driver_id);
+                                    GuestTable.setPage(1);
+                                  }}
+                                >
+                                  Unassign Driver
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs uppercase tracking-wide text-gray-400">
+                                Completed
+                              </span>
+                            )}
+                          </div>
+                        </>
+
+                      ) : !isGuestLocked(guest.inout_status || undefined) ? (
+
+                        <button
+                          className="primaryBtn mt-2"
+                          onClick={() => {
+                            if (!guest.entry_date || !guest.exit_date) {
+                              alert("Guest must have check-in and check-out dates before assignment.");
+                              return;
+                            }
+
+                            openAssignDriver(
+                              String(guest.guest_id),
+                              guest.entry_date,
+                              guest.exit_date,
+                              guest.inout_status
+                            );
+                          }}
+                        >
+                          Assign Driver
+                        </button>
+
+                      ) : (
+
+                        <span className="text-sm text-gray-500">
+                          Guest exited / cancelled
+                        </span>
+
+                      )}
+
+                      {/* {driver ? (
                         <>
                           <div className="infoGrid">
                             <div><strong>Name:</strong> {driver.driver_name}</div>
@@ -1076,7 +1176,7 @@ function GuestTransportManagement() {
                             Guest exited / cancelled
                           </span>
                         )
-                      )}
+                      )} */}
                     </div>
 
                     {/* ================= VEHICLE ================= */}

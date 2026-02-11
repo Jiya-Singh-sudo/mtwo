@@ -49,6 +49,8 @@ export type NetworkTableQuery = {
   sortOrder?: 'asc' | 'desc';
 
   status?: "all" | "active" | "inactive" | undefined;
+  networkType?: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
+
 };
 
 export type NetworkTableResponse = {

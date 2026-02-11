@@ -8,6 +8,7 @@ export interface ActiveGuestRow {
   guest_alternate_mobile?: string | null;
   guest_address?: string | null;
   email?: string | null;
+  requires_driver?: boolean | null;
 
   gd_id?: string | null;
   designation_id?: string;

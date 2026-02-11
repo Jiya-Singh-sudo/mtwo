@@ -242,21 +242,6 @@ const messengerTable = useTableQuery({
     }, [editMessenger]);
 
     useEffect(() => {
-        if (editMessenger) {
-            setMessengerEditForm({
-                messenger_name: editMessenger.messenger_name,
-                messenger_name_local_language:
-                    editMessenger.messenger_name_local_language || "",
-                primary_mobile: editMessenger.primary_mobile,
-                secondary_mobile: editMessenger.secondary_mobile || "",
-                email: editMessenger.email || "",
-                designation: editMessenger.designation || "",
-                remarks: editMessenger.remarks || "",
-            });
-        }
-    }, [editMessenger]);
-
-    useEffect(() => {
         if (editGuest) {
             setGuestForm({
                 guest_name: editGuest.guest_name,
@@ -283,80 +268,196 @@ const messengerTable = useTableQuery({
     //     loadRooms();
     // }, []);
 
+    // async function loadGuestNetwork() {
+    //     setGuestLoading(true);
+
+    //     const res = await getGuestNetworkTable({
+    //         page: guestTable.query.page,
+    //         limit: guestTable.query.limit,
+    //         sortBy: ["guest_name", "network_status"].includes(guestTable.query.sortBy)
+    //             ? guestTable.query.sortBy
+    //             : "guest_name" as any,
+    //         sortOrder: guestTable.query.sortOrder,
+    //         search: guestTable.query.search,
+    //     });
+
+    //     setGuestRows(res.data);
+    //     setGuestTotal(res.totalCount);
+    //     setGuestStats(res.stats);
+    //     setGuestLoading(false);
+    // }
     async function loadGuestNetwork() {
         setGuestLoading(true);
 
-        const res = await getGuestNetworkTable({
-            page: guestTable.query.page,
-            limit: guestTable.query.limit,
-            sortBy: ["guest_name", "network_status"].includes(guestTable.query.sortBy)
-                ? guestTable.query.sortBy
-                : "guest_name" as any,
-            sortOrder: guestTable.query.sortOrder,
-            search: guestTable.query.search,
-        });
+        try {
+            const res = await getGuestNetworkTable({
+                page: guestTable.query.page,
+                limit: guestTable.query.limit,
+                sortBy: ["guest_name", "network_status"].includes(guestTable.query.sortBy)
+                    ? guestTable.query.sortBy
+                    : "guest_name" as any,
+                sortOrder: guestTable.query.sortOrder,
+                search: guestTable.query.search,
+            });
 
-        setGuestRows(res.data);
-        setGuestTotal(res.totalCount);
-        setGuestStats(res.stats);
-        setGuestLoading(false);
+            setGuestRows(res?.data ?? []);
+            setGuestTotal(res?.totalCount ?? 0);
+            setGuestStats(res?.stats ?? {
+                total: 0,
+                requested: 0,
+                connected: 0,
+                disconnected: 0,
+                issueReported: 0,
+                resolved: 0,
+                cancelled: 0,
+                messengerAssigned: 0,
+            });
+
+        } catch (err) {
+            console.error("Guest network load failed:", err);
+            setGuestRows([]);
+            setGuestTotal(0);
+        } finally {
+            setGuestLoading(false);
+        }
     }
 
+
+    // async function loadNetworks() {
+    //     setNetworkLoading(true);
+
+    //     const res = await getNetworkTable({
+    //         page: networkTable.query.page,
+    //         limit: networkTable.query.limit,
+    //         sortBy: [
+    //             "provider_name",
+    //             "network_type",
+    //             "bandwidth_mbps",
+    //         ].includes(networkTable.query.sortBy)
+    //             ? networkTable.query.sortBy
+    //             : "provider_name" as any,
+
+    //         sortOrder: networkTable.query.sortOrder,
+    //         status: networkTable.query.status as "all" | "active" | "inactive" | undefined,
+    //     });
+
+    //     setNetworks(res.data);
+    //     setNetworkTotal(res.totalCount);
+    //     setNetworkStats({
+    //         total: res.stats.total ?? 0,
+    //         active: res.stats.active ?? 0,
+    //         inactive: res.stats.inactive ?? 0,
+    //         wifi: res.stats.wifi ?? 0,
+    //         broadband: res.stats.broadband ?? 0,
+    //         hotspot: res.stats.hotspot ?? 0,
+    //         leasedLine: res.stats.leasedLine ?? 0,
+    //     });
+    //     setNetworkLoading(false);
+    // }
     async function loadNetworks() {
         setNetworkLoading(true);
 
-        const res = await getNetworkTable({
-            page: networkTable.query.page,
-            limit: networkTable.query.limit,
-            sortBy: [
-                "provider_name",
-                "network_type",
-                "bandwidth_mbps",
-            ].includes(networkTable.query.sortBy)
-                ? networkTable.query.sortBy
-                : "provider_name" as any,
+        try {
+            const res = await getNetworkTable({
+                page: networkTable.query.page,
+                limit: networkTable.query.limit,
+                sortBy: [
+                    "provider_name",
+                    "network_type",
+                    "bandwidth_mbps",
+                ].includes(networkTable.query.sortBy)
+                    ? networkTable.query.sortBy
+                    : "provider_name" as any,
+                sortOrder: networkTable.query.sortOrder,
+                status: networkTable.query.status as any,
+                search: networkTable.query.search,
+                networkType: networkTable.query.networkType,
+            });
 
-            sortOrder: networkTable.query.sortOrder,
-            status: networkTable.query.status as "all" | "active" | "inactive" | undefined,
-        });
+            setNetworks(res?.data ?? []);
+            setNetworkTotal(res?.totalCount ?? 0);
 
-        setNetworks(res.data);
-        setNetworkTotal(res.totalCount);
-        setNetworkStats({
-            total: res.stats.total ?? 0,
-            active: res.stats.active ?? 0,
-            inactive: res.stats.inactive ?? 0,
-            wifi: res.stats.wifi ?? 0,
-            broadband: res.stats.broadband ?? 0,
-            hotspot: res.stats.hotspot ?? 0,
-            leasedLine: res.stats.leasedLine ?? 0,
-        });
-        setNetworkLoading(false);
+            setNetworkStats({
+                total: res?.stats?.total ?? 0,
+                active: res?.stats?.active ?? 0,
+                inactive: res?.stats?.inactive ?? 0,
+                wifi: res?.stats?.wifi ?? 0,
+                broadband: res?.stats?.broadband ?? 0,
+                hotspot: res?.stats?.hotspot ?? 0,
+                leasedLine: res?.stats?.leasedLine ?? 0,
+            });
+
+        } catch (err) {
+            console.error("Network load failed:", err);
+            setNetworks([]);
+            setNetworkTotal(0);
+        } finally {
+            setNetworkLoading(false);
+        }
     }
 
+
+    // async function loadMessengers() {
+    //     setMessengerLoading(true);
+
+    //     const res = await getMessengerTable({
+    //         page: messengerTable.query.page,
+    //         limit: messengerTable.query.limit,
+    //         sortBy: [
+    //             "messenger_name",
+    //             "primary_mobile",
+    //             "email",
+    //         ].includes(messengerTable.query.sortBy)
+    //             ? messengerTable.query.sortBy
+    //             : "messenger_name" as any,
+
+    //         sortOrder: messengerTable.query.sortOrder,
+    //         status: messengerTable.query.status as "active" | "inactive" | "assigned" | "unassigned" | undefined,
+    //     });
+
+    //     setMessengers(res.data);
+    //     setMessengerTotal(res.totalCount);
+    //     setMessengerStats(res.stats);
+    //     setMessengerLoading(false);
+    // }
     async function loadMessengers() {
-        setMessengerLoading(true);
+    setMessengerLoading(true);
 
+    try {
         const res = await getMessengerTable({
-            page: messengerTable.query.page,
-            limit: messengerTable.query.limit,
-            sortBy: [
-                "messenger_name",
-                "primary_mobile",
-                "email",
-            ].includes(messengerTable.query.sortBy)
-                ? messengerTable.query.sortBy
-                : "messenger_name" as any,
-
-            sortOrder: messengerTable.query.sortOrder,
-            status: messengerTable.query.status as "active" | "inactive" | "assigned" | "unassigned" | undefined,
+        page: messengerTable.query.page,
+        limit: messengerTable.query.limit,
+        sortBy: [
+            "messenger_name",
+            "primary_mobile",
+            "email",
+        ].includes(messengerTable.query.sortBy)
+            ? messengerTable.query.sortBy
+            : "messenger_name" as any,
+        sortOrder: messengerTable.query.sortOrder,
+        status: messengerTable.query.status as any,
+        search: messengerTable.query.search,   // 👈 ADD THIS
         });
 
-        setMessengers(res.data);
-        setMessengerTotal(res.totalCount);
-        setMessengerStats(res.stats);
-        setMessengerLoading(false);
+            setMessengers(res?.data ?? []);
+            setMessengerTotal(res?.totalCount ?? 0);
+            setMessengerStats(res?.stats ?? {
+                total: 0,
+                active: 0,
+                inactive: 0,
+                assigned: 0,
+                unassigned: 0,
+            });
+
+        } catch (err) {
+            console.error("Messenger load failed:", err);
+            setMessengers([]);
+            setMessengerTotal(0);
+        } finally {
+            setMessengerLoading(false);
+        }
     }
+
 
     /* ================= ASSIGN MESSENGER HANDLER ================= */
     async function handleAssignMessenger() {
@@ -372,7 +473,6 @@ const messengerTable = useTableQuery({
         });
 
         setAssignModal(false);
-        setAssignForm({ assigned_to: "", admin_remark: "" });
         setAssignForm({ assigned_to: "", admin_remark: "" });
         await loadGuestNetwork();
         guestTable.setPage(1);
@@ -424,11 +524,25 @@ const messengerTable = useTableQuery({
     /* ================= LOADERS ================= */
     useEffect(() => {
         loadGuestNetwork();
-    }, [guestTable.query]);
+    }, [
+        guestTable.query.page,
+        guestTable.query.limit,
+        guestTable.query.search,
+        guestTable.query.sortBy,
+        guestTable.query.sortOrder,
+    ]);
 
     useEffect(() => {
         loadNetworks();
-    }, [networkTable.query]);
+    }, [
+        networkTable.query.page,
+        networkTable.query.limit,
+        networkTable.query.search,
+        networkTable.query.sortBy,
+        networkTable.query.sortOrder,
+        networkTable.query.status,
+        networkTable.query.networkType,
+    ]);
 
     useEffect(() => {
     loadMessengers();
@@ -1221,7 +1335,7 @@ const messengerTable = useTableQuery({
                                         }
                                     >
                                         <option value="">Select Messenger</option>
-                                        {messengers.map((m) => (
+                                        {messengers?.map((m) => (
                                             <option key={m.messenger_id} value={m.messenger_id}>
                                                 {m.messenger_name}
                                             </option>

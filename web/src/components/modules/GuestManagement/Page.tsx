@@ -48,6 +48,7 @@ type GuestForm = {
   exit_date: string;
   exit_time: string;
   status: string;
+  requires_driver: boolean;
 };
 
 export function GuestManagement() {
@@ -113,6 +114,7 @@ export function GuestManagement() {
     guest_alternate_mobile: '',
     guest_address: '',
     email: '',
+    requires_driver: false,
     // designation part
     designation_id: '',
     designation_name: '',
@@ -179,6 +181,11 @@ export function GuestManagement() {
           </p>
         </>
       ),
+    },
+    {
+      header: "Driver Req.",
+      render: (g) =>
+        g.requires_driver ? "Yes" : "No",
     },
     {
       header: "Check-in",
@@ -376,6 +383,7 @@ export function GuestManagement() {
         guest_alternate_mobile: guestForm.guest_alternate_mobile,
         guest_address: guestForm.guest_address,
         email: guestForm.email,
+        requires_driver: guestForm.requires_driver,
 
         designation_id: guestForm.designation_id || undefined,
         designation_name: guestForm.designation_name || undefined,
@@ -474,6 +482,7 @@ export function GuestManagement() {
       guest_alternate_mobile: g.guest_alternate_mobile || "",
       guest_address: g.guest_address || "",
       email: g.email || "",
+      requires_driver: g.requires_driver || false,
       designation_id: g.designation_id ?? "",
       designation_name: g.designation_name || "",
       department: g.department || "",
@@ -1368,6 +1377,24 @@ export function GuestManagement() {
                         </div>
                       )} */}
                     </div>
+
+                    <div className="fullWidth">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          checked={guestForm.requires_driver}
+                          onChange={(e) =>
+                            setGuestForm(s => ({
+                              ...s,
+                              requires_driver: e.target.checked
+                            }))
+                          }
+                        />
+                        Requires Driver
+                      </label>
+                    </div>
+
                   </div>
                 </div>
               </div>
