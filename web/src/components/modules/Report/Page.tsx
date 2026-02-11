@@ -1,55 +1,88 @@
 import { useState } from 'react';
 import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble, Eye } from 'lucide-react';
-import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf, viewReport } from '@/api/reportsPkg.api';
+// import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf, viewReport } from '@/api/reportsPkg.api';
+import { generateSectionReport } from '@/api/reportsPkg.api';
 
 export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
- 
-  // Configuration for all report sections
-  const reportSections = [
-    {
-      id: 'guest',
-      title: 'Guest Summary Report',
-      category: 'Guest Reports',
-      description: 'Daily, Weekly, Monthly guest statistics and occupancy analysis',
-      icon: Users
-    },
-    {
-      id: 'room',
-      title: 'Room & Housekeeping Report',
-      category: 'Room & Housekeeping Reports',
-      description: 'Room utilization, occupancy trends, and housekeeping performance',
-      icon: BedDouble
-    },
-    {
-      id: 'vehicle',
-      title: 'Vehicle & Driver Report',
-      category: 'Vehicle & Driver Reports',
-      description: 'Vehicle usage logs, fuel consumption, and driver duty records',
-      icon: Car
-    },
-    {
-      id: 'driver-duty',
-      title: 'Driver Duty Report',
-      category: 'Driver Duty Reports',
-      description: 'Driver duty logs, fuel consumption, and driver duty records',
-      icon: Car
-    },
-    {
-      id: 'food',
-      title: 'Food Service Report',
-      category: 'Food Service Reports',
-      description: 'Kitchen inventory, meal orders, and catering summaries',
-      icon: Utensils
-    },
-    {
-      id: 'network',
-      title: 'Network Report',
-      category: 'Network Reports',
-      description: 'Wi-Fi usage, downtime logs, and bandwidth analysis',
-      icon: Wifi
+  const [language, setLanguage] = useState<'en' | 'mr'>('en');
+  const [selectedSection, setSelectedSection] = useState<
+    'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network'
+  >('guest');
+
+  const [exportFormat, setExportFormat] = useState<'PDF' | 'EXCEL' | 'VIEW'>('PDF');
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [viewData, setViewData] = useState<any>(null);
+  async function handleGlobalGenerate() {
+    if (globalRange === 'Custom Range' && (!startDate || !endDate)) {
+      alert('Please select start and end dates');
+      return;
     }
-  ];
+
+    const response = await generateSectionReport({
+      section: selectedSection,
+      rangeType: globalRange,
+      format: exportFormat,
+      startDate: globalRange === 'Custom Range' ? startDate : undefined,
+      endDate: globalRange === 'Custom Range' ? endDate : undefined,
+      language,
+    });
+    console.log("VIEW RESPONSE:", response);
+
+    if (exportFormat === 'VIEW') {
+      setViewData(response);  // create state
+    } else {
+      setViewData(null);
+    }
+  }
+
+  // Configuration for all report sections
+  // const reportSections = [
+  //   {
+  //     id: 'guest',
+  //     title: 'Guest Summary Report',
+  //     category: 'Guest Reports',
+  //     description: 'Daily, Weekly, Monthly guest statistics and occupancy analysis',
+  //     icon: Users
+  //   },
+  //   {
+  //     id: 'room',
+  //     title: 'Room & Housekeeping Report',
+  //     category: 'Room & Housekeeping Reports',
+  //     description: 'Room utilization, occupancy trends, and housekeeping performance',
+  //     icon: BedDouble
+  //   },
+  //   {
+  //     id: 'vehicle',
+  //     title: 'Vehicle & Driver Report',
+  //     category: 'Vehicle & Driver Reports',
+  //     description: 'Vehicle usage logs, fuel consumption, and driver duty records',
+  //     icon: Car
+  //   },
+  //   {
+  //     id: 'driver-duty',
+  //     title: 'Driver Duty Report',
+  //     category: 'Driver Duty Reports',
+  //     description: 'Driver duty logs, fuel consumption, and driver duty records',
+  //     icon: Car
+  //   },
+  //   {
+  //     id: 'food',
+  //     title: 'Food Service Report',
+  //     category: 'Food Service Reports',
+  //     description: 'Kitchen inventory, meal orders, and catering summaries',
+  //     icon: Utensils
+  //   },
+  //   {
+  //     id: 'network',
+  //     title: 'Network Report',
+  //     category: 'Network Reports',
+  //     description: 'Wi-Fi usage, downtime logs, and bandwidth analysis',
+  //     icon: Wifi
+  //   }
+  // ];
 
   return (
     <div className="space-y-6">
@@ -105,14 +138,21 @@ export function Reports() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]">
-              <option>Guest Summary</option>
-              <option>Room Occupancy</option>
-              <option>Vehicle Usage</option>
-              <option>Duty Performance</option>
-              <option>Financial Summary</option>
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value as any)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+            >
+              <option value="guest">Guest Summary</option>
+              <option value="room">Room Occupancy</option>
+              <option value="vehicle">Vehicle Usage</option>
+              <option value="driver-duty">Driver Duty</option>
+              <option value="food">Food Service</option>
+              <option value="network">Network</option>
             </select>
+
           </div>
+
          
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
@@ -129,43 +169,111 @@ export function Reports() {
             </select>
           </div>
 
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Language
+            </label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as 'en' | 'mr')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+            >
+              <option value="en">English</option>
+              <option value="mr">Marathi</option>
+            </select>
+          </div>
+
           {globalRange === 'Custom Range' && (
             <div className="md:col-span-4 grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+                <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
+                <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
               </div>
             </div>
           )}
 
           <div className={globalRange === 'Custom Range' ? "md:col-span-2" : "md:col-span-3"}>
              <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
-             <select className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]">
-               <option>PDF</option>
-               <option>Excel (XLSX)</option>
-               <option>CSV</option>
-             </select>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as any)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              >
+                <option value="PDF">PDF</option>
+                <option value="EXCEL">Excel (XLSX)</option>
+                <option value="VIEW">View</option>
+              </select>
           </div>
 
           <div className="md:col-span-3">
-            <button className="w-full px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 font-medium">
+            <button 
+              onClick={handleGlobalGenerate}
+              className="w-full px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 font-medium">
               <Download className="w-4 h-4" />
               Generate
             </button>
           </div>
         </div>
+        {viewData && (
+          <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm">
+            <h3 className="text-[#00247D] font-semibold mb-4">
+              Preview Results ({viewData.totalRecords})
+            </h3>
+
+            {viewData.rows.length === 0 ? (
+              <p className="text-sm text-gray-500">No data found for selected filters.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border border-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {Object.keys(viewData.rows[0]).map((key) => (
+                        <th
+                          key={key}
+                          className="px-3 py-2 border text-left font-medium text-gray-600"
+                        >
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewData.rows.map((row: any, index: number) => (
+                      <tr key={index} className="border-t">
+                        {Object.values(row).map((value: any, i: number) => (
+                          <td key={i} className="px-3 py-2 border">
+                            {String(value ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Available Reports - Consolidated Sections */}
-      <div className="space-y-6">
+      {/* <div className="space-y-6">
         {reportSections.map((section) => (
-          <ReportSection key={section.id} section={section} />
+          <ReportSection key={section.id} section={section} language={language}/>
         ))}
-      </div>
+      </div> */}
 
       {/* Recent Reports Table */}
       <div className="bg-white border border-gray-200 rounded-sm shadow-sm">
@@ -225,11 +333,98 @@ export function Reports() {
   );
 }
 
-function ReportSection({ section }: { section: any }) {
+function ReportSection({ section, language }: { section: any, language: 'en' | 'mr' }) {
   const [range, setRange] = useState('Daily');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // async function handleDownload(
+  //   format: 'PDF' | 'EXCEL' | 'VIEW',
+  //   sectionId: string,
+  //   range: string,
+  //   startDate?: string,
+  //   endDate?: string
+  // ) {
+  //   if (range === 'Custom Range' && (!startDate || !endDate)) {
+  //     alert('Please select start and end dates');
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     rangeType: range,
+  //     startDate: range === 'Custom Range' ? startDate : undefined,
+  //     endDate: range === 'Custom Range' ? endDate : undefined,
+  //   };
+  //   /* ================= VIEW ================= */
+  //   if (format === 'VIEW') {
+  //     try {
+  //       const response = await viewReport({
+  //         section: sectionId as any,
+  //         ...payload,
+  //       });
+
+  //       console.log('VIEW RESPONSE:', response);
+  //       // 🔥 Later you can open modal and show response.rows
+  //     } catch (err) {
+  //       console.error('View failed:', err);
+  //     }
+  //     return;
+  //   }
+  //   // ---- Guest Reports ----
+  //   if (sectionId === 'guest') {
+  //     if (format === 'PDF') {
+  //       downloadGuestSummaryPdf(payload);
+  //     } else {
+  //       downloadGuestSummaryExcel(payload);
+  //     }
+  //     return;
+  //   }
+
+  //   // ---- Room Reports ----
+  //   if (sectionId === 'room') {
+  //     if (format === 'EXCEL') {
+  //       downloadRoomSummaryExcel(payload);
+  //     }
+  //     if (format === 'PDF') {
+  //       downloadRoomSummaryPdf(payload);
+  //     }
+  //     return;
+  //   }
+  //   if (sectionId === 'vehicle') {
+  //     if (format === 'PDF') {
+  //       downloadVehicleDriverPdf(payload);
+  //     } else {
+  //       downloadVehicleDriverExcel(payload);
+  //     }
+  //     return;
+  //   }
+  //   if (sectionId === 'food') {
+  //     if (format === 'PDF') {
+  //       downloadFoodServicePdf(payload);
+  //     } else {
+  //       downloadFoodServiceExcel(payload);
+  //     }
+  //     return;
+  //   }
+  //   if (sectionId === 'network') {
+  //     if (format === 'PDF') {
+  //       downloadNetworkPdf(payload);
+  //     } else {
+  //       downloadNetworkExcel(payload);
+  //     }
+  //     return;
+  //   }
+  //   if (sectionId === 'driver') {
+  //     if (format === 'PDF') {
+  //       downloadDriverDutyPdf(payload);
+  //     } else {
+  //       downloadDriverDutyExcel(payload);
+  //     }
+  //     return;
+  //   }
+  //   // ---- Future hooks ----
+  //   // vehicle, food, network go here later
+  // }
   async function handleDownload(
     format: 'PDF' | 'EXCEL' | 'VIEW',
     sectionId: string,
@@ -242,80 +437,14 @@ function ReportSection({ section }: { section: any }) {
       return;
     }
 
-    const payload = {
+    await generateSectionReport({
+      section: sectionId as any,
       rangeType: range,
+      format,
       startDate: range === 'Custom Range' ? startDate : undefined,
       endDate: range === 'Custom Range' ? endDate : undefined,
-    };
-    /* ================= VIEW ================= */
-    if (format === 'VIEW') {
-      try {
-        const response = await viewReport({
-          section: sectionId as any,
-          ...payload,
-        });
-
-        console.log('VIEW RESPONSE:', response);
-        // 🔥 Later you can open modal and show response.rows
-      } catch (err) {
-        console.error('View failed:', err);
-      }
-      return;
-    }
-    // ---- Guest Reports ----
-    if (sectionId === 'guest') {
-      if (format === 'PDF') {
-        downloadGuestSummaryPdf(payload);
-      } else {
-        downloadGuestSummaryExcel(payload);
-      }
-      return;
-    }
-
-    // ---- Room Reports ----
-    if (sectionId === 'room') {
-      if (format === 'EXCEL') {
-        downloadRoomSummaryExcel(payload);
-      }
-      if (format === 'PDF') {
-        downloadRoomSummaryPdf(payload);
-      }
-      return;
-    }
-    if (sectionId === 'vehicle') {
-      if (format === 'PDF') {
-        downloadVehicleDriverPdf(payload);
-      } else {
-        downloadVehicleDriverExcel(payload);
-      }
-      return;
-    }
-    if (sectionId === 'food') {
-      if (format === 'PDF') {
-        downloadFoodServicePdf(payload);
-      } else {
-        downloadFoodServiceExcel(payload);
-      }
-      return;
-    }
-    if (sectionId === 'network') {
-      if (format === 'PDF') {
-        downloadNetworkPdf(payload);
-      } else {
-        downloadNetworkExcel(payload);
-      }
-      return;
-    }
-    if (sectionId === 'driver') {
-      if (format === 'PDF') {
-        downloadDriverDutyPdf(payload);
-      } else {
-        downloadDriverDutyExcel(payload);
-      }
-      return;
-    }
-    // ---- Future hooks ----
-    // vehicle, food, network go here later
+      language, // or dynamic later
+    });
   }
 
   return (
