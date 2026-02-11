@@ -69,7 +69,10 @@ getTodayMealPlanOverview() {
     @Query('status') status?: string,
     @Query('mealType') mealType?: string,
     @Query('sortBy') sortBy?: string,
-    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'desc'
+    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'desc',
+    @Query('foodStatus') foodStatus?: 'SERVED' | 'NOT_SERVED',
+    @Query('entryDateFrom') entryDateFrom?: string,
+    @Query('entryDateTo') entryDateTo?: string
   ) {
     return this.service.getGuestFoodTable({
       page: Number(page),
@@ -78,7 +81,11 @@ getTodayMealPlanOverview() {
       status: status as GuestFoodTableQueryDto['status'],
       mealType: mealType as GuestFoodTableQueryDto['mealType'],
       sortBy: sortBy as GuestFoodTableQueryDto['sortBy'],
-      sortOrder
+      sortOrder,
+      foodStatus,
+      entryDateFrom,
+      entryDateTo
     });
   }
+
 }

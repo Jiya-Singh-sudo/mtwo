@@ -393,3 +393,29 @@ export async function downloadDriverDutyPdf(params: {
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
+/**
+ * Generic Report View (Table preview for any report)
+ */
+// export async function viewReport(params: {
+//   reportCode: ReportCode;
+//   rangeType: string;
+//   startDate?: string;
+//   endDate?: string;
+// }) {
+//   const { data } = await api.post('/reports-pkg/view', params);
+//   return data;
+// }
+
+/**
+ * Generic View Report
+ */
+export async function viewReport(params: {
+  section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+  rangeType: string;
+  startDate?: string;
+  endDate?: string;
+}) {
+  const { data } = await api.post('/reports-pkg/view', params);
+  return data;
+}
+

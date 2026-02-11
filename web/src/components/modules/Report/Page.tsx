@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble } from 'lucide-react';
-import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf } from '@/api/reportsPkg.api';
+import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble, Eye } from 'lucide-react';
+import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf, viewReport } from '@/api/reportsPkg.api';
 
 export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
@@ -230,8 +230,8 @@ function ReportSection({ section }: { section: any }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  function handleDownload(
-    format: 'PDF' | 'EXCEL',
+  async function handleDownload(
+    format: 'PDF' | 'EXCEL' | 'VIEW',
     sectionId: string,
     range: string,
     startDate?: string,
@@ -247,7 +247,21 @@ function ReportSection({ section }: { section: any }) {
       startDate: range === 'Custom Range' ? startDate : undefined,
       endDate: range === 'Custom Range' ? endDate : undefined,
     };
+    /* ================= VIEW ================= */
+    if (format === 'VIEW') {
+      try {
+        const response = await viewReport({
+          section: sectionId as any,
+          ...payload,
+        });
 
+        console.log('VIEW RESPONSE:', response);
+        // 🔥 Later you can open modal and show response.rows
+      } catch (err) {
+        console.error('View failed:', err);
+      }
+      return;
+    }
     // ---- Guest Reports ----
     if (sectionId === 'guest') {
       if (format === 'PDF') {
@@ -388,6 +402,15 @@ function ReportSection({ section }: { section: any }) {
                   >
                  <FileText className="w-4 h-4" />
                  Excel
+               </button>
+               <button 
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() =>
+                    handleDownload('VIEW', section.id, range, startDate, endDate)
+                  }
+                  >
+                 <Eye className="w-4 h-4" />
+                 View
                </button>
             </div>
 

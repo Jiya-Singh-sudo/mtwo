@@ -55,14 +55,18 @@ export const getTodayMealPlanOverview = async () => {
   const res = await apiClient.get("/guest-food/plan/today");
   return res.data;
 };
+
 export const getGuestFoodTable = async (params: {
   page: number;
   limit: number;
   search?: string;
   status?: 'All' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
   mealType?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
-  sortBy?: 'entry_date' | 'guest_name' | 'meal_status';
+  sortBy?: 'entry_date' | 'guest_name' | 'meal_status' | 'delivery_status' | 'butler_name' | 'room_id';
   sortOrder?: 'asc' | 'desc';
+  foodStatus?: 'SERVED' | 'NOT_SERVED';
+  entryDateFrom?: string;
+  entryDateTo?: string;
 }) => {
   const query = new URLSearchParams();
 

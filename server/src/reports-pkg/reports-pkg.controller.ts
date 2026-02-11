@@ -5,6 +5,7 @@ import { ReportPreviewDto } from './dto/report-preview.dto';
 import { ReportGenerateDto } from './dto/report-generate.dto';
 import { normalizeRangeType } from './utils/range-normalizer.util';
 import type { Response } from 'express';
+import { ReportCode } from './registry/report.registry';
 
 @Controller('reports-pkg')
 export class ReportsPkgController {
@@ -500,5 +501,56 @@ export class ReportsPkgController {
       );
     }
   }
+  /* ---------- GENERIC VIEW ---------- */
+  // @Post('view')
+  // async viewReport(
+  //   @Body()
+  //   body: {
+  //     reportCode: ReportCode;
+  //     rangeType: string;
+  //     startDate?: string;
+  //     endDate?: string;
+  //   },
+  // ) {
+  //   try {
+  //     const normalizedBody = {
+  //       ...body,
+  //       rangeType: normalizeRangeType(body.rangeType),
+  //     };
+
+  //     return await this.service.viewReport(normalizedBody);
+  //   } catch (error) {
+  //     throw new HttpException(
+  //       error.message || 'View report failed',
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
+  // }
+  /* ---------- GENERIC VIEW ---------- */
+  @Post('view')
+  async viewReport(
+    @Body()
+    body: {
+      section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      return await this.service.viewReport(normalizedBody);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'View report failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
 
 }

@@ -70,6 +70,16 @@ export function useTableQuery(
             defaults?.networkType
         ) as TableQuery["networkType"],
 
+        mealType: parseString(
+            searchParams.get(key("mealType")),
+            defaults?.mealType
+        ) as TableQuery["mealType"],
+
+        foodStatus: parseString(
+            searchParams.get(key("foodStatus")),
+            defaults?.foodStatus
+        ) as TableQuery["foodStatus"],
+
     }));
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -92,6 +102,18 @@ export function useTableQuery(
         //     params[key("entryDateFrom")] = query.entryDateFrom;
         // if (query.entryDateTo)
         //     params[key("entryDateTo")] = query.entryDateTo;
+        
+        if (query.mealType)
+            params[key("mealType")] = query.mealType;
+
+        if (query.foodStatus)
+            params[key("foodStatus")] = query.foodStatus;
+
+        if (query.entryDateFrom)
+            params[key("entryDateFrom")] = query.entryDateFrom;
+
+        if (query.entryDateTo)
+            params[key("entryDateTo")] = query.entryDateTo;
 
         setSearchParams(params, { replace: true });
     }, [query, setSearchParams]);

@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
-export enum ReportCode {
+export enum ReportCodePrev {
   GUEST_SUMMARY = 'GUEST_SUMMARY',
   ROOM_OCCUPANCY = 'ROOM_OCCUPANCY',
   ROOM_OCCUPANCY_TREND = 'ROOM_OCCUPANCY_TREND',
@@ -10,8 +10,8 @@ export enum ReportCode {
 }
 
 export class ReportPreviewDto {
-  @IsEnum(ReportCode)
-  reportCode: ReportCode;
+  @IsEnum(ReportCodePrev)
+  reportCode: ReportCodePrev;
 
   @IsOptional()
   @IsString()

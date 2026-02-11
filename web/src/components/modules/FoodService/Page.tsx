@@ -210,126 +210,6 @@ export function FoodService() {
     });
   }
 
-  // async function loadGuests() {
-  //   try {
-  //     const baseGuests = await loadGuestsBase();
-  //     const todayOrders = await getTodayGuestOrders();
-
-  //     const guestMap = new Map<string, GuestWithButler>();
-
-  //     // 1️⃣ Seed with active guests
-  //     for (const g of baseGuests) {
-  //       guestMap.set(g.guest_id, g);
-  //     }
-
-  //     // 2️⃣ Merge food + butler
-  //     for (const row of todayOrders) {
-  //       const guest = guestMap.get(row.guest_id);
-  //       if (!guest) continue;
-
-  //       const mealKey = normalizeMealType(row.meal_type);
-  //       if (!mealKey) {
-  //         console.warn("Unknown meal_type:", row.meal_type);
-  //         continue;
-  //       }
-  //       guest.foodItems[mealKey].push({
-  //         guest_food_id: row.guest_food_id,
-  //         food_name: row.food_name,
-  //         delivery_status: row.delivery_status,
-  //       });
-
-  //       if (row.food_stage === "DELIVERED") {
-  //         guest.foodStatus = "Served";
-  //       }
-
-  //       // Butler (once)
-  //       if (!guest.butler && row.butler_id) {
-  //         guest.butler = {
-  //           id: row.butler_id,
-  //           name: row.butler_name,
-  //           guestButlerId: row.guest_butler_id,
-  //         };
-  //       }
-  //       // ✅ SPECIAL REQUEST MERGE
-  //       if (row.specialrequest && !guest.specialRequest) {
-  //         guest.specialRequest = row.specialrequest;
-  //       }
-  //     }
-
-  //     setGuests(Array.from(guestMap.values()));
-  //   } catch (err) {
-  //     console.error("Failed to load guests", err);
-  //   }
-  // }
-  // async function loadGuests() {
-  //   try {
-  //     const res = await getGuestFoodTable({
-  //       page: 1,
-  //       limit: 1000,              // cards need full list
-  //       search: searchQuery || undefined,
-  //       status: "Entered",
-  //       sortBy: "entry_date",
-  //       sortOrder: "desc",
-  //     });
-
-  //     const guestMap = new Map<string, GuestWithButler>();
-
-  //     for (const row of res.data) {
-  //       if (!guestMap.has(row.guest_id)) {
-  //         guestMap.set(row.guest_id, {
-  //           guest_id: row.guest_id,
-  //           guest_name: row.guest_name,
-  //           guest_name_local_language: row.guest_name_local_language,
-  //           guest_mobile: row.guest_mobile,
-  //           room_id: row.room_id ?? null,
-
-  //           designation_name: row.designation_name,
-  //           organization: row.organization,
-
-  //           foodItems: {
-  //             Breakfast: [],
-  //             Lunch: [],
-  //             "High Tea": [],
-  //             Dinner: [],
-  //           },
-
-  //           foodStatus: "Not Served",
-
-  //           butler: row.butler_name
-  //             ? {
-  //                 id: "",
-  //                 name: row.butler_name,
-  //                 guestButlerId: row.guest_butler_id,
-  //               }
-  //             : undefined,
-
-  //           specialRequest: row.specialrequest ?? undefined,
-  //         });
-  //       }
-
-  //       if (row.guest_food_id && row.meal_type) {
-  //         const guest = guestMap.get(row.guest_id)!;
-
-  //         const meal = row.meal_type as keyof GuestWithButler["foodItems"];
-
-  //         guest.foodItems[meal].push({
-  //           guest_food_id: row.guest_food_id,
-  //           food_name: row.food_name,
-  //           delivery_status: row.delivery_status,
-  //         });
-
-
-  //         if (row.food_stage === "DELIVERED") {
-  //           guest.foodStatus = "Served";
-  //         }
-  //       }
-  //     }
-
-  //     setGuests(Array.from(guestMap.values()));
-  //   } catch (err) {
-  //     console.error("Failed to load guests", err);
-  //   }
-  // }
   async function loadGuests() {
     foodTable.setLoading(true);
 
@@ -338,9 +218,13 @@ export function FoodService() {
         page: foodTable.query.page,
         limit: foodTable.query.limit,
         search: foodTable.query.search || undefined,
-        status: (foodTable.query.status as "Entered" | "All" | "Inside" | "Exited" | "Cancelled") ?? "Entered",
-        sortBy: foodTable.query.sortBy as "entry_date" | "guest_name" | "meal_status",
+        status: foodTable.query.status as any,
+        sortBy: foodTable.query.sortBy as any,
         sortOrder: foodTable.query.sortOrder as "asc" | "desc",
+        mealType: foodTable.query.mealType as any,
+        foodStatus: foodTable.query.foodStatus as any,
+        entryDateFrom: foodTable.query.entryDateFrom,
+        entryDateTo: foodTable.query.entryDateTo,
       });
 
       const guestMap = new Map<string, GuestWithButler>();
@@ -650,10 +534,10 @@ export function FoodService() {
   }
 
   /* ---------------- DERIVED STATS (LIVE FROM UI STATE) ---------------- */
-  const servedCount = guests.filter((g) => g.foodStatus === "Served").length;
-  const specialRequestCount = guests.filter(
-    (g) => g.specialRequest && g.specialRequest.trim()
-  ).length;
+  // const servedCount = guests.filter((g) => g.foodStatus === "Served").length;
+  // const specialRequestCount = guests.filter(
+  //   (g) => g.specialRequest && g.specialRequest.trim()
+  // ).length;
 
   const mealLabels: Record<keyof DailyMealPlan, string> = {
     breakfast: "Breakfast",
@@ -826,6 +710,8 @@ export function FoodService() {
   }: GuestFoodCardProps) {
     // const hasMealPlan = Object.values(dailyMealPlan).some((items) => items.length > 0);
 
+    const flattenedFood = Object.values(guest.foodItems).flat();
+
     return (
       <div className="guestFoodCard">
         {/* Header with Actions */}
@@ -875,9 +761,7 @@ export function FoodService() {
                   className="iconBtn danger"
                   title="Mark not served"
                   onClick={() => {
-                    const latestFood = Object.values(guest.foodItems)
-                      .flat()
-                      .find(f => f.delivery_status !== 'Cancelled');
+                    const latestFood = flattenedFood.find(f => f.delivery_status !== 'Cancelled');
 
                     if (!latestFood) return;
 
@@ -891,9 +775,7 @@ export function FoodService() {
                   className="iconBtn success"
                   title="Mark served"
                   onClick={() => {
-                    const latestFood = Object.values(guest.foodItems)
-                      .flat()
-                      .find(f => f.delivery_status !== 'Cancelled');
+                    const latestFood = flattenedFood.find(f => f.delivery_status !== 'Cancelled');
 
                     if (!latestFood) return;
 
@@ -1086,19 +968,18 @@ export function FoodService() {
           className="statCard blue"
           onClick={() =>
             foodTable.batchUpdate(prev => ({
+              ...prev,
               page: 1,
-              limit: prev.limit,
-              search: prev.search,
               status: "Entered",
-              sortBy: prev.sortBy,
-              sortOrder: prev.sortOrder,
+              foodStatus: undefined,
+              mealType: undefined,
             }))
           }
         >
           <Users />
           <div>
             <p>Active Guests</p>
-            <h3>{guests.length}</h3>
+            <h3>{foodTable.total}</h3>
           </div>
         </div>
 
@@ -1106,19 +987,17 @@ export function FoodService() {
           className={`statCard green`}
           onClick={() =>
             foodTable.batchUpdate(prev => ({
+              ...prev,
               page: 1,
-              limit: prev.limit,
-              search: prev.search,
               status: "Entered",
-              sortBy: "meal_status",
-              sortOrder: "desc",
+              foodStatus: "SERVED",
             }))
           }
         >
           <CheckCircle />
           <div>
             <p>Meals Served</p>
-            <h3>{servedCount}</h3>
+            <h3>{stats?.mealsServed ?? 0}</h3>
           </div>
         </div>
 
@@ -1126,19 +1005,15 @@ export function FoodService() {
           className={`statCard orange`}
           onClick={() =>
             foodTable.batchUpdate(prev => ({
+              ...prev,
               page: 1,
-              limit: prev.limit,
-              search: prev.search,
-              status: prev.status,
-              sortBy: "meal_status",
-              sortOrder: "asc",
             }))
           }
         >
           <AlertCircle />
           <div>
             <p>Special Requests</p>
-            <h3>{specialRequestCount}</h3>
+            <h3>{stats?.specialRequests ?? 0}</h3>
           </div>
         </div>
 
@@ -1146,12 +1021,8 @@ export function FoodService() {
           className={`statCard purple`}
           onClick={() =>
             foodTable.batchUpdate(prev => ({
+              ...prev,
               page: 1,
-              limit: prev.limit,
-              search: prev.search,
-              status: prev.status,
-              sortBy: "meal_status",
-              sortOrder: "asc",
             }))
           }
         >
@@ -1185,6 +1056,71 @@ export function FoodService() {
         <div className="bg-white border rounded-sm p-6">
           {/* HEADER: Search + Plan Menu */}
           <div className="planMenuHeader">
+            <div className="filterRow">
+
+              {/* SEARCH */}
+              <div className="searchWrapper">
+                <Search size={18} className="searchIcon" />
+                <input
+                  className="nicInput searchInput"
+                  placeholder="Search guest / room..."
+                  value={foodTable.searchInput}
+                  onChange={(e) => foodTable.setSearchInput(e.target.value)}
+                />
+              </div>
+
+              {/* FROM DATE */}
+              <input
+                type="date"
+                className="nicInput"
+                value={foodTable.query.entryDateFrom ?? ""}
+                onChange={(e) =>
+                  foodTable.setEntryDateFrom(e.target.value)
+                }
+              />
+
+              {/* TO DATE */}
+              <input
+                type="date"
+                className="nicInput"
+                value={foodTable.query.entryDateTo ?? ""}
+                onChange={(e) =>
+                  foodTable.setEntryDateTo(e.target.value)
+                }
+              />
+
+              {/* RESET BUTTON */}
+              <button
+                className="secondaryBtn"
+                onClick={() =>
+                  foodTable.batchUpdate((prev) => ({
+                    ...prev,
+                    page: 1,
+                    entryDateFrom: undefined,
+                    entryDateTo: undefined,
+                  }))
+                }
+              >
+                Reset
+              </button>
+            </div>
+
+            {/* PLAN MENU BUTTON */}
+            <button
+              className="nicPrimaryBtn"
+              onClick={() => {
+                setMenuMode("create");
+                setActiveGuestForEdit(null);
+                setSelectedMeal("breakfast");
+                setMenuInput("");
+                setMenuModalOpen(true);
+              }}
+            >
+              <Plus size={16} /> Plan Menu
+            </button>
+          </div>
+
+          {/* <div className="planMenuHeader">
             <div className="searchWrapper">
               <Search size={18} className="searchIcon" />
               <input
@@ -1206,7 +1142,7 @@ export function FoodService() {
             >
               <Plus size={16} /> Plan Menu
             </button>
-          </div>
+          </div> */}
 
           {/* TODAY'S MEAL PLAN SUMMARY (optional quick view) */}
           {Object.values(dailyPlan).some((items) => items.length > 0) && (
@@ -1270,7 +1206,7 @@ export function FoodService() {
               <div className="flex justify-between items-center mt-6">
                 <div className="text-sm text-gray-600">
                   Page {foodTable.query.page} of{" "}
-                  {Math.ceil(foodTable.total / foodTable.query.limit)}
+                  {Math.max(1, Math.ceil(foodTable.total / foodTable.query.limit))}
                 </div>
 
                 <div className="flex gap-2">

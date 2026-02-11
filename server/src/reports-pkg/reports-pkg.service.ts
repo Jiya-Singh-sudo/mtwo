@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { ReportPreviewDto, ReportCode } from './dto/report-preview.dto';
+import { ReportPreviewDto, ReportCodePrev } from './dto/report-preview.dto';
+import { ReportCode } from './registry/report.registry';
 import { ReportGenerateDto, ReportFormat } from './dto/report-generate.dto';
 import { v4 as uuid } from 'uuid';
 import { generatePdfFromHtml } from '../../common/utlis/pdf/pdf.utils';
@@ -74,7 +75,7 @@ export class ReportsPkgService {
         category: 'Guest Reports',
         reports: [
           {
-            code: ReportCode.GUEST_SUMMARY,
+            code: ReportCodePrev.GUEST_SUMMARY,
             title: 'Guest Summary',
             description: 'Check-in, check-out and stay details',
           },
@@ -84,12 +85,12 @@ export class ReportsPkgService {
         category: 'Room Reports',
         reports: [
           {
-            code: ReportCode.ROOM_OCCUPANCY,
+            code: ReportCodePrev.ROOM_OCCUPANCY,
             title: 'Room Occupancy',
             description: 'Room-wise occupancy status',
           },
           {
-            code: ReportCode.ROOM_OCCUPANCY_TREND,
+            code: ReportCodePrev.ROOM_OCCUPANCY_TREND,
             title: 'Room Occupancy Trend',
             description: 'Daily occupied rooms over time',
           },
@@ -99,7 +100,7 @@ export class ReportsPkgService {
         category: 'Vehicle Reports',
         reports: [
           {
-            code: ReportCode.VEHICLE_USAGE,
+            code: ReportCodePrev.VEHICLE_USAGE,
             title: 'Vehicle Usage',
             description: 'Trips and assignments per vehicle',
           },
@@ -122,7 +123,7 @@ export class ReportsPkgService {
 
 
     switch (dto.reportCode) {
-      case ReportCode.GUEST_SUMMARY:
+      case ReportCodePrev.GUEST_SUMMARY:
         return this.db.query(
           `
           SELECT
@@ -141,7 +142,7 @@ export class ReportsPkgService {
           [fromDate, toDate],
         );
 
-      case ReportCode.ROOM_OCCUPANCY:
+      case ReportCodePrev.ROOM_OCCUPANCY:
         return this.db.query(`
           SELECT
             status AS label,
@@ -151,7 +152,7 @@ export class ReportsPkgService {
           GROUP BY status
         `);
 
-      case ReportCode.VEHICLE_USAGE:
+      case ReportCodePrev.VEHICLE_USAGE:
         return this.db.query(
           `
     SELECT
@@ -168,7 +169,7 @@ export class ReportsPkgService {
         );
 
 
-      case ReportCode.ROOM_OCCUPANCY_TREND:
+      case ReportCodePrev.ROOM_OCCUPANCY_TREND:
         return this.db.query(
           `
           SELECT
@@ -1250,5 +1251,80 @@ async generateDriverDutyPdf(input: {
 
   return { filePath };
 }
+
+  // ================= GENERIC VIEW (ALL REPORTS) =================
+  async viewReport(input: {
+    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+
+    const { fromDate, toDate } = resolveDateRange(input.rangeType, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+
+    let reportCode: ReportCode;
+    let engine: any;
+
+    switch (input.section) {
+
+      /* ---------- Guest ---------- */
+      case 'guest':
+        reportCode = resolveGuestSummaryReportCode(input.rangeType);
+        engine = new GuestReportEngine(this.db);
+        break;
+
+      /* ---------- Room ---------- */
+      case 'room':
+        reportCode = resolveRoomSummaryReportCode(input.rangeType);
+        engine = new RoomReportEngine(this.db);
+        break;
+
+      /* ---------- Vehicle ---------- */
+      case 'vehicle':
+        reportCode = resolveVehicleDriverReportCode(input.rangeType);
+        engine = new VehicleDriverReportEngine(this.db);
+        break;
+
+      /* ---------- Driver Duty ---------- */
+      case 'driver-duty':
+        reportCode = resolveDriverDutyReportCode(input.rangeType);
+        engine = new DriverDutyReportEngine(this.db);
+        break;
+
+      /* ---------- Food ---------- */
+      case 'food':
+        reportCode = resolveFoodServiceReportCode(input.rangeType);
+        engine = new FoodServiceReportEngine(this.db);
+        break;
+
+      /* ---------- Network ---------- */
+      case 'network':
+        reportCode = resolveNetworkReportCode(input.rangeType);
+        engine = new NetworkReportEngine(this.db);
+        break;
+
+      default:
+        throw new Error(`Unsupported section for view: ${input.section}`);
+    }
+
+    const result = await engine.run(reportCode, {
+      fromDate,
+      toDate,
+    });
+
+    const rows = Array.isArray(result) ? result : result?.rows ?? [];
+
+    return {
+      reportCode,
+      fromDate,
+      toDate,
+      totalRecords: rows.length,
+      rows,
+    };
+  }
+
 
 }

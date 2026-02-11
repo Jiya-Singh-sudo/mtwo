@@ -354,7 +354,10 @@ export class GuestFoodService {
       status,
       sortBy = 'entry_date',
       sortOrder = 'desc',
-      mealType
+      mealType,
+      foodStatus,
+      entryDateFrom,
+      entryDateTo
     } = params;
 
     const offset = (page - 1) * limit;
@@ -363,8 +366,12 @@ export class GuestFoodService {
     const SORT_MAP: Record<string, string> = {
       entry_date: `(io.entry_date::timestamp + COALESCE(io.entry_time, TIME '00:00'))`,
       guest_name: 'g.guest_name',
-      meal_status: 'gf.food_stage'
+      meal_status: 'gf.food_stage',
+      delivery_status: 'gf.delivery_status',
+      butler_name: 'b.butler_name',
+      room_id: 'io.room_id'
     };
+
 
     const sortColumn = SORT_MAP[sortBy] ?? SORT_MAP.entry_date;
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
@@ -405,6 +412,26 @@ export class GuestFoodService {
       idx++;
     }
 
+    if (entryDateFrom) {
+      where.push(`io.entry_date >= $${idx}`);
+      sqlParams.push(entryDateFrom);
+      idx++;
+    }
+
+    if (entryDateTo) {
+      where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+      sqlParams.push(entryDateTo);
+      idx++;
+    }
+
+    if (foodStatus === 'SERVED') {
+      where.push(`gf.food_stage = 'DELIVERED'`);
+    }
+
+    if (foodStatus === 'NOT_SERVED') {
+      where.push(`(gf.food_stage IS NULL OR gf.food_stage != 'DELIVERED')`);
+    }
+
     const whereSql = `WHERE ${where.join(' AND ')}`;
 
     /* ---------- COUNT ---------- */
@@ -423,7 +450,7 @@ export class GuestFoodService {
 
     /* ---------- DATA ---------- */
     const dataSql = `
-      SELECT
+      SELECT DISTINCT ON (g.guest_id)
         g.guest_id,
         g.guest_name,
         g.guest_name_local_language,
@@ -461,7 +488,7 @@ export class GuestFoodService {
         ON b.butler_id = gb.butler_id
 
       ${whereSql}
-      ORDER BY ${sortColumn} ${order}
+      ORDER BY g.guest_id, ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
 

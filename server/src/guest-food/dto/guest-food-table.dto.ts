@@ -12,8 +12,19 @@ export class GuestFoodTableQueryDto extends BaseTableQueryDto {
   mealType?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
 
   @IsOptional()
-  @IsIn(['entry_date', 'guest_name', 'meal_status'])
-  sortBy?: 'entry_date' | 'guest_name' | 'meal_status';
+  @IsIn([
+    'entry_date',
+    'guest_name',
+    'meal_status',
+    'delivery_status',
+    'butler_name',
+    'room_id'
+  ])
+  sortBy?: 'entry_date' | 'guest_name' | 'meal_status' | 'delivery_status' | 'butler_name' | 'room_id';
+
+  @IsOptional()
+  @IsIn(['SERVED', 'NOT_SERVED'])
+  foodStatus?: 'SERVED' | 'NOT_SERVED'
 
   @IsOptional()
   @IsString()

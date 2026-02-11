@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { ReportCode } from './report-preview.dto';
+import { ReportCodePrev } from './report-preview.dto';
 
 export enum ReportFormat {
     PDF = 'PDF',
@@ -8,8 +8,8 @@ export enum ReportFormat {
 }
 
 export class ReportGenerateDto {
-    @IsEnum(ReportCode)
-    reportCode: ReportCode;
+    @IsEnum(ReportCodePrev)
+    reportCode: ReportCodePrev;
 
     @IsEnum(ReportFormat)
     format: ReportFormat;
