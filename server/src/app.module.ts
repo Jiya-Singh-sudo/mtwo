@@ -39,6 +39,9 @@ import { RolePermissionModule } from './role-permission/role-permission.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LiasoningOfficerModule } from './liasoning-officer/liasoning-officer.module';
+import { MedicalEmergencyServiceModule } from './medical-emergency-service/medical-emergency-service.module';
+import { GuestMedicalContactModule } from './guest-medical-contact/guest-medical-contact.module';
+import { GuestLiasoningOfficerModule } from './guest-liasoning-officer/guest-liasoning-officer.module';
 
 @Module({
   imports: [
@@ -87,6 +90,9 @@ import { LiasoningOfficerModule } from './liasoning-officer/liasoning-officer.mo
     PermissionsModule,
     RolePermissionModule,
     LiasoningOfficerModule,
+    MedicalEmergencyServiceModule,
+    GuestMedicalContactModule,
+    GuestLiasoningOfficerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
