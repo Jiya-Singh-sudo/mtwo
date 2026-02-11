@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
 
 export class UpdateGuestDto {
   @IsOptional()
@@ -24,4 +24,9 @@ export class UpdateGuestDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requires_driver?: boolean;
+
 }

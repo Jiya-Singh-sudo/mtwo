@@ -13,6 +13,7 @@ export class RoomManagementController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy = 'room_no',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+    @Query('status') status?: 'Available' | 'Occupied'
   ) {
     return this.service.getOverview({
       page: Number(page),
@@ -20,6 +21,7 @@ export class RoomManagementController {
       search,
       sortBy,
       sortOrder,
+      status,
     });
   }
 

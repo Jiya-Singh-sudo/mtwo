@@ -265,7 +265,7 @@ if (query.status === 'unassigned') {
         is_active,
         inserted_at,
         updated_at
-        FROM m_messenger
+        FROM m_messenger m
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder}
         LIMIT $${params.length + 1}
@@ -274,7 +274,7 @@ if (query.status === 'unassigned') {
 
     const countSql = `
         SELECT COUNT(*)::int AS count
-        FROM m_messenger
+        FROM m_messenger m
         ${whereClause};
     `;
     const statsSql = `

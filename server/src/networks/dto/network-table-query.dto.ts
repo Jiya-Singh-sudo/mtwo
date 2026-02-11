@@ -18,4 +18,10 @@ export class NetworkTableQueryDto extends BaseTableQueryDto {
   @IsOptional()
   @IsIn(['all', 'active', 'inactive'])
   status?: 'all' | 'active' | 'inactive';
+  
+  @IsOptional()
+  @IsString()
+  @IsIn(['WiFi', 'Broadband', 'Hotspot', 'Leased-Line'])
+  networkType?: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
+
 }

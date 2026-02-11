@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsEmail,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateGuestDto {
@@ -34,4 +35,9 @@ export class CreateGuestDto {
   @IsOptional()
   @IsString()
   id_proof_number?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requires_driver?: boolean;
+
 }

@@ -141,9 +141,15 @@ export class GuestsService {
       // 2. Insert Guest (Fixed "inserted_ip" typo here)
       const insertGuestSql = `
         INSERT INTO m_guest
-          (guest_id, guest_name, guest_name_local_language, guest_mobile, guest_alternate_mobile, guest_address, email, inserted_by, inserted_ip,id_proof_type, id_proof_no)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10,$11)
-        RETURNING *;`;
+          (guest_id, guest_name, guest_name_local_language,
+          guest_mobile, guest_alternate_mobile,
+          guest_address, email,
+          requires_driver,
+          inserted_by, inserted_ip,
+          id_proof_type, id_proof_no)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        RETURNING *;
+      `;
 
       const guestRes = await this.db.query(insertGuestSql, [
         guest_id, // $1
@@ -153,6 +159,7 @@ export class GuestsService {
         g.guest_alternate_mobile || null,
         g.guest_address || null,
         g.email || null,
+        g.requires_driver || false,
         user,
         ip,
         g.id_proof_type || 'Aadhaar',
@@ -312,7 +319,7 @@ export class GuestsService {
     
     const allowed = new Set([
       'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
-      'guest_address', 'email'
+      'guest_address', 'email', 'requires_driver'
     ]);
     const fields: string[] = [];
     const vals: any[] = [];

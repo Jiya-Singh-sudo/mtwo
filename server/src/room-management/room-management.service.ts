@@ -7,7 +7,10 @@ const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
   room_name: 'r.room_name',
   status: 'r.status',
+  guest_name: 'g.guest_name',
+  hk_name: 'hk.hk_name',
 };
+
 
 @Injectable()
 export class RoomManagementService {
@@ -75,21 +78,82 @@ export class RoomManagementService {
 
     /* ================= STATS (filtered) ================= */
 
+    // const statsSql = `
+    //   SELECT
+    //     COUNT(DISTINCT r.room_id) AS total,
+
+    //     COUNT(DISTINCT r.room_id)
+    //       FILTER (WHERE r.status = 'Available') AS available,
+
+    //     COUNT(DISTINCT r.room_id)
+    //       FILTER (WHERE r.status = 'Occupied') AS occupied,
+
+    //     COUNT(DISTINCT r.room_id)
+    //       FILTER (WHERE gr.guest_id IS NOT NULL) AS with_guest,
+
+    //     COUNT(DISTINCT r.room_id)
+    //       FILTER (WHERE gh.guest_hk_id IS NOT NULL) AS with_housekeeping
+
+    //   FROM m_rooms r
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.room_id = r.room_id AND gr.is_active = true
+    //   LEFT JOIN m_guest g
+    //     ON g.guest_id = gr.guest_id
+    //   LEFT JOIN t_room_housekeeping gh
+    //     ON gh.room_id = r.room_id AND gh.is_active = true
+    //   WHERE r.is_active = true
+    //   ${whereSql}
+    // `;
     const statsSql = `
       SELECT
-        COUNT(*)                                           AS total,
-        COUNT(*) FILTER (WHERE r.status = 'Available')     AS available,
-        COUNT(*) FILTER (WHERE r.status = 'Occupied')      AS occupied,
-        COUNT(*) FILTER (WHERE gr.guest_id IS NOT NULL)    AS with_guest,
-        COUNT(*) FILTER (WHERE gh.guest_hk_id IS NOT NULL) AS with_housekeeping
+        COUNT(*) AS total,
+
+        COUNT(*) FILTER (
+          WHERE r.status = 'Available'
+        ) AS available,
+
+        COUNT(*) FILTER (
+          WHERE r.status = 'Occupied'
+        ) AS occupied,
+
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM t_guest_room gr
+            WHERE gr.room_id = r.room_id
+            AND gr.is_active = true
+          )
+        ) AS with_guest,
+
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM t_room_housekeeping gh
+            WHERE gh.room_id = r.room_id
+            AND gh.is_active = true
+          )
+        ) AS with_housekeeping
+
       FROM m_rooms r
-      LEFT JOIN t_guest_room gr
-        ON gr.room_id = r.room_id AND gr.is_active = true
-      LEFT JOIN t_room_housekeeping gh
-        ON gh.room_id = r.room_id AND gh.is_active = true
       WHERE r.is_active = true
-      ${whereSql}
+      ${search ? `
+        AND (
+          r.room_no ILIKE $1
+          OR r.room_name ILIKE $1
+          OR EXISTS (
+              SELECT 1
+              FROM t_guest_room gr
+              JOIN m_guest g
+                ON g.guest_id = gr.guest_id
+              WHERE gr.room_id = r.room_id
+              AND gr.is_active = true
+              AND g.guest_name ILIKE $1
+          )
+        )
+      ` : ''}
+      ${status ? `AND r.status = $${search ? 2 : 1}` : ''}
     `;
+
 
     /* ================= DATA ================= */
 

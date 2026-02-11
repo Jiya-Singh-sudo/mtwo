@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
@@ -76,21 +76,45 @@ export class GuestNetworkService {
 
     /* ---------- COUNT ---------- */
     const countSql = `
-    SELECT COUNT(*)::int AS count
-    FROM t_guest_inout io
-    JOIN m_guest g
-      ON g.guest_id = io.guest_id
-    LEFT JOIN t_guest_room gr
-      ON gr.guest_id = g.guest_id
-    AND gr.is_active = TRUE
-    LEFT JOIN t_guest_network gn
-      ON gn.guest_id = g.guest_id
-    AND gn.is_active = TRUE
-    LEFT JOIN t_guest_messenger gm
-      ON gm.guest_id = g.guest_id
-    AND gm.is_active = TRUE
-    ${whereClause};
-  `;
+      SELECT COUNT(*)::int AS count
+      FROM t_guest_inout io
+      JOIN m_guest g
+        ON g.guest_id = io.guest_id
+
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+      AND gr.is_active = TRUE
+
+      LEFT JOIN t_guest_network gn
+        ON gn.guest_id = g.guest_id
+      AND gn.is_active = TRUE
+
+      LEFT JOIN m_wifi_provider wp
+        ON wp.provider_id = gn.provider_id   -- 🔥 ADD THIS
+
+      LEFT JOIN t_guest_messenger gm
+        ON gm.guest_id = g.guest_id
+      AND gm.is_active = TRUE
+
+      ${whereClause};
+    `;
+
+  //   const countSql = `
+  //   SELECT COUNT(*)::int AS count
+  //   FROM t_guest_inout io
+  //   JOIN m_guest g
+  //     ON g.guest_id = io.guest_id
+  //   LEFT JOIN t_guest_room gr
+  //     ON gr.guest_id = g.guest_id
+  //   AND gr.is_active = TRUE
+  //   LEFT JOIN t_guest_network gn
+  //     ON gn.guest_id = g.guest_id
+  //   AND gn.is_active = TRUE
+  //   LEFT JOIN t_guest_messenger gm
+  //     ON gm.guest_id = g.guest_id
+  //   AND gm.is_active = TRUE
+  //   ${whereClause};
+  // `;
 
     /* ---------- DATA ---------- */
     const dataSql = `
@@ -252,7 +276,7 @@ export class GuestNetworkService {
 
   async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
     const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Network entry '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Guest Network entry '${id}' not found`);
 
     const now = new Date().toISOString();
 
@@ -377,7 +401,7 @@ export class GuestNetworkService {
     ip: string
   ) {
     const existing = await this.findOne(id);
-    if (!existing) throw new Error(`Guest Network '${id}' not found`);
+    if (!existing) throw new NotFoundException(`Guest Network '${id}' not found`);
 
     const now = new Date().toISOString();
 

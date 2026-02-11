@@ -7,6 +7,7 @@ import { GuestReportEngine } from '../engines/guest.engine';
 import { RoomReportEngine } from '../engines/room.engine';
 import { VehicleDriverReportEngine } from '../engines/vehicle-driver.engine';
 import { FoodServiceReportEngine } from '../engines/food-service.engine';
+import { DbClient } from '../interfaces/db-client.interface';
 
 /* Standalone Pool for worker (outside NestJS DI context) */
 const pool = new Pool({
@@ -18,11 +19,26 @@ const pool = new Pool({
 });
 
 /* Wrapper matching DatabaseService interface */
-const db = {
-    async query(sql: string, params: any[] = []) {
-        const result = await pool.query(sql, params);
-        return result.rows;
-    },
+const db: DbClient = {
+  async query(sql: string, params: any[] = []) {
+    const result = await pool.query(sql, params);
+    return result.rows;
+  },
+
+  async transaction<T>(callback: (client: any) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
 };
 
 export const reportWorker = new Worker(

@@ -29,8 +29,8 @@ export class NetworksService {
   }
 
   async getNetworkTable(query: NetworkTableQueryDto) {
-    const page = query.page;
-    const limit = query.limit;
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     const offset = (page - 1) * limit;
 
     /* ---------- SORT WHITELIST ---------- */
@@ -47,6 +47,25 @@ export class NetworksService {
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
     /* ---------- FILTERS ---------- */
+    // const where: string[] = [];
+    // const params: any[] = [];
+
+    // // status → is_active
+    // if (query.status === 'active') {
+    //   where.push('is_active = true');
+    // } else if (query.status === 'inactive') {
+    //   where.push('is_active = false');
+    // }
+
+    // // search → provider_name
+    // if (query.search) {
+    //   params.push(`%${query.search}%`);
+    //   where.push(`provider_name ILIKE $${params.length}`);
+    // }
+
+    // const whereClause =
+    //   where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+    /* ---------- FILTERS ---------- */
     const where: string[] = [];
     const params: any[] = [];
 
@@ -57,10 +76,24 @@ export class NetworksService {
       where.push('is_active = false');
     }
 
-    // search → provider_name
+    // network type filter (NEW)
+    if (['WiFi','Broadband','Hotspot','Leased-Line'].includes(query.networkType as any)) {
+      params.push(query.networkType);
+      where.push(`network_type = $${params.length}`);
+    }
+
+    // search → provider_name, network_type, bandwidth
     if (query.search) {
       params.push(`%${query.search}%`);
-      where.push(`provider_name ILIKE $${params.length}`);
+      const index = params.length;
+
+      where.push(`
+        (
+          provider_name ILIKE $${index}
+          OR network_type::text ILIKE $${index}
+          OR CAST(bandwidth_mbps AS TEXT) ILIKE $${index}
+        )
+      `);
     }
 
     const whereClause =

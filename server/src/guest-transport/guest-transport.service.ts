@@ -157,6 +157,7 @@ export class GuestTransportService {
     g.guest_name,
     g.guest_name_local_language,
     g.guest_mobile,
+    g.requires_driver,
 
     io.inout_id,
     io.entry_date,
