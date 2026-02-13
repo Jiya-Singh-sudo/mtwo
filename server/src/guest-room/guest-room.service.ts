@@ -7,17 +7,27 @@ import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
 export class GuestRoomService {
   constructor(private readonly db: DatabaseService) {}
 
+  // private async generateId(): Promise<string> {
+  //   const sql = `SELECT guest_room_id FROM t_guest_room ORDER BY guest_room_id DESC LIMIT 1`;
+  //   const res = await this.db.query(sql);
+  //   if (res.rows.length === 0) return "GR001";
+  //   const last = res.rows[0].guest_room_id.replace("GR", "");
+  //   const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
+  //   return `GR${next}`;
+  // }
   private async generateId(): Promise<string> {
-    const sql = `SELECT guest_room_id FROM t_guest_room ORDER BY guest_room_id DESC LIMIT 1`;
-    const res = await this.db.query(sql);
-    if (res.rows.length === 0) return "GR001";
-    const last = res.rows[0].guest_room_id.replace("GR", "");
-    const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
-    return `GR${next}`;
+    const res = await this.db.query(`
+      SELECT 'GR' || LPAD(nextval('guest_room_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
   //Guest Management page - table view(guests, rooms)
   async getRoomOverview() {
     // 1️⃣ Close guest-room rows for exited / cancelled guests
+    await this.db.query('BEGIN');
+    try {
+
     await this.db.query(`
       UPDATE t_guest_room gr
       SET
@@ -46,6 +56,7 @@ export class GuestRoomService {
             AND gr.is_active = TRUE
         )
     `);
+    await this.db.query('COMMIT');
 
     // 2️⃣ Fetch room state snapshot
     const sql = `
@@ -77,17 +88,22 @@ export class GuestRoomService {
 
     const res = await this.db.query(sql);
     return res.rows;
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
 
   async activeGuestsDropDown(){
-    const sql = `SELECT
-                  io.guest_id,
-                  g.guest_name
-                FROM t_guest_inout io
-                JOIN m_guest g ON g.guest_id = io.guest_id
-                WHERE io.is_active = TRUE
-                ORDER BY g.guest_name;
-                `;
+    const sql = 
+    `SELECT
+      io.guest_id,
+      g.guest_name
+    FROM t_guest_inout io
+    JOIN m_guest g ON g.guest_id = io.guest_id
+    WHERE io.is_active = TRUE
+    ORDER BY g.guest_name;
+    `;
     const res = await this.db.query(sql);
     return res.rows;
   }
@@ -103,6 +119,7 @@ export class GuestRoomService {
         FROM t_guest_room
         WHERE guest_room_id = $1
           AND is_active = TRUE
+        FOR UPDATE
       `, [guestRoomId]);
 
       if (!res.rowCount) {
@@ -110,6 +127,11 @@ export class GuestRoomService {
       }
 
       const roomId = res.rows[0].room_id;
+      await this.db.query(`
+        SELECT 1 FROM m_rooms
+        WHERE room_id = $1
+        FOR UPDATE
+      `, [roomId]);
 
       // 2️⃣ Close stay
       await this.db.query(`
@@ -166,11 +188,22 @@ export class GuestRoomService {
 
   async create(dto: CreateGuestRoomDto, user: string, ip: string) {
     await this.db.query('BEGIN');
-    await this.db.query(`LOCK TABLE t_guest_room IN EXCLUSIVE MODE`);
+    // await this.db.query(`LOCK TABLE t_guest_room IN EXCLUSIVE MODE`);
     try {
-      await this.db.query(
+      // await this.db.query(
+      //   `
+      //   SELECT room_capacity
+      //   FROM m_rooms
+      //   WHERE room_id = $1
+      //   FOR UPDATE
+      //   `,
+      //   [dto.room_id]
+      // );
+
+
+      const roomRes = await this.db.query(
         `
-        SELECT room_capacity
+        SELECT room_capacity, status, is_active
         FROM m_rooms
         WHERE room_id = $1
         FOR UPDATE
@@ -187,23 +220,42 @@ export class GuestRoomService {
         [dto.room_id]
       );
 
-      const capacityRes = await this.db.query(
-        `
-        SELECT room_capacity
-        FROM m_rooms
-        WHERE room_id = $1
-        `,
-        [dto.room_id]
-      );
+      if (!roomRes.rowCount) {
+        throw new BadRequestException('Room not found');
+      }
 
-      if (occupancyRes.rows[0].count >= capacityRes.rows[0].room_capacity) {
+      const room = roomRes.rows[0];
+      if (occupancyRes.rows[0].count >= room.room_capacity) {
         throw new BadRequestException('Room has reached maximum capacity');
       }
 
+      if (!room.is_active) {
+        throw new BadRequestException('Cannot assign guest to inactive room');
+      }
+
+      if (room.status !== 'Available') {
+        throw new BadRequestException('Room is not available');
+      }
+
+      // const capacityRes = await this.db.query(
+      //   `
+      //   SELECT room_capacity
+      //   FROM m_rooms
+      //   WHERE room_id = $1
+      //   `,
+      //   [dto.room_id]
+      // );
+
+      // if (occupancyRes.rows[0].count >= capacityRes.rows[0].room_capacity) {
+      //   throw new BadRequestException('Room has reached maximum capacity');
+      // }
+
+      
       // 1️⃣ Ensure guest is active (from t_guest_inout)
       const guestCheck = await this.db.query(`
         SELECT 1 FROM t_guest_inout
         WHERE guest_id = $1 AND is_active = TRUE
+        FOR UPDATE
       `, [dto.guest_id]);
 
       if (!guestCheck.rowCount) {
@@ -211,18 +263,19 @@ export class GuestRoomService {
       }
 
       // 2️⃣ Ensure room is available
-      const roomCheck = await this.db.query(`
-        SELECT status FROM m_rooms
-        WHERE room_id = $1 AND is_active = TRUE
-      `, [dto.room_id]);
 
-      if (!roomCheck.rowCount) {
-        throw new BadRequestException('Room not found or inactive');
-      }
+      // const roomCheck = await this.db.query(`
+      //   SELECT status FROM m_rooms
+      //   WHERE room_id = $1 AND is_active = TRUE
+      // `, [dto.room_id]);
 
-      if (roomCheck.rows[0].status !== 'Available' || occupancyRes.rows[0].count > 0) {
-        throw new BadRequestException('Room is not available');
-      }
+      // if (!roomCheck.rowCount) {
+      //   throw new BadRequestException('Room not found or inactive');
+      // }
+
+      // if (roomCheck.rows[0].status !== 'Available' || occupancyRes.rows[0].count > 0) {
+      //   throw new BadRequestException('Room is not available');
+      // }
 
       const overlapCheck = await this.db.query(
         `
@@ -252,15 +305,14 @@ export class GuestRoomService {
         );
       }
       
-      
-      const roomActiveCheck = await this.db.query(
-        `SELECT is_active FROM m_rooms WHERE room_id = $1`,
-        [dto.room_id]
-      );
+      // const roomActiveCheck = await this.db.query(
+      //   `SELECT is_active FROM m_rooms WHERE room_id = $1`,
+      //   [dto.room_id]
+      // );
 
-      if (!roomActiveCheck.rows[0]?.is_active) {
-        throw new BadRequestException('Cannot assign guest to inactive room');
-      }
+      // if (!roomActiveCheck.rows[0]?.is_active) {
+      //   throw new BadRequestException('Cannot assign guest to inactive room');
+      // }
 
       // 3️⃣ Generate guest_room_id
       const guestRoomId = await this.generateId();
@@ -315,10 +367,22 @@ export class GuestRoomService {
   }
 
   async update(id: string, dto: UpdateGuestRoomDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new NotFoundException(`Guest Room entry '${id}' not found`);
-
     await this.db.query('BEGIN');
+
+    try {
+      const existingRes = await this.db.query(`
+        SELECT *
+        FROM t_guest_room
+        WHERE guest_room_id = $1
+        FOR UPDATE
+      `, [id]);
+
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Guest Room entry '${id}' not found`);
+      }
+
+      const existing = existingRes.rows[0];
+
     if (
       dto.room_id &&
       dto.room_id !== existing.room_id &&
@@ -329,7 +393,12 @@ export class GuestRoomService {
       );
     }
 
-    try {
+      await this.db.query(`
+        SELECT 1 FROM m_rooms
+        WHERE room_id = $1
+        FOR UPDATE
+      `, [existing.room_id]);
+
       // 🔴 If guest is being released
       if (dto.is_active === false || dto.action_type === 'Room-Released') {
         await this.db.query(`

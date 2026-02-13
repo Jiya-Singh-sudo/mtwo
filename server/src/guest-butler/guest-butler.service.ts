@@ -6,18 +6,24 @@ import { UpdateGuestButlerDto } from "./dto/update-guest-butler.dto";
 @Injectable()
 export class GuestButlerService {
   constructor(private readonly db: DatabaseService) {}
-
-  private async generateId(): Promise<string> {
-    const sql = `SELECT guest_butler_id FROM t_guest_butler ORDER BY guest_butler_id DESC LIMIT 1`;
-    const res = await this.db.query(sql);
-
-    if (res.rows.length === 0) return "GB001";
-
-    const last = res.rows[0].guest_butler_id.replace("GB", "");
-    const next = (parseInt(last) + 1).toString().padStart(3, "0");
-
-    return "GB" + next;
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GB' || LPAD(nextval('guest_butler_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
+  // private async generateId(): Promise<string> {
+  //   const sql = `SELECT guest_butler_id FROM t_guest_butler ORDER BY guest_butler_id DESC LIMIT 1`;
+  //   const res = await this.db.query(sql);
+
+  //   if (res.rows.length === 0) return "GB001";
+
+  //   const last = res.rows[0].guest_butler_id.replace("GB", "");
+  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
+
+  //   return "GB" + next;
+  // }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -35,66 +41,77 @@ export class GuestButlerService {
   }
 
   async create(dto: CreateGuestButlerDto, user: string, ip: string) {
-    const existingSql = `
-      SELECT guest_butler_id
-      FROM t_guest_butler
-      WHERE guest_id = $1
-        AND is_active = TRUE
-    `;
-    const existingRes = await this.db.query(existingSql, [dto.guest_id]);
+    return this.db.transaction(async (client) => {
+    // 🔒 Lock butler assignments
+    await client.query(
+      `SELECT 1 FROM t_guest_butler WHERE butler_id = $1 FOR UPDATE`,
+      [dto.butler_id]
+    );
 
-    if (existingRes.rows.length > 0) {
-      throw new BadRequestException(
-        "This guest already has a butler assigned"
-      );
-    }
+    // 🔒 Lock guest assignments
+    await client.query(
+      `SELECT 1 FROM t_guest_butler WHERE guest_id = $1 FOR UPDATE`,
+      [dto.guest_id]
+    );
+      const existingSql = `
+        SELECT guest_butler_id
+        FROM t_guest_butler
+        WHERE guest_id = $1
+          AND is_active = TRUE
+      `;
+      const existingRes = await client.query(existingSql, [dto.guest_id]);
 
-    // 🔒 ENFORCE BUTLER CAPACITY (MAX 3)
-    const countSql = `
-      SELECT COUNT(*) AS count
-      FROM t_guest_butler
-      WHERE butler_id = $1 AND is_active = TRUE
-    `;
-    const countRes = await this.db.query(countSql, [dto.butler_id]);
+      if (existingRes.rows.length > 0) {
+        throw new BadRequestException(
+          "This guest already has a butler assigned"
+        );
+      }
 
-    if (Number(countRes.rows[0].count) >= 3) {
-      throw new BadRequestException(
-        "Butler already assigned to 3 active guests"
-      );
-    }
+      // 🔒 ENFORCE BUTLER CAPACITY (MAX 3)
+      const countSql = `
+        SELECT COUNT(*) AS count
+        FROM t_guest_butler
+        WHERE butler_id = $1 AND is_active = TRUE
+      `;
+      const countRes = await client.query(countSql, [dto.butler_id]);
 
-    const id = await this.generateId();
-    const now = new Date().toISOString();
+      if (Number(countRes.rows[0].count) >= 3) {
+        throw new BadRequestException(
+          "Butler already assigned to 3 active guests"
+        );
+      }
 
-    const sql = `
-      INSERT INTO t_guest_butler (
-        guest_butler_id,
-        guest_id,
-        butler_id,
-        room_id,
-        specialrequest,
-        is_active,
-        inserted_at,
-        inserted_by,
-        inserted_ip
-      )
-      VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7,$8)
-      RETURNING *;
-    `;
+      const id = await this.generateId(client);
 
-    const params = [
-      id,
-      dto.guest_id,
-      dto.butler_id,
-      dto.room_id ?? null,
-      dto.specialRequest ?? null,
-      now,
-      user,
-      ip,
-    ];
+      const sql = `
+        INSERT INTO t_guest_butler (
+          guest_butler_id,
+          guest_id,
+          butler_id,
+          room_id,
+          special_request,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,TRUE,NOW(),$6,$7)
+        RETURNING *;
+      `;
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const params = [
+        id,
+        dto.guest_id,
+        dto.butler_id,
+        dto.room_id ?? null,
+        dto.specialRequest ?? null,
+        user,
+        ip,
+      ];
+
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   // async create(dto: CreateGuestButlerDto, user: string, ip: string) {
@@ -201,50 +218,56 @@ export class GuestButlerService {
   //   return res.rows[0];
   // }
   async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) {
-      throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
-    }
-
-    const now = new Date().toISOString();
-
-    const sql = `
-      UPDATE t_guest_butler
-      SET
-        specialrequest = $1,
-        updated_at = $2,
-        updated_by = $3,
-        updated_ip = $4
-      WHERE guest_butler_id = $5
-      RETURNING *;
-    `;
-
-    const params = [
-      dto.specialRequest ?? existing.specialrequest,
-      now,
-      user,
-      ip,
-      id,
-    ];
-
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+    return this.db.transaction(async (client) => {
+      const existingRes = await client.query(
+        `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1 FOR UPDATE`,
+        [id]
+      );
+      const existing = existingRes.rows[0];
+      if (!existing) {
+        throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
+      }
+      const sql = `
+        UPDATE t_guest_butler
+        SET
+          special_request = $1,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+        WHERE guest_butler_id = $4
+        RETURNING *;
+      `;
+      const params = [
+        dto.specialRequest ?? existing.special_request,
+        user,
+        ip,
+        id,
+      ];
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   async softDelete(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
+    return this.db.transaction(async (client) => {
 
-    const sql = `
-      UPDATE t_guest_butler SET 
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_butler_id = $4
-      RETURNING *;
-    `;
+      const existingRes = await client.query(
+        `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    const res = await this.db.query(sql, [now, user, ip, id]);
-    return res.rows[0];
+      const existing = existingRes.rows[0];
+      const sql = `
+        UPDATE t_guest_butler SET 
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+        WHERE guest_butler_id = $4
+        RETURNING *;
+      `;
+      const res = await client.query(sql, [user, ip, id]);
+      return res.rows[0];
+    });
   }
 }

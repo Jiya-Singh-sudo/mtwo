@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, Req } from '@nestjs/common';
 import { DriverDutyService } from './driver-duty.service';
 import { CreateDriverDutyDto } from './dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
@@ -7,11 +7,24 @@ import { UpdateDriverDutyDto } from './dto/updateDriverDuty.dto';
 export class DriverDutyController {
   constructor(private readonly service: DriverDutyService) { }
 
+  private extractIp(req: any): string {
+    let ip =
+      req.headers['x-forwarded-for'] ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      '';
+    ip = ip.replace('::ffff:', '').split(',')[0];
+    return ip === '::1' ? '127.0.0.1' : ip;
+  }
+
   /* ================= CREATE ================= */
 
   @Post()
-  create(@Body() dto: CreateDriverDutyDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateDriverDutyDto, @Req() req: any) {
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
+    return this.service.create(dto, user, ip);
   }
 
   /* ================= UPDATE ================= */
@@ -19,8 +32,11 @@ export class DriverDutyController {
   update(
     @Param('dutyId') dutyId: string,
     @Body() dto: UpdateDriverDutyDto,
+    @Req() req: any
   ) {
-    return this.service.update(dutyId, dto);
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
+    return this.service.update(dutyId, dto, user, ip);
   }
   /**
    * Fetch duties in a date range

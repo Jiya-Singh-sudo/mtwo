@@ -13,45 +13,58 @@ export class GuestsService {
     private readonly guestTransportService: GuestTransportService
   ) { }
 
+  // private async generateDesignationId(): Promise<string> {
+  //   const sql = `
+  //     SELECT
+  //       COALESCE(
+  //         MAX(
+  //           CAST(num_part AS INTEGER)
+  //         ),
+  //         0
+  //       ) + 1 AS next_num
+  //     FROM (
+  //       SELECT
+  //         REGEXP_REPLACE(designation_id, '[^0-9]', '', 'g') AS num_part
+  //       FROM m_guest_designation
+  //       WHERE designation_id IS NOT NULL
+  //     ) t
+  //     WHERE num_part <> ''
+  //   `;
+
+  //   const result = await this.db.query(sql);
+  //   const next = result.rows[0].next_num;
+
+  //   return `DGN_${String(next).padStart(3, '0')}`;
+  // }
   private async generateDesignationId(): Promise<string> {
-    const sql = `
-      SELECT
-        COALESCE(
-          MAX(
-            CAST(num_part AS INTEGER)
-          ),
-          0
-        ) + 1 AS next_num
-      FROM (
-        SELECT
-          REGEXP_REPLACE(designation_id, '[^0-9]', '', 'g') AS num_part
-        FROM m_guest_designation
-        WHERE designation_id IS NOT NULL
-      ) t
-      WHERE num_part <> ''
-    `;
-
-    const result = await this.db.query(sql);
-    const next = result.rows[0].next_num;
-
-    return `DGN_${String(next).padStart(3, '0')}`;
+    const res = await this.db.query(`
+      SELECT 'DGN_' || LPAD(nextval('designation_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
 
   private async generateGuestId(): Promise<string> {
-    const sql = `
-      SELECT guest_id 
-      FROM m_guest
-      ORDER BY CAST(SUBSTRING(guest_id, 2) AS VARCHAR) DESC
-      LIMIT 1;
-    `;
-    const res = await this.db.query(sql);
-    if (res.rows.length === 0) {
-      return 'G001';
-    }
-    const lastId = res.rows[0].guest_id; // e.g. "G023"
-    const nextNum = parseInt(lastId.substring(1), 10) + 1;
-    return `G${nextNum.toString().padStart(3, '0')}`;
+    const res = await this.db.query(`
+      SELECT 'G' || LPAD(nextval('guest_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
+  // private async generateGuestId(): Promise<string> {
+  //   const sql = `
+  //     SELECT guest_id 
+  //     FROM m_guest
+  //     ORDER BY CAST(SUBSTRING(guest_id, 2) AS VARCHAR) DESC
+  //     LIMIT 1;
+  //   `;
+  //   const res = await this.db.query(sql);
+  //   if (res.rows.length === 0) {
+  //     return 'G001';
+  //   }
+  //   const lastId = res.rows[0].guest_id; // e.g. "G023"
+  //   const nextNum = parseInt(lastId.substring(1), 10) + 1;
+  //   return `G${nextNum.toString().padStart(3, '0')}`;
+  // }
 
   async getGuestStatusCounts() {
     const sql = `
@@ -295,16 +308,19 @@ export class GuestsService {
 
   // Generic update
   async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
-    const statusCheck = await this.db.query(
-      `
-      SELECT status
-      FROM t_guest_inout
-      WHERE guest_id = $1
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [guestId]
-    );
+    await this.db.query('BEGIN');
+
+    try {
+      const statusCheck = await this.db.query(
+        `
+        SELECT status
+        FROM t_guest_inout
+        WHERE guest_id = $1
+          AND is_active = TRUE
+        FOR UPDATE
+        `,
+        [guestId]
+      );
 
     if (statusCheck.rowCount > 0) {
       const status = statusCheck.rows[0].status;
@@ -314,6 +330,7 @@ export class GuestsService {
           `Cannot edit guest once status is ${status}`
         );
       }
+      
     }
 
     
@@ -335,7 +352,10 @@ export class GuestsService {
       vals.push(v);
       idx++;
     }
-    if (fields.length === 0) return this.findOne(guestId);
+    if (fields.length === 0) {
+      await this.db.query('ROLLBACK');
+      return this.findOne(guestId);
+    }
     fields.push(`updated_at = NOW()`);
     fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
     fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
@@ -350,7 +370,13 @@ export class GuestsService {
     `;
     vals.push(guestId);
     const r = await this.db.query(sql, vals);
+    await this.db.query('COMMIT');
     return r.rows[0];
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      console.error('Guest update failed:', err);
+      throw new BadRequestException('Guest update failed');
+    }
   }
 
   async findOne(guestId: string) {
@@ -563,6 +589,23 @@ export class GuestsService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
+    try {
+    await this.db.query('BEGIN');
+
+    const lockRes = await this.db.query(
+      `
+      SELECT *
+      FROM t_guest_inout
+      WHERE inout_id = $1
+      FOR UPDATE
+      `,
+      [inoutId]
+    );
+
+    if (!lockRes.rowCount) {
+      throw new BadRequestException('InOut record not found');
+    }
+
     if (
       payload.entry_date &&
       payload.exit_date &&
@@ -609,7 +652,10 @@ export class GuestsService {
     // const res = await this.db.query(sql, values);
     // return res.rows[0];
     const res = await this.db.query(sql, values);
-    const updated = res.rows[0];
+    const updated = res.rows[0]; 
+    if (!updated){
+      throw new BadRequestException('InOut record not found');
+    }
     
     // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
     if (
@@ -644,12 +690,15 @@ export class GuestsService {
           exitTs
         );
     }
-
+    await this.db.query('COMMIT');
     return {
       inout: updated,
       warnings, // 🔑 FRONTEND NEEDS THIS
     };
-
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
 
   async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
@@ -711,12 +760,13 @@ export class GuestsService {
   ) {
     /* ================= ROOMS (FULL VACATE LOGIC) ================= */
 
-    try {
+    // try {
       const guestRooms = await trx.query(
         `
         SELECT guest_room_id, room_id
         FROM t_guest_room
         WHERE guest_id = $1 AND is_active = TRUE
+        FOR UPDATE
         `,
         [guestId]
       );
@@ -766,9 +816,9 @@ export class GuestsService {
           [gr.room_id]
         );
       }
-    } catch (err) {
-      console.warn('Room cascade skipped:', err.message);
-    }
+    // } catch (err) {
+    //   console.warn('Room cascade skipped:', err.message);
+    // }
 
 
     // try {

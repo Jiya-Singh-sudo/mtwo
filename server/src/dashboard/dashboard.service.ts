@@ -63,6 +63,7 @@ export class DashboardService {
         ) AS percent
         FROM t_guest_room
         WHERE is_active = TRUE
+        AND CURRENT_DATE BETWEEN check_in_date AND check_out_date
       `),
 
       this.db.query(`

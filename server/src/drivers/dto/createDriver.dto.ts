@@ -26,7 +26,8 @@ export class CreateDriverDto {
 
   @IsString()
   address: string;
+
   @IsOptional()
-@IsDateString()
-license_expiry_date?: string;
+  @IsDateString()
+  license_expiry_date?: string;
 }

@@ -262,23 +262,24 @@ export class RoomManagementService {
     user: string,
     ip: string
   ) {
-    await this.db.query(
-      `
-      SELECT 1
-      FROM m_rooms
-      WHERE room_id = $1
-      FOR UPDATE
-      `,
-      [room_id]
-    );
-    
+    await this.db.query('BEGIN');
+    try {
+    // await this.db.query(
+    //   `
+    //   SELECT 1
+    //   FROM m_rooms
+    //   WHERE room_id = $1
+    //   FOR UPDATE
+    //   `,
+    //   [room_id]
+    // );
 
     const roomRes = await this.db.query(
-      `SELECT * FROM m_rooms WHERE room_id = $1`,
+      `SELECT * FROM m_rooms WHERE room_id = $1 AND is_active = TRUE FOR UPDATE`,
       [room_id]
     );
 
-    if (roomRes.rowCount === 0) {
+    if (!roomRes.rowCount) {
       throw new NotFoundException(`Room '${room_id}' not found`);
     }
 
@@ -286,18 +287,31 @@ export class RoomManagementService {
     if (!room.is_active) {
       throw new BadRequestException('Inactive room cannot be modified');
     }
+    // const activeGuestRes = await this.db.query(
+    //   `
+    //   SELECT COUNT(*)::int AS count
+    //   FROM t_guest_room
+    //   WHERE room_id = $1
+    //     AND is_active = TRUE
+    //   FOR UPDATE
+    //   `,
+    //   [room_id]
+    // );
     const activeGuestRes = await this.db.query(
       `
-      SELECT COUNT(*)::int AS count
+      SELECT guest_room_id
       FROM t_guest_room
       WHERE room_id = $1
         AND is_active = TRUE
-
+      FOR UPDATE
       `,
       [room_id]
     );
 
-    const activeGuestCount = activeGuestRes.rows[0].count;
+    const activeGuestCount = activeGuestRes.rowCount;
+
+
+    // const activeGuestCount = activeGuestRes.rows[0].count;
 
     /* ================= VALIDATIONS ================= */
     // 1️⃣ Capacity must always be >= 1
@@ -374,7 +388,7 @@ export class RoomManagementService {
             AND task_shift = $3
             AND is_active = TRUE
             AND room_id <> $4
-          LIMIT 1
+          FOR UPDATE
           `,
           [
             dto.hk_id,
@@ -403,8 +417,6 @@ export class RoomManagementService {
           }
         }
       }
-    await this.db.query('BEGIN');
-    try {
       /* ---------- 1️⃣ ROOM ---------- */
 
       await this.db.query(
@@ -469,12 +481,7 @@ export class RoomManagementService {
         // 3️⃣ If assigning new guest → insert + mark Occupied
         if (dto.guest_id !== null) {
           const grIdRes = await this.db.query(`
-            SELECT 'GR' || LPAD(
-              (COALESCE(MAX(SUBSTRING(guest_room_id FROM 3)::int), 0) + 1)::text,
-              3,
-              '0'
-            ) AS id
-            FROM t_guest_room
+            SELECT 'GR' || LPAD(nextval('guest_room_seq')::text, 3, '0') AS id;
           `);
 
           await this.db.query(
@@ -592,6 +599,16 @@ export class RoomManagementService {
       if (dto.hk_id !== undefined) {
         await this.db.query(
           `
+          SELECT guest_hk_id
+          FROM t_room_housekeeping
+          WHERE room_id = $1
+            AND is_active = TRUE
+        FOR UPDATE
+        `,
+        [room_id]
+      );
+        await this.db.query(
+          `
           UPDATE t_room_housekeeping
           SET status = 'Cancelled',
               is_active = FALSE,
@@ -604,12 +621,7 @@ export class RoomManagementService {
 
         if (dto.hk_id !== null) {
           const hkIdRes = await this.db.query(`
-            SELECT 'RHK' || LPAD(
-              (COALESCE(MAX(SUBSTRING(guest_hk_id FROM 4)::int), 0) + 1)::text,
-              3,
-              '0'
-            ) AS id
-            FROM t_room_housekeeping
+            SELECT 'RHK' || LPAD(nextval('room_housekeeping_seq')::text, 3, '0') AS id;
           `);
 
           await this.db.query(

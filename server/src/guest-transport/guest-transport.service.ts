@@ -255,7 +255,9 @@ FROM base
 ORDER BY ${sortColumn} ${order}
 LIMIT $${idx} OFFSET $${idx + 1}
     `;
+    await this.db.query('BEGIN');
 
+    try {
     const countRes = await this.db.query(countSql, sqlParams);
 
     sqlParams.push(limit, offset);
@@ -265,6 +267,10 @@ LIMIT $${idx} OFFSET $${idx + 1}
       data: dataRes.rows,
       totalCount: countRes.rows[0].total,
     };
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
   async findTransportConflictsForGuest(guestId: string, newEntry: Date, newExit: Date) {
     const res = await this.db.query(

@@ -6,7 +6,16 @@ import { UpdateGuestVehicleDto } from './dto/update-guest-vehicle.dto';
 @Controller('guest-vehicle')
 export class GuestVehicleController {
   constructor(private readonly service: GuestVehicleService) {}
-
+  private extractIp(req: any): string {
+    let ip =
+      req.headers['x-forwarded-for'] ||
+      req.connection?.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.ip ||
+      '';
+    ip = ip.replace('::ffff:', '').split(',')[0];
+    return ip === '::1' ? '127.0.0.1' : ip;
+  }
   @Get('guests/checked-in-without-vehicle')
   findGuestsWithoutVehicle() {
     return this.service.findCheckedInGuestsWithoutVehicle();
@@ -40,15 +49,15 @@ export class GuestVehicleController {
 
   @Post('assign')
   assignVehicle(@Body() dto: CreateGuestVehicleDto, @Req() req: any) {
-    const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
     return this.service.assignVehicle(dto, user, ip);
   }
 
   @Patch('guest-vehicle/:id/release')
   releaseVehicle(@Param('id') id: string, @Req() req: any) {
-    const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
     return this.service.releaseVehicle(id, user, ip);
   }
   @Get('without-driver')
@@ -62,8 +71,8 @@ export class GuestVehicleController {
     @Body() dto: CreateGuestVehicleDto,
     @Req() req: any
   ) {
-    const user = req.user?.username ?? 'system';
-    const ip = req.ip ?? '0.0.0.0';
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
 
     return this.service.reassignVehicle(
       oldGuestVehicleId,

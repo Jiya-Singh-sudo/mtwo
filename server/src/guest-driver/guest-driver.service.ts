@@ -12,17 +12,24 @@ export class GuestDriverService {
     // private readonly notifications: NotificationsService,
   ) { }
 
-  private async generateId(retries = 3): Promise<string> {
-    const sql = `SELECT guest_driver_id FROM t_guest_driver ORDER BY guest_driver_id DESC LIMIT 1`;
-    const res = await this.db.query(sql);
-
-    if (res.rows.length === 0) return "GD001";
-
-    const last = res.rows[0].guest_driver_id.replace("GD", "");
-    const next = (parseInt(last) + 1).toString().padStart(3, "0");
-
-    return "GD" + next;
+  private async generateId(): Promise<string> {
+    const res = await this.db.query(`
+      SELECT 'GD' || LPAD(nextval('guest_driver_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
+  // private async generateId(retries = 3): Promise<string> {
+  //   const sql = `SELECT guest_driver_id FROM t_guest_driver ORDER BY guest_driver_id DESC LIMIT 1`;
+  //   const res = await this.db.query(sql);
+
+  //   if (res.rows.length === 0) return "GD001";
+
+  //   const last = res.rows[0].guest_driver_id.replace("GD", "");
+  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
+
+  //   return "GD" + next;
+  // }
 
 
   /**
@@ -57,6 +64,7 @@ export class GuestDriverService {
         AND io.is_active = TRUE
       ORDER BY io.inserted_at DESC
       LIMIT 1
+      FOR UPDATE;
     `;
 
     const res = await this.db.query(sql, [guestId]);
@@ -76,30 +84,49 @@ export class GuestDriverService {
     user = "system",
     ip = "0.0.0.0"
   ) {
-    // 🔒 BLOCK assignment for exited / cancelled guests
-    await this.assertGuestIsAssignable(dto.guest_id);
-    await this.assertDriverNotOnWeekOff(
-      dto.driver_id,
-      dto.trip_date
-    );
-    await this.assertDriverOnDuty(
-      dto.driver_id,
-      dto.trip_date,
-      dto.start_time,
-      dto.drop_date,
-      dto.drop_time
-    );
-    await this.assertDriverAvailability(
-      dto.driver_id,
-      dto.trip_date,
-      dto.start_time,
-      dto.drop_date,
-      dto.drop_time
-    );
+    await this.db.query('BEGIN');
 
-    return this.createTrip(
-      {
-        guest_id: dto.guest_id,
+    try {
+      await this.db.query(
+        `SELECT 1 FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
+        [dto.driver_id]
+      );
+
+      await this.db.query(
+        `
+        SELECT 1
+        FROM t_guest_driver
+        WHERE driver_id = $1
+          AND is_active = TRUE
+        FOR UPDATE
+        `,
+        [dto.driver_id]
+      );
+
+      // 🔒 BLOCK assignment for exited / cancelled guests
+      await this.assertGuestIsAssignable(dto.guest_id);
+      await this.assertDriverNotOnWeekOff(
+        dto.driver_id,
+        dto.trip_date
+      );
+      await this.assertDriverOnDuty(
+        dto.driver_id,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date,
+        dto.drop_time
+      );
+      await this.assertDriverAvailability(
+        dto.driver_id,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date,
+        dto.drop_time
+      );
+
+      const trip = await this.createTrip(
+        {
+          guest_id: dto.guest_id,
         driver_id: dto.driver_id,
         pickup_location: dto.pickup_location,
         drop_location: dto.drop_location,
@@ -111,8 +138,13 @@ export class GuestDriverService {
       user,
       ip
     );
+    await this.db.query('COMMIT');
+    return trip;
+  } catch (error) {
+    await this.db.query('ROLLBACK');
+    throw error;
   }
-
+  }
 
   // ---------- CREATE TRIP ----------
   async createTrip(
@@ -228,7 +260,8 @@ export class GuestDriverService {
   async create(dto: CreateGuestDriverDto, user: string, ip: string) {
     const id = await this.generateId();
     const now = new Date().toISOString();
-
+    // await this.db.query('BEGIN');
+    try {
     const sql = `
       INSERT INTO t_guest_driver(
         guest_driver_id, guest_id, driver_id, vehicle_no, room_id,
@@ -283,7 +316,12 @@ export class GuestDriverService {
     ];
 
     const res = await this.db.query(sql, params);
+    // await this.db.query('COMMIT');
     return res.rows[0];
+    } catch (err) {
+      // await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
 
   /**
@@ -320,7 +358,9 @@ export class GuestDriverService {
 
   async closeTrip(id: string, user: string, ip: string) {
     const now = new Date().toISOString();
+    await this.db.query('BEGIN');
 
+    try {
     const sql = `
       UPDATE t_guest_driver SET 
         is_active = false,
@@ -332,7 +372,12 @@ export class GuestDriverService {
     `;
 
     const res = await this.db.query(sql, [now, user, ip, id]);
+    await this.db.query('COMMIT');
     return res.rows[0];
+    } catch (err) {
+      await this.db.query('ROLLBACK');
+      throw err;
+    }
   }
   //   async updateTrip(
   //   guestDriverId: string,
@@ -394,10 +439,34 @@ export class GuestDriverService {
     user: string,
     ip: string
   ) {
-    const old = await this.findOne(oldGuestDriverId);
-    if (!old) throw new BadRequestException('Trip not found');
+    await this.db.query('BEGIN');
+    try{
+    const oldRes = await this.db.query(
+      `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
+      [oldGuestDriverId]
+    );
+
+    if (!oldRes.rowCount) {
+      throw new BadRequestException('Trip not found');
+    }
+
+    const old = oldRes.rows[0];
+    await this.db.query(
+      `
+      SELECT 1
+      FROM t_guest_driver
+      WHERE driver_id = $1
+        AND is_active = TRUE
+      FOR UPDATE
+      `,
+      [dto.driver_id ?? old.driver_id]
+    );
 
     await this.assertGuestIsAssignable(old.guest_id);
+    await this.assertDriverNotOnWeekOff(
+      dto.driver_id ?? old.driver_id,
+      dto.trip_date ?? old.trip_date
+    );
     await this.assertDriverOnDuty(
       dto.driver_id ?? old.driver_id,
       dto.trip_date ?? old.trip_date,
@@ -413,10 +482,6 @@ export class GuestDriverService {
       dto.drop_time ?? old.drop_time
     );
 
-    // Use transaction to ensure atomic operation
-    await this.db.query('BEGIN');
-
-    try {
       // 1️⃣ Close old trip
       await this.db.query(
         `
@@ -494,7 +559,9 @@ export class GuestDriverService {
           ($2::date + $3::time),
           COALESCE(($4::date + $5::time), 'infinity')
         )
+      FOR UPDATE
       LIMIT 1;
+      
     `;
 
     const res = await this.db.query(sql, [
