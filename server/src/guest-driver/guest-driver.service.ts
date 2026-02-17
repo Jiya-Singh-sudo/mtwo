@@ -201,6 +201,42 @@ export class GuestDriverService {
       return res.rows[0];
     // });
   }
+  async createTripStandalone(
+    dto: CreateGuestDriverDto,
+    user: string,
+    ip: string
+  ) {
+    return this.db.transaction(async (client) => {
+
+      await this.assertGuestIsAssignable(client, dto.guest_id);
+
+      await this.assertDriverNotOnWeekOff(
+        client,
+        dto.driver_id,
+        dto.trip_date
+      );
+
+      await this.assertDriverOnDuty(
+        client,
+        dto.driver_id,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date,
+        dto.drop_time
+      );
+
+      await this.assertDriverAvailability(
+        client,
+        dto.driver_id,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date,
+        dto.drop_time
+      );
+
+      return this.createTrip(client, dto, user, ip);
+    });
+  }
 
   async findActiveByGuest(guestId: string) {
     const sql = `
@@ -334,11 +370,20 @@ export class GuestDriverService {
     return res.rows;
     });
   }
-
   async closeTrip(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      try {
-      const sql = `
+
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
+        [id]
+      );
+
+      if (!existing.rowCount) {
+        throw new BadRequestException("TRIP_NOT_FOUND");
+      }
+
+      const res = await client.query(
+        `
         UPDATE t_guest_driver SET 
           is_active = false,
           updated_at = NOW(),
@@ -346,15 +391,34 @@ export class GuestDriverService {
           updated_ip = $2
         WHERE guest_driver_id = $3
         RETURNING *;
-      `;
+        `,
+        [user, ip, id]
+      );
 
-      const res = await client.query(sql, [user, ip, id]);
       return res.rows[0];
-      } catch (err) {
-        throw err;
-      }
     });
   }
+
+  // async closeTrip(id: string, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
+  //     try {
+  //     const sql = `
+  //       UPDATE t_guest_driver SET 
+  //         is_active = false,
+  //         updated_at = NOW(),
+  //         updated_by = $1,
+  //         updated_ip = $2
+  //       WHERE guest_driver_id = $3
+  //       RETURNING *;
+  //     `;
+
+  //     const res = await client.query(sql, [user, ip, id]);
+  //     return res.rows[0];
+  //     } catch (err) {
+  //       throw err;
+  //     }
+  //   });
+  // }
   //   async updateTrip(
   //   guestDriverId: string,
   //   payload: {
@@ -459,7 +523,8 @@ export class GuestDriverService {
         dto.trip_date ?? old.trip_date,
         dto.start_time ?? old.start_time,
         dto.drop_date ?? old.drop_date,
-        dto.drop_time ?? old.drop_time
+        dto.drop_time ?? old.drop_time,
+        oldGuestDriverId
       );
 
         // 1️⃣ Close old trip
@@ -507,7 +572,8 @@ export class GuestDriverService {
     tripDate: string,
     startTime: string,
     dropDate?: string,
-    dropTime?: string
+    dropTime?: string,
+    excludeTripId?: string
   ) {
     // return this.db.transaction(async (client) => {
       const sql = `
@@ -516,27 +582,37 @@ export class GuestDriverService {
         WHERE
           driver_id = $1
           AND is_active = TRUE
-          AND (
-            (trip_date + start_time),
+          AND guest_driver_id <> COALESCE($6, guest_driver_id)
+          AND
+          (
+            (trip_date::date + start_time::time),
             CASE
               WHEN drop_date IS NOT NULL
                   AND drop_time IS NOT NULL
                   AND drop_time < start_time
-                THEN drop_date + drop_time + INTERVAL '1 day'
+                THEN drop_date::date + drop_time::time + INTERVAL '1 day'
               WHEN drop_date IS NOT NULL
                   AND drop_time IS NOT NULL
-                THEN drop_date + drop_time
+                THEN drop_date::date + drop_time::time
               ELSE 'infinity'
             END
           )
           OVERLAPS
           (
-            ($2 + $3),
-            COALESCE(($4 + $5), 'infinity')
+            $2::date + $3::time,
+            CASE
+              WHEN $4 IS NOT NULL
+                  AND $5 IS NOT NULL
+                  AND $5 < $3
+                THEN $4::date + $5::time + INTERVAL '1 day'
+              WHEN $4 IS NOT NULL
+                  AND $5 IS NOT NULL
+                THEN $4::date + $5::time
+              ELSE 'infinity'
+            END
           )
         FOR UPDATE
         LIMIT 1;
-        
       `;
 
       const res = await client.query(sql, [
@@ -544,7 +620,8 @@ export class GuestDriverService {
         tripDate,
         startTime,
         dropDate ?? null,
-        dropTime ?? null,
+        dropTime ?? null, 
+        excludeTripId ?? null,
       ]);
 
       if (res.rows.length) {

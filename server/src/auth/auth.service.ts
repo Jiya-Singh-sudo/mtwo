@@ -72,7 +72,7 @@ export class AuthService {
   verifyAccessToken(token: string) {
     try {
       const key = this.publicKey as jwt.Secret;
-      return jwt.verify(token, key, { algorithms: ['RS256'] } as jwt.VerifyOptions) as any;
+      return jwt.verify(token, key, { algorithms: ['RS256'], issuer: 'MTWO' } as jwt.VerifyOptions) as any;
     } catch (err) {
       throw new UnauthorizedException('Invalid or expired access token');
     }
@@ -89,7 +89,7 @@ export class AuthService {
     return hmac.digest('hex');
   }
 
-  private async createRefreshTokenRow(userId: string, ip: string | null, familyId?: string) {
+  private async createRefreshTokenRow(userId: string, ip: string | null, familyId?: string, client?: any) {
     const plain = this.generateRandomToken();
     const tokenHash = this.hashRefreshToken(plain);
     const family = familyId ?? uuidv4();
@@ -100,21 +100,41 @@ export class AuthService {
       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
       RETURNING id, expires_at, family_id
     `;
-    const result = await this.db.query(sql, [userId, tokenHash, family, expiresAt, ip]);
+    const executor = client ?? this.db;
+    const result = await executor.query(sql, [
+      userId,
+      tokenHash,
+      family,
+      expiresAt,
+      ip,
+    ]);
+
     const row = result.rows[0];
 
     return { id: row.id, token: plain, expiresAt: row.expires_at, familyId: row.family_id };
   }
 
-  private async findRefreshTokenByHash(hash: string) {
-    const sql = `SELECT * FROM auth_refresh_tokens WHERE token_hash = $1 LIMIT 1`;
-    const result = await this.db.query(sql, [hash]);
+  // private async findRefreshTokenByHash(hash: string) {
+  //   const sql = `SELECT * FROM auth_refresh_tokens WHERE token_hash = $1 LIMIT 1`;
+  //   const result = await this.db.query(sql, [hash]);
+  //   return result.rows.length ? result.rows[0] : null;
+  // }
+  private async findRefreshTokenByHash(hash: string, client: any) {
+    const sql = `
+      SELECT *
+      FROM auth_refresh_tokens
+      WHERE token_hash = $1
+      LIMIT 1
+      FOR UPDATE
+    `;
+    const executor = client ?? this.db;
+    const result = await executor.query(sql, [hash]);
     return result.rows.length ? result.rows[0] : null;
   }
 
-  private async revokeFamily(familyId: string) {
+  private async revokeFamily(familyId: string, client: any) {
     if (!familyId) return;
-    await this.db.query(
+    await client.query(
       `UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE family_id = $1`,
       [familyId],
     );
@@ -154,175 +174,180 @@ export class AuthService {
 
   // --------------------- LOGIN ---------------------
   async login(dto: LoginDto, ip: string) {
-    const hashedPassword = this.sha256Hex(dto.password);
+    return this.db.transaction(async (client) => {
+      const hashedPassword = this.sha256Hex(dto.password);
 
-    const result = await this.db.query(
-      `SELECT * FROM m_user WHERE username = $1 AND is_active = true`,
-      [dto.username]
-    );
+      const result = await this.db.query(
+        `SELECT * FROM m_user WHERE username = $1 AND is_active = true FOR UPDATE`,
+        [dto.username]
+      );
 
-    if (!result.rows.length) {
+      if (!result.rows.length) {
+        await this.activityLog.log({
+          message: `Invalid login attempt for username ${dto.username}`,
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          referenceId: dto.username,
+          ipAddress: ip,
+        }, client);
+
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      const user = result.rows[0];
+
+      if (user.password !== hashedPassword) {
+        await this.activityLog.log({
+          message: `Invalid login attempt for username ${dto.username}`,
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          referenceId: dto.username,
+          ipAddress: ip,
+        }, client);
+
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // ✅ Update last login
+      await client.query(
+        `UPDATE m_user
+        SET last_login = NOW(),
+            updated_ip = $1
+        WHERE user_id = $2`,
+        [ip, user.user_id]
+      );
       await this.activityLog.log({
-        message: `Invalid login attempt for username ${dto.username}`,
+        message: 'User logged in successfully',
         module: 'AUTH',
-        action: 'LOGIN_FAILED',
-        referenceId: dto.username,
+        action: 'LOGIN_SUCCESS',
+        referenceId: user.user_id,
+        performedBy: user.user_id,
         ipAddress: ip,
-      });
+      }, client);
 
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      // ✅ Load role
+      const role = await this.loadRole(user.role_id);
 
-    const user = result.rows[0];
+      // ✅ Load permissions
+      const permissions = await this.loadPermissions(user.role_id);
+      // console.log(typeof dto.password, dto.password);
 
-    if (user.password !== hashedPassword) {
-      await this.activityLog.log({
-        message: `Invalid login attempt for username ${dto.username}`,
-        module: 'AUTH',
-        action: 'LOGIN_FAILED',
-        referenceId: dto.username,
-        ipAddress: ip,
-      });
+      // ✅ JWT payload
+      const payload = {
+        sub: user.user_id,
+        username: user.username,
+        role_id: user.role_id,
+        permissions,
+      };
 
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      // ✅ Access token
+      const accessToken = this.signAccessToken(payload);
 
-    // ✅ Update last login
-    await this.db.query(
-      `UPDATE m_user
-      SET last_login = NOW(),
-          updated_ip = $1
-      WHERE user_id = $2`,
-      [ip, user.user_id]
-    );
-    await this.activityLog.log({
-      message: 'User logged in successfully',
-      module: 'AUTH',
-      action: 'LOGIN_SUCCESS',
-      referenceId: user.user_id,
-      performedBy: user.user_id,
-      ipAddress: ip,
+      // ✅ Refresh token
+      const refresh = await this.createRefreshTokenRow(
+        user.user_id,
+        ip,
+        undefined,
+        client
+      );
+
+      // ✅ Final response (frontend expects THIS shape)
+      return {
+        accessToken,
+        refreshToken: refresh.token,
+        refreshExpiresAt: refresh.expiresAt,
+        payload,
+      };
     });
-
-    // ✅ Load role
-    const role = await this.loadRole(user.role_id);
-
-    // ✅ Load permissions
-    const permissions = await this.loadPermissions(user.role_id);
-    // console.log(typeof dto.password, dto.password);
-
-    // ✅ JWT payload
-    const payload = {
-      sub: user.user_id,
-      username: user.username,
-      role_id: user.role_id,
-      permissions,
-    };
-
-    // ✅ Access token
-    const accessToken = this.signAccessToken(payload);
-
-    // ✅ Refresh token
-    const refresh = await this.createRefreshTokenRow(
-      user.user_id,
-      ip,
-    );
-
-    // ✅ Final response (frontend expects THIS shape)
-    return {
-      accessToken,
-      refreshToken: refresh.token,
-      refreshExpiresAt: refresh.expiresAt,
-      payload,
-    };
   }
 
   // --------------------- REFRESH TOKEN ---------------------
   async refresh(receivedToken: string, ip: string | null) {
     if (!receivedToken) throw new UnauthorizedException('No refresh token');
+    return this.db.transaction(async (client) => {
+      const tokenHash = this.hashRefreshToken(receivedToken);
+      const row = await this.findRefreshTokenByHash(tokenHash, client);
 
-    const tokenHash = this.hashRefreshToken(receivedToken);
-    const row = await this.findRefreshTokenByHash(tokenHash);
+      if (!row) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
-    if (!row) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+      if (row.is_revoked) {
+        await this.revokeFamily(row.family_id, client);
+        throw new UnauthorizedException('Refresh token reuse detected');
+      }
 
-    if (row.is_revoked) {
-      await this.revokeFamily(row.family_id);
-      throw new UnauthorizedException('Refresh token reuse detected');
-    }
+      if (new Date(row.expires_at) < new Date()) {
+        throw new UnauthorizedException('Refresh token expired');
+      }
 
-    if (new Date(row.expires_at) < new Date()) {
-      throw new UnauthorizedException('Refresh token expired');
-    }
+      // Rotate
+      const newRt = await this.createRefreshTokenRow(row.user_id, ip, row.family_id, client);
 
-    // Rotate
-    const newRt = await this.createRefreshTokenRow(row.user_id, ip, row.family_id);
+      await client.query(
+        `UPDATE auth_refresh_tokens SET is_revoked = TRUE, replaced_by = $1, last_used_at = now() WHERE id = $2`,
+        [newRt.id, row.id],
+      );
 
-    await this.db.query(
-      `UPDATE auth_refresh_tokens SET is_revoked = TRUE, replaced_by = $1, last_used_at = now() WHERE id = $2`,
-      [newRt.id, row.id],
-    );
+      // Load user and role
+      const userResult = await client.query(
+        `SELECT * FROM m_user WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
+        [row.user_id],
+      );
 
-    // Load user and role
-    const userResult = await this.db.query(
-      `SELECT * FROM m_user WHERE user_id = $1 LIMIT 1`,
-      [row.user_id],
-    );
+      if (userResult.rows.length === 0) {
+        await this.revokeFamily(row.family_id, client);
+        throw new UnauthorizedException('User not found');
+      }
+      const user = userResult.rows[0];
+      const role = await this.loadRole(user.role_id);
+      const permissions = await this.loadPermissions(user.role_id);
 
-    if (userResult.rows.length === 0) {
-      await this.revokeFamily(row.family_id);
-      throw new UnauthorizedException('User not found');
-    }
+      const payload = { 
+        sub: user.user_id,
+        username: user.username,
+        role_id: user.role_id,
+        permissions,
+      };
 
-    const user = userResult.rows[0];
-    const role = await this.loadRole(user.role_id);
-    const permissions = await this.loadPermissions(user.role_id);
+      const accessToken = this.signAccessToken(payload);
+      await this.activityLog.log({
+        message: 'Access token refreshed',
+        module: 'AUTH',
+        action: 'TOKEN_REFRESH',
+        referenceId: user.user_id,
+        performedBy: user.user_id,
+        ipAddress: ip,
+      }, client);
 
-    const payload = {
-      sub: user.user_id,
-      username: user.username,
-      role: role?.role_name ?? null,
-      permissions,
-    };
-
-    const accessToken = this.signAccessToken(payload);
-    await this.activityLog.log({
-      message: 'Access token refreshed',
-      module: 'AUTH',
-      action: 'TOKEN_REFRESH',
-      referenceId: user.user_id,
-      performedBy: user.user_id,
-      ipAddress: ip,
+      return {
+        accessToken,
+        refreshToken: newRt.token,
+        refreshExpiresAt: newRt.expiresAt,
+        payload,
+      };
     });
-
-    return {
-      accessToken,
-      refreshToken: newRt.token,
-      refreshExpiresAt: newRt.expiresAt,
-      payload,
-    };
   }
 
   // --------------------- LOGOUT ---------------------
   async logout(receivedToken: string) {
     if (!receivedToken) return;
+    return this.db.transaction(async (client) => {
+      const tokenHash = this.hashRefreshToken(receivedToken);
+      const row = await this.findRefreshTokenByHash(tokenHash, client);
 
-    const tokenHash = this.hashRefreshToken(receivedToken);
-    const row = await this.findRefreshTokenByHash(tokenHash);
+      if (!row) return;
 
-    if (!row) return;
-
-    await this.db.query(`UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE id = $1`, [
-      row.id,
-    ]);
-    await this.activityLog.log({
-      message: 'User logged out',
-      module: 'AUTH',
-      action: 'LOGOUT',
-      referenceId: row.user_id,
-      performedBy: row.user_id,
+      await client.query(`UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE id = $1`, [
+        row.id,
+      ]);
+      await this.activityLog.log({
+        message: 'User logged out',
+        module: 'AUTH',
+        action: 'LOGOUT',
+        referenceId: row.user_id,
+        performedBy: row.user_id,
+      }, client);
     });
   }
 }

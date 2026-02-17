@@ -231,38 +231,34 @@ export class InfoPackageService {
 
     const html = infoPackageTemplate(data);
     const pdfBuffer = await generatePdfBuffer(html);
-    await logInfoPackageAudit(this.db, {
-      guestId,
-      actionType: 'PDF_GENERATED',
-      performedBy: 'system',
+    await this.db.transaction(async (client) => {
+      await logInfoPackageAudit(client, {
+        guestId,
+        actionType: 'PDF_GENERATED',
+        performedBy: 'system',
+      });
     });
-
 
     return {
       fileName: `Guest_Info_${guestId.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
       buffer: pdfBuffer,
     };
   }
-
   async sendWhatsapp(
     guestId: string,
     context?: { performedBy: string; ipAddress?: string },
   ) {
-    // 1️⃣ Get aggregated guest info
     const data = await this.getGuestInfo(guestId);
 
-    // 2️⃣ Validate mobile number
     if (!data.guest.mobile) {
       throw new BadRequestException('Guest mobile number not available');
     }
 
-    // 3️⃣ Generate PDF
     const html = infoPackageTemplate(data);
     const pdfBuffer = await generatePdfBuffer(html);
-
     const fileName = `Guest_Info_${guestId}.pdf`;
 
-    // 4️⃣ Send WhatsApp document
+    // 🚀 External call OUTSIDE transaction
     const response = await sendWhatsappDocument({
       to: data.guest.mobile,
       caption: 'Guest Information Package',
@@ -274,12 +270,14 @@ export class InfoPackageService {
       throw new BadRequestException('WhatsApp sending failed');
     }
 
-    // 5️⃣ Audit log
-    await logInfoPackageAudit(this.db, {
-      guestId,
-      actionType: 'WHATSAPP_SENT',
-      performedBy: context?.performedBy || 'system',
-      ipAddress: context?.ipAddress,
+    // ✅ Only log after successful send
+    await this.db.transaction(async (client) => {
+      await logInfoPackageAudit(client, {
+        guestId,
+        actionType: 'WHATSAPP_SENT',
+        performedBy: context?.performedBy || 'system',
+        ipAddress: context?.ipAddress,
+      });
     });
 
     return {
@@ -287,4 +285,48 @@ export class InfoPackageService {
       messageId: response.providerMessageId,
     };
   }
+
+  // async sendWhatsapp(
+  //   guestId: string,
+  //   context?: { performedBy: string; ipAddress?: string },
+  // ) {
+  //   // 1️⃣ Get aggregated guest info
+  //   const data = await this.getGuestInfo(guestId);
+
+  //   // 2️⃣ Validate mobile number
+  //   if (!data.guest.mobile) {
+  //     throw new BadRequestException('Guest mobile number not available');
+  //   }
+
+  //   // 3️⃣ Generate PDF
+  //   const html = infoPackageTemplate(data);
+  //   const pdfBuffer = await generatePdfBuffer(html);
+
+  //   const fileName = `Guest_Info_${guestId}.pdf`;
+
+  //   // 4️⃣ Send WhatsApp document
+  //   const response = await sendWhatsappDocument({
+  //     to: data.guest.mobile,
+  //     caption: 'Guest Information Package',
+  //     fileName,
+  //     fileBuffer: pdfBuffer,
+  //   });
+
+  //   if (!response?.success) {
+  //     throw new BadRequestException('WhatsApp sending failed');
+  //   }
+
+  //   // 5️⃣ Audit log
+  //   await logInfoPackageAudit(this.db, {
+  //     guestId,
+  //     actionType: 'WHATSAPP_SENT',
+  //     performedBy: context?.performedBy || 'system',
+  //     ipAddress: context?.ipAddress,
+  //   });
+
+  //   return {
+  //     status: 'sent',
+  //     messageId: response.providerMessageId,
+  //   };
+  // }
 }

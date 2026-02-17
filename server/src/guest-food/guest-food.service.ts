@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
@@ -194,7 +194,7 @@ export class GuestFoodService {
         ip
       ];
 
-      const res = await this.db.query(sql, params);
+      const res = await client.query(sql, params);
       return res.rows[0];
     });
   }
@@ -206,9 +206,12 @@ export class GuestFoodService {
         `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
         [id]
       );
-
+      
       const existing = existingRes.rows[0];
       if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
+      if (existing.food_stage === 'DELIVERED' && dto.food_stage === 'PLANNED') {
+        throw new BadRequestException('Cannot revert delivered food back to planned');
+      }
 
       const sql = `
         UPDATE t_guest_food SET
@@ -251,11 +254,22 @@ export class GuestFoodService {
       return res.rows[0];
     });
   }
-
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
-      const sql = `
+      const existingRes = await client.query(
+        `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
+        [id]
+      );
+
+      const existing = existingRes.rows[0];
+
+      if (!existing) {
+        throw new NotFoundException(`Guest Food "${id}" not found`);
+      }
+
+      const res = await client.query(
+        `
         UPDATE t_guest_food SET
           is_active = false,
           updated_at = NOW(),
@@ -263,12 +277,31 @@ export class GuestFoodService {
           updated_ip = $2
         WHERE guest_food_id = $3
         RETURNING *;
-      `;
+        `,
+        [user, ip, id]
+      );
 
-      const res = await client.query(sql, [user, ip, id]);
       return res.rows[0];
     });
   }
+
+  // async softDelete(id: string, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
+
+  //     const sql = `
+  //       UPDATE t_guest_food SET
+  //         is_active = false,
+  //         updated_at = NOW(),
+  //         updated_by = $1,
+  //         updated_ip = $2
+  //       WHERE guest_food_id = $3
+  //       RETURNING *;
+  //     `;
+
+  //     const res = await client.query(sql, [user, ip, id]);
+  //     return res.rows[0];
+  //   });
+  // }
   async getTodayGuestOrders() {
     const sql = `
       SELECT

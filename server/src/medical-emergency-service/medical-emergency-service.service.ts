@@ -1,13 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException,} from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import {
-  CreateMedicalEmergencyServiceDto,
-  UpdateMedicalEmergencyServiceDto,
-} from './dto/medical-emergency-service.dto';
+import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto,} from './dto/medical-emergency-service.dto';
 
 @Injectable()
 export class MedicalEmergencyServiceService {
@@ -20,58 +13,58 @@ export class MedicalEmergencyServiceService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
+      try {
+        const exists = await client.query(
+          `SELECT 1 FROM m_medical_emergency_service WHERE service_id = $1`,
+          [dto.service_id]
+        );
 
-    try {
-      const exists = await this.db.query(
-        `SELECT 1 FROM m_medical_emergency_service WHERE service_id = $1`,
-        [dto.service_id]
-      );
+        if (exists.rowCount > 0) {
+          throw new ConflictException('Service already exists');
+        }
 
-      if (exists.rowCount > 0) {
-        throw new ConflictException('Service already exists');
+        const sql = `
+          INSERT INTO m_medical_emergency_service (
+            service_id,
+            service_provider_name,
+            service_provider_name_local_language,
+            service_type,
+            mobile,
+            alternate_mobile,
+            email,
+            address_line,
+            distance_from_guest_house,
+            is_active,
+            inserted_at,
+            inserted_by,
+            inserted_ip
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,NOW(),$10,$11)
+          RETURNING *;
+        `;
+
+        const res = await client.query(sql, [
+          dto.service_id,
+          dto.service_provider_name,
+          dto.service_provider_name_local_language || null,
+          dto.service_type,
+          dto.mobile,
+          dto.alternate_mobile || null,
+          dto.email || null,
+          dto.address_line || null,
+          dto.distance_from_guest_house || null,
+          user,
+          ip,
+        ]);
+        return res.rows[0];
+      } catch (err: any) {
+        if (err.code === '23505') {
+          throw new ConflictException('Service already exists');
+        }
+        throw err;
       }
-
-      const sql = `
-        INSERT INTO m_medical_emergency_service (
-          service_id,
-          service_provider_name,
-          service_provider_name_local_language,
-          service_type,
-          mobile,
-          alternate_mobile,
-          email,
-          address_line,
-          distance_from_guest_house,
-          is_active,
-          inserted_by,
-          inserted_ip
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-        RETURNING *;
-      `;
-
-      const res = await this.db.query(sql, [
-        dto.service_id,
-        dto.service_provider_name,
-        dto.service_provider_name_local_language || null,
-        dto.service_type,
-        dto.mobile,
-        dto.alternate_mobile || null,
-        dto.email || null,
-        dto.address_line || null,
-        dto.distance_from_guest_house || null,
-        dto.is_active ?? true,
-        user,
-        ip,
-      ]);
-
-      await this.db.query('COMMIT');
-      return res.rows[0];
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+    });
   }
 
   /* ================= DATA TABLE ================= */
@@ -164,67 +157,88 @@ export class MedicalEmergencyServiceService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT service_id FROM m_medical_emergency_service WHERE service_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    for (const [key, value] of Object.entries(dto)) {
-      if (value === undefined) continue;
-      fields.push(`${key} = $${idx}`);
-      values.push(value);
+      if (!existing.rowCount) {
+        throw new NotFoundException('Service not found');
+      }
+    
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      for (const [key, value] of Object.entries(dto)) {
+        if (value === undefined) continue;
+        fields.push(`${key} = $${idx}`);
+        values.push(value);
+        idx++;
+      }
+
+      if (fields.length === 0) {
+        throw new ConflictException('No fields to update');
+      }
+
+      fields.push(`updated_at = NOW()`);
+      fields.push(`updated_by = $${idx}`);
+      values.push(user);
       idx++;
-    }
 
-    if (fields.length === 0) {
-      throw new NotFoundException('No fields to update');
-    }
+      fields.push(`updated_ip = $${idx}`);
+      values.push(ip);
+      idx++;
 
-    fields.push(`updated_at = NOW()`);
-    fields.push(`updated_by = $${idx}`);
-    values.push(user);
-    idx++;
+      const sql = `
+        UPDATE m_medical_emergency_service
+        SET ${fields.join(', ')}
+        WHERE service_id = $${idx}
+        RETURNING *;
+      `;
 
-    fields.push(`updated_ip = $${idx}`);
-    values.push(ip);
-    idx++;
+      values.push(id);
 
-    const sql = `
-      UPDATE m_medical_emergency_service
-      SET ${fields.join(', ')}
-      WHERE service_id = $${idx}
-      RETURNING *;
-    `;
+      const res = await client.query(sql, values);
 
-    values.push(id);
+      if (!res.rowCount) {
+        throw new NotFoundException('Service not found');
+      }
 
-    const res = await this.db.query(sql, values);
-
-    if (!res.rowCount) {
-      throw new NotFoundException('Service not found');
-    }
-
-    return res.rows[0];
+      return res.rows[0];
+    });
   }
 
   /* ================= SOFT DELETE ================= */
 
   async softDelete(id: string, user = 'system', ip = '0.0.0.0') {
-    const sql = `
-      UPDATE m_medical_emergency_service
-      SET is_active = FALSE,
-          updated_at = NOW(),
-          updated_by = $2,
-          updated_ip = $3
-      WHERE service_id = $1
-      RETURNING *;
-    `;
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT service_id FROM m_medical_emergency_service WHERE service_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    const res = await this.db.query(sql, [id, user, ip]);
+      if (!existing.rowCount) {
+        throw new NotFoundException('Service not found');
+      }
+      const sql = `
+        UPDATE m_medical_emergency_service
+        SET is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+        WHERE service_id = $1
+        RETURNING *;
+      `;
 
-    if (!res.rowCount) {
-      throw new NotFoundException('Service not found');
-    }
+      const res = await client.query(sql, [id, user, ip]);
 
-    return res.rows[0];
+      if (!res.rowCount) {
+        throw new NotFoundException('Service not found');
+      }
+
+      return res.rows[0];
+    });
   }
 }

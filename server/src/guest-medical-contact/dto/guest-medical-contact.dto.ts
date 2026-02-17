@@ -18,4 +18,10 @@ export class UpdateGuestMedicalContactDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @IsString()
+  guest_id: string;
+
+  @IsString()
+  service_id: string;
 }

@@ -10,22 +10,29 @@ export class MessengerService {
   constructor(private readonly db: DatabaseService) { }
 
   /* ---------- ID GENERATION ---------- */
-  private async generateMessengerId(): Promise<string> {
-    const sql = `
-      SELECT messenger_id
-      FROM m_messenger
-      WHERE messenger_id ~ '^M[0-9]+$'
-      ORDER BY CAST(SUBSTRING(messenger_id, 2) AS INT) DESC
-      LIMIT 1;
-    `;
-
-    const res = await this.db.query(sql);
-    if (res.rows.length === 0) return 'M001';
-
-    const lastId = res.rows[0].messenger_id;
-    const next = parseInt(lastId.substring(1), 10) + 1;
-    return `M${next.toString().padStart(3, '0')}`;
+  private async generateMessengerId(client: any): Promise<string> {
+    const res = await client.query(`
+    SELECT 'M' || LPAD(nextval('messenger_seq')::text, 3, '0') AS id
+  `);
+    return res.rows[0].id;
   }
+
+  // private async generateMessengerId(): Promise<string> {
+  //   const sql = `
+  //     SELECT messenger_id
+  //     FROM m_messenger
+  //     WHERE messenger_id ~ '^M[0-9]+$'
+  //     ORDER BY CAST(SUBSTRING(messenger_id, 2) AS INT) DESC
+  //     LIMIT 1;
+  //   `;
+
+  //   const res = await this.db.query(sql);
+  //   if (res.rows.length === 0) return 'M001';
+
+  //   const lastId = res.rows[0].messenger_id;
+  //   const next = parseInt(lastId.substring(1), 10) + 1;
+  //   return `M${next.toString().padStart(3, '0')}`;
+  // }
 
   /* ---------- FIND BY ID ---------- */
   async findOneById(id: string) {
@@ -38,146 +45,154 @@ export class MessengerService {
 
   /* ---------- CREATE ---------- */
   async create(dto: CreateMessengerDto, user: string, ip: string) {
-    const id = await this.generateMessengerId();
-    const now = new Date().toISOString();
-    const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
+    return this.db.transaction(async (client) => {
 
-    const sql = `
-      INSERT INTO m_messenger (
-        messenger_id,
-        messenger_name,
+      const id = await this.generateMessengerId(client);
+      const now = new Date().toISOString();
+      const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
+
+      const sql = `
+        INSERT INTO m_messenger (
+          messenger_id,
+          messenger_name,
+          messenger_name_local_language,
+          primary_mobile,
+          secondary_mobile,
+          email,
+          designation,
+          remarks,
+          is_active,
+          inserted_at, inserted_by, inserted_ip
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,
+          true, NOW(),
+          $9,$10
+        )
+        RETURNING *
+      `;
+
+      const params = [
+        id,
+        dto.messenger_name,
         messenger_name_local_language,
-        primary_mobile,
-        secondary_mobile,
-        email,
-        designation,
-        remarks,
-        is_active,
-        inserted_at, inserted_by, inserted_ip
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,
-        true,
-        $9,$10,$11
-      )
-      RETURNING
-        messenger_id,
-        messenger_name,
-        primary_mobile,
-        designation,
-        is_active,
-        inserted_at;
-    `;
+        dto.primary_mobile,
+        dto.secondary_mobile ?? null,
+        dto.email ?? null,
+        dto.designation ?? null,
+        dto.remarks ?? null,
+        user,
+        ip,
+      ];
 
-    const params = [
-      id,
-      dto.messenger_name,
-      messenger_name_local_language,
-      dto.primary_mobile,
-      dto.secondary_mobile ?? null,
-      dto.email ?? null,
-      dto.designation ?? null,
-      dto.remarks ?? null,
-      now,
-      user,
-      ip,
-    ];
-
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   /* ---------- UPDATE ---------- */
   async update(id: string, dto: UpdateMessengerDto, user: string, ip: string) {
-    const existing = await this.findOneById(id);
-    if (!existing) throw new NotFoundException(`Messenger '${id}' not found`);
+    return this.db.transaction(async (client) => {
 
-    const now = new Date().toISOString();
-    const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
+      const existingRes = await client.query(
+        `SELECT * FROM m_messenger WHERE messenger_id = $1 FOR UPDATE`,
+        [id],
+      );
 
-    const sql = `
-      UPDATE m_messenger SET
-        messenger_name = $1,
-        messenger_name_local_language = $2,
-        primary_mobile = $3,
-        secondary_mobile = $4,
-        email = $5,
-        designation = $6,
-        remarks = $7,
-        is_active = $8,
-        updated_at = $9,
-        updated_by = $10,
-        updated_ip = $11
-      WHERE messenger_id = $12
-      RETURNING
-        messenger_id,
-        messenger_name,
-        primary_mobile,
-        designation,
-        is_active,
-        updated_at;
-    `;
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Messenger '${id}' not found`);
+      }
 
-    const params = [
-      dto.messenger_name ?? existing.messenger_name,
-      messenger_name_local_language,
-      dto.primary_mobile ?? existing.primary_mobile,
-      dto.secondary_mobile ?? existing.secondary_mobile,
-      dto.email ?? existing.email,
-      dto.designation ?? existing.designation,
-      dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      id,
-    ];
+      const existing = existingRes.rows[0];
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const messenger_name_local_language =
+        transliterateToDevanagari(dto.messenger_name ?? existing.messenger_name);
+
+      // const now = new Date().toISOString();
+
+      const sql = `
+        UPDATE m_messenger SET
+          messenger_name = $1,
+          messenger_name_local_language = $2,
+          primary_mobile = $3,
+          secondary_mobile = $4,
+          email = $5,
+          designation = $6,
+          remarks = $7,
+          is_active = $8,
+          updated_at = NOW(),
+          updated_by = $9,
+          updated_ip = $10
+        WHERE messenger_id = $11
+        RETURNING *
+      `;
+
+      const params = [
+        dto.messenger_name ?? existing.messenger_name,
+        messenger_name_local_language,
+        dto.primary_mobile ?? existing.primary_mobile,
+        dto.secondary_mobile ?? existing.secondary_mobile,
+        dto.email ?? existing.email,
+        dto.designation ?? existing.designation,
+        dto.remarks ?? existing.remarks,
+        dto.is_active ?? existing.is_active,
+        user,
+        ip,
+        id,
+      ];
+
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   /* ---------- SOFT DELETE ---------- */
   async softDelete(id: string, user: string, ip: string) {
-    const existing = await this.findOneById(id);
-    if (!existing) {
-      throw new BadRequestException(`Messenger '${id}' not found`);
-    }
+    return this.db.transaction(async (client) => {
 
-    // 🔴 BLOCK DELETE IF ASSIGNED TO ANY GUEST
-    const assigned = await this.db.query(
-      `
-      SELECT 1
-      FROM t_guest_messenger
-      WHERE messenger_id = $1
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [id]
-    );
-
-    if (assigned.rowCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete messenger '${existing.messenger_name}' because it is currently assigned to a guest`
+      const existingRes = await client.query(
+        `SELECT * FROM m_messenger WHERE messenger_id = $1 FOR UPDATE`,
+        [id],
       );
-    }
 
-    // ✅ SAFE TO DELETE
-    const now = new Date().toISOString();
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Messenger '${id}' not found`);
+      }
 
-    const res = await this.db.query(
-      `
-      UPDATE m_messenger SET
-        is_active = FALSE,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE messenger_id = $4
-      RETURNING messenger_id, is_active;
-      `,
-      [now, user, ip, id]
-    );
+      const existing = existingRes.rows[0];
 
-    return res.rows[0];
+      // 🔴 BLOCK DELETE IF ASSIGNED TO ANY GUEST
+      const assigned = await client.query(
+        `
+        SELECT 1
+        FROM t_guest_messenger
+        WHERE messenger_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+        `,
+        [id]
+      );
+
+      if (assigned.rowCount > 0) {
+        throw new BadRequestException(
+          `Cannot delete messenger '${existing.messenger_name}' because it is currently assigned to a guest`
+        );
+      }
+
+      const res = await client.query(
+        `
+        UPDATE m_messenger SET
+          is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE messenger_id = $3
+        RETURNING messenger_id, is_active;
+        `,
+        [user, ip, id]
+      );
+
+      return res.rows[0];
+    });
   }
 
   /* ---------- DATA TABLE ---------- */

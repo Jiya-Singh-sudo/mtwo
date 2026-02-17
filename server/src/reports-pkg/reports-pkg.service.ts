@@ -193,42 +193,44 @@ export class ReportsPkgService {
   /* ================= GENERATE ================= */
 
   async generateReport(dto: ReportGenerateDto) {
-    const data = await this.previewReport(dto);
-    if (!Array.isArray(data) || data.length === 0) {
-      return {
-        filePath: null,
-        message: 'No data available for selected filters',
-      };
-    }
-    const fileName = `${dto.reportCode}-${Date.now()}`;
+    return this.db.transaction(async (client) => {
+      const data = await this.previewReport(dto);
+      if (!Array.isArray(data) || data.length === 0) {
+        return {
+          filePath: null,
+          message: 'No data available for selected filters',
+        };
+      }
+      const fileName = `${dto.reportCode}-${Date.now()}`;
 
-    let filePath = '';
+      let filePath = '';
 
-    if (dto.format === ReportFormat.PDF) {
-      const html = `
-        <h1>${dto.reportCode}</h1>
-        <pre>${JSON.stringify(data, null, 2)}</pre>
-      `;
-      filePath = await generatePdfFromHtml(html, fileName);
-    }
-    else if (dto.format === ReportFormat.CSV) {
-      filePath = generateCsv(data as any[], fileName);
-    }
-    else if (dto.format === ReportFormat.EXCEL) {
-      // Excel not implemented yet - fall back to CSV
-      filePath = generateCsv(Array.isArray(data) ? data : [], fileName.replace('.xlsx', '') + '.csv');
-    }
+      if (dto.format === ReportFormat.PDF) {
+        const html = `
+          <h1>${dto.reportCode}</h1>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+        filePath = await generatePdfFromHtml(html, fileName);
+      }
+      else if (dto.format === ReportFormat.CSV) {
+        filePath = generateCsv(data as any[], fileName);
+      }
+      else if (dto.format === ReportFormat.EXCEL) {
+        // Excel not implemented yet - fall back to CSV
+        filePath = generateCsv(Array.isArray(data) ? data : [], fileName.replace('.xlsx', '') + '.csv');
+      }
 
-    await this.db.query(
-      `
-      INSERT INTO t_generated_reports
-      (report_id, report_name, report_type, format, file_path, generated_at)
-      VALUES ($1,$2,$3,$4,$5,NOW())
-    `,
-      [uuid(), dto.reportCode, dto.reportCode, dto.format, filePath],
-    );
+      await client.query(
+        `
+        INSERT INTO t_generated_reports
+        (report_id, report_name, report_type, format, file_path, generated_at)
+        VALUES ($1,$2,$3,$4,$5,NOW())
+      `,
+        [uuid(), dto.reportCode, dto.reportCode, dto.format, filePath],
+      );
 
-    return { filePath };
+      return { filePath };
+    });
   }
 
   /* ================= HISTORY ================= */

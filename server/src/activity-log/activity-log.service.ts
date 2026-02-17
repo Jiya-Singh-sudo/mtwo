@@ -26,9 +26,9 @@ export class ActivityLogService {
    * - No deletes, ever
    * - Immutable audit record
    */
-  async log(input: ActivityLogInput): Promise<void> {
+  async log(input: ActivityLogInput, client?: any): Promise<void> {
   // 1️⃣ Get previous hash
-  const prevRes = await this.db.query(`
+  const prevRes = await client.query(`
     SELECT hash
     FROM t_activity_log
     WHERE hash IS NOT NULL
@@ -82,7 +82,7 @@ export class ActivityLogService {
     )
   `;
 
-  await this.db.query(sql, [
+  await client.query(sql, [
     input.message,
     input.module,
     input.action,

@@ -9,15 +9,21 @@ import { ChangeGuestNetworkStatusDto } from "./dto/changes-guest-network-status.
 @Injectable()
 export class GuestNetworkService {
   constructor(private readonly db: DatabaseService) { }
-
-  private async generateId(): Promise<string> {
-    const sql = `SELECT guest_network_id FROM t_guest_network ORDER BY guest_network_id DESC LIMIT 1`;
-    const res = await this.db.query(sql);
-    if (res.rows.length === 0) return "GN001";
-    const last = res.rows[0].guest_network_id.replace("GN", "");
-    const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
-    return `GN${next}`;
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GN' || LPAD(nextval('guest_network_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
+  // private async generateId(): Promise<string> {
+  //   const sql = `SELECT guest_network_id FROM t_guest_network ORDER BY guest_network_id DESC LIMIT 1`;
+  //   const res = await this.db.query(sql);
+  //   if (res.rows.length === 0) return "GN001";
+  //   const last = res.rows[0].guest_network_id.replace("GN", "");
+  //   const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
+  //   return `GN${next}`;
+  // }
   async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
     const page = query.page;
     const limit = query.limit;
@@ -210,7 +216,6 @@ export class GuestNetworkService {
     };
   }
 
-
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_network WHERE is_active = $1 ORDER BY start_date DESC, start_time DESC`
@@ -226,10 +231,9 @@ export class GuestNetworkService {
   }
 
   async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
-    const id = await this.generateId();
-    const now = new Date().toISOString();
-
-    const sql = `
+    return this.db.transaction(async (client) => {
+      const id = await this.generateId(client);
+      const sql = `
       INSERT INTO t_guest_network (
         guest_network_id, guest_id, provider_id, room_id,
         network_zone_from, network_zone_to,
@@ -244,8 +248,7 @@ export class GuestNetworkService {
         $7,$8,$9,$10,
         $11,$12,$13,
         $14,$15,
-        true,
-        $16,$17,$18
+        true, NOW(), $16, $17
       ) RETURNING *;
     `;
 
@@ -265,67 +268,70 @@ export class GuestNetworkService {
       dto.network_status ?? "Requested",
       dto.description ?? null,
       dto.remarks ?? null,
-      now,
       user,
       ip,
     ];
 
-    const res = await this.db.query(sql, params);
+    const res = await client.query(sql, params);
     return res.rows[0];
+    });
   }
 
   async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new NotFoundException(`Guest Network entry '${id}' not found`);
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        [id]
+      );
+      if (!existing.rowCount) throw new NotFoundException(`Guest Network entry '${id}' not found`);
+      const old = existing.rows[0];
 
-    const now = new Date().toISOString();
+      const sql = `
+        UPDATE t_guest_network SET
+          provider_id = $1,
+          room_id = $2,
+          network_zone_from = $3,
+          network_zone_to = $4,
+          start_date = $5,
+          start_time = $6,
+          end_date = $7,
+          end_time = $8,
+          start_status = $9,
+          end_status = $10,
+          network_status = $11,
+          description = $12,
+          remarks = $13,
+          is_active = $14,
+          updated_at = NOW(),
+          updated_by = $15,
+          updated_ip = $16
+        WHERE guest_network_id = $17
+        RETURNING *;
+      `;
 
-    const sql = `
-      UPDATE t_guest_network SET
-        provider_id = $1,
-        room_id = $2,
-        network_zone_from = $3,
-        network_zone_to = $4,
-        start_date = $5,
-        start_time = $6,
-        end_date = $7,
-        end_time = $8,
-        start_status = $9,
-        end_status = $10,
-        network_status = $11,
-        description = $12,
-        remarks = $13,
-        is_active = $14,
-        updated_at = $15,
-        updated_by = $16,
-        updated_ip = $17
-      WHERE guest_network_id = $18
-      RETURNING *;
-    `;
+      const params = [
+        dto.provider_id ?? old.provider_id,
+        dto.room_id ?? existing.room_id,
+        dto.network_zone_from ?? existing.network_zone_from,
+        dto.network_zone_to ?? existing.network_zone_to,
+        dto.start_date ?? existing.start_date,
+        dto.start_time ?? existing.start_time,
+        dto.end_date ?? existing.end_date,
+        dto.end_time ?? existing.end_time,
+        dto.start_status ?? existing.start_status,
+        dto.end_status ?? existing.end_status,
+        dto.network_status ?? existing.network_status,
+        dto.description ?? existing.description,
+        dto.remarks ?? existing.remarks,
+        dto.is_active ?? existing.is_active,
+        user,
+        ip,
+        id,
+      ];
 
-    const params = [
-      dto.provider_id ?? existing.provider_id,
-      dto.room_id ?? existing.room_id,
-      dto.network_zone_from ?? existing.network_zone_from,
-      dto.network_zone_to ?? existing.network_zone_to,
-      dto.start_date ?? existing.start_date,
-      dto.start_time ?? existing.start_time,
-      dto.end_date ?? existing.end_date,
-      dto.end_time ?? existing.end_time,
-      dto.start_status ?? existing.start_status,
-      dto.end_status ?? existing.end_status,
-      dto.network_status ?? existing.network_status,
-      dto.description ?? existing.description,
-      dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      id,
-    ];
-
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   // async changeStatus(
@@ -400,108 +406,116 @@ export class GuestNetworkService {
     user: string,
     ip: string
   ) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new NotFoundException(`Guest Network '${id}' not found`);
+    return this.db.transaction(async (client) => {
 
-    const now = new Date().toISOString();
+      const existing = await client.query(
+        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        [id]
+      );
+      if (!existing.rowCount) throw new NotFoundException(`Guest Network '${id}' not found`);
 
-    // 1. CLOSE OLD RECORD (NO DATA LOSS)
-    await this.db.query(
-      `
-    UPDATE t_guest_network
-    SET
-      is_active = false,
-      end_date = $1,
-      end_time = $2,
-      end_status = $3,
-      network_status = $4,
-      remarks = $5,
-      updated_at = $6,
-      updated_by = $7,
-      updated_ip = $8
-    WHERE guest_network_id = $9
-    `,
-      [
-        dto.end_date,
-        dto.end_time,
-        dto.end_status,
-        dto.network_status,
-        dto.remarks ?? existing.remarks,
-        now,
-        user,
-        ip,
-        id,
-      ]
-    );
+      // 1. CLOSE OLD RECORD (NO DATA LOSS)
+      await client.query(
+        `
+      UPDATE t_guest_network
+      SET
+        is_active = false,
+        end_date = $1,
+        end_time = $2,
+        end_status = $3,
+        network_status = $4,
+        remarks = $5,
+        updated_at = NOW(),
+        updated_by = $6,
+        updated_ip = $7
+      WHERE guest_network_id = $8
+      `,
+        [
+          dto.end_date,
+          dto.end_time,
+          dto.end_status,
+          dto.network_status,
+          dto.remarks ?? existing.remarks,
+          user,
+          ip,
+          id,
+        ]
+      );
 
-    // 2. CREATE NEW RECORD (NEW FACT)
-    const newId = await this.generateId();
+      // 2. CREATE NEW RECORD (NEW FACT)
+      const newId = await this.generateId(client);
 
-    const res = await this.db.query(
-      `
-    INSERT INTO t_guest_network (
-      guest_network_id,
-      guest_id,
-      provider_id,
-      room_id,
-      network_zone_from,
-      network_zone_to,
-      start_date,
-      start_time,
-      start_status,
-      network_status,
-      description,
-      remarks,
-      is_active,
-      inserted_at,
-      inserted_by,
-      inserted_ip
-    )
-    VALUES (
-      $1,$2,$3,$4,
-      $5,$6,
-      $7,$8,
-      'Waiting',
-      'Requested',
-      $9,$10,
-      true,
-      $11,$12,$13
-    )
-    RETURNING *;
-    `,
-      [
-        newId,
-        existing.guest_id,
-        existing.provider_id,
-        existing.room_id,
-        existing.network_zone_from,
-        existing.network_zone_to,
-        existing.start_date,
-        existing.start_time,
-        existing.description,
-        existing.remarks,
-        now,
-        user,
-        ip,
-      ]
-    );
+      const res = await client.query(
+        `
+      INSERT INTO t_guest_network (
+        guest_network_id,
+        guest_id,
+        provider_id,
+        room_id,
+        network_zone_from,
+        network_zone_to,
+        start_date,
+        start_time,
+        start_status,
+        network_status,
+        description,
+        remarks,
+        is_active,
+        inserted_at,
+        inserted_by,
+        inserted_ip
+      )
+      VALUES (
+        $1,$2,$3,$4,
+        $5,$6,
+        $7,$8,
+        'Waiting',
+        'Requested',
+        $9,$10,
+        true, NOW(),
+        $11,$12
+      )
+      RETURNING *;
+      `,
+        [
+          newId,
+          existing.guest_id,
+          existing.provider_id,
+          existing.room_id,
+          existing.network_zone_from,
+          existing.network_zone_to,
+          existing.start_date,
+          existing.start_time,
+          existing.description,
+          existing.remarks,
+          user,
+          ip,
+        ]
+      );
 
-    return res.rows[0];
+      return res.rows[0];
+    });
   }
-
 
   async softDelete(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
-    const sql = `
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        [id]
+      );
+      if (!existing.rowCount) throw new NotFoundException(`Guest Network '${id}' not found`);
+
+      const sql = `
       UPDATE t_guest_network SET
         is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_network_id = $4
+        updated_at = NOW(),
+        updated_by = $1,
+        updated_ip = $2
+      WHERE guest_network_id = $3
       RETURNING *;
-    `;
-    const res = await this.db.query(sql, [now, user, ip, id]);
-    return res.rows[0];
+      `;
+      const res = await client.query(sql, [user, ip, id]);
+      return res.rows[0];
+    });
   }
-}
+} 

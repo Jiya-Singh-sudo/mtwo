@@ -18,8 +18,14 @@ export class GuestHousekeepingService {
 
   //   return `RHK${next}`;
   // }
-  private async generateId(): Promise<string> {
-    const res = await this.db.query(`
+  // private async generateId(): Promise<string> {
+  //   const res = await this.db.query(`
+  //     SELECT 'GHK' || LPAD(nextval('guest_housekeeping_seq')::text, 3, '0') AS id
+  //   `);
+  //   return res.rows[0].id;
+  // }
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
       SELECT 'GHK' || LPAD(nextval('guest_housekeeping_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
@@ -42,183 +48,177 @@ export class GuestHousekeepingService {
 
   async create(dto: CreateGuestHousekeepingDto, user: string, ip: string) {
     // 1️⃣ Find active guest for this room
-    await this.db.query('BEGIN');
-
-    try {
-    const guestRes = await this.db.query(
-      `
-      SELECT guest_id
-      FROM t_guest_room
-      WHERE room_id = $1
-        AND is_active = TRUE
-      FOR UPDATE
-      `,
-      [dto.room_id]
-    );
-    
-    if (!guestRes.rowCount) {
-      throw new BadRequestException('No active guest found for this room');
-    }
-    const guestId = guestRes.rows[0].guest_id;
-
-    if (dto.task_date) {
-      const now = new Date();
-      const taskDate = new Date(dto.task_date);
-
-      if (
-        taskDate.toDateString() === now.toDateString()
-      ) {
-        const hour = now.getHours();
-
-        if (dto.task_shift === 'Morning' && hour >= 11) {
-          throw new BadRequestException(
-            'Morning shift cannot be assigned this late'
-          );
+    return this.db.transaction(async (client) => {
+      try {
+        const guestRes = await client.query(
+          `
+          SELECT guest_id
+          FROM t_guest_room
+          WHERE room_id = $1
+            AND is_active = TRUE
+          FOR UPDATE
+          `,
+          [dto.room_id]
+        );
+        
+        if (!guestRes.rowCount) {
+          throw new BadRequestException('No active guest found for this room');
         }
+        const guestId = guestRes.rows[0].guest_id;
+
+        if (dto.task_date) {
+          const now = new Date();
+          const taskDate = new Date(dto.task_date);
+
+          if (
+            taskDate.toDateString() === now.toDateString()
+          ) {
+            const hour = now.getHours();
+
+            if (dto.task_shift === 'Morning' && hour >= 11) {
+              throw new BadRequestException(
+                'Morning shift cannot be assigned this late'
+              );
+            }
+          }
+        }
+        // await this.db.query(`LOCK TABLE t_room_housekeeping IN EXCLUSIVE MODE`);
+        const id = await this.generateId(client);
+        // const nowISO = new Date().toISOString();
+        const sql = `
+          INSERT INTO t_room_housekeeping (
+            guest_hk_id,
+            hk_id,
+            room_id,
+            guest_id,           -- ✅ ADD THIS
+            task_date,
+            task_shift,
+            service_type,
+            admin_instructions,
+            status,
+            assigned_by,
+            assigned_at,
+            is_active            -- ✅ ADD THIS
+          ) VALUES (
+            $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',$9,NOW(),True
+          )
+          RETURNING *;
+        `;
+        const params = [
+          id,
+          dto.hk_id,
+          dto.room_id,
+          guestId,                 // ✅ ADD
+          dto.task_date,
+          dto.task_shift,
+          dto.service_type,
+          dto.admin_instructions ?? null,
+          user
+        ];
+        const res = await client.query(sql, params);
+        return res.rows[0];
+      } catch (error) {
+        throw error;
       }
-    }
-    // await this.db.query(`LOCK TABLE t_room_housekeeping IN EXCLUSIVE MODE`);
-    const id = await this.generateId();
-    const nowISO = new Date().toISOString();
-    const sql = `
-      INSERT INTO t_room_housekeeping (
-        guest_hk_id,
-        hk_id,
-        room_id,
-        guest_id,           -- ✅ ADD THIS
-        task_date,
-        task_shift,
-        service_type,
-        admin_instructions,
-        status,
-        assigned_by,
-        assigned_at,
-        is_active            -- ✅ ADD THIS
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',$9,$10,True
-      )
-      RETURNING *;
-    `;
-    const params = [
-      id,
-      dto.hk_id,
-      dto.room_id,
-      guestId,                 // ✅ ADD
-      dto.task_date,
-      dto.task_shift,
-      dto.service_type,
-      dto.admin_instructions ?? null,
-      user,
-      nowISO,
-    ];
-    const res = await this.db.query(sql, params);
-    await this.db.query('COMMIT');
-    return res.rows[0];
-  } catch (error) {
-    await this.db.query('ROLLBACK');
-    throw error;
-  }
+    });
   }
 
   async update(id: string, dto: UpdateGuestHousekeepingDto, user: string, ip: string) {
-    await this.db.query('BEGIN');
-    try {
-    const existingRes = await this.db.query(
-      `SELECT * FROM t_room_housekeeping WHERE guest_hk_id = $1 FOR UPDATE`,
-      [id]
-    );
+    return this.db.transaction(async (client) => {
+      try {
+      const existingRes = await client.query(
+        `SELECT * FROM t_room_housekeeping WHERE guest_hk_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    if (!existingRes.rowCount) {
-      throw new NotFoundException(`Housekeeping task '${id}' not found`);
-    }
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Housekeeping task '${id}' not found`);
+      }
 
-    const existing = existingRes.rows[0];
-    // if (!existing) throw new NotFoundException(`Housekeeping task '${id}' not found`);
+      const existing = existingRes.rows[0];
+      // if (!existing) throw new NotFoundException(`Housekeeping task '${id}' not found`);
 
-    const now = new Date().toISOString();
+      // const now = new Date().toISOString();
 
-    const sql = `
-      UPDATE t_room_housekeeping SET
-        hk_id = $1,
-        room_id = $2,
-        task_date = $3,
-        task_shift = $4,
-        service_type = $5,
-        admin_instructions = $6,
-        status = $7,
-        completed_at = $8,
-        updated_at = NOW()
-      WHERE guest_hk_id = $9
-      RETURNING *;
-    `;
+      const sql = `
+        UPDATE t_room_housekeeping SET
+          hk_id = $1,
+          room_id = $2,
+          task_date = $3,
+          task_shift = $4,
+          service_type = $5,
+          admin_instructions = $6,
+          status = $7,
+          completed_at = $8,
+          updated_at = NOW()
+        WHERE guest_hk_id = $9
+        RETURNING *;
+      `;
 
-    const params = [
-      dto.hk_id ?? existing.hk_id,
-      dto.room_id ?? existing.room_id,
-      dto.task_date ?? existing.task_date,
-      dto.task_shift ?? existing.task_shift,
-      dto.service_type ?? existing.service_type,
-      dto.admin_instructions ?? existing.admin_instructions,
-      dto.status ?? existing.status,
-      dto.completed_at ?? existing.completed_at,
-      id,
-    ];
+      const params = [
+        dto.hk_id ?? existing.hk_id,
+        dto.room_id ?? existing.room_id,
+        dto.task_date ?? existing.task_date,
+        dto.task_shift ?? existing.task_shift,
+        dto.service_type ?? existing.service_type,
+        dto.admin_instructions ?? existing.admin_instructions,
+        dto.status ?? existing.status,
+        dto.completed_at ?? existing.completed_at,
+        id,
+      ];
 
-    const res = await this.db.query(sql, params);
-    await this.db.query('COMMIT');
-    return res.rows[0];
-    } catch (error) {
-      await this.db.query('ROLLBACK');
-      throw error;
-    }
+      const res = await client.query(sql, params);
+      return res.rows[0];
+      } catch (error) {
+        throw error;
+      }
+    });
   }
 
-
   async cancel(id: string) {
-    await this.db.query('BEGIN');
-    try {
-    // 1️⃣ Fetch housekeeping task
-    const check = await this.db.query(
-      `
-      SELECT guest_id, is_active
-      FROM t_room_housekeeping
-      WHERE guest_hk_id = $1
-      FOR UPDATE
-      `,
-      [id]
-    );
-
-    if (!check.rowCount) {
-      throw new NotFoundException('Housekeeping task not found');
-    }
-
-    const hk = check.rows[0];
-
-    // 2️⃣ BLOCK if assigned to guest
-    if (hk.is_active && hk.guest_id) {
-      throw new BadRequestException(
-        'Cannot delete housekeeping: it is assigned to an active guest'
+    return this.db.transaction(async (client) => {
+      try {
+      // 1️⃣ Fetch housekeeping task
+      const check = await client.query(
+        `
+        SELECT guest_id, is_active
+        FROM t_room_housekeeping
+        WHERE guest_hk_id = $1
+        FOR UPDATE
+        `,
+        [id]
       );
-    }
 
-    // 3️⃣ Safe to cancel
-    const sql = `
-      UPDATE t_room_housekeeping
-      SET
-        status = 'Cancelled',
-        is_active = FALSE,
-        completed_at = NOW(),
-        updated_at = NOW()
-      WHERE guest_hk_id = $1
-      RETURNING *;
-    `;
+      if (!check.rowCount) {
+        throw new NotFoundException('Housekeeping task not found');
+      }
 
-    const res = await this.db.query(sql, [id]);
-    await this.db.query('COMMIT');
-    return res.rows[0];
-    } catch (error) {
-      await this.db.query('ROLLBACK');
-      throw error;
-    }
+      const hk = check.rows[0];
+
+      // 2️⃣ BLOCK if assigned to guest
+      if (hk.is_active && hk.guest_id) {
+        throw new BadRequestException(
+          'Cannot delete housekeeping: it is assigned to an active guest'
+        );
+      }
+
+      // 3️⃣ Safe to cancel
+      const sql = `
+        UPDATE t_room_housekeeping
+        SET
+          status = 'Cancelled',
+          is_active = FALSE,
+          completed_at = NOW(),
+          updated_at = NOW()
+        WHERE guest_hk_id = $1
+        RETURNING *;
+      `;
+
+      const res = await client.query(sql, [id]);
+      return res.rows[0];
+      } catch (error) {
+        throw error;
+      }
+    });
   }
 }

@@ -75,9 +75,11 @@ export class VehiclesService {
           FROM m_vehicle v
           ${whereSql}
           ORDER BY ${sortColumn} ${sortOrder}
-          LIMIT ${query.limit}
-          OFFSET ${offset};
+          LIMIT $${params.length + 1}
+          OFFSET $${params.length + 2};
         `;
+        params.push(query.limit);
+        params.push(offset);
 
         const countSql = `
           SELECT COUNT(*)::int AS count
@@ -144,48 +146,56 @@ export class VehiclesService {
   }
 
   async create(dto: CreateVehicleDto, user: string, ip: string) {
-    const now = new Date().toLocaleString("en-GB", {
-            timeZone: "Asia/Kolkata",
-            hour12: false,
-        }).replace(",", "");
-    // const normalizedVehicleNo = dto.vehicle_no?.trim().toUpperCase();
-    // const normalizedVehicleName = dto.vehicle_name?.trim();
-    const normalizedVehicleNo = dto.vehicle_no.trim().toUpperCase();
-    const normalizedVehicleName = dto.vehicle_name.trim();
-
-    const exists = await this.db.query(
-      `
-      SELECT 1
-      FROM m_vehicle
-      WHERE vehicle_no = $1
-      LIMIT 1
-      `,
-      [normalizedVehicleNo]
-    );
-
-    if (exists.rows.length > 0) {
-      throw new BadRequestException(
-        `Vehicle '${normalizedVehicleNo}' already exists`
+    return this.db.transaction(async (client) => {
+      // const now = new Date().toLocaleString("en-GB", {
+      //         timeZone: "Asia/Kolkata",
+      //         hour12: false,
+      //     }).replace(",", "");
+      const normalizedVehicleNo = dto.vehicle_no.trim().toUpperCase();
+      const normalizedVehicleName = dto.vehicle_name.trim();
+      const lockRes = await client.query(
+        `SELECT 1 FROM m_vehicle WHERE vehicle_no = $1 FOR UPDATE`,
+        [normalizedVehicleNo]
       );
-    }
-    if (dto.manufacturing) {
-      const year = Number(dto.manufacturing);
-      const currentYear = new Date().getFullYear();
 
-      if (year < 1980 || year > currentYear + 1) {
+      if (lockRes.rowCount > 0) {
         throw new BadRequestException(
-          `Invalid manufacturing year '${year}'`
+          `Vehicle '${normalizedVehicleNo}' already exists`
         );
       }
-    }
-    if (dto.capacity !== undefined) {
-      if (dto.capacity < 1 || dto.capacity > 50) {
-        throw new BadRequestException(
-          `Invalid vehicle capacity '${dto.capacity}'`
-        );
+      // const exists = await client.query(
+      //   `
+      //   SELECT 1
+      //   FROM m_vehicle
+      //   WHERE vehicle_no = $1
+      //   LIMIT 1
+      //   `,
+      //   [normalizedVehicleNo]
+      // );
+
+      // if (exists.rows.length > 0) {
+      //   throw new BadRequestException(
+      //     `Vehicle '${normalizedVehicleNo}' already exists`
+      //   );
+      // }
+      if (dto.manufacturing !== undefined) {
+        const year = Number(dto.manufacturing);
+        const currentYear = new Date().getFullYear();
+
+        if (year < 1980 || year > currentYear + 1) {
+          throw new BadRequestException(
+            `Invalid manufacturing year '${year}'`
+          );
+        }
       }
-    }
-        const sql = `
+      if (dto.capacity !== undefined) {
+        if (dto.capacity < 1 || dto.capacity > 50) {
+          throw new BadRequestException(
+            `Invalid vehicle capacity '${dto.capacity}'`
+          );
+        }
+      }
+      const sql = `
             INSERT INTO m_vehicle (
                 vehicle_no,
                 vehicle_name,
@@ -197,47 +207,53 @@ export class VehiclesService {
                 inserted_at, inserted_by, inserted_ip,
                 updated_at, updated_by, updated_ip
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, NULL, NULL, NULL)
+            VALUES ($1,$2,$3,$4,$5,$6,TRUE, NOW(),$7,$8, NULL, NULL, NULL)
             RETURNING *;
-        `;
+      `;
 
-        const params = [
-            normalizedVehicleNo,
-            normalizedVehicleName,
-            dto.model?.trim() ?? null,
-            dto.manufacturing,
-            dto.capacity,
-            dto.color?.trim() ?? null,
-            true,
-            now,
-            user,
-            ip
-        ];
+      const params = [
+        normalizedVehicleNo,
+        normalizedVehicleName,
+        dto.model?.trim() ?? null,
+        dto.manufacturing,
+        dto.capacity,
+        dto.color?.trim() ?? null,
+        user,
+        ip
+      ];
 
-        const result = await this.db.query(sql, params);
-        return result.rows[0];
-    }
+      const result = await client.query(sql, params);
+      return result.rows[0];
+    });
+  }
 
     async update(vehicle_no: string, dto: UpdateVehicleDto, user: string, ip: string) {
-        const now = new Date().toLocaleString("en-GB", {
-            timeZone: "Asia/Kolkata",
-            hour12: false,
-        }).replace(",", "");
+      return this.db.transaction(async (client) => {
+        // const now = new Date().toLocaleString("en-GB", {
+        //     timeZone: "Asia/Kolkata",
+        //     hour12: false,
+        // }).replace(",", "");
         // const normalizedVehicleNo = dto.vehicle_no?.trim().toUpperCase();
         // const normalizedVehicleName = dto.vehicle_name?.trim();
 
-        const existing = await this.findOne(vehicle_no);
-        if (!existing) {
-            throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
-        }
+    const existingRes = await client.query(
+      `SELECT * FROM m_vehicle WHERE vehicle_no = $1 FOR UPDATE`,
+      [vehicle_no]
+    );
+
+    if (!existingRes.rowCount) {
+      throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
+    }
+
+    const existing = existingRes.rows[0];
       if (dto.is_active === false && existing.is_active === true) {
-        const assignmentCheck = await this.db.query(
+        const assignmentCheck = await client.query(
           `
           SELECT 1
           FROM t_guest_vehicle
           WHERE vehicle_no = $1
             AND is_active = TRUE
-          LIMIT 1
+          FOR UPDATE
           `,
           [vehicle_no]
         );
@@ -273,29 +289,28 @@ export class VehiclesService {
                 capacity = $4,
                 color = $5,
                 is_active = $6,
-                updated_at = $7,
-                updated_by = $8,
-                updated_ip = $9
-            WHERE vehicle_no = $10
+                updated_at = NOW(),
+                updated_by = $7,
+                updated_ip = $8
+            WHERE vehicle_no = $9
             RETURNING *;
         `;
-
         const params = [
-            dto.vehicle_name?.trim() ?? existing.vehicle_name,,
+            dto.vehicle_name?.trim() ?? existing.vehicle_name,
             dto.model ?? existing.model,
             dto.manufacturing ?? existing.manufacturing,
             dto.capacity ?? existing.capacity,
             dto.color ?? existing.color,
             dto.is_active ?? existing.is_active,
-            now,
             user,
             ip,
             vehicle_no
         ];
 
-        const result = await this.db.query(sql, params);
+        const result = await client.query(sql, params);
         return result.rows[0];
-    }
+    });
+  }
 
     // async softDelete(vehicle_no: string, user: string, ip: string) {
     //     const now = new Date().toISOString();
@@ -314,42 +329,42 @@ export class VehiclesService {
     //     return result.rows[0];
     // }
   async softDelete(vehicle_no: string, user: string, ip: string) {
-    const existing = await this.findOne(vehicle_no);
-    if (!existing) {
-      throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
-    }
-
-    const assignmentCheck = await this.db.query(
-      `
-      SELECT 1
-      FROM t_guest_vehicle
-      WHERE vehicle_no = $1
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [vehicle_no]
-    );
-
-    if (assignmentCheck.rows.length > 0) {
-      throw new BadRequestException(
-        `Cannot deactivate vehicle '${vehicle_no}' because it is currently assigned to an active duty`
+    return this.db.transaction(async (client) => {
+      const existingRes = await client.query(
+        `SELECT * FROM m_vehicle WHERE vehicle_no = $1 FOR UPDATE`,
+        [vehicle_no]
       );
-    }
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Vehicle '${vehicle_no}' not found`);
+      }
+      const assignmentCheck = await client.query(
+        `
+        SELECT 1
+        FROM t_guest_vehicle
+        WHERE vehicle_no = $1
+          AND is_active = TRUE
+        FOR UPDATE
+        `,
+        [vehicle_no]
+      );
+      if (assignmentCheck.rows.length > 0) {
+        throw new BadRequestException(
+          `Cannot deactivate vehicle '${vehicle_no}' because it is currently assigned to an active duty`
+        );
+      }
+      const sql = `
+        UPDATE m_vehicle SET
+          is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE vehicle_no = $3
+        RETURNING *;
+      `;
 
-    const now = new Date().toISOString();
-
-    const sql = `
-      UPDATE m_vehicle SET
-        is_active = FALSE,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE vehicle_no = $4
-      RETURNING *;
-    `;
-
-    const result = await this.db.query(sql, [now, user, ip, vehicle_no]);
-    return result.rows[0];
+      const result = await client.query(sql, [user, ip, vehicle_no]);
+      return result.rows[0];
+    });
   }
     async findAssignable() {
       const sql = `

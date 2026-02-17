@@ -8,24 +8,30 @@ import { sha256 } from '../../common/utlis/hash.util';
 @Injectable()
 export class NetworksService {
   constructor(private readonly db: DatabaseService) { }
-  private async generateProviderId(): Promise<string> {
-    const sql = `
-      SELECT provider_id
-      FROM m_wifi_provider
-      WHERE provider_id ~ '^N[0-9]+$'
-      ORDER BY CAST(SUBSTRING(provider_id, 2) AS INT) DESC
-      LIMIT 1;
-    `;
+  // private async generateProviderId(): Promise<string> {
+  //   const sql = `
+  //     SELECT provider_id
+  //     FROM m_wifi_provider
+  //     WHERE provider_id ~ '^N[0-9]+$'
+  //     ORDER BY CAST(SUBSTRING(provider_id, 2) AS INT) DESC
+  //     LIMIT 1;
+  //   `;
 
-    const res = await this.db.query(sql);
+  //   const res = await this.db.query(sql);
 
-    if (res.rows.length === 0) {
-      return 'N001';
-    }
+  //   if (res.rows.length === 0) {
+  //     return 'N001';
+  //   }
 
-    const lastId = res.rows[0].provider_id;
-    const nextNum = parseInt(lastId.substring(1), 10) + 1;
-    return `N${nextNum.toString().padStart(3, '0')}`;
+  //   const lastId = res.rows[0].provider_id;
+  //   const nextNum = parseInt(lastId.substring(1), 10) + 1;
+  //   return `N${nextNum.toString().padStart(3, '0')}`;
+  // }
+  private async generateProviderId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'N' || LPAD(nextval('wifi_provider_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
 
   async getNetworkTable(query: NetworkTableQueryDto) {
@@ -198,101 +204,24 @@ export class NetworksService {
   // }
 
   async create(dto: CreateNetworkDto, user: string, ip: string) {
-    const now = new Date()
-      .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-      .replace(',', '');
-    const providerId = await this.generateProviderId();
-    const hashedPassword = dto.password
-      ? sha256(dto.password)
-      : null;
-    // 🔴 Duplicate provider name check
-    const duplicate = await this.db.query(
-      `
-      SELECT 1
-      FROM m_wifi_provider
-      WHERE LOWER(provider_name) = LOWER($1)
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [dto.provider_name]
-    );
-
-    if (duplicate.rowCount > 0) {
-      throw new BadRequestException(
-        `Network provider '${dto.provider_name}' already exists`
-      );
-    }
-    const sql = `
-      INSERT INTO m_wifi_provider (
-        provider_id,
-        provider_name,
-        provider_name_local_language,
-        network_type,
-        bandwidth_mbps,
-        username,
-        password,
-        static_ip,
-        address,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$11,$12,NULL,NULL,NULL)
-      RETURNING
-        provider_id,
-        provider_name,
-        provider_name_local_language,
-        network_type,
-        bandwidth_mbps,
-        username,
-        static_ip,
-        address,
-        is_active,
-        inserted_at,
-        updated_at;
-    `;
-
-    const params = [
-      providerId,
-      dto.provider_name,
-      dto.provider_name_local_language ?? null,
-      dto.network_type,
-      dto.bandwidth_mbps ?? null,
-      dto.username ?? null,
-      hashedPassword,
-      dto.static_ip ?? null,
-      dto.address ?? null,
-      now,
-      user,
-      ip,
-    ];
-
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
-
-  async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
-    const existing = await this.findOneById(id);
-    if (!existing) throw new NotFoundException(`Provider '${id}' not found`);
-
-    const now = new Date()
-      .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-      .replace(',', '');
-    const passwordToStore =
-      dto.password !== undefined
+    return this.db.transaction(async (client) => {
+      // const now = new Date()
+      //   .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
+      //   .replace(',', '');
+      const providerId = await this.generateProviderId(client);
+      const hashedPassword = dto.password
         ? sha256(dto.password)
-        : existing.password;
-    if (dto.provider_name) {
-      const duplicate = await this.db.query(
+        : null;
+      // 🔴 Duplicate provider name check
+      const duplicate = await client.query(
         `
         SELECT 1
         FROM m_wifi_provider
         WHERE LOWER(provider_name) = LOWER($1)
-          AND provider_id <> $2
           AND is_active = TRUE
-        LIMIT 1
+        FOR UPDATE
         `,
-        [dto.provider_name, id]
+        [dto.provider_name.trim()]
       );
 
       if (duplicate.rowCount > 0) {
@@ -300,9 +229,157 @@ export class NetworksService {
           `Network provider '${dto.provider_name}' already exists`
         );
       }
-    }
-    if (dto.network_type && dto.network_type !== existing.network_type) {
-      const assigned = await this.db.query(
+      const sql = `
+        INSERT INTO m_wifi_provider (
+          provider_id,
+          provider_name,
+          provider_name_local_language,
+          network_type,
+          bandwidth_mbps,
+          username,
+          password,
+          static_ip,
+          address,
+          is_active,
+          inserted_at, inserted_by, inserted_ip,
+          updated_at, updated_by, updated_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),$10,$11,NULL,NULL,NULL)
+        RETURNING
+          provider_id,
+          provider_name,
+          provider_name_local_language,
+          network_type,
+          bandwidth_mbps,
+          username,
+          static_ip,
+          address,
+          is_active,
+          inserted_at,
+          updated_at;
+      `;
+
+      const params = [
+        providerId,
+        dto.provider_name,
+        dto.provider_name_local_language ?? null,
+        dto.network_type,
+        dto.bandwidth_mbps ?? null,
+        dto.username ?? null,
+        hashedPassword,
+        dto.static_ip ?? null,
+        dto.address ?? null,
+        user,
+        ip,
+      ];
+
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
+  }
+
+  async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
+    return this.db.transaction(async (client) => {
+      const existingRes = await client.query(
+        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 FOR UPDATE`,
+        [id],
+      );
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Provider '${id}' not found`);
+      }
+      const existing = existingRes.rows[0];
+      const passwordToStore =
+        dto.password !== undefined
+          ? sha256(dto.password)
+          : existing.password;
+      if (dto.provider_name) {
+        const duplicate = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE LOWER(provider_name) = LOWER($1)
+            AND provider_id <> $2
+            AND is_active = TRUE
+          FOR UPDATE
+          `,
+          [dto.provider_name, id]
+        );
+
+        if (duplicate.rowCount > 0) {
+          throw new BadRequestException(
+            `Network provider '${dto.provider_name}' already exists`
+          );
+        }
+      }
+      if (dto.network_type && dto.network_type !== existing.network_type) {
+        const assigned = await client.query(
+          `
+          SELECT 1
+          FROM t_guest_network
+          WHERE provider_id = $1
+            AND is_active = TRUE
+
+          `,
+          [id]
+        );
+
+        if (assigned.rowCount > 0) {
+          throw new BadRequestException(
+            'Cannot change network type while provider is assigned to a guest'
+          );
+        }
+      }
+      const sql = `
+        UPDATE m_wifi_provider SET
+          provider_name = $1,
+          provider_name_local_language = $2,
+          network_type = $3,
+          bandwidth_mbps = $4,
+          username = $5,
+          password = $6,
+          static_ip = $7,
+          address = $8,
+          is_active = $9,
+          updated_at = NOW(),
+          updated_by = $10,
+          updated_ip = $11
+        WHERE provider_id = $12
+        RETURNING *;
+        `;
+
+      const params = [
+        dto.provider_name ?? existing.provider_name,
+        dto.provider_name_local_language ?? existing.provider_name_local_language,
+        dto.network_type ?? existing.network_type,
+        dto.bandwidth_mbps ?? existing.bandwidth_mbps,
+        dto.username ?? existing.username,
+        passwordToStore,
+        dto.static_ip ?? existing.static_ip,
+        dto.address ?? existing.address,
+        dto.is_active ?? existing.is_active,
+        user,
+        ip,
+        existing.provider_id,
+      ];
+
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    });
+  }
+
+  async softDelete(id: string, user: string, ip: string) {
+   return this.db.transaction(async (client) => {
+
+      const existingRes = await client.query(
+        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 FOR UPDATE`,
+        [id],
+      );
+
+      if (!existingRes.rowCount) {
+        throw new BadRequestException(`Provider '${id}' not found`);
+      }
+
+      const assigned = await client.query(
         `
         SELECT 1
         FROM t_guest_network
@@ -315,105 +392,27 @@ export class NetworksService {
 
       if (assigned.rowCount > 0) {
         throw new BadRequestException(
-          'Cannot change network type while provider is assigned to a guest'
+          `Cannot delete network provider '${existingRes.rows[0].provider_name}' because it is currently assigned to a guest`
         );
       }
-    }
-    const sql = `
-      UPDATE m_wifi_provider SET
-        provider_name = $1,
-        provider_name_local_language = $2,
-        network_type = $3,
-        bandwidth_mbps = $4,
-        username = $5,
-        password = $6,
-        static_ip = $7,
-        address = $8,
-        is_active = $9,
-        updated_at = $10,
-        updated_by = $11,
-        updated_ip = $12
-      WHERE provider_id = $13
-      RETURNING
-        provider_id,
-        provider_name,
-        provider_name_local_language,
-        network_type,
-        bandwidth_mbps,
-        username,
-        static_ip,
-        address,
-        is_active,
-        inserted_at,
-        updated_at;
+
+      const sql = `
+        UPDATE m_wifi_provider SET
+          is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE provider_id = $3
+        RETURNING *;
       `;
 
-    const params = [
-      dto.provider_name ?? existing.provider_name,
-      dto.provider_name_local_language ?? existing.provider_name_local_language,
-      dto.network_type ?? existing.network_type,
-      dto.bandwidth_mbps ?? existing.bandwidth_mbps,
-      dto.username ?? existing.username,
-      passwordToStore,
-      dto.static_ip ?? existing.static_ip,
-      dto.address ?? existing.address,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      existing.provider_id,
-    ];
+      const res = await client.query(sql, [
+        user,
+        ip,
+        id,
+      ]);
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
-  }
-
-  async softDelete(id: string, user: string, ip: string) {
-    const existing = await this.findOneById(id);
-    if (!existing) {
-      throw new BadRequestException(`Provider '${id}' not found`);
-    }
-
-    // 🔴 BLOCK DELETE IF ASSIGNED TO ANY GUEST
-    const assigned = await this.db.query(
-      `
-      SELECT 1
-      FROM t_guest_network
-      WHERE provider_id = $1
-        AND is_active = TRUE
-      LIMIT 1
-      `,
-      [id]
-    );
-
-    if (assigned.rowCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete network provider '${existing.provider_name}' because it is currently assigned to a guest`
-      );
-    }
-
-    // ✅ SAFE TO DELETE
-    const now = new Date()
-    .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-    .replace(',', '');
-
-    const sql = `
-      UPDATE m_wifi_provider SET
-        is_active = FALSE,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE provider_id = $4
-      RETURNING *;
-    `;
-
-    const res = await this.db.query(sql, [
-      now,
-      user,
-      ip,
-      existing.provider_id,
-    ]);
-
-    return res.rows[0];
+      return res.rows[0];
+    });
   }
 }

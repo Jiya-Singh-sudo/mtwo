@@ -57,145 +57,161 @@ export class RolesService {
   }
 
   async create(dto: CreateRoleDto, user: string, ip: string) {
-    // Convert to IST timestamp but WITHOUT the AM/PM glitch
-    const now = new Date().toLocaleString("en-GB", {
-      timeZone: "Asia/Kolkata",
-      hour12: false,
-    }).replace(",", "");
+    return this.db.transaction(async (client) => {
+      // Convert to IST timestamp but WITHOUT the AM/PM glitch
+      // const now = new Date().toLocaleString("en-GB", {
+      //   timeZone: "Asia/Kolkata",
+      //   hour12: false,
+      // }).replace(",", "");
 
-    let role_id = this.generateRoleId(dto.role_name);
+      let role_id = this.generateRoleId(dto.role_name);
 
-    // Ensure uniqueness
-    const exists = await this.db.query(
-      "SELECT role_id FROM m_roles WHERE role_id = $1",
-      [role_id]
-    );
+      // Ensure uniqueness
+      const exists = await client.query(
+        "SELECT role_id FROM m_roles WHERE role_id = $1 FOR UPDATE",
+        [role_id]
+      );
 
-    if (exists.rowCount > 0) {
-      role_id = role_id + Date.now().toString().slice(-3);
-    }
+      if (exists.rowCount > 0) {
+        role_id = role_id + Date.now().toString().slice(-3);
+      }
 
-    const sql = `
-      INSERT INTO m_roles (
-        role_id,
-        role_name,
-        role_desc,
-        is_active,
-        inserted_at, inserted_by, inserted_ip,
-        updated_at, updated_by, updated_ip
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7, NULL, NULL, NULL)
-      RETURNING *;
-    `;
+      const sql = `
+        INSERT INTO m_roles (
+          role_id,
+          role_name,
+          role_desc,
+          is_active,
+          inserted_at, inserted_by, inserted_ip,
+          updated_at, updated_by, updated_ip
+        )
+        VALUES ($1,$2,$3,true,NOW(),$4,$5, NULL, NULL, NULL)
+        RETURNING *;
+      `;
 
-    const params = [
-      role_id,              // $1
-      dto.role_name,        // $2
-      dto.role_desc,        // $3
-      true,                 // $4 boolean for PostgreSQL
-      now,                  // $5
-      user,                 // $6
-      ip                    // $7
-    ];
+      const params = [
+        role_id,              // $1
+        dto.role_name,        // $2
+        dto.role_desc,        // $3
+        user,                 // $5
+        ip                    // $6
+      ];
 
-    const result = await this.db.query(sql, params);
-    const role = result.rows[0];
+      const result = await client.query(sql, params);
+      const role = result.rows[0];
 
-    await this.activityLog.log({
-      message: `Role ${role.role_name} created`,
-      module: 'ROLE',
-      action: 'ROLE_CREATE',
-      referenceId: role.role_id,
-      performedBy: user,
-      ipAddress: ip,
+      await this.activityLog.log({
+        message: `Role ${role.role_name} created`,
+        module: 'ROLE',
+        action: 'ROLE_CREATE',
+        referenceId: role.role_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+
+      return role;
+
     });
-
-    return role;
-
   }
 
   // UPDATE role (without touching inserted fields)
   async update(role_id: string, dto: UpdateRoleDto, user: string, ip: string) {
-    const now = new Date().toLocaleString("en-GB", {
-      timeZone: "Asia/Kolkata",
-      hour12: false,
-    }).replace(",", "");
+    return this.db.transaction(async (client) => {
+      // const now = new Date().toLocaleString("en-GB", {
+      //   timeZone: "Asia/Kolkata",
+      //   hour12: false,
+      // }).replace(",", "");
+      const existingRes = await client.query(
+        `SELECT * FROM m_roles WHERE role_id = $1 FOR UPDATE`,
+        [role_id]
+      );
 
-    const existing = await this.findOne(role_id);
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Role with id ${role_id} not found`);
+      }
 
-    if (!existing) {
-      throw new NotFoundException(`Role with id ${role_id} not found`);
-    }
+      const existing = existingRes.rows[0];
 
-    // 🔥 FIX: convert "1"/"0"/1/0/true/false → boolean
-    const activeBool =
-      dto.is_active === true;
+      // 🔥 FIX: convert "1"/"0"/1/0/true/false → boolean
+      const activeBool =
+        dto.is_active !== undefined
+          ? dto.is_active
+          : existing.is_active;
 
-    const sql = `
-      UPDATE m_roles SET
-        role_name = $1,
-        role_desc = $2,
-        is_active = $3,
-        updated_at = $4,
-        updated_by = $5,
-        updated_ip = $6
-      WHERE role_id = $7
-      RETURNING *;
-    `;
+      const sql = `
+        UPDATE m_roles SET
+          role_name = $1,
+          role_desc = $2,
+          is_active = $3,
+          updated_at = NOW(),
+          updated_by = $4,
+          updated_ip = $5
+        WHERE role_id = $6
+        RETURNING *;
+      `;
 
-    const params = [
-      dto.role_name,
-      dto.role_desc ?? existing.role_desc,
-      activeBool,        // ← FIXED
-      now,
-      user,
-      ip,
-      role_id,
-    ];
+      const params = [
+        dto.role_name ?? existing.role_name,
+        dto.role_desc ?? existing.role_desc,
+        activeBool,        // ← FIXED
+        user,
+        ip,
+        role_id,
+      ];
 
-    const result = await this.db.query(sql, params);
-    const updated = result.rows[0];
+      const result = await client.query(sql, params);
+      const updated = result.rows[0];
 
-    await this.activityLog.log({
-      message: `Role ${updated.role_name} updated`,
-      module: 'ROLE',
-      action: 'ROLE_UPDATE',
-      referenceId: updated.role_id,
-      performedBy: user,
-      ipAddress: ip,
+      await this.activityLog.log({
+        message: `Role ${updated.role_name} updated`,
+        module: 'ROLE',
+        action: 'ROLE_UPDATE',
+        referenceId: updated.role_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+
+      return updated;
+
     });
-
-    return updated;
-
   }
 
   // NO DELETE — Soft delete only
   async softDelete(role_id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
+    return this.db.transaction(async (client) => {
+      const existingRes = await client.query(
+        `SELECT * FROM m_roles WHERE role_id = $1 FOR UPDATE`,
+        [role_id]
+      );
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Role with id ${role_id} not found`);
+      }
+      const role = existingRes.rows[0];
 
-    const sql = `
-      UPDATE m_roles SET
-        is_active = $1,
-        updated_at = $2,
-        updated_by = $3,
-        updated_ip = $4
-      WHERE role_id = $5
-      RETURNING *;
-    `;
+      const sql = `
+        UPDATE m_roles SET
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE role_id = $3
+        RETURNING *;
+      `;
 
-    const result = await this.db.query(sql, [false, now, user, ip, role_id]);
-    const deleted = result.rows[0];
+      const result = await client.query(sql, [user, ip, role_id]);
+      const deleted = result.rows[0];
 
-    await this.activityLog.log({
-      message: `Role ${deleted.role_name} deactivated`,
-      module: 'ROLE',
-      action: 'ROLE_DELETE',
-      referenceId: deleted.role_id,
-      performedBy: user,
-      ipAddress: ip,
+      await this.activityLog.log({
+        message: `Role ${deleted.role_name} deactivated`,
+        module: 'ROLE',
+        action: 'ROLE_DELETE',
+        referenceId: deleted.role_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+
+      return deleted;
+
     });
-
-    return deleted;
-
   }
 }

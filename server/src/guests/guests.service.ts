@@ -36,15 +36,15 @@ export class GuestsService {
 
   //   return `DGN_${String(next).padStart(3, '0')}`;
   // }
-  private async generateDesignationId(): Promise<string> {
-    const res = await this.db.query(`
+  private async generateDesignationId(client: any): Promise<string> {
+    const res = await client.query(`
       SELECT 'DGN_' || LPAD(nextval('designation_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
   }
 
-  private async generateGuestId(): Promise<string> {
-    const res = await this.db.query(`
+  private async generateGuestId(client: any): Promise<string> {
+    const res = await client.query(`
       SELECT 'G' || LPAD(nextval('guest_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
@@ -116,9 +116,7 @@ export class GuestsService {
     };
   }, user = 'system', ip = '0.0.0.0') {
     // transaction start
-    await this.db.query('BEGIN');
-    
-
+    return this.db.transaction(async (client) => {
     const today = todayISO();
     let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
 
@@ -147,7 +145,7 @@ export class GuestsService {
       }
 
       // 1. Generate ID (seconds timestamp to fit integer)
-      const guest_id = await this.generateGuestId();
+      const guest_id = await this.generateGuestId(client);
       // Transliteration (NON-BLOCKING & SAFE)
       const mr = transliterateToDevanagari(g.guest_name);
 
@@ -164,7 +162,7 @@ export class GuestsService {
         RETURNING *;
       `;
 
-      const guestRes = await this.db.query(insertGuestSql, [
+      const guestRes = await client.query(insertGuestSql, [
         guest_id, // $1
         g.guest_name,
         mr,
@@ -185,7 +183,7 @@ export class GuestsService {
         throw new BadRequestException('Designation name is required');
       }
 
-      const generatedDesignationId = await this.generateDesignationId();
+      const generatedDesignationId = await this.generateDesignationId(client);
         const upsertSql = `
           INSERT INTO m_guest_designation (
             designation_id,
@@ -202,7 +200,7 @@ export class GuestsService {
           RETURNING *;
         `;
 
-      const desRes = await this.db.query(upsertSql, [
+      const desRes = await client.query(upsertSql, [
         generatedDesignationId,
         payload.designation.designation_name,
         user,
@@ -219,7 +217,7 @@ export class GuestsService {
       const d = payload.designation;
       const gd_id = `GD${Date.now()}`;
 
-        await this.db.query(
+        await client.query(
           `
           INSERT INTO t_guest_designation (
             gd_id,
@@ -276,7 +274,7 @@ export class GuestsService {
         RETURNING *;
       `;
 
-      const ioRes = await this.db.query(insertIoSql, [
+      const ioRes = await client.query(insertIoSql, [
         inout_id,
         guestRow.guest_id,
         true,
@@ -290,8 +288,6 @@ export class GuestsService {
         user,
         ip
       ]);
-
-      await this.db.query('COMMIT');
       return {
         guest: guestRow,
         inout: ioRes.rows[0],
@@ -299,84 +295,81 @@ export class GuestsService {
       };
     } catch (err) {
       console.error('CREATE GUEST ERROR:', err);
-      await this.db.query('ROLLBACK');
       throw new BadRequestException(
         err?.message || 'Guest creation failed'
       );
     }
-  }
+  });
+}
 
   // Generic update
   async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
 
-    try {
-      const statusCheck = await this.db.query(
-        `
-        SELECT status
-        FROM t_guest_inout
-        WHERE guest_id = $1
-          AND is_active = TRUE
-        FOR UPDATE
-        `,
-        [guestId]
-      );
-
-    if (statusCheck.rowCount > 0) {
-      const status = statusCheck.rows[0].status;
-
-      if (['Exited', 'Cancelled'].includes(status)) {
-        throw new BadRequestException(
-          `Cannot edit guest once status is ${status}`
+      try {
+        const statusCheck = await client.query(
+          `
+          SELECT status
+          FROM t_guest_inout
+          WHERE guest_id = $1
+            AND is_active = TRUE
+          FOR UPDATE
+          `,
+          [guestId]
         );
+
+      if (statusCheck.rowCount > 0) {
+        const status = statusCheck.rows[0].status;
+
+        if (['Exited', 'Cancelled'].includes(status)) {
+          throw new BadRequestException(
+            `Cannot edit guest once status is ${status}`
+          );
+        }
+        
       }
       
-    }
-
-    
-    const allowed = new Set([
-      'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
-      'guest_address', 'email', 'requires_driver'
-    ]);
-    const fields: string[] = [];
-    const vals: any[] = [];
-    let idx = 1;
-    for (const [k, v] of Object.entries(dto)) {
-      if (!allowed.has(k)) continue;
-      if (k === 'guest_address' && typeof v === 'string' && v.length > 255) {
-        throw new BadRequestException(
-          'Address cannot exceed 255 characters'
-        );
+      const allowed = new Set([
+        'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
+        'guest_address', 'email', 'requires_driver'
+      ]);
+      const fields: string[] = [];
+      const vals: any[] = [];
+      let idx = 1;
+      for (const [k, v] of Object.entries(dto)) {
+        if (!allowed.has(k)) continue;
+        if (k === 'guest_address' && typeof v === 'string' && v.length > 255) {
+          throw new BadRequestException(
+            'Address cannot exceed 255 characters'
+          );
+        }
+        fields.push(`${k} = $${idx}`);
+        vals.push(v);
+        idx++;
       }
-      fields.push(`${k} = $${idx}`);
-      vals.push(v);
-      idx++;
-    }
-    if (fields.length === 0) {
-      await this.db.query('ROLLBACK');
-      return this.findOne(guestId);
-    }
-    fields.push(`updated_at = NOW()`);
-    fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
-    fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
-    const sql = 
-    `UPDATE m_guest
-      SET
-        ${fields.join(', ')},
-        version = version + 1
-      WHERE
-        guest_id = $${idx}
-      RETURNING *;
-    `;
-    vals.push(guestId);
-    const r = await this.db.query(sql, vals);
-    await this.db.query('COMMIT');
-    return r.rows[0];
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      console.error('Guest update failed:', err);
-      throw new BadRequestException('Guest update failed');
-    }
+      if (fields.length === 0) {
+        return this.findOne(guestId);
+      }
+      fields.push(`updated_at = NOW()`);
+      fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
+      fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
+      const sql = 
+      `UPDATE m_guest
+        SET
+          ${fields.join(', ')},
+          version = version + 1
+        WHERE
+          guest_id = $${idx}
+        RETURNING *;
+      `;
+      vals.push(guestId);
+      const r = await client.query(sql, vals);
+      return r.rows[0];
+      } catch (err) {
+        console.error('Guest update failed:', err);
+        throw new BadRequestException('Guest update failed');
+      }
+    });
   }
 
   async findOne(guestId: string) {
@@ -397,30 +390,28 @@ export class GuestsService {
   // }
 
   async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
-    await this.db.query('BEGIN');
-    try {
-      // 1. Deactivate guest
-      const sql = `
-        UPDATE m_guest
-        SET is_active = FALSE,
-            updated_at = NOW(),
-            updated_by = $2,
-            updated_ip = $3
-        WHERE guest_id = $1
-        RETURNING *;
-      `;
-      const r = await this.db.query(sql, [guestId, user, ip]);
+    return this.db.transaction(async (client) => {
+      try {
+        // 1. Deactivate guest
+        const sql = `
+          UPDATE m_guest
+          SET is_active = FALSE,
+              updated_at = NOW(),
+              updated_by = $2,
+              updated_ip = $3
+          WHERE guest_id = $1
+          RETURNING *;
+        `;
+        const r = await client.query(sql, [guestId, user, ip]);
 
-      // 2. Cascade exit
-      await this.cascadeGuestExit(guestId, this.db, user, ip);
-
-      await this.db.query('COMMIT');
-      return r.rows[0];
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      console.error('Guest delete failed:', err);
-      throw new BadRequestException('Guest deletion failed');
-    }
+        // 2. Cascade exit
+        await this.cascadeGuestExit(guestId, client, user, ip);
+        return r.rows[0];
+      } catch (err) {
+        console.error('Guest delete failed:', err);
+        throw new BadRequestException('Guest deletion failed');
+      }
+    });
   }
 
   async findActiveGuestsWithInOut(params: {
@@ -589,116 +580,115 @@ export class GuestsService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    try {
-    await this.db.query('BEGIN');
-
-    const lockRes = await this.db.query(
-      `
-      SELECT *
-      FROM t_guest_inout
-      WHERE inout_id = $1
-      FOR UPDATE
-      `,
-      [inoutId]
-    );
-
-    if (!lockRes.rowCount) {
-      throw new BadRequestException('InOut record not found');
-    }
-
-    if (
-      payload.entry_date &&
-      payload.exit_date &&
-      isBefore(payload.exit_date, payload.entry_date)
-    ) {
-      throw new BadRequestException(
-        'Exit date cannot be before entry date'
-      );
-    }
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-
-    for (const [key, value] of Object.entries(payload)) {
-      if (value === undefined) continue;
-      fields.push(`${key} = $${idx}`);
-      values.push(value);
-      idx++;
-    }
-
-    if (fields.length === 0) {
-      throw new BadRequestException('No fields to update');
-    }
-
-    fields.push(`updated_at = NOW()`);
-    fields.push(`updated_by = $${idx}`);
-    values.push(user);
-    idx++;
-
-    fields.push(`updated_ip = $${idx}`);
-    values.push(ip);
-    idx++;
-
-    const sql = `
-    UPDATE t_guest_inout
-    SET ${fields.join(', ')}
-    WHERE inout_id = $${idx}
-      AND is_active = TRUE
-    RETURNING *;
-  `;
-
-    values.push(inoutId);
-
-    // const res = await this.db.query(sql, values);
-    // return res.rows[0];
-    const res = await this.db.query(sql, values);
-    const updated = res.rows[0]; 
-    if (!updated){
-      throw new BadRequestException('InOut record not found');
-    }
-    
-    // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
-    if (
-      updated.guest_id &&
-      (payload.status === 'Exited' || payload.status === 'Cancelled')
-    ) {
-      await this.cascadeGuestExit(
-        updated.guest_id,
-        this.db,
-        user,
-        ip
-      );
-    } 
-
-    // 🔴 ADD THIS BLOCK
-    let warnings = [];
-    if (
-      payload.entry_date || payload.exit_date ||
-      payload.entry_time || payload.exit_time
-    ) {
-      const entryTs = new Date(
-        `${updated.entry_date} ${updated.entry_time || '00:00'}`
-      );
-      const exitTs = new Date(
-        `${updated.exit_date} ${updated.exit_time || '23:59'}`
+    return this.db.transaction(async (client) => {
+      try {
+      const lockRes = await client.query(
+        `
+        SELECT *
+        FROM t_guest_inout
+        WHERE inout_id = $1
+        FOR UPDATE
+        `,
+        [inoutId]
       );
 
-      warnings = await this.guestTransportService
-        .findTransportConflictsForGuest(
-          updated.guest_id,
-          entryTs,
-          exitTs
+      if (!lockRes.rowCount) {
+        throw new BadRequestException('InOut record not found');
+      }
+
+      if (
+        payload.entry_date &&
+        payload.exit_date &&
+        isBefore(payload.exit_date, payload.entry_date)
+      ) {
+        throw new BadRequestException(
+          'Exit date cannot be before entry date'
         );
-    }
-    await this.db.query('COMMIT');
-    return {
-      inout: updated,
-      warnings, // 🔑 FRONTEND NEEDS THIS
-    };
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+      }
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      for (const [key, value] of Object.entries(payload)) {
+        if (value === undefined) continue;
+        fields.push(`${key} = $${idx}`);
+        values.push(value);
+        idx++;
+      }
+
+      if (fields.length === 0) {
+        throw new BadRequestException('No fields to update');
+      }
+
+      fields.push(`updated_at = NOW()`);
+      fields.push(`updated_by = $${idx}`);
+      values.push(user);
+      idx++;
+
+      fields.push(`updated_ip = $${idx}`);
+      values.push(ip);
+      idx++;
+
+      const sql = `
+      UPDATE t_guest_inout
+      SET ${fields.join(', ')}
+      WHERE inout_id = $${idx}
+        AND is_active = TRUE
+      RETURNING *;
+    `;
+
+      values.push(inoutId);
+
+      // const res = await client.query(sql, values);
+      // return res.rows[0];
+      const res = await client.query(sql, values);
+      const updated = res.rows[0]; 
+      if (!updated){
+        throw new BadRequestException('InOut record not found');
+      }
+      
+      // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
+      if (
+        updated.guest_id &&
+        (payload.status === 'Exited' || payload.status === 'Cancelled')
+      ) {
+        await this.cascadeGuestExit(
+          updated.guest_id,
+          client,
+          user,
+          ip
+        );
+      } 
+
+      // 🔴 ADD THIS BLOCK
+      let warnings = [];
+      if (
+        payload.entry_date || payload.exit_date ||
+        payload.entry_time || payload.exit_time
+      ) {
+        const entryTs = new Date(
+          `${updated.entry_date} ${updated.entry_time || '00:00'}`
+        );
+        const exitTs = new Date(
+          `${updated.exit_date} ${updated.exit_time || '23:59'}`
+        );
+
+        warnings = await this.guestTransportService
+          .findTransportConflictsForGuest(
+            updated.guest_id,
+            entryTs,
+            exitTs,
+            client
+          );
+      }
+      return {
+        inout: updated,
+        warnings, // 🔑 FRONTEND NEEDS THIS
+      };
+      } catch (err) {
+        throw err;
+      }
+    });
   }
 
   async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
@@ -1033,69 +1023,73 @@ export class GuestsService {
     };
   }
   async syncExpiredGuestInOuts(user = 'system', ip = '0.0.0.0') {
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
 
-    try {
-      // 1️⃣ Find all inouts that SHOULD be exited but are not
-      const expired = await this.db.query(`
-        SELECT inout_id, guest_id
-        FROM t_guest_inout
-        WHERE
-          is_active = TRUE
-          AND status NOT IN ('Exited', 'Cancelled')
-          AND exit_date IS NOT NULL
-          AND exit_date < CURRENT_DATE - INTERVAL '1 day'
-        FOR UPDATE SKIP LOCKED
-      `);
+      try {
+        // 1️⃣ Find all inouts that SHOULD be exited but are not
+        const expired = await client.query(`
+          SELECT inout_id, guest_id
+          FROM t_guest_inout
+          WHERE
+            is_active = TRUE
+            AND status NOT IN ('Exited', 'Cancelled')
+            AND exit_date IS NOT NULL
+            AND exit_date < CURRENT_DATE 
+          FOR UPDATE SKIP LOCKED
+        `);
 
-    const guestIds = new Set<string>();
+      const guestIds = new Set<string>();
 
-    for (const row of expired.rows) {
-      await this.db.query(
-        `
-        UPDATE t_guest_inout
-        SET
-          status = 'Exited',
-          is_active = FALSE,
-          updated_at = NOW(),
-          updated_by = $2,
-          updated_ip = $3
-        WHERE inout_id = $1
-        `,
-        [row.inout_id, user, ip]
-      );
+      for (const row of expired.rows) {
+        await client.query(
+          `
+          UPDATE t_guest_inout
+          SET
+            status = 'Exited',
+            is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+          WHERE inout_id = $1
+          `,
+          [row.inout_id, user, ip]
+        );
 
-      guestIds.add(row.guest_id);
-    }
+        guestIds.add(row.guest_id);
+      }
 
-    for (const guestId of guestIds) {
-      await this.cascadeGuestExit(guestId, this.db, user, ip);
-    }
-
-      await this.db.query('COMMIT');
-      return { updated: expired.rowCount };
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+      for (const guestId of guestIds) {
+        await this.cascadeGuestExit(guestId, client, user, ip);
+      }
+        return { updated: expired.rowCount };
+      } catch (err) {
+        throw err;
+      }
+    });
   }
 
   private async assertRoomAvailable(
     roomId: string,
     from: string,
     to: string,
+    client: any,
     excludeGuestId?: string
   ) {
-    const res = await this.db.query(
+    const res = await client.query(
       `
       SELECT 1
       FROM t_guest_room
       WHERE
         room_id = $1
         AND is_active = TRUE
-        AND daterange(checkin_date, checkout_date, '[]')
+        AND daterange(
+              check_in_date,
+              COALESCE(check_out_date, check_in_date),
+              '[]'
+            )
             && daterange($2::date, $3::date, '[]')
         ${excludeGuestId ? 'AND guest_id <> $4' : ''}
+      FOR UPDATE
       LIMIT 1
       `,
       excludeGuestId

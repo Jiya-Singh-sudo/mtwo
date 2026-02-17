@@ -224,19 +224,23 @@ SELECT
 
   CASE
     WHEN base.guest_driver_id IS NOT NULL
-     AND (
-       (base.trip_date::timestamp + base.start_time::time)
-         < (base.entry_date::timestamp + base.entry_time::time)
-       OR
-       COALESCE(
-         (base.drop_date::timestamp + base.drop_time::time),
-         'infinity'
-       ) >
-       (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59'))
-     )
+    AND (
+      (base.trip_date::timestamp + COALESCE(base.start_time, TIME '00:00'))
+        < (base.entry_date::timestamp + base.entry_time::time)
+      OR
+      COALESCE(
+        (base.drop_date::timestamp + COALESCE(base.drop_time, TIME '23:59')),
+        'infinity'
+      ) >
+      COALESCE(
+        (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
+        'infinity'
+      )
+    )
     THEN TRUE
     ELSE FALSE
   END AS driver_conflict,
+
 
   CASE
     WHEN base.guest_vehicle_id IS NOT NULL
@@ -255,30 +259,34 @@ FROM base
 ORDER BY ${sortColumn} ${order}
 LIMIT $${idx} OFFSET $${idx + 1}
     `;
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
+      try {
+      const countRes = await client.query(countSql, sqlParams);
 
-    try {
-    const countRes = await this.db.query(countSql, sqlParams);
+      // sqlParams.push(limit, offset);
+      // const dataRes = await this.db.query(dataSql, sqlParams);
+      const dataRes = await client.query(
+        dataSql,
+        [...sqlParams, limit, offset]
+      );
 
-    sqlParams.push(limit, offset);
-    const dataRes = await this.db.query(dataSql, sqlParams);
-
-    return {
-      data: dataRes.rows,
-      totalCount: countRes.rows[0].total,
-    };
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+      return {
+        data: dataRes.rows,
+        totalCount: countRes.rows[0].total,
+      };
+      } catch (err) {
+        throw err;
+      }
+    });
   }
-  async findTransportConflictsForGuest(guestId: string, newEntry: Date, newExit: Date) {
-    const res = await this.db.query(
+  async findTransportConflictsForGuest(guestId: string, newEntry: Date, newExit: Date, client?: any) {
+    const res = await client.query(
       `
       SELECT
         'DRIVER' AS type,
         gd.guest_driver_id AS ref_id,
-        (gd.trip_date::timestamp + gd.start_time::time) AS from_time,
+        (gd.trip_date::timestamp + COALESCE(gd.start_time, TIME '00:00'))
+ AS from_time,
         COALESCE(
           (gd.drop_date::timestamp + gd.drop_time::time),
           'infinity'
@@ -287,8 +295,8 @@ LIMIT $${idx} OFFSET $${idx + 1}
       WHERE gd.guest_id = $1
         AND gd.is_active = TRUE
         AND (
-          (gd.trip_date::timestamp + gd.start_time::time),
-          COALESCE((gd.drop_date::timestamp + gd.drop_time::time), 'infinity')
+          (gd.trip_date::timestamp + COALESCE(gd.start_time, TIME '00:00')),
+          COALESCE((gd.drop_date::timestamp + COALESCE(gd.drop_time, TIME '23:59')), 'infinity')
         )
         OVERLAPS ($2, $3)
 

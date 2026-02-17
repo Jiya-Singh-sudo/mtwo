@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateMealDto } from './dto/create-meals.dto';
 import { UpdateMealDto } from './dto/update-meals.dto';
@@ -37,6 +37,42 @@ export class MealsService {
     const result = await this.db.query(sql, [id]);
     return result.rows[0];
   }
+  async create(dto: CreateMealDto, user: string, ip: string) {
+    return this.db.transaction(async (client) => {
+      try {
+        const result = await client.query(
+          `
+          INSERT INTO m_food_items (
+            food_name,
+            food_desc,
+            food_type,
+            is_active,
+            inserted_at,
+            inserted_by,
+            inserted_ip
+          )
+          VALUES ($1, $2, $3, TRUE, NOW(), $4, $5)
+          RETURNING *;
+          `,
+          [
+            dto.food_name.trim(),
+            dto.food_desc ?? null,
+            dto.food_type,
+            user,
+            ip,
+          ]
+        );
+
+        return result.rows[0];
+
+      } catch (err: any) {
+        if (err.code === '23505') {
+          throw new BadRequestException('Meal already exists');
+        }
+        throw err;
+      }
+    });
+  }
 
 //   async create(dto: CreateMealDto, user: string, ip: string) {
 //     const now = new Date()
@@ -73,106 +109,125 @@ export class MealsService {
 //     const result = await this.db.query(sql, params);
 //     return result.rows[0];
 //   }
-  async create(dto: CreateMealDto, user: string, ip: string) {
-    const now = new Date()
-      .toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour12: false })
-      .replace(",", "");
+  // async create(dto: CreateMealDto, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
 
-    // ✅ 1. Check for existing food by name (because UNIQUE constraint exists)
-    const existing = await this.findOneByName(dto.food_name.trim());
-    if (existing) {
-      return existing; // ⬅️ IMPORTANT: do NOT insert again
-    }
+  //     // const now = new Date()
+  //     //   .toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour12: false })
+  //     //   .replace(",", "");
 
-    // ✅ 2. Insert without food_id (Postgres generates it)
-    const sql = `
-      INSERT INTO m_food_items (
-        food_name,
-        food_desc,
-        food_type,
-        is_active,
-        inserted_at,
-        inserted_by,
-        inserted_ip
-      )
-      VALUES ($1, $2, $3, TRUE, $4, $5, $6)
-      RETURNING *;
-    `;
+  //     // ✅ 1. Check for existing food by name (because UNIQUE constraint exists)
+  //     const existing = await client.query(`SELECT * FROM m_food_items WHERE food_name = $1 FOR UPDATE`, [dto.food_name]);
+  //     if (existing.rows.length > 0) {
+  //       return existing.rows[0]; // ⬅️ IMPORTANT: do NOT insert again
+  //     }
 
-    const params = [
-      dto.food_name.trim(),
-      dto.food_desc ?? null,
-      dto.food_type,
-      now,
-      user,
-      ip,
-    ];
+  //     // ✅ 2. Insert without food_id (Postgres generates it)
+  //     const sql = `
+  //       INSERT INTO m_food_items (
+  //         food_name,
+  //         food_desc,
+  //         food_type,
+  //         is_active,
+  //         inserted_at,
+  //         inserted_by,
+  //         inserted_ip
+  //       )
+  //       VALUES ($1, $2, $3, TRUE, NOW(), $4, $5)
+  //       RETURNING *;
+  //     `;
 
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
-  }
+  //     const params = [
+  //       dto.food_name.trim(),
+  //       dto.food_desc ?? null,
+  //       dto.food_type,
+  //       user,
+  //       ip,
+  //     ];
 
+  //     const result = await client.query(sql, params);
+  //     return result.rows[0];
+  //   });
+  // }
 
   async update(name: string, dto: UpdateMealDto, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) {
-      throw new NotFoundException(`Meal '${name}' not found`);
-    }
+    return this.db.transaction(async (client) => {
 
-    const now = new Date()
-      .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      .replace(',', '');
+      const existingRes = await client.query(
+        `SELECT * FROM m_food_items WHERE food_name = $1 FOR UPDATE`,
+        [name]
+      );
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Meal '${name}' not found`);
+      }
+      const existing = existingRes.rows[0];
 
-    const sql = `
-      UPDATE m_food_items SET
-        food_name = $1,
-        food_desc = $2,
-        food_type = $3,
-        is_active = $4,
-        updated_at = $5,
-        updated_by = $6,
-        updated_ip = $7
-      WHERE food_id = $8
-      RETURNING *;
-    `;
+      // const now = new Date()
+      //   .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
+      //   .replace(',', '');
 
-    const params = [
-      dto.food_name ?? existing.food_name,
-      dto.food_desc ?? existing.food_desc,
-      dto.food_type ?? existing.food_type,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      existing.food_id,
-    ];
+      const sql = `
+        UPDATE m_food_items SET
+          food_name = $1,
+          food_desc = $2,
+          food_type = $3,
+          is_active = $4,
+          updated_at = NOW(),
+          updated_by = $5,
+          updated_ip = $6
+        WHERE food_id = $7
+        RETURNING *;
+      `;
 
-    const result = await this.db.query(sql, params);
-    return result.rows[0];
+      const params = [
+        dto.food_name ?? existing.food_name,
+        dto.food_desc ?? existing.food_desc,
+        dto.food_type ?? existing.food_type,
+        dto.is_active ?? existing.is_active,
+        user,
+        ip,
+        existing.food_id,
+      ];
+
+      const result = await client.query(sql, params);
+      return result.rows[0];
+    });
   }
 
   async softDelete(name: string, user: string, ip: string) {
-    const existing = await this.findOneByName(name);
-    if (!existing) {
-      throw new NotFoundException(`Meal '${name}' not found`);
-    }
+    return this.db.transaction(async (client) => {
+      const existingRes = await client.query(
+        `SELECT food_id FROM m_food_items WHERE food_name = $1 FOR UPDATE`,
+        [name]
+      );
 
-    const now = new Date().toISOString();
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Meal '${name}' not found`);
+      }
+      const foodId = existingRes.rows[0].food_id;
 
-    const sql = `
-      UPDATE m_food_items SET
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE food_id = $4
-      RETURNING *;
-    `;
+      // const existing = await this.findOneByName(name);
+      // if (!existing) {
+      //   throw new NotFoundException(`Meal '${name}' not found`);
+      // }
 
-    const params = [now, user, ip, existing.food_id];
-    const result = await this.db.query(sql, params);
+      // const now = new Date().toISOString();
 
-    return result.rows[0];
+      const sql = `
+        UPDATE m_food_items SET
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE food_id = $3
+        RETURNING *;
+      `;
+
+      const params = [user, ip, foodId];
+      const result = await client.query(sql, params);
+
+      return result.rows[0];
+    });
   }
   async getTodayGuests() {
     const sql = `

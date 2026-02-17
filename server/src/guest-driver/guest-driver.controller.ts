@@ -12,24 +12,30 @@ export class GuestDriverController {
   constructor(private readonly service: GuestDriverService) { }
 
   private extractIp(req: any): string {
-    const raw =
-      req.headers["x-forwarded-for"] ||
+    let ip =
+      req.headers['x-forwarded-for'] ||
       req.connection?.remoteAddress ||
       req.socket?.remoteAddress ||
-      req.ip || "";
-    return raw.replace("::ffff:", "").split(",")[0];
+      req.ip ||
+      '';
+    ip = ip.replace('::ffff:', '').split(',')[0];
+    return ip === '::1' ? '127.0.0.1' : ip;
   }
 
   // ASSIGN DRIVER
   @Post("assign")
   assign(@Body() dto: AssignGuestDriverDto, @Req() req: any) {
-    return this.service.assignDriver(dto, req.headers["x-user"], this.extractIp(req));
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
+    return this.service.assignDriver(dto, user, ip);
   }
 
   // CREATE FULL TRIP
   @Post()
   create(@Body() dto: CreateGuestDriverDto, @Req() req: any) {
-    return this.service.createTrip(dto, req.headers["x-user"], this.extractIp(req));
+    const user = req.headers['x-user'] || 'system';
+    const ip = this.extractIp(req);
+    return this.service.createTripStandalone(dto, user, ip);
   }
 
   // GET ACTIVE DRIVER

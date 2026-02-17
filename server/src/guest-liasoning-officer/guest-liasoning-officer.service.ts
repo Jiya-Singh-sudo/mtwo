@@ -1,20 +1,17 @@
 // server/src/modules/guest-liasoning-officer/guest-liasoning-officer.service.ts
-
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import {
-  CreateGuestLiasoningOfficerDto,
-  UpdateGuestLiasoningOfficerDto,
-} from './dto/guest-liasoning-officer.dto';
+import { CreateGuestLiasoningOfficerDto, UpdateGuestLiasoningOfficerDto, } from './dto/guest-liasoning-officer.dto';
 
 @Injectable()
 export class GuestLiasoningOfficerService {
   constructor(private readonly db: DatabaseService) {}
+  private async generateLiasoningOfficerId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GLO' || LPAD(nextval('guest_liasoning_officer_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
 
   /* ================= CREATE ================= */
 
@@ -23,89 +20,88 @@ export class GuestLiasoningOfficerService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
+      try {
+        if (dto.to_date && dto.to_date < dto.from_date) {
+          throw new BadRequestException(
+            'To date cannot be before from date'
+          );
+        }
 
-    try {
-      if (dto.to_date && dto.to_date < dto.from_date) {
-        throw new BadRequestException(
-          'To date cannot be before from date'
+        // Validate guest
+        const guest = await client.query(
+          `SELECT 1 FROM m_guest WHERE guest_id = $1 AND is_active = TRUE FOR UPDATE`,
+          [dto.guest_id]
         );
-      }
+        if (!guest.rowCount) {
+          throw new NotFoundException('Guest not found');
+        }
 
-      // Validate guest
-      const guest = await this.db.query(
-        `SELECT 1 FROM m_guest WHERE guest_id = $1 AND is_active = TRUE`,
-        [dto.guest_id]
-      );
-      if (!guest.rowCount) {
-        throw new NotFoundException('Guest not found');
-      }
-
-      // Validate officer
-      const officer = await this.db.query(
-        `SELECT 1 FROM m_liasoning_officer WHERE officer_id = $1 AND is_active = TRUE`,
-        [dto.officer_id]
-      );
-      if (!officer.rowCount) {
-        throw new NotFoundException('Officer not found');
-      }
-
-      // Overlap protection
-      const overlap = await this.db.query(
-        `
-        SELECT 1
-        FROM t_guest_liasoning_officer
-        WHERE
-          guest_id = $1
-          AND is_active = TRUE
-          AND daterange(from_date, COALESCE(to_date, 'infinity'), '[]')
-              && daterange($2::date, COALESCE($3::date, 'infinity'), '[]')
-        LIMIT 1
-        `,
-        [dto.guest_id, dto.from_date, dto.to_date || null]
-      );
-
-      if (overlap.rowCount > 0) {
-        throw new ConflictException(
-          'Guest already has an officer assigned in this period'
+        // Validate officer
+        const officer = await client.query(
+          `SELECT 1 FROM m_liasoning_officer WHERE officer_id = $1 AND is_active = TRUE FOR UPDATE`,
+          [dto.officer_id]
         );
-      }
+        if (!officer.rowCount) {
+          throw new NotFoundException('Officer not found');
+        }
 
-      const glo_id = `GLO_${Date.now()}`;
+        // Overlap protection
+        const overlap = await client.query(
+          `
+          SELECT 1
+          FROM t_guest_liasoning_officer
+          WHERE
+            guest_id = $1
+            AND is_active = TRUE
+            AND daterange(from_date, COALESCE(to_date, 'infinity'), '[]')
+                && daterange($2::date, COALESCE($3::date, 'infinity'), '[]')
+          FOR UPDATE
+          LIMIT 1
+          `,
+          [dto.guest_id, dto.from_date, dto.to_date || null]
+        );
 
-      const insertSql = `
-        INSERT INTO t_guest_liasoning_officer (
+        if (overlap.rowCount > 0) {
+          throw new ConflictException(
+            'Guest already has an officer assigned in this period'
+          );
+        }
+
+        const glo_id = await this.generateLiasoningOfficerId(client);
+
+        const insertSql = `
+          INSERT INTO t_guest_liasoning_officer (
+            glo_id,
+            guest_id,
+            officer_id,
+            from_date,
+            to_date,
+            duty_location,
+            is_active,
+            inserted_by,
+            inserted_ip
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+          RETURNING *;
+        `;
+
+        const res = await client.query(insertSql, [
           glo_id,
-          guest_id,
-          officer_id,
-          from_date,
-          to_date,
-          duty_location,
-          is_active,
-          inserted_by,
-          inserted_ip
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
-        RETURNING *;
-      `;
+          dto.guest_id,
+          dto.officer_id,
+          dto.from_date,
+          dto.to_date || null,
+          dto.duty_location || null,
+          user,
+          ip,
+        ]);
 
-      const res = await this.db.query(insertSql, [
-        glo_id,
-        dto.guest_id,
-        dto.officer_id,
-        dto.from_date,
-        dto.to_date || null,
-        dto.duty_location || null,
-        user,
-        ip,
-      ]);
-
-      await this.db.query('COMMIT');
-      return res.rows[0];
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+        return res.rows[0];
+      } catch (err) {
+        throw err;
+      }
+    });
   }
 
   /* ================= FETCH BY GUEST ================= */
@@ -146,46 +142,57 @@ export class GuestLiasoningOfficerService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT * FROM t_guest_liasoning_officer WHERE glo_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    for (const [key, value] of Object.entries(dto)) {
-      if (value === undefined) continue;
-      fields.push(`${key} = $${idx}`);
-      values.push(value);
+      if (!existing.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
+
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      for (const [key, value] of Object.entries(dto)) {
+        if (value === undefined) continue;
+        fields.push(`${key} = $${idx}`);
+        values.push(value);
+        idx++;
+      }
+
+      if (!fields.length) {
+        throw new BadRequestException('No fields to update');
+      }
+
+      fields.push(`updated_at = NOW()`);
+      fields.push(`updated_by = $${idx}`);
+      values.push(user);
       idx++;
-    }
 
-    if (!fields.length) {
-      throw new BadRequestException('No fields to update');
-    }
+      fields.push(`updated_ip = $${idx}`);
+      values.push(ip);
+      idx++;
 
-    fields.push(`updated_at = NOW()`);
-    fields.push(`updated_by = $${idx}`);
-    values.push(user);
-    idx++;
+      const sql = `
+        UPDATE t_guest_liasoning_officer
+        SET ${fields.join(', ')}
+        WHERE glo_id = $${idx}
+        RETURNING *;
+      `;
 
-    fields.push(`updated_ip = $${idx}`);
-    values.push(ip);
-    idx++;
+      values.push(id);
 
-    const sql = `
-      UPDATE t_guest_liasoning_officer
-      SET ${fields.join(', ')}
-      WHERE glo_id = $${idx}
-      RETURNING *;
-    `;
+      const res = await client.query(sql, values);
 
-    values.push(id);
+      if (!res.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
 
-    const res = await this.db.query(sql, values);
-
-    if (!res.rowCount) {
-      throw new NotFoundException('Assignment not found');
-    }
-
-    return res.rows[0];
+      return res.rows[0];
+    });
   }
 
   /* ================= SOFT DELETE ================= */
@@ -195,22 +202,32 @@ export class GuestLiasoningOfficerService {
     user = 'system',
     ip = '0.0.0.0'
   ) {
-    const sql = `
-      UPDATE t_guest_liasoning_officer
-      SET is_active = FALSE,
-          updated_at = NOW(),
-          updated_by = $2,
-          updated_ip = $3
-      WHERE glo_id = $1
-      RETURNING *;
-    `;
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_liasoning_officer WHERE glo_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    const res = await this.db.query(sql, [id, user, ip]);
+      if (!existing.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
+      const sql = `
+        UPDATE t_guest_liasoning_officer
+        SET is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
+        WHERE glo_id = $1
+        RETURNING *;
+      `;
 
-    if (!res.rowCount) {
-      throw new NotFoundException('Assignment not found');
-    }
+      const res = await client.query(sql, [id, user, ip]);
 
-    return res.rows[0];
+      if (!res.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
+
+      return res.rows[0];
+    });
   }
 }

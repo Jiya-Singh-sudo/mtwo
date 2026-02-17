@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
 import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
@@ -10,21 +10,28 @@ export class GuestMessengerService {
   constructor(private readonly db: DatabaseService) {}
 
   /* ---------- ID GENERATION ---------- */
-  private async generateId(): Promise<string> {
-    const sql = `
-      SELECT guest_messenger_id
-      FROM t_guest_messenger
-      WHERE guest_messenger_id ~ '^GM[0-9]+$'
-      ORDER BY CAST(SUBSTRING(guest_messenger_id, 3) AS INT) DESC
-      LIMIT 1;
-    `;
-    const res = await this.db.query(sql);
-    if (res.rows.length === 0) return 'GM001';
+  // private async generateId(): Promise<string> {
+  //   const sql = `
+  //     SELECT guest_messenger_id
+  //     FROM t_guest_messenger
+  //     WHERE guest_messenger_id ~ '^GM[0-9]+$'
+  //     ORDER BY CAST(SUBSTRING(guest_messenger_id, 3) AS INT) DESC
+  //     LIMIT 1;
+  //   `;
+  //   const res = await this.db.query(sql);
+  //   if (res.rows.length === 0) return 'GM001';
 
-    const last = res.rows[0].guest_messenger_id.substring(2);
-    const next = parseInt(last, 10) + 1;
-    return `GM${next.toString().padStart(3, '0')}`;
+  //   const last = res.rows[0].guest_messenger_id.substring(2);
+  //   const next = parseInt(last, 10) + 1;
+  //   return `GM${next.toString().padStart(3, '0')}`;
+  // }
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GM' || LPAD(nextval('guest_messenger_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
   async getGuestNetworkTable(params: GuestNetworkTableQueryDto) {
     const { page, limit, search, sortBy, sortOrder } = params;
 
@@ -158,38 +165,75 @@ export class GuestMessengerService {
 
   /* ---------- CREATE ---------- */
   async create(dto: CreateGuestMessengerDto, user: string, ip: string) {
-    const id = await this.generateId();
-    const now = new Date().toISOString();
+    return this.db.transaction(async (client) => {
 
-    const sql = `
-      INSERT INTO t_guest_messenger (
-        guest_messenger_id,
-        guest_id,
-        messenger_id,
-        assignment_date,
-        remarks,
-        is_active,
-        inserted_at,
-        inserted_by,
-        inserted_ip
-      ) VALUES (
-        $1,$2,$3,$4,$5,true,$6,$7,$8
-      )
-      RETURNING *;
-    `;
+      // 🔒 Validate guest
+      const guest = await client.query(
+        `SELECT 1 FROM m_guest WHERE guest_id = $1 AND is_active = TRUE FOR UPDATE`,
+        [dto.guest_id]
+      );
 
-    const res = await this.db.query(sql, [
-      id,
-      dto.guest_id,
-      dto.messenger_id,
-      dto.assignment_date,
-      dto.remarks ?? null,
-      now,
-      user,
-      ip,
-    ]);
+      if (!guest.rowCount) {
+        throw new NotFoundException('Guest not found');
+      }
 
-    return res.rows[0];
+      // 🔒 Validate messenger
+      const messenger = await client.query(
+        `SELECT 1 FROM m_messenger WHERE messenger_id = $1 AND is_active = TRUE FOR UPDATE`,
+        [dto.messenger_id]
+      );
+
+      if (!messenger.rowCount) {
+        throw new NotFoundException('Messenger not found');
+      }
+
+      // 🔒 Prevent duplicate active assignment
+      const duplicate = await client.query(
+        `
+        SELECT 1 FROM t_guest_messenger
+        WHERE guest_id = $1
+          AND messenger_id = $2
+          AND is_active = TRUE
+        FOR UPDATE
+        `,
+        [dto.guest_id, dto.messenger_id]
+      );
+
+      if (duplicate.rowCount > 0) {
+        throw new ConflictException('Messenger already assigned to guest');
+      }
+      const id = await this.generateId(client);
+      // const now = new Date().toISOString();
+
+      const sql = `
+        INSERT INTO t_guest_messenger (
+          guest_messenger_id,
+          guest_id,
+          messenger_id,
+          assignment_date,
+          remarks,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        ) VALUES (
+          $1,$2,$3,$4,$5,true,NOW(),$6,$7
+        )
+        RETURNING *;
+      `;
+
+      const res = await client.query(sql, [
+        id,
+        dto.guest_id,
+        dto.messenger_id,
+        dto.assignment_date,
+        dto.remarks ?? null,
+        user,
+        ip,
+      ]);
+
+      return res.rows[0];
+    });
   }
 
   /* ---------- UPDATE ---------- */
@@ -234,43 +278,64 @@ export class GuestMessengerService {
     ip: string,
     remarks?: string
   ) {
-    const now = new Date().toISOString();
+    return this.db.transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_messenger 
+        WHERE guest_messenger_id = $1 
+        FOR UPDATE`,
+        [id]
+      );
 
-    const res = await this.db.query(
-      `
-      UPDATE t_guest_messenger SET
-        is_active = false,
-        remarks = COALESCE($1, remarks),
-        updated_at = $2,
-        updated_by = $3,
-        updated_ip = $4
-      WHERE guest_messenger_id = $5
-      RETURNING *;
-      `,
-      [remarks ?? null, now, user, ip, id]
-    );
+      if (!existing.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
+      const res = await client.query(
+        `
+        UPDATE t_guest_messenger SET
+          is_active = false,
+          remarks = COALESCE($1, remarks),
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+        WHERE guest_messenger_id = $4
+        RETURNING *;
+        `,
+        [remarks ?? null, user, ip, id]
+      );
 
-    return res.rows[0];
+      return res.rows[0];
+    });
   }
-
 
   /* ---------- SOFT DELETE ---------- */
   async softDelete(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
-    const res = await this.db.query(
-      `
-      UPDATE t_guest_messenger SET
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_messenger_id = $4
-      RETURNING guest_messenger_id, is_active;
-      `,
-      [now, user, ip, id],
-    );
+    return this.db.transaction(async (client) => {
 
-    return res.rows[0];
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_messenger 
+        WHERE guest_messenger_id = $1 
+        FOR UPDATE`,
+        [id]
+      );
+
+      if (!existing.rowCount) {
+        throw new NotFoundException('Assignment not found');
+      }
+      const res = await client.query(
+        `
+        UPDATE t_guest_messenger SET
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE guest_messenger_id = $3
+        RETURNING guest_messenger_id, is_active;
+        `,
+        [user, ip, id],
+      );
+
+      return res.rows[0];
+    });
   }
 
   /* ---------- DATA TABLE ---------- */
