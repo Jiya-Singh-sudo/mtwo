@@ -8,17 +8,24 @@ import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 export class GuestFoodService {
   constructor(private readonly db: DatabaseService) { }
 
-  private async generateId(): Promise<string> {
-    const sql = `SELECT guest_food_id FROM t_guest_food ORDER BY guest_food_id DESC LIMIT 1`;
-    const res = await this.db.query(sql);
+  // private async generateId(): Promise<string> {
+  //   const sql = `SELECT guest_food_id FROM t_guest_food ORDER BY guest_food_id DESC LIMIT 1`;
+  //   const res = await this.db.query(sql);
 
-    if (res.rows.length === 0) return "GF001";
+  //   if (res.rows.length === 0) return "GF001";
 
-    const last = res.rows[0].guest_food_id.replace("GF", "");
-    const next = (parseInt(last) + 1).toString().padStart(3, "0");
+  //   const last = res.rows[0].guest_food_id.replace("GF", "");
+  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
 
-    return "GF" + next;
+  //   return "GF" + next;
+  // }
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GF' || LPAD(nextval('guest_food_id_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
   }
+
   async getDashboardStats() {
     const today = new Date().toISOString().split("T")[0];
 
@@ -109,8 +116,6 @@ export class GuestFoodService {
     return result;
   }
 
-
-
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_food WHERE is_active = $1 ORDER BY plan_date DESC, meal_type`
@@ -127,136 +132,142 @@ export class GuestFoodService {
   }
 
   async create(dto: CreateGuestFoodDto, user: string, ip: string) {
-    const id = await this.generateId();
-    const now = new Date().toISOString();
-    const sql = `
-      INSERT INTO t_guest_food (
-        guest_food_id,
-        guest_id,
-        room_id,
+    return this.db.transaction(async (client) => {
+      const id = await this.generateId(client);
+      const sql = `
+        INSERT INTO t_guest_food (
+          guest_food_id,
+          guest_id,
+          room_id,
 
-        food_id,
-        quantity,
+          food_id,
+          quantity,
 
-        meal_type,
-        plan_date,
-        food_stage,
+          meal_type,
+          plan_date,
+          food_stage,
 
-        delivery_status,
+          delivery_status,
 
-        order_datetime,
-        delivered_datetime,
+          order_datetime,
+          delivered_datetime,
 
-        remarks,
-        is_active,
+          remarks,
+          is_active,
 
-        inserted_at,
-        inserted_by,
-        inserted_ip
-      )
-      VALUES (
-        $1, $2, $3,
-        $4, $5,
-        $6, $7, $8,
-        $9,
-        $10, $11,
-        $12, true,
-        $13, $14, $15
-      )
-      RETURNING *;
-    `;
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES (
+          $1, $2, $3,
+          $4, $5,
+          $6, $7, $8,
+          $9,
+          $10, $11,
+          $12, true,
+          NOW(), $13, $14
+        )
+        RETURNING *;
+      `;
 
-    const params = [
-      id,
-      dto.guest_id,
-      dto.room_id ?? null,
+      const params = [
+        id,
+        dto.guest_id,
+        dto.room_id ?? null,
 
-      dto.food_id,
-      dto.quantity,
+        dto.food_id,
+        dto.quantity,
 
-      dto.meal_type,
-      dto.plan_date ?? new Date().toISOString().split("T")[0],
-      dto.food_stage ?? "PLANNED",
+        dto.meal_type,
+        dto.plan_date ?? new Date().toISOString().split("T")[0],
+        dto.food_stage ?? "PLANNED",
 
-      dto.delivery_status ?? null,
+        dto.delivery_status ?? null,
 
-      dto.order_datetime ?? null,
-      dto.delivered_datetime ?? null,
+        dto.order_datetime ?? null,
+        dto.delivered_datetime ?? null,
 
-      dto.remarks ?? null,
+        dto.remarks ?? null,
 
-      now,
-      user,
-      ip
-    ];
+        user,
+        ip
+      ];
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const res = await this.db.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   async update(id: string, dto: UpdateGuestFoodDto, user: string, ip: string) {
-    const existing = await this.findOne(id);
-    if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
+    return this.db.transaction(async (client) => {
 
-    const now = new Date().toISOString();
+      const existingRes = await client.query(
+        `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
+        [id]
+      );
 
-    const sql = `
-      UPDATE t_guest_food SET
-        room_id = $1,
-        food_id = $2,
-        quantity = $3,
-        delivery_status = $4,
-        meal_type = $5,
-        plan_date = $6,
-        food_stage = $7,
-        order_datetime = $8,
-        delivered_datetime = $9,
-        remarks = $10,
-        is_active = $11,
-        updated_at = $12,
-        updated_by = $13,
-        updated_ip = $14
-      WHERE guest_food_id = $15
-      RETURNING *;
-    `;
+      const existing = existingRes.rows[0];
+      if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
 
-    const params = [
-      dto.room_id ?? existing.room_id,
-      dto.food_id ?? existing.food_id,
-      dto.quantity ?? existing.quantity,
-      dto.delivery_status ?? existing.delivery_status,
-      dto.meal_type ?? existing.meal_type,
-      dto.plan_date ?? existing.plan_date,
-      dto.food_stage ?? existing.food_stage,
-      dto.order_datetime ?? existing.order_datetime,
-      dto.delivered_datetime ?? existing.delivered_datetime,
-      dto.remarks ?? existing.remarks,
-      dto.is_active ?? existing.is_active,
-      now,
-      user,
-      ip,
-      id
-    ];
+      const sql = `
+        UPDATE t_guest_food SET
+          room_id = $1,
+          food_id = $2,
+          quantity = $3,
+          delivery_status = $4,
+          meal_type = $5,
+          plan_date = $6,
+          food_stage = $7,
+          order_datetime = $8,
+          delivered_datetime = $9,
+          remarks = $10,
+          is_active = $11,
+          updated_at = NOW(),
+          updated_by = $12,
+          updated_ip = $13
+        WHERE guest_food_id = $14
+        RETURNING *;
+      `;
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const params = [
+        dto.room_id ?? existing.room_id,
+        dto.food_id ?? existing.food_id,
+        dto.quantity ?? existing.quantity,
+        dto.delivery_status ?? existing.delivery_status,
+        dto.meal_type ?? existing.meal_type,
+        dto.plan_date ?? existing.plan_date,
+        dto.food_stage ?? existing.food_stage,
+        dto.order_datetime ?? existing.order_datetime,
+        dto.delivered_datetime ?? existing.delivered_datetime,
+        dto.remarks ?? existing.remarks,
+        dto.is_active ?? existing.is_active,
+        user,
+        ip,
+        id
+      ];
+
+      const res = await this.db.query(sql, params);
+      return res.rows[0];
+    });
   }
 
   async softDelete(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
+    return this.db.transaction(async (client) => {
 
-    const sql = `
-      UPDATE t_guest_food SET
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_food_id = $4
-      RETURNING *;
-    `;
+      const sql = `
+        UPDATE t_guest_food SET
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE guest_food_id = $3
+        RETURNING *;
+      `;
 
-    const res = await this.db.query(sql, [now, user, ip, id]);
-    return res.rows[0];
+      const res = await client.query(sql, [user, ip, id]);
+      return res.rows[0];
+    });
   }
   async getTodayGuestOrders() {
     const sql = `

@@ -13,14 +13,6 @@ export class CreateGuestDriverDto {
 
   @IsOptional()
   @IsString()
-  vehicle_no?: string;
-
-  @IsOptional()
-  @IsString()
-  room_id?: string;
-
-  @IsOptional()
-  @IsString()
   from_location?: string;
 
   @IsOptional()

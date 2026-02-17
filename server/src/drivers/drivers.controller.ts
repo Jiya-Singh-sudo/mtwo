@@ -59,7 +59,7 @@ export class DriversController {
   @Post()
   create(@Body() dto: CreateDriverDto, @Req() req: any) {
     const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
+    const ip = this.extractIp(req);
     return this.service.create(dto, user, ip);
   }
   @Patch(':id')
@@ -79,7 +79,7 @@ export class DriversController {
     @Req() req: any
   ) {
     const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
+    const ip = this.extractIp(req);
     return this.service.assignDriver(body, user, ip);
   }
 

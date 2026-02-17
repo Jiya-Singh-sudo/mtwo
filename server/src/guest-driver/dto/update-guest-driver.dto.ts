@@ -5,21 +5,21 @@ export class UpdateGuestDriverDto {
   @IsString()
   driver_id?: string;
 
-  @IsOptional()
-  @IsString()
-  vehicle_no?: string;
+  // @IsOptional()
+  // @IsString()
+  // vehicle_no?: string;
 
-  @IsOptional()
-  @IsString()
-  room_id?: string;
+  // @IsOptional()
+  // @IsString()
+  // room_id?: string;
 
-  @IsOptional()
-  @IsString()
-  from_location?: string;
+  // @IsOptional()
+  // @IsString()
+  // from_location?: string;
 
-  @IsOptional()
-  @IsString()
-  to_location?: string;
+  // @IsOptional()
+  // @IsString()
+  // to_location?: string;
 
   @IsOptional()
   @IsString()
@@ -37,9 +37,9 @@ export class UpdateGuestDriverDto {
   @IsString()
   start_time?: string;
 
-  @IsOptional()
-  @IsString()
-  end_time?: string;
+  // @IsOptional()
+  // @IsString()
+  // end_time?: string;
 
   @IsOptional()
   @IsString()

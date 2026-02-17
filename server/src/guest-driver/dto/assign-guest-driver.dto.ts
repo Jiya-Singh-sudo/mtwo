@@ -26,17 +26,14 @@ export class AssignGuestDriverDto {
   @IsOptional()
   @Transform(({ value }) => (value === "" ? null : value))
   @IsString()
-  end_time?: string;
+  drop_date?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === "" ? null : value))
+  @IsString()
+  drop_time?: string;
 
   @IsOptional()
   @IsString()
   trip_status?: string;
-
-  @IsOptional()
-  @IsString()
-  drop_date?: string;
-
-  @IsOptional()
-  @IsString()
-  drop_time?: string;
 }

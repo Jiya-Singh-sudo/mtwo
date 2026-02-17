@@ -12,8 +12,8 @@ export class GuestDriverService {
     // private readonly notifications: NotificationsService,
   ) { }
 
-  private async generateId(): Promise<string> {
-    const res = await this.db.query(`
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
       SELECT 'GD' || LPAD(nextval('guest_driver_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
@@ -41,22 +41,24 @@ export class GuestDriverService {
     paramsBuilder: (id: string) => any[],
     retries = 3
   ): Promise<any> {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      const id = await this.generateId();
-      try {
-        const res = await this.db.query(sql, paramsBuilder(id));
-        return res.rows[0];
-      } catch (err: any) {
-        // Check for unique constraint violation (PostgreSQL error code 23505)
-        if (err.code === '23505' && attempt < retries) {
-          continue; // Retry with a new ID
+    return this.db.transaction(async (client) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        const id = await this.generateId(client);
+        try {
+          const res = await client.query(sql, paramsBuilder(id));
+          return res.rows[0];
+        } catch (err: any) {
+          // Check for unique constraint violation (PostgreSQL error code 23505)
+          if (err.code === '23505' && attempt < retries) {
+            continue; // Retry with a new ID
+          }
+          throw err;
         }
-        throw err;
       }
-    }
+    });
   }
 
-  private async assertGuestIsAssignable(guestId: string) {
+  private async assertGuestIsAssignable(client: any, guestId: string) {
     const sql = `
       SELECT io.status
       FROM t_guest_inout io
@@ -67,7 +69,7 @@ export class GuestDriverService {
       FOR UPDATE;
     `;
 
-    const res = await this.db.query(sql, [guestId]);
+    const res = await client.query(sql, [guestId]);
 
     if (!res.rows.length) {
       throw new BadRequestException("GUEST_STATUS_NOT_FOUND");    }
@@ -81,130 +83,123 @@ export class GuestDriverService {
   // ---------- ASSIGN DRIVER ----------
   async assignDriver(
     dto: AssignGuestDriverDto,
-    user = "system",
-    ip = "0.0.0.0"
+    user: string,
+    ip: string
   ) {
-    await this.db.query('BEGIN');
+    return this.db.transaction(async (client) => {
+        await client.query(
+          `SELECT 1 FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
+          [dto.driver_id]
+        );
 
-    try {
-      await this.db.query(
-        `SELECT 1 FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
-        [dto.driver_id]
-      );
+        await client.query(
+          `
+          SELECT 1
+          FROM t_guest_driver
+          WHERE driver_id = $1
+            AND is_active = TRUE
+          FOR UPDATE
+          `,
+          [dto.driver_id]
+        );
 
-      await this.db.query(
-        `
-        SELECT 1
-        FROM t_guest_driver
-        WHERE driver_id = $1
-          AND is_active = TRUE
-        FOR UPDATE
-        `,
-        [dto.driver_id]
-      );
+        // 🔒 BLOCK assignment for exited / cancelled guests
+        await this.assertGuestIsAssignable(client, dto.guest_id);
+        await this.assertDriverNotOnWeekOff(
+          client,
+          dto.driver_id,
+          dto.trip_date
+        );
+        await this.assertDriverOnDuty(
+          client,
+          dto.driver_id,
+          dto.trip_date,
+          dto.start_time,
+          dto.drop_date,
+          dto.drop_time
+        );
+        await this.assertDriverAvailability(
+          client,
+          dto.driver_id,
+          dto.trip_date,
+          dto.start_time,
+          dto.drop_date,
+          dto.drop_time
+        );
 
-      // 🔒 BLOCK assignment for exited / cancelled guests
-      await this.assertGuestIsAssignable(dto.guest_id);
-      await this.assertDriverNotOnWeekOff(
-        dto.driver_id,
-        dto.trip_date
-      );
-      await this.assertDriverOnDuty(
-        dto.driver_id,
-        dto.trip_date,
-        dto.start_time,
-        dto.drop_date,
-        dto.drop_time
-      );
-      await this.assertDriverAvailability(
-        dto.driver_id,
-        dto.trip_date,
-        dto.start_time,
-        dto.drop_date,
-        dto.drop_time
-      );
-
-      const trip = await this.createTrip(
-        {
-          guest_id: dto.guest_id,
-        driver_id: dto.driver_id,
-        pickup_location: dto.pickup_location,
-        drop_location: dto.drop_location,
-        trip_date: dto.trip_date,
-        start_time: dto.start_time,
-        end_time: dto.end_time,
-        // trip_status: dto.trip_status ?? "Scheduled",
-      },
-      user,
-      ip
-    );
-    await this.db.query('COMMIT');
-    return trip;
-  } catch (error) {
-    await this.db.query('ROLLBACK');
-    throw error;
-  }
+        const trip = await this.createTrip(
+          client,
+          {
+            guest_id: dto.guest_id,
+            driver_id: dto.driver_id,
+            pickup_location: dto.pickup_location,
+            drop_location: dto.drop_location,
+            trip_date: dto.trip_date,
+            start_time: dto.start_time,
+            drop_date: dto.drop_date,
+            drop_time: dto.drop_time,
+            // trip_status: dto.trip_status ?? "Scheduled",
+          },
+          user,
+          ip
+        );
+        return trip;
+    });
   }
 
   // ---------- CREATE TRIP ----------
   async createTrip(
+    client: any,
     dto: CreateGuestDriverDto,
     user: string,
     ip: string
   ) {
-    
-    const id = await this.generateId();
-    const now = new Date().toISOString();
+    // return this.db.transaction(async (client) => {
+      const id = await this.generateId(client);
 
-    const sql = `
-      INSERT INTO t_guest_driver(
-        guest_driver_id, guest_id, driver_id, vehicle_no, room_id,
-        from_location, to_location, pickup_location, drop_location,
-        trip_date, start_time, end_time,
-        drop_date, drop_time,
+      const sql = `
+        INSERT INTO t_guest_driver(
+          guest_driver_id, guest_id, driver_id,
+          pickup_location, drop_location,
+          trip_date, start_time, drop_date, drop_time,
 
-        remarks,
-        is_active,
-        inserted_at, inserted_by, inserted_ip
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,$9,
-        $10,$11,$12,
-        $13,$14,
-        $15,
-        TRUE,
-        $16,$17,$18
-      )
-      RETURNING *;
-    `;
+          remarks,
+          is_active,
+          inserted_at, inserted_by, inserted_ip
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,
+          $6,$7,$8,$9,
+          $10,$11,$12,
+          TRUE,
+          NOW(),$13,$14
+        )
+        RETURNING *;
+      `;
 
-    const params = [
-      id,
-      dto.guest_id,
-      dto.driver_id,
-      dto.vehicle_no ?? null,
-      dto.room_id ?? null,
-      dto.from_location ?? null,
-      dto.to_location ?? null,
-      dto.pickup_location,
-      dto.drop_location ?? null,
-      dto.trip_date,
-      dto.start_time,
-      dto.end_time ?? null,
-      dto.drop_date ?? null,
-      dto.drop_time ?? null,
-      // dto.pickup_status ?? "Waiting",
-      // dto.drop_status ?? "Waiting",
-      // dto.trip_status ?? "Scheduled",
-      dto.remarks ?? null,
-      now,
-      user,
-      ip
-    ];
+      const params = [
+        id,
+        dto.guest_id,
+        dto.driver_id,
+        // dto.vehicle_no ?? null,
+        // dto.room_id ?? null,
+        dto.pickup_location,
+        dto.drop_location ?? null,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date ?? null,
+        dto.drop_time ?? null,
+        // dto.pickup_status ?? "Waiting",
+        // dto.drop_status ?? "Waiting",
+        // dto.trip_status ?? "Scheduled",
+        dto.remarks ?? null,
+        user,
+        ip
+      ];
 
-    const res = await this.db.query(sql, params);
-    return res.rows[0];
+      const res = await client.query(sql, params);
+      return res.rows[0];
+    // });
   }
 
   async findActiveByGuest(guestId: string) {
@@ -222,7 +217,6 @@ export class GuestDriverService {
 
       gd.trip_date,
       gd.start_time,
-      gd.end_time,
 
       gd.drop_date,
       gd.drop_time,
@@ -241,7 +235,6 @@ export class GuestDriverService {
     return res.rows[0] || null;
   }
 
-
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_driver WHERE is_active = $1 ORDER BY trip_date DESC`
@@ -257,71 +250,55 @@ export class GuestDriverService {
     return res.rows[0];
   }
 
-  async create(dto: CreateGuestDriverDto, user: string, ip: string) {
-    const id = await this.generateId();
-    const now = new Date().toISOString();
-    // await this.db.query('BEGIN');
-    try {
-    const sql = `
-      INSERT INTO t_guest_driver(
-        guest_driver_id, guest_id, driver_id, vehicle_no, room_id,
-        from_location, to_location, pickup_location, drop_location,
-        trip_date, start_time, end_time,
-        drop_date, drop_time,
+  async create(client, dto: CreateGuestDriverDto, user: string, ip: string) {
+    // return this.db.transaction(async (client) => {
+      const id = await this.generateId(client);
+      try {
+      const sql = `
+        INSERT INTO t_guest_driver(
+          guest_driver_id, guest_id, driver_id,
+          pickup_location, drop_location,
+          trip_date, start_time,
+          drop_date, drop_time,
+          remarks,
+          is_active,
+          inserted_at, inserted_by, inserted_ip
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,
+          $6,$7,$8,$9,
+          $10,
+          true, NOW(), $11, $12
+        )
+        RETURNING *;
+      `;
 
-        remarks,
-        is_active,
-        inserted_at, inserted_by, inserted_ip
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,$9,
-        $10,$11,$12,
-        $13,$14,
-        $15,
-        true,
-        $16,$17,$18
-      )
-      RETURNING *;
-    `;
+      const params = [
+        id,
+        dto.guest_id,
+        dto.driver_id,
+        dto.pickup_location,
+        dto.drop_location ?? null,
 
-    const params = [
-      id,
-      dto.guest_id,
-      dto.driver_id,
-      dto.vehicle_no ?? null,
-      dto.room_id ?? null,
+        dto.trip_date,
+        dto.start_time,
+        dto.drop_date ?? null,
+        dto.drop_time ?? null,
 
-      dto.from_location ?? null,
-      dto.to_location ?? null,
-      dto.pickup_location,
-      dto.drop_location ?? null,
+        dto.remarks ?? null,
 
-      dto.trip_date,
-      dto.start_time,
-      dto.end_time ?? null,
+        user,
+        ip
+      ];
 
-      dto.drop_date ?? null,
-      dto.drop_time ?? null,
-
-      // dto.pickup_status ?? "Waiting",
-      // dto.drop_status ?? "Waiting",
-      // dto.trip_status ?? "Scheduled",
-
-      dto.remarks ?? null,
-
-      now,
-      user,
-      ip
-    ];
-
-    const res = await this.db.query(sql, params);
-    // await this.db.query('COMMIT');
-    return res.rows[0];
-    } catch (err) {
-      // await this.db.query('ROLLBACK');
-      throw err;
-    }
+      const res = await client.query(sql, params);
+      // await this.db.query('COMMIT');
+      return res.rows[0];
+      } catch (err) {
+        // await this.db.query('ROLLBACK');
+        throw err;
+      }
+    // });
   }
 
   /**
@@ -329,55 +306,54 @@ export class GuestDriverService {
    * Note: This is NOT a delete - the record remains for audit/history.
    */
   async autoCloseExpiredTrips(
-  user = "system",
-  ip = "0.0.0.0"
-) {
-  const sql = `
-    UPDATE t_guest_driver
-    SET
-      is_active = FALSE,
-      updated_at = NOW(),
-      updated_by = $1,
-      updated_ip = $2
-    WHERE
-      is_active = TRUE
-      AND
-        (trip_date::timestamp + start_time::time) <= NOW()
-      AND
-        drop_date IS NOT NULL
-      AND
-        drop_time IS NOT NULL
-      AND
-        (drop_date::timestamp + drop_time::time) <= NOW()
-    RETURNING guest_driver_id;
-  `;
-
-  const res = await this.db.query(sql, [user, ip]);
-  return res.rows;
-}
-
-  async closeTrip(id: string, user: string, ip: string) {
-    const now = new Date().toISOString();
-    await this.db.query('BEGIN');
-
-    try {
+    user: string,
+    ip: string
+  ) {
+    return this.db.transaction(async (client) => {
     const sql = `
-      UPDATE t_guest_driver SET 
-        is_active = false,
-        updated_at = $1,
-        updated_by = $2,
-        updated_ip = $3
-      WHERE guest_driver_id = $4
-      RETURNING *;
+      UPDATE t_guest_driver
+      SET
+        is_active = FALSE,
+        updated_at = NOW(),
+        updated_by = $1,
+        updated_ip = $2
+      WHERE
+        is_active = TRUE
+        AND
+          (trip_date::timestamp + start_time::time) <= NOW()
+        AND
+          drop_date IS NOT NULL
+        AND
+          drop_time IS NOT NULL
+        AND
+          (drop_date::timestamp + drop_time::time) <= NOW()
+      RETURNING guest_driver_id;
     `;
 
-    const res = await this.db.query(sql, [now, user, ip, id]);
-    await this.db.query('COMMIT');
-    return res.rows[0];
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+    const res = await client.query(sql, [user, ip]);
+    return res.rows;
+    });
+  }
+
+  async closeTrip(id: string, user: string, ip: string) {
+    return this.db.transaction(async (client) => {
+      try {
+      const sql = `
+        UPDATE t_guest_driver SET 
+          is_active = false,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE guest_driver_id = $3
+        RETURNING *;
+      `;
+
+      const res = await client.query(sql, [user, ip, id]);
+      return res.rows[0];
+      } catch (err) {
+        throw err;
+      }
+    });
   }
   //   async updateTrip(
   //   guestDriverId: string,
@@ -434,225 +410,233 @@ export class GuestDriverService {
      * If the insert fails, the old trip remains active (rollback).
      */
   async reviseTrip(
+    // client: any,
     oldGuestDriverId: string,
     dto: Partial<CreateGuestDriverDto>,
     user: string,
     ip: string
   ) {
-    await this.db.query('BEGIN');
-    try{
-    const oldRes = await this.db.query(
-      `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
-      [oldGuestDriverId]
-    );
+    return this.db.transaction(async (client) => {
+      try{
+      const oldRes = await client.query(
+        `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
+        [oldGuestDriverId]
+      );
 
-    if (!oldRes.rowCount) {
-      throw new BadRequestException('Trip not found');
-    }
+      if (!oldRes.rowCount) {
+        throw new BadRequestException('Trip not found');
+      }
 
-    const old = oldRes.rows[0];
-    await this.db.query(
-      `
-      SELECT 1
-      FROM t_guest_driver
-      WHERE driver_id = $1
-        AND is_active = TRUE
-      FOR UPDATE
-      `,
-      [dto.driver_id ?? old.driver_id]
-    );
-
-    await this.assertGuestIsAssignable(old.guest_id);
-    await this.assertDriverNotOnWeekOff(
-      dto.driver_id ?? old.driver_id,
-      dto.trip_date ?? old.trip_date
-    );
-    await this.assertDriverOnDuty(
-      dto.driver_id ?? old.driver_id,
-      dto.trip_date ?? old.trip_date,
-      dto.start_time ?? old.start_time,
-      dto.drop_date ?? old.drop_date,
-      dto.drop_time ?? old.drop_time
-    );
-    await this.assertDriverAvailability(
-      dto.driver_id ?? old.driver_id,
-      dto.trip_date ?? old.trip_date,
-      dto.start_time ?? old.start_time,
-      dto.drop_date ?? old.drop_date,
-      dto.drop_time ?? old.drop_time
-    );
-
-      // 1️⃣ Close old trip
-      await this.db.query(
+      const old = oldRes.rows[0];
+      await client.query(
         `
-        UPDATE t_guest_driver
-        SET is_active = FALSE,
-            updated_at = NOW(),
-            updated_by = $2,
-            updated_ip = $3
-        WHERE guest_driver_id = $1
+        SELECT 1
+        FROM t_guest_driver
+        WHERE driver_id = $1
+          AND is_active = TRUE
+        FOR UPDATE
         `,
-        [oldGuestDriverId, user, ip]
+        [dto.driver_id ?? old.driver_id]
       );
 
-      // 2️⃣ Insert   `d trip as NEW ROW
-      const newTrip = await this.create(
-        {
-          guest_id: old.guest_id,
-          driver_id: dto.driver_id ?? old.driver_id,
-          vehicle_no: dto.vehicle_no ?? old.vehicle_no,
-          room_id: dto.room_id ?? old.room_id,
-
-          from_location: dto.from_location ?? old.from_location,
-          to_location: dto.to_location ?? old.to_location,
-          pickup_location: dto.pickup_location ?? old.pickup_location,
-          drop_location: dto.drop_location ?? old.drop_location,
-
-          trip_date: dto.trip_date ?? old.trip_date,
-          start_time: dto.start_time ?? old.start_time,
-          end_time: dto.end_time ?? old.end_time,
-
-          drop_date: dto.drop_date ?? old.drop_date,
-          drop_time: dto.drop_time ?? old.drop_time,
-
-          remarks: dto.remarks ?? old.remarks,
-        } as CreateGuestDriverDto,
-        user,
-        ip
+      await this.assertGuestIsAssignable(client, old.guest_id);
+      await this.assertDriverNotOnWeekOff(
+        client,
+        dto.driver_id ?? old.driver_id,
+        dto.trip_date ?? old.trip_date
+      );
+      await this.assertDriverOnDuty(
+        client,
+        dto.driver_id ?? old.driver_id,
+        dto.trip_date ?? old.trip_date,
+        dto.start_time ?? old.start_time,
+        dto.drop_date ?? old.drop_date,
+        dto.drop_time ?? old.drop_time
+      );
+      await this.assertDriverAvailability(
+        client,
+        dto.driver_id ?? old.driver_id,
+        dto.trip_date ?? old.trip_date,
+        dto.start_time ?? old.start_time,
+        dto.drop_date ?? old.drop_date,
+        dto.drop_time ?? old.drop_time
       );
 
-      await this.db.query('COMMIT');
-      return newTrip;
-    } catch (err) {
-      await this.db.query('ROLLBACK');
-      throw err;
-    }
+        // 1️⃣ Close old trip
+        await client.query(
+          `
+          UPDATE t_guest_driver
+          SET is_active = FALSE,
+              updated_at = NOW(),
+              updated_by = $2,
+              updated_ip = $3
+          WHERE guest_driver_id = $1
+          `,
+          [oldGuestDriverId, user, ip]
+        );
+
+        // 2️⃣ Insert   `d trip as NEW ROW
+        const newTrip = await this.create(
+          client,
+          {
+            guest_id: old.guest_id,
+            driver_id: dto.driver_id ?? old.driver_id,
+            from_location: dto.from_location ?? old.from_location,
+            to_location: dto.to_location ?? old.to_location,
+            pickup_location: dto.pickup_location ?? old.pickup_location,
+            drop_location: dto.drop_location ?? old.drop_location,
+            trip_date: dto.trip_date ?? old.trip_date,
+            start_time: dto.start_time ?? old.start_time,
+            drop_date: dto.drop_date ?? old.drop_date,
+            drop_time: dto.drop_time ?? old.drop_time,
+            remarks: dto.remarks ?? old.remarks,
+          } as CreateGuestDriverDto,
+          user,
+          ip
+        );
+
+        return newTrip;
+      } catch (err) {
+        throw err;
+      }
+    });
   }
   private async assertDriverAvailability(
+    client: any,
     driverId: string,
     tripDate: string,
     startTime: string,
     dropDate?: string,
     dropTime?: string
   ) {
-    const sql = `
-      SELECT 1
-      FROM t_guest_driver
-      WHERE
-        driver_id = $1
-        AND is_active = TRUE
-        AND (
-          (trip_date::timestamp + start_time::time),
-          CASE
-            WHEN drop_date IS NOT NULL
-                AND drop_time IS NOT NULL
-                AND drop_time < start_time
-              THEN drop_date::timestamp + drop_time::time + INTERVAL '1 day'
-            WHEN drop_date IS NOT NULL
-                AND drop_time IS NOT NULL
-              THEN drop_date::timestamp + drop_time::time
-            ELSE 'infinity'
-          END
-        )
-        OVERLAPS
-        (
-          ($2::date + $3::time),
-          COALESCE(($4::date + $5::time), 'infinity')
-        )
-      FOR UPDATE
-      LIMIT 1;
-      
-    `;
-
-    const res = await this.db.query(sql, [
-      driverId,
-      tripDate,
-      startTime,
-      dropDate ?? null,
-      dropTime ?? null,
-    ]);
-
-    if (res.rows.length) {
-      throw new BadRequestException("DRIVER_ALREADY_ASSIGNED");
-    }
-  }
-
-  private async assertDriverOnDuty(
-    driverId: string,
-    tripDate: string,
-    startTime: string,
-    dropDate?: string,
-    dropTime?: string
-  ) {
-    const res = await this.db.query(
-      `
-      SELECT 1
-      FROM t_driver_duty
-      WHERE driver_id = $1
-        AND duty_date = $2
-        AND is_active = TRUE
-        AND is_week_off = FALSE
-        AND
-          (
-            duty_date::timestamp + duty_in_time::time,
+    // return this.db.transaction(async (client) => {
+      const sql = `
+        SELECT 1
+        FROM t_guest_driver
+        WHERE
+          driver_id = $1
+          AND is_active = TRUE
+          AND (
+            (trip_date + start_time),
             CASE
-              WHEN duty_out_time < duty_in_time
-                THEN duty_date::timestamp + duty_out_time::time + INTERVAL '1 day'
-              ELSE duty_date::timestamp + duty_out_time::time
+              WHEN drop_date IS NOT NULL
+                  AND drop_time IS NOT NULL
+                  AND drop_time < start_time
+                THEN drop_date + drop_time + INTERVAL '1 day'
+              WHEN drop_date IS NOT NULL
+                  AND drop_time IS NOT NULL
+                THEN drop_date + drop_time
+              ELSE 'infinity'
             END
           )
           OVERLAPS
           (
-            $2::date + $3::time,
-            CASE
-              WHEN $4 IS NOT NULL AND $5 IS NOT NULL AND $5 < $3
-                THEN $4::date + $5::time + INTERVAL '1 day'
-              WHEN $4 IS NOT NULL AND $5 IS NOT NULL
-                THEN $4::date + $5::time
-              ELSE 'infinity'
-            END
+            ($2 + $3),
+            COALESCE(($4 + $5), 'infinity')
           )
-      `,
-      [
+        FOR UPDATE
+        LIMIT 1;
+        
+      `;
+
+      const res = await client.query(sql, [
         driverId,
         tripDate,
         startTime,
         dropDate ?? null,
-        dropTime ?? null
-      ]
-    );
+        dropTime ?? null,
+      ]);
 
-    if (!res.rows.length) {
-      throw new BadRequestException("DRIVER_NOT_ON_DUTY");
-    }
+      if (res.rows.length) {
+        throw new BadRequestException("DRIVER_ALREADY_ASSIGNED");
+      }
+    // });
+  }
+
+  private async assertDriverOnDuty(
+    client: any,
+    driverId: string,
+    tripDate: string,
+    startTime: string,
+    dropDate?: string,
+    dropTime?: string
+  ) {
+    // return this.db.transaction(async (client) => {
+      const res = await client.query(
+        `
+        SELECT 1
+        FROM t_driver_duty
+        WHERE driver_id = $1
+          AND duty_date = $2
+          AND is_active = TRUE
+          AND is_week_off = FALSE
+          AND
+            (
+              duty_date::timestamp + duty_in_time::time,
+              CASE
+                WHEN duty_out_time < duty_in_time
+                  THEN duty_date::timestamp + duty_out_time::time + INTERVAL '1 day'
+                ELSE duty_date::timestamp + duty_out_time::time
+              END
+            )
+            OVERLAPS
+            (
+              $2::date + $3::time,
+              CASE
+                WHEN $4 IS NOT NULL AND $5 IS NOT NULL AND $5 < $3
+                  THEN $4::date + $5::time + INTERVAL '1 day'
+                WHEN $4 IS NOT NULL AND $5 IS NOT NULL
+                  THEN $4::date + $5::time
+                ELSE 'infinity'
+              END
+            )
+            FOR UPDATE
+        `,
+        [
+          driverId,
+          tripDate,
+          startTime,
+          dropDate ?? null,
+          dropTime ?? null
+        ]
+      );
+
+      if (!res.rows.length) {
+        throw new BadRequestException("DRIVER_NOT_ON_DUTY");
+      }
+    // });
   }
   private async assertDriverNotOnWeekOff(
+    client: any,
     driverId: string,
     tripDate: string
   ) {
-    const res = await this.db.query(
-      `
-      SELECT 1
-      FROM t_driver_duty d
-      WHERE d.driver_id = $1
-        AND d.duty_date = $2
-        AND d.is_active = TRUE
-        AND d.is_week_off = TRUE
+    // return this.db.transaction(async (client) => {
 
-      UNION
+      const res = await client.query(
+        `
+        SELECT 1
+        FROM t_driver_duty d
+        WHERE d.driver_id = $1
+          AND d.duty_date = $2
+          AND d.is_active = TRUE
+          AND d.is_week_off = TRUE
+        UNION
 
-      SELECT 1
-      FROM t_driver_week_off w
-      WHERE w.driver_id = $1
-        AND w.weekday = EXTRACT(DOW FROM $2::date)
-        AND w.is_active = TRUE
-      LIMIT 1
-      `,
-      [driverId, tripDate]
-    );
+        SELECT 1
+        FROM t_driver_week_off w
+        WHERE w.driver_id = $1
+          AND w.weekday = EXTRACT(DOW FROM $2::date)
+          AND w.is_active = TRUE
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [driverId, tripDate]
+      );
 
-    if (res.rows.length) {
-      throw new BadRequestException("DRIVER_WEEK_OFF");
-    }
+      if (res.rows.length) {
+        throw new BadRequestException("DRIVER_WEEK_OFF");
+      }
+    // });
   }
 }
