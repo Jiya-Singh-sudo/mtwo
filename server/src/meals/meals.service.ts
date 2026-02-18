@@ -229,45 +229,76 @@ export class MealsService {
       return result.rows[0];
     });
   }
+
   async getTodayGuests() {
     const sql = `
       SELECT
         g.guest_id,
         g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+
         gi.room_id,
+        gi.entry_date,
+        gi.entry_time,
+        gi.exit_date,
+        gi.exit_time,
+        gi.status,
+        gi.remarks,
+        gi.companions,
+
+        md.designation_name,
+        md.guest_name_local_language,
+        gd.department,
 
         gb.guest_butler_id,
         gb.butler_id,
         b.butler_name,
+        b.butler_name_local_language,
         gb.specialrequest,
 
         gf.guest_food_id,
+        gf.quantity,
         mi.food_name,
         mi.food_type,
-        gf.delivery_status
+        gf.delivery_status,
+        gf.meal_type,
+        gf.plan_date,
+        gf.food_stage
 
       FROM t_guest_inout gi
+
       JOIN m_guest g
         ON g.guest_id = gi.guest_id
-       AND g.is_active = TRUE
+      AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       LEFT JOIN t_guest_butler gb
         ON gb.guest_id = g.guest_id
-       AND gb.is_active = TRUE
+      AND gb.is_active = TRUE
 
       LEFT JOIN m_butler b
         ON b.butler_id = gb.butler_id
 
       LEFT JOIN t_guest_food gf
         ON gf.guest_id = g.guest_id
-       AND gf.is_active = TRUE
-       AND DATE(gf.order_datetime) = CURRENT_DATE
+      AND gf.is_active = TRUE
+      AND DATE(gf.order_datetime) = CURRENT_DATE
 
       LEFT JOIN m_food_items mi
         ON mi.food_id = gf.food_id
 
       WHERE gi.is_active = TRUE
         AND gi.status = 'Entered'
+        AND gi.entry_date = CURRENT_DATE
 
       ORDER BY g.guest_name, gf.order_datetime;
     `;
@@ -275,4 +306,52 @@ export class MealsService {
     const res = await this.db.query(sql);
     return res.rows;
   }
+
+  // async getTodayGuests() {
+  //   const sql = `
+  //     SELECT
+  //       g.guest_id,
+  //       g.guest_name,
+  //       g.guest_name_local_language
+  //       gi.room_id,
+
+  //       gb.guest_butler_id,
+  //       gb.butler_id,
+  //       b.butler_name,
+  //       gb.specialrequest,
+
+  //       gf.guest_food_id,
+  //       mi.food_name,
+  //       mi.food_type,
+  //       gf.delivery_status
+
+  //     FROM t_guest_inout gi
+  //     JOIN m_guest g
+  //       ON g.guest_id = gi.guest_id
+  //      AND g.is_active = TRUE
+
+  //     LEFT JOIN t_guest_butler gb
+  //       ON gb.guest_id = g.guest_id
+  //      AND gb.is_active = TRUE
+
+  //     LEFT JOIN m_butler b
+  //       ON b.butler_id = gb.butler_id
+
+  //     LEFT JOIN t_guest_food gf
+  //       ON gf.guest_id = g.guest_id
+  //      AND gf.is_active = TRUE
+  //      AND DATE(gf.order_datetime) = CURRENT_DATE
+
+  //     LEFT JOIN m_food_items mi
+  //       ON mi.food_id = gf.food_id
+
+  //     WHERE gi.is_active = TRUE
+  //       AND gi.status = 'Entered'
+
+  //     ORDER BY g.guest_name, gf.order_datetime;
+  //   `;
+
+  //   const res = await this.db.query(sql);
+  //   return res.rows;
+  // }
 }

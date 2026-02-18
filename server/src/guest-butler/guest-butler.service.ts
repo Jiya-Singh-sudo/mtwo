@@ -13,18 +13,6 @@ export class GuestButlerService {
     return res.rows[0].id;
   }
 
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT guest_butler_id FROM t_guest_butler ORDER BY guest_butler_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) return "GB001";
-
-  //   const last = res.rows[0].guest_butler_id.replace("GB", "");
-  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
-
-  //   return "GB" + next;
-  // }
-
   async findAll(activeOnly = true) {
     const sql = activeOnly
       ? `SELECT * FROM t_guest_butler WHERE is_active = $1 ORDER BY inserted_at DESC`

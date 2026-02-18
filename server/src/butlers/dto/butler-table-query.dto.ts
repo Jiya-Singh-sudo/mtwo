@@ -42,6 +42,6 @@ export class ButlerTableQueryDto {
   sortOrder?: 'asc' | 'desc';
 
   @IsOptional()
-  @IsIn(['Active', 'Inactive'])
-  status?: 'Active' | 'Inactive';
+  @IsString()
+  status?: string;
 }

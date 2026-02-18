@@ -64,7 +64,6 @@ export class ButlersService {
         b.butler_id,
         b.butler_name,
         b.butler_name_local_language,
-        b.shift,
         b.is_active,
         b.butler_mobile,
         b.butler_alternate_mobile,
@@ -83,6 +82,9 @@ export class ButlersService {
       LIMIT $${params.length + 1}
       OFFSET $${params.length + 2};
     `;
+// const pageNum = Number(page);
+// const limitNum = Number(limit);
+// const offset = (pageNum - 1) * limitNum;
 
     const data = await this.db.query(dataSql, [
       ...params,

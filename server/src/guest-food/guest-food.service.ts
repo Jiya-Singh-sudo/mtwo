@@ -48,8 +48,8 @@ export class GuestFoodService {
     const specialRequestsSql = `
       SELECT COUNT(*) AS count
       FROM t_guest_butler
-      WHERE specialrequest IS NOT NULL
-        AND TRIM(specialrequest) <> ''
+      WHERE special_request IS NOT NULL
+        AND TRIM(special_request) <> ''
         AND is_active = TRUE;
     `;
 
@@ -302,17 +302,89 @@ export class GuestFoodService {
   //     return res.rows[0];
   //   });
   // }
+  // async getTodayGuestOrders() {
+  //   const sql = `
+  //     SELECT
+  //       g.guest_id,
+  //       g.guest_name,
+  //       gi.room_id,
+
+  //       gf.guest_food_id,
+  //       mi.food_name,
+  //       mi.food_type,
+  //       gf.delivery_status,
+  //       gf.meal_type,
+  //       gf.plan_date,
+  //       gf.food_stage,
+
+  //       gb.guest_butler_id,
+  //       b.butler_id,
+  //       b.butler_name,
+  //       gb.special_request
+
+  //     FROM t_guest_inout gi
+  //     JOIN m_guest g
+  //       ON g.guest_id = gi.guest_id
+  //     AND g.is_active = TRUE
+
+  //     LEFT JOIN t_guest_food gf
+  //       ON gf.guest_id = g.guest_id
+  //     AND gf.is_active = TRUE
+  //     AND gf.plan_date = CURRENT_DATE
+  //     AND gf.food_stage != 'CANCELLED'
+
+  //     LEFT JOIN m_food_items mi
+  //       ON mi.food_id = gf.food_id
+
+  //     LEFT JOIN t_guest_butler gb
+  //       ON gb.guest_id = g.guest_id
+  //     AND gb.is_active = TRUE
+
+  //     LEFT JOIN m_butler b
+  //       ON b.butler_id = gb.butler_id
+
+  //     WHERE gi.is_active = TRUE
+  //       AND gi.guest_inout = TRUE
+  //       AND gi.status = 'Entered'
+  //       AND gi.exit_date IS NULL
+
+  //     ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
+  //   `;
+
+  //   const res = await this.db.query(sql);
+  //   return res.rows;
+  // }
   async getTodayGuestOrders() {
     const sql = `
       SELECT
         g.guest_id,
         g.guest_name,
-        gi.room_id,
+        g.guest_name_local_language,
+        g.guest_mobile,
+
+        gi.entry_date,
+        gi.entry_time,
+        gi.exit_date,
+        gi.exit_time,
+        gi.status,
+        gi.remarks,
+        gi.companions,
+
+        gr.room_id,
+        gr.room_no,
+
+        md.designation_name,
+        md.designation_name_local_language,
+        gd.department,
 
         gf.guest_food_id,
         mi.food_name,
         mi.food_type,
+        mi.food_desc,
         gf.delivery_status,
+        gf.quantity,
+        gf.order_datetime,
+        gf.delivered_datetime,
         gf.meal_type,
         gf.plan_date,
         gf.food_stage,
@@ -320,12 +392,30 @@ export class GuestFoodService {
         gb.guest_butler_id,
         b.butler_id,
         b.butler_name,
-        gb.specialrequest
+        b.butler_name_local_language,
+        b.butler_mobile,
+        b.shift,
+        gb.special_request
 
       FROM t_guest_inout gi
+
       JOIN m_guest g
         ON g.guest_id = gi.guest_id
       AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+      AND gr.is_active = TRUE
+      AND gr.check_out_date IS NULL
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       LEFT JOIN t_guest_food gf
         ON gf.guest_id = g.guest_id
@@ -347,13 +437,14 @@ export class GuestFoodService {
         AND gi.guest_inout = TRUE
         AND gi.status = 'Entered'
         AND gi.exit_date IS NULL
+        AND gi.entry_date = CURRENT_DATE
 
       ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
     `;
-
     const res = await this.db.query(sql);
     return res.rows;
   }
+
   async getTodayMealPlanOverview() {
     const sql = `
       SELECT
@@ -415,7 +506,6 @@ export class GuestFoodService {
       butler_name: 'b.butler_name',
       room_id: 'io.room_id'
     };
-
 
     const sortColumn = SORT_MAP[sortBy] ?? SORT_MAP.entry_date;
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
@@ -503,8 +593,15 @@ export class GuestFoodService {
         io.inout_id,
         io.entry_date,
         io.entry_time,
+        io.exit_date,
+        io.exit_time,
         io.status AS inout_status,
-        io.room_id,
+
+        md.designation_name,
+        gd.department,
+
+        gr.room_id,
+        gr.room_no,   -- ✅ now coming from t_guest_room
 
         gf.guest_food_id,
         gf.meal_type,
@@ -513,28 +610,88 @@ export class GuestFoodService {
 
         gb.guest_butler_id,
         b.butler_name,
-        gb.specialrequest
+        gb.special_request
 
       FROM t_guest_inout io
+
       JOIN m_guest g
         ON g.guest_id = io.guest_id
+      AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       LEFT JOIN t_guest_food gf
         ON gf.guest_id = g.guest_id
-        AND gf.is_active = TRUE
-        AND gf.plan_date = CURRENT_DATE
+      AND gf.is_active = TRUE
+      AND gf.plan_date = CURRENT_DATE
 
       LEFT JOIN t_guest_butler gb
         ON gb.guest_id = g.guest_id
-        AND gb.is_active = TRUE
+      AND gb.is_active = TRUE
+
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+      AND gr.is_active = TRUE
+      AND gr.check_out_date IS NULL   -- important for current room only
 
       LEFT JOIN m_butler b
         ON b.butler_id = gb.butler_id
 
       ${whereSql}
+
       ORDER BY g.guest_id, ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
+
+    // const dataSql = `
+    //   SELECT DISTINCT ON (g.guest_id)
+    //     g.guest_id,
+    //     g.guest_name,
+    //     g.guest_name_local_language,
+    //     g.guest_mobile,
+
+    //     io.inout_id,
+    //     io.entry_date,
+    //     io.entry_time,
+    //     io.status AS inout_status,
+    //     io.room_id,
+
+    //     gf.guest_food_id,
+    //     gf.meal_type,
+    //     gf.food_stage,
+    //     gf.delivery_status,
+
+    //     gb.guest_butler_id,
+    //     b.butler_name,
+    //     gb.special_request
+
+    //   FROM t_guest_inout io
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+
+    //   LEFT JOIN t_guest_food gf
+    //     ON gf.guest_id = g.guest_id
+    //     AND gf.is_active = TRUE
+    //     AND gf.plan_date = CURRENT_DATE
+
+    //   LEFT JOIN t_guest_butler gb
+    //     ON gb.guest_id = g.guest_id
+    //     AND gb.is_active = TRUE
+
+    //   LEFT JOIN m_butler b
+    //     ON b.butler_id = gb.butler_id
+
+    //   ${whereSql}
+    //   ORDER BY g.guest_id, ${sortColumn} ${order}
+    //   LIMIT $${idx} OFFSET $${idx + 1};
+    // `;
 
     const countRes = await this.db.query(countSql, sqlParams);
 

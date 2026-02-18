@@ -3,19 +3,11 @@ import { GuestFoodService } from "./guest-food.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
 import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
+import { getRequestContext } from "common/utlis/request-context.util";
 
 @Controller("guest-food")
 export class GuestFoodController {
   constructor(private readonly service: GuestFoodService) {}
-
-  private extractIp(req: any): string {
-    return (req.headers["x-forwarded-for"] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      req.ip ||
-      ""
-    ).replace("::ffff:", "").split(",")[0];
-  }
   @Get("dashboard")
   getDashboard() {
     return this.service.getDashboardStats();
@@ -42,20 +34,20 @@ getTodayMealPlanOverview() {
 
   @Post()
   create(@Body() dto: CreateGuestFoodDto, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.create(dto, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Put(":id")
   update(@Param("id") id: string, @Body() dto: UpdateGuestFoodDto, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.update(id, dto, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.update(id, dto, user, ip);
   }
 
   @Delete(":id")
   softDelete(@Param("id") id: string, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.softDelete(id, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
   @Get("guests/today")
   getTodayOrders() {
