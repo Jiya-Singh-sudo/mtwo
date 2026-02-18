@@ -73,7 +73,15 @@ export class UsersService {
     const sortColumn = SORT_MAP[sortBy] ?? 'u.username';
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-    const where: string[] = ['u.is_active = TRUE']; // default active only?? 
+    const where: string[] = [];
+
+    if (!status || status === 'Active') {
+      where.push('u.is_active = TRUE');
+    } else if (status === 'Inactive') {
+      where.push('u.is_active = FALSE');
+    }
+    // If status === 'All', no filter
+
     // Wait, User page usually shows active users. 
     // And getActiveUsers implied active users. 
     // getAllUsers (controller 'all') calls findAll(false).
@@ -133,7 +141,7 @@ export class UsersService {
 
     return {
       data: dataRes.rows,
-      totalCount: countRes.rows[0].total,
+      totalCount: countRes.rows[0]?.total ?? 0,
     };
   }
 
