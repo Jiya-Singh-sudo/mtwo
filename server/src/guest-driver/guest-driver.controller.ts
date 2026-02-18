@@ -1,40 +1,24 @@
-import {
-  Controller, Get, Post, Put, Delete, Patch,
-  Body, Param, Req
-} from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Req } from "@nestjs/common";
 import { GuestDriverService } from "./guest-driver.service";
 import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
 import { AssignGuestDriverDto } from "./dto/assign-guest-driver.dto";
 import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
+import { getRequestContext } from "common/utlis/request-context.util";
 
 @Controller("guest-driver")
 export class GuestDriverController {
   constructor(private readonly service: GuestDriverService) { }
-
-  private extractIp(req: any): string {
-    let ip =
-      req.headers['x-forwarded-for'] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      req.ip ||
-      '';
-    ip = ip.replace('::ffff:', '').split(',')[0];
-    return ip === '::1' ? '127.0.0.1' : ip;
-  }
-
   // ASSIGN DRIVER
   @Post("assign")
   assign(@Body() dto: AssignGuestDriverDto, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.assignDriver(dto, user, ip);
   }
 
   // CREATE FULL TRIP
   @Post()
   create(@Body() dto: CreateGuestDriverDto, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.createTripStandalone(dto, user, ip);
   }
 
@@ -82,9 +66,7 @@ export class GuestDriverController {
     @Body() dto: Partial<CreateGuestDriverDto>,
     @Req() req: any
   ) {
-    const user = req.headers["x-user"] || "system";
-    const ip = this.extractIp(req);
-
+    const { user, ip } = getRequestContext(req);
     return this.service.reviseTrip(
       oldGuestDriverId,
       dto,
@@ -95,7 +77,7 @@ export class GuestDriverController {
 
   @Delete(":id")
   closeTrip(@Param("id") id: string, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    return this.service.closeTrip(id, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.closeTrip(id, user, ip);
   }
 }

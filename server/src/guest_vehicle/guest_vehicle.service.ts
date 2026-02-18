@@ -78,7 +78,6 @@ export class GuestVehicleService {
         g.guest_id,
         g.guest_name,
         g.guest_name_local_language,
-        g.requires_driver,
         g.remarks,
 
         d.designation_id,
@@ -88,7 +87,10 @@ export class GuestVehicleService {
 
         io.inout_id,
         io.entry_date,
-        io.entry_time
+        io.entry_time,
+        io.exit_date,
+        io.exit_time,
+        io.requires_driver,
 
       FROM t_guest_inout io
       JOIN m_guest g
@@ -155,7 +157,10 @@ export class GuestVehicleService {
 
         v.vehicle_no,
         v.vehicle_name,
-        v.model
+        v.model,
+        v.capacity,
+        v.manufacturing,
+        v.color
 
       FROM t_guest_vehicle gv
       JOIN m_vehicle v
@@ -433,9 +438,9 @@ export class GuestVehicleService {
         await client.query(`
           INSERT INTO t_guest_vehicle
               (guest_vehicle_id, guest_id, vehicle_no, location, assigned_at, released_at,
-              is_active, inserted_by, inserted_ip)
+              is_active, inserted_at, inserted_by, inserted_ip)
           VALUES
-              ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+              ($1,$2,$3,$4,$5,$6,TRUE,NOW(),$7,$8)
         `, [
           guestVehicleId,
           guestId,

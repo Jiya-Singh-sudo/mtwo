@@ -152,113 +152,239 @@ export class GuestTransportService {
     /* ---------------- DATA ---------------- */
     const dataSql = `
       WITH base AS (
-  SELECT
-    g.guest_id,
-    g.guest_name,
-    g.guest_name_local_language,
-    g.guest_mobile,
-    g.requires_driver,
+        SELECT
+          g.guest_id,
+          g.guest_name,
+          g.guest_name_local_language,
+          g.guest_mobile,
 
-    io.inout_id,
-    io.entry_date,
-    io.entry_time,
-    io.exit_date,
-    io.exit_time,
-    io.status AS inout_status,
-    io.room_id,
+          md.designation_name,
+          md.designation_name_local_language,
+          gdsg.department,
 
-    gd.guest_driver_id,
-    gd.driver_id,
-    d.driver_name,
-    d.driver_contact,
-    gd.pickup_location,
-    gd.drop_location,
-    gd.trip_date,
-    gd.start_time,
-    gd.end_time,
-    gd.drop_date,
-    gd.drop_time,
-    gd.trip_status,
+          io.inout_id,
+          io.entry_date,
+          io.entry_time,
+          io.exit_date,
+          io.exit_time,
+          io.status AS inout_status,
+          io.room_id,
+          io.requires_driver,
+          io.companions,
 
-    gv.guest_vehicle_id,
-    v.vehicle_no,
-    v.vehicle_name,
-    v.model,
-    v.color,
-    gv.location,
-    gv.assigned_at,
-    gv.released_at
+          gd.guest_driver_id,
+          gd.driver_id,
+          d.driver_name,
+          d.driver_contact,
+          d.driver_license,
+          gd.pickup_location,
+          gd.drop_location,
+          gd.trip_date,
+          gd.start_time,
+          gd.drop_date,
+          gd.drop_time,
+          gd.trip_status,
 
-  FROM t_guest_inout io
-  JOIN m_guest g
-    ON g.guest_id = io.guest_id
+          gv.guest_vehicle_id,
+          v.vehicle_no,
+          v.vehicle_name,
+          v.model,
+          v.color,
+          v.capacity,
+          gv.location,
+          gv.assigned_at,
+          gv.released_at
 
-  LEFT JOIN LATERAL (
-    SELECT *
-    FROM t_guest_driver
-    WHERE guest_id = g.guest_id
-      AND is_active = TRUE
-    ORDER BY trip_date DESC, start_time DESC
-    LIMIT 1
-  ) gd ON TRUE
+        FROM t_guest_inout io
 
-  LEFT JOIN m_driver d
-    ON d.driver_id = gd.driver_id
+        JOIN m_guest g
+          ON g.guest_id = io.guest_id
+        AND g.is_active = TRUE
 
-  LEFT JOIN LATERAL (
-    SELECT *
-    FROM t_guest_vehicle
-    WHERE guest_id = g.guest_id
-      AND is_active = TRUE
-    ORDER BY assigned_at DESC
-    LIMIT 1
-  ) gv ON TRUE
+        LEFT JOIN t_guest_designation gdsg
+          ON gdsg.guest_id = g.guest_id
+        AND gdsg.is_current = TRUE
+        AND gdsg.is_active = TRUE
 
-  LEFT JOIN m_vehicle v
-    ON v.vehicle_no = gv.vehicle_no
+        LEFT JOIN m_guest_designation md
+          ON md.designation_id = gdsg.designation_id
+        AND md.is_active = TRUE
 
-  ${whereSql}
-)
-SELECT
-  base.*,
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM t_guest_driver
+          WHERE guest_id = g.guest_id
+            AND is_active = TRUE
+          ORDER BY trip_date DESC, start_time DESC
+          LIMIT 1
+        ) gd ON TRUE
 
-  CASE
-    WHEN base.guest_driver_id IS NOT NULL
-    AND (
-      (base.trip_date::timestamp + COALESCE(base.start_time, TIME '00:00'))
-        < (base.entry_date::timestamp + base.entry_time::time)
-      OR
-      COALESCE(
-        (base.drop_date::timestamp + COALESCE(base.drop_time, TIME '23:59')),
-        'infinity'
-      ) >
-      COALESCE(
-        (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
-        'infinity'
+        LEFT JOIN m_driver d
+          ON d.driver_id = gd.driver_id
+
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM t_guest_vehicle
+          WHERE guest_id = g.guest_id
+            AND is_active = TRUE
+          ORDER BY assigned_at DESC
+          LIMIT 1
+        ) gv ON TRUE
+
+        LEFT JOIN m_vehicle v
+          ON v.vehicle_no = gv.vehicle_no
+
+        ${whereSql}
       )
-    )
-    THEN TRUE
-    ELSE FALSE
-  END AS driver_conflict,
+      SELECT
+        base.*,
 
+        CASE
+          WHEN base.guest_driver_id IS NOT NULL
+          AND (
+            (base.trip_date::timestamp + COALESCE(base.start_time, TIME '00:00'))
+              < (base.entry_date::timestamp + base.entry_time::time)
+            OR
+            COALESCE(
+              (base.drop_date::timestamp + COALESCE(base.drop_time, TIME '23:59')),
+              'infinity'
+            ) >
+            COALESCE(
+              (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
+              'infinity'
+            )
+          )
+          THEN TRUE
+          ELSE FALSE
+        END AS driver_conflict,
 
-  CASE
-    WHEN base.guest_vehicle_id IS NOT NULL
-     AND (
-       base.assigned_at <
-         (base.entry_date::timestamp + base.entry_time::time)
-       OR
-       COALESCE(base.released_at, 'infinity') >
-         (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59'))
-     )
-    THEN TRUE
-    ELSE FALSE
-  END AS vehicle_conflict
+        CASE
+          WHEN base.guest_vehicle_id IS NOT NULL
+          AND (
+            base.assigned_at <
+              (base.entry_date::timestamp + base.entry_time::time)
+            OR
+            COALESCE(base.released_at, 'infinity') >
+              (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59'))
+          )
+          THEN TRUE
+          ELSE FALSE
+        END AS vehicle_conflict
 
-FROM base
-ORDER BY ${sortColumn} ${order}
-LIMIT $${idx} OFFSET $${idx + 1}
+      FROM base
+      ORDER BY ${sortColumn} ${order}
+      LIMIT $${idx} OFFSET $${idx + 1}
     `;
+
+//     const dataSql = `
+//       WITH base AS (
+//   SELECT
+//     g.guest_id,
+//     g.guest_name,
+//     g.guest_name_local_language,
+//     g.guest_mobile,
+//     g.requires_driver,
+
+//     io.inout_id,
+//     io.entry_date,
+//     io.entry_time,
+//     io.exit_date,
+//     io.exit_time,
+//     io.status AS inout_status,
+//     io.room_id,
+
+//     gd.guest_driver_id,
+//     gd.driver_id,
+//     d.driver_name,
+//     d.driver_contact,
+//     gd.pickup_location,
+//     gd.drop_location,
+//     gd.trip_date,
+//     gd.start_time,
+//     gd.end_time,
+//     gd.drop_date,
+//     gd.drop_time,
+//     gd.trip_status,
+
+//     gv.guest_vehicle_id,
+//     v.vehicle_no,
+//     v.vehicle_name,
+//     v.model,
+//     v.color,
+//     gv.location,
+//     gv.assigned_at,
+//     gv.released_at
+
+//   FROM t_guest_inout io
+//   JOIN m_guest g
+//     ON g.guest_id = io.guest_id
+
+//   LEFT JOIN LATERAL (
+//     SELECT *
+//     FROM t_guest_driver
+//     WHERE guest_id = g.guest_id
+//       AND is_active = TRUE
+//     ORDER BY trip_date DESC, start_time DESC
+//     LIMIT 1
+//   ) gd ON TRUE
+
+//   LEFT JOIN m_driver d
+//     ON d.driver_id = gd.driver_id
+
+//   LEFT JOIN LATERAL (
+//     SELECT *
+//     FROM t_guest_vehicle
+//     WHERE guest_id = g.guest_id
+//       AND is_active = TRUE
+//     ORDER BY assigned_at DESC
+//     LIMIT 1
+//   ) gv ON TRUE
+
+//   LEFT JOIN m_vehicle v
+//     ON v.vehicle_no = gv.vehicle_no
+
+//   ${whereSql}
+// )
+// SELECT
+//   base.*,
+
+//   CASE
+//     WHEN base.guest_driver_id IS NOT NULL
+//     AND (
+//       (base.trip_date::timestamp + COALESCE(base.start_time, TIME '00:00'))
+//         < (base.entry_date::timestamp + base.entry_time::time)
+//       OR
+//       COALESCE(
+//         (base.drop_date::timestamp + COALESCE(base.drop_time, TIME '23:59')),
+//         'infinity'
+//       ) >
+//       COALESCE(
+//         (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
+//         'infinity'
+//       )
+//     )
+//     THEN TRUE
+//     ELSE FALSE
+//   END AS driver_conflict,
+
+
+//   CASE
+//     WHEN base.guest_vehicle_id IS NOT NULL
+//      AND (
+//        base.assigned_at <
+//          (base.entry_date::timestamp + base.entry_time::time)
+//        OR
+//        COALESCE(base.released_at, 'infinity') >
+//          (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59'))
+//      )
+//     THEN TRUE
+//     ELSE FALSE
+//   END AS vehicle_conflict
+
+// FROM base
+// ORDER BY ${sortColumn} ${order}
+// LIMIT $${idx} OFFSET $${idx + 1}
+//     `;
     return this.db.transaction(async (client) => {
       try {
       const countRes = await client.query(countSql, sqlParams);

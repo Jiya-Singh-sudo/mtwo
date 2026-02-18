@@ -246,7 +246,11 @@ export class GuestDriverService {
       gd.driver_id,
 
       d.driver_name,
+      d.driver_name_local_language,
       d.driver_contact,
+      d.driver_alternate_mobile,
+      d.driver_license,
+      d.license_expiry_date,
 
       gd.pickup_location,
       gd.drop_location,
