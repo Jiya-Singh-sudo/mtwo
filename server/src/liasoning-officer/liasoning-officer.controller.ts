@@ -1,18 +1,8 @@
 // server/src/modules/liasoning-officer/liasoning-officer.controller.ts
-
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Req,
-  Query
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Req, Query} from '@nestjs/common';
 import { LiasoningOfficerService } from './liasoning-officer.service';
 import { CreateLiasoningOfficerDto, UpdateLiasoningOfficerDto } from './dto/liasoning-officer.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('liasoning-officer')
 export class LiasoningOfficerController {
@@ -20,7 +10,8 @@ export class LiasoningOfficerController {
 
   @Post()
   create(@Body() dto: CreateLiasoningOfficerDto, @Req() req: any) {
-    return this.service.create(dto, req.user.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Get(':id')
@@ -34,12 +25,14 @@ export class LiasoningOfficerController {
     @Body() dto: UpdateLiasoningOfficerDto,
     @Req() req: any
   ) {
-    return this.service.update(id, dto, req.user.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.update(id, dto, user, ip);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.service.softDelete(id, req.user.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
     @Get()
     findAll(@Query() query: any) {
@@ -54,6 +47,5 @@ export class LiasoningOfficerController {
         sortBy: query.sortBy,
         sortOrder: query.sortOrder,
     });
-    }
-
+  }
 }

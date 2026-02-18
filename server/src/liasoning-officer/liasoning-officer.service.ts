@@ -31,9 +31,10 @@ export class LiasoningOfficerService {
             designation,
             is_active,
             inserted_by,
-            inserted_ip
+            inserted_ip,
+            inserted_at
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
             RETURNING *
             `,
             [
@@ -174,7 +175,7 @@ export class LiasoningOfficerService {
             }
 
 
-            fields.push(`updated_at = CURRENT_TIMESTAMP`);
+            fields.push(`updated_at = NOW()`);
             fields.push(`updated_by = $${index}`);
             values.push(userId);
             index++;
@@ -210,7 +211,7 @@ export class LiasoningOfficerService {
         `
         UPDATE m_liasoning_officer
         SET is_active = false,
-            updated_at = CURRENT_TIMESTAMP,
+            updated_at = NOW(),
             updated_by = $2,
             updated_ip = $3
         WHERE officer_id = $1
@@ -310,9 +311,7 @@ export class LiasoningOfficerService {
         email,
         role_id,
         department,
-        designation,
-        is_active,
-        inserted_at
+        designation
         FROM m_liasoning_officer
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY ${sortColumn} ${sortDirection}

@@ -17,8 +17,8 @@ export class GuestLiasoningOfficerService {
 
   async create(
     dto: CreateGuestLiasoningOfficerDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       try {
@@ -80,9 +80,10 @@ export class GuestLiasoningOfficerService {
             duty_location,
             is_active,
             inserted_by,
-            inserted_ip
+            inserted_ip,
+            inserted_at
           )
-          VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8)
+          VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7,$8,NOW())
           RETURNING *;
         `;
 
@@ -120,15 +121,51 @@ export class GuestLiasoningOfficerService {
 
         o.officer_name,
         o.mobile,
-        o.designation
+        o.designation AS officer_designation,
+
+        md.designation_name AS guest_designation,
+        gd.department AS guest_department
 
       FROM t_guest_liasoning_officer glo
+
       JOIN m_liasoning_officer o
         ON o.officer_id = glo.officer_id
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = glo.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       WHERE glo.guest_id = $1
       ORDER BY glo.from_date DESC
     `;
+
+    // const sql = `
+    //   SELECT
+    //     glo.glo_id,
+    //     glo.guest_id,
+    //     glo.officer_id,
+    //     glo.from_date,
+    //     glo.to_date,
+    //     glo.duty_location,
+    //     glo.is_active,
+    //     glo.inserted_at,
+
+    //     o.officer_name,
+    //     o.mobile,
+    //     o.designation
+
+    //   FROM t_guest_liasoning_officer glo
+    //   JOIN m_liasoning_officer o
+    //     ON o.officer_id = glo.officer_id
+
+    //   WHERE glo.guest_id = $1
+    //   ORDER BY glo.from_date DESC
+    // `;
 
     const res = await this.db.query(sql, [guestId]);
     return res.rows;
@@ -139,8 +176,8 @@ export class GuestLiasoningOfficerService {
   async update(
     id: string,
     dto: UpdateGuestLiasoningOfficerDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       const existing = await client.query(
@@ -199,8 +236,8 @@ export class GuestLiasoningOfficerService {
 
   async softDelete(
     id: string,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       const existing = await client.query(

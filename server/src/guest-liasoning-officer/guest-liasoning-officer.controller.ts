@@ -1,20 +1,8 @@
 // server/src/modules/guest-liasoning-officer/guest-liasoning-officer.controller.ts
-
-import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Req,
-} from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Param, Body, Req,} from '@nestjs/common';
 import { GuestLiasoningOfficerService } from './guest-liasoning-officer.service';
-import {
-  CreateGuestLiasoningOfficerDto,
-  UpdateGuestLiasoningOfficerDto,
-} from './dto/guest-liasoning-officer.dto';
+import { CreateGuestLiasoningOfficerDto, UpdateGuestLiasoningOfficerDto,} from './dto/guest-liasoning-officer.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('guest-liasoning-officer')
 export class GuestLiasoningOfficerController {
@@ -22,7 +10,8 @@ export class GuestLiasoningOfficerController {
 
   @Post()
   create(@Body() dto: CreateGuestLiasoningOfficerDto, @Req() req: any) {
-    return this.service.create(dto, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Get(':guestId')
@@ -36,11 +25,13 @@ export class GuestLiasoningOfficerController {
     @Body() dto: UpdateGuestLiasoningOfficerDto,
     @Req() req: any
   ) {
-    return this.service.update(id, dto, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.update(id, dto, user, ip);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.service.softDelete(id, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
 }

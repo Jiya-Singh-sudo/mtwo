@@ -1,19 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Query,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req } from '@nestjs/common';
 import { MedicalEmergencyServiceService } from './medical-emergency-service.service';
-import {
-  CreateMedicalEmergencyServiceDto,
-  UpdateMedicalEmergencyServiceDto,
-} from './dto/medical-emergency-service.dto';
+import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto,} from './dto/medical-emergency-service.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('medical-emergency-service')
 export class MedicalEmergencyServiceController {
@@ -21,7 +9,8 @@ export class MedicalEmergencyServiceController {
 
   @Post()
   create(@Body() dto: CreateMedicalEmergencyServiceDto, @Req() req: any) {
-    return this.service.create(dto, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Get()
@@ -46,11 +35,13 @@ export class MedicalEmergencyServiceController {
     @Body() dto: UpdateMedicalEmergencyServiceDto,
     @Req() req: any
   ) {
-    return this.service.update(id, dto, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.update(id, dto, user, ip);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.service.softDelete(id, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
 }

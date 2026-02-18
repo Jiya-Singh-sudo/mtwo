@@ -15,8 +15,8 @@ export class GuestMedicalContactService {
 
   async create(
     dto: CreateGuestMedicalContactDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       try {
@@ -69,7 +69,7 @@ export class GuestMedicalContactService {
             is_active,
             inserted_at,
             inserted_by,
-            inserted_ip
+            inserted_ip,
           )
           VALUES ($1,$2,$3,$4,NOW(),$5,$6)
           RETURNING *;
@@ -96,8 +96,8 @@ export class GuestMedicalContactService {
   async update(
     id: string,
     dto: UpdateGuestMedicalContactDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
 
@@ -212,14 +212,49 @@ export class GuestMedicalContactService {
         s.service_type,
         s.mobile,
         s.alternate_mobile,
-        s.email
+        s.email,
+
+        md.designation_name AS guest_designation,
+        gd.department AS guest_department
 
       FROM t_guest_medical_contact gmc
+
       JOIN m_medical_emergency_service s
         ON s.service_id = gmc.service_id
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = gmc.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
+
       WHERE gmc.guest_id = $1
       ORDER BY gmc.inserted_at DESC
     `;
+
+    // const sql = `
+    //   SELECT
+    //     gmc.medical_contact_id,
+    //     gmc.guest_id,
+    //     gmc.service_id,
+    //     gmc.is_active,
+    //     gmc.inserted_at,
+
+    //     s.service_provider_name,
+    //     s.service_type,
+    //     s.mobile,
+    //     s.alternate_mobile,
+    //     s.email
+
+    //   FROM t_guest_medical_contact gmc
+    //   JOIN m_medical_emergency_service s
+    //     ON s.service_id = gmc.service_id
+    //   WHERE gmc.guest_id = $1
+    //   ORDER BY gmc.inserted_at DESC
+    // `;
 
     const res = await this.db.query(sql, [guestId]);
 
@@ -230,8 +265,8 @@ export class GuestMedicalContactService {
 
   async softDelete(
     id: string,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
 

@@ -5,13 +5,18 @@ import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto,} fr
 @Injectable()
 export class MedicalEmergencyServiceService {
   constructor(private readonly db: DatabaseService) {}
-
+    private async generateId(client: any): Promise<string> {
+        const res = await client.query(`
+        SELECT 'MES' || LPAD(nextval('medical_emergency_service_seq')::text, 3, '0') AS id
+        `);
+        return res.rows[0].id;
+    }
   /* ================= CREATE ================= */
 
   async create(
     dto: CreateMedicalEmergencyServiceDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       try {
@@ -154,8 +159,8 @@ export class MedicalEmergencyServiceService {
   async update(
     id: string,
     dto: UpdateMedicalEmergencyServiceDto,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       const existing = await client.query(

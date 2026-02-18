@@ -1,14 +1,7 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Delete,
-  Param,
-  Body,
-  Req,
-} from '@nestjs/common';
+import { Controller, Post, Get, Delete, Param, Body, Req,} from '@nestjs/common';
 import { GuestMedicalContactService } from './guest-medical-contact.service';
 import { CreateGuestMedicalContactDto } from './dto/guest-medical-contact.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('guest-medical-contact')
 export class GuestMedicalContactController {
@@ -16,7 +9,8 @@ export class GuestMedicalContactController {
 
   @Post()
   create(@Body() dto: CreateGuestMedicalContactDto, @Req() req: any) {
-    return this.service.create(dto, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Get(':guestId')
@@ -26,6 +20,7 @@ export class GuestMedicalContactController {
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    return this.service.softDelete(id, req.user?.userId, req.ip);
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
 }
