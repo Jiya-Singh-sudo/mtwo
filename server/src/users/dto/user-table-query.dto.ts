@@ -38,7 +38,7 @@ export class UserTableQueryDto {
     @IsOptional()
     @IsString()
     status?: string;
-    
+
     @IsOptional()
     @IsString()
     entryDateFrom?: string;
