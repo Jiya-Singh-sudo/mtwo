@@ -182,17 +182,21 @@ export class GuestsService {
           throw new BadRequestException('Designation name is required');
         }
         const generatedDesignationId = await this.generateDesignationId(client);
+        const designation_name_local_language = transliterateToDevanagari(payload.designation.designation_name);
+
           const upsertSql = `
             INSERT INTO m_guest_designation (
               designation_id,
               designation_name,
+              designation_name_local_language,
               inserted_by,
               inserted_ip,
               inserted_at
             )
-            VALUES ($1,$2,$3,$4,NOW())
+            VALUES ($1,$2,$3,$4,$5,NOW())
             ON CONFLICT (designation_name) DO UPDATE
               SET designation_name = EXCLUDED.designation_name,
+                  designation_name_local_language = EXCLUDED.designation_name_local_language,
                   updated_at = NOW(),
                   updated_by = EXCLUDED.inserted_by,
                   updated_ip = EXCLUDED.inserted_ip::inet
@@ -202,6 +206,7 @@ export class GuestsService {
         const desRes = await client.query(upsertSql, [
           generatedDesignationId,
           payload.designation.designation_name,
+          designation_name_local_language,
           user,
           ip,
         ]);
@@ -551,6 +556,7 @@ export class GuestsService {
         d.gd_id,
         d.designation_id,
         md.designation_name,
+        md.designation_name_local_language,
         d.department,
         d.organization,
         d.office_location,
@@ -563,8 +569,10 @@ export class GuestsService {
         io.exit_time,
         io.status AS inout_status,
         io.purpose,
+        io.status,
         io.rooms_required,
-        io.requires_driver
+        io.requires_driver,
+        io.companions
 
       FROM m_guest g
       LEFT JOIN t_guest_inout io
