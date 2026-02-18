@@ -128,9 +128,9 @@ export class GuestNetworkService {
         g.guest_id,
         g.guest_name,
 
-        /* -------- Room (from t_guest_room) -------- */
+        /* -------- Room -------- */
         gr.room_id,
-        gr.room_no,
+        r.room_no,
 
         /* -------- InOut Context -------- */
         io.entry_date,
@@ -172,6 +172,10 @@ export class GuestNetworkService {
       AND gr.is_active = TRUE
       AND gr.check_out_date IS NULL
 
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
+      AND r.is_active = TRUE
+
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = g.guest_id
       AND gd.is_current = TRUE
@@ -197,6 +201,81 @@ export class GuestNetworkService {
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
+
+    // const dataSql = `
+    //   SELECT
+    //     g.guest_id,
+    //     g.guest_name,
+
+    //     /* -------- Room (from t_guest_room) -------- */
+    //     gr.room_id,
+    //     gr.room_no,
+
+    //     /* -------- InOut Context -------- */
+    //     io.entry_date,
+    //     io.entry_time,
+    //     io.exit_date,
+    //     io.exit_time,
+    //     io.status AS inout_status,
+
+    //     /* -------- Designation -------- */
+    //     md.designation_name,
+    //     gd.department,
+
+    //     /* -------- Network (may not exist) -------- */
+    //     gn.guest_network_id,
+    //     wp.provider_name,
+    //     gn.network_status,
+    //     gn.start_date,
+    //     gn.start_time,
+    //     gn.end_date,
+    //     gn.end_time,
+
+    //     /* -------- Messenger (may not exist) -------- */
+    //     gm.guest_messenger_id,
+    //     CASE 
+    //       WHEN gm.guest_messenger_id IS NOT NULL THEN 'Assigned'
+    //       ELSE NULL
+    //     END AS messenger_status,
+    //     gm.assignment_date,
+    //     gm.remarks
+
+    //   FROM t_guest_inout io
+
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+    //   AND g.is_active = TRUE
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = g.guest_id
+    //   AND gr.is_active = TRUE
+    //   AND gr.check_out_date IS NULL
+
+    //   LEFT JOIN t_guest_designation gd
+    //     ON gd.guest_id = g.guest_id
+    //   AND gd.is_current = TRUE
+    //   AND gd.is_active = TRUE
+
+    //   LEFT JOIN m_guest_designation md
+    //     ON md.designation_id = gd.designation_id
+    //   AND md.is_active = TRUE
+
+    //   LEFT JOIN t_guest_network gn
+    //     ON gn.guest_id = g.guest_id
+    //   AND gn.is_active = TRUE
+
+    //   LEFT JOIN m_wifi_provider wp
+    //     ON wp.provider_id = gn.provider_id
+
+    //   LEFT JOIN t_guest_messenger gm
+    //     ON gm.guest_id = g.guest_id
+    //   AND gm.is_active = TRUE
+
+    //   ${whereClause}
+
+    //   ORDER BY ${sortColumn} ${sortOrder}
+    //   LIMIT $${idx} OFFSET $${idx + 1};
+    // `;
 
     const statsSql = `
     SELECT

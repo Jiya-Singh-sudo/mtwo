@@ -116,7 +116,7 @@ export class NetworksService {
         username,
         static_ip,
         address,
-        is_active,
+        is_active
       FROM m_wifi_provider
       ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}

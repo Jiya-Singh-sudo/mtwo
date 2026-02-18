@@ -277,7 +277,7 @@ if (query.status === 'unassigned') {
         email,
         designation,
         remarks,
-        is_active,
+        is_active
         FROM m_messenger m
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder}

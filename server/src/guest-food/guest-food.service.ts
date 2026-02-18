@@ -595,13 +595,14 @@ export class GuestFoodService {
         io.entry_time,
         io.exit_date,
         io.exit_time,
+        io.remarks,
         io.status AS inout_status,
 
         md.designation_name,
         gd.department,
 
         gr.room_id,
-        gr.room_no,   -- ✅ now coming from t_guest_room
+        r.room_no,
 
         gf.guest_food_id,
         gf.meal_type,
@@ -610,6 +611,9 @@ export class GuestFoodService {
 
         gb.guest_butler_id,
         b.butler_name,
+        b.butler_name_local_language,
+        b.remarks,
+        b.shift,
         gb.special_request
 
       FROM t_guest_inout io
@@ -639,7 +643,11 @@ export class GuestFoodService {
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
       AND gr.is_active = TRUE
-      AND gr.check_out_date IS NULL   -- important for current room only
+      AND gr.check_out_date IS NULL
+
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
+      AND r.is_active = TRUE
 
       LEFT JOIN m_butler b
         ON b.butler_id = gb.butler_id
@@ -649,6 +657,73 @@ export class GuestFoodService {
       ORDER BY g.guest_id, ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
+
+    // const dataSql = `
+    //   SELECT DISTINCT ON (g.guest_id)
+    //     g.guest_id,
+    //     g.guest_name,
+    //     g.guest_name_local_language,
+    //     g.guest_mobile,
+
+    //     io.inout_id,
+    //     io.entry_date,
+    //     io.entry_time,
+    //     io.exit_date,
+    //     io.exit_time,
+    //     io.status AS inout_status,
+
+    //     md.designation_name,
+    //     gd.department,
+
+    //     gr.room_id,
+    //     gr.room_no,   -- ✅ now coming from t_guest_room
+
+    //     gf.guest_food_id,
+    //     gf.meal_type,
+    //     gf.food_stage,
+    //     gf.delivery_status,
+
+    //     gb.guest_butler_id,
+    //     b.butler_name,
+    //     gb.special_request
+
+    //   FROM t_guest_inout io
+
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+    //   AND g.is_active = TRUE
+
+    //   LEFT JOIN t_guest_designation gd
+    //     ON gd.guest_id = g.guest_id
+    //   AND gd.is_current = TRUE
+    //   AND gd.is_active = TRUE
+
+    //   LEFT JOIN m_guest_designation md
+    //     ON md.designation_id = gd.designation_id
+    //   AND md.is_active = TRUE
+
+    //   LEFT JOIN t_guest_food gf
+    //     ON gf.guest_id = g.guest_id
+    //   AND gf.is_active = TRUE
+    //   AND gf.plan_date = CURRENT_DATE
+
+    //   LEFT JOIN t_guest_butler gb
+    //     ON gb.guest_id = g.guest_id
+    //   AND gb.is_active = TRUE
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = g.guest_id
+    //   AND gr.is_active = TRUE
+    //   AND gr.check_out_date IS NULL   -- important for current room only
+
+    //   LEFT JOIN m_butler b
+    //     ON b.butler_id = gb.butler_id
+
+    //   ${whereSql}
+
+    //   ORDER BY g.guest_id, ${sortColumn} ${order}
+    //   LIMIT $${idx} OFFSET $${idx + 1};
+    // `;
 
     // const dataSql = `
     //   SELECT DISTINCT ON (g.guest_id)

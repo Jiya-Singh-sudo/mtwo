@@ -18,6 +18,63 @@ export class InfoPackageService {
     const limit = Number(query.limit || 10);
     const offset = (page - 1) * limit;
     const search = `%${query.search || ''}%`;
+    // const dataSql = `
+    //   SELECT DISTINCT ON (g.guest_id)
+    //     g.guest_id,
+    //     g.guest_name,
+    //     md.designation_name,
+    //     r.room_no,
+    //     ti.entry_date AS arrival_date,
+    //     ti.exit_date  AS departure_date,
+    //     v.vehicle_no,
+    //     d.driver_name
+
+    //   FROM m_guest g
+
+    //   JOIN t_guest_inout ti
+    //     ON ti.guest_id = g.guest_id
+    //   AND ti.is_active IS TRUE
+
+    //   LEFT JOIN t_guest_designation gd
+    //     ON gd.guest_id = g.guest_id
+    //   AND gd.is_active IS TRUE
+    //   AND gd.is_current IS TRUE
+
+    //   LEFT JOIN m_guest_designation md
+    //     ON md.designation_id = gd.designation_id
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = g.guest_id
+    //   AND gr.is_active IS TRUE
+    //   AND gr.check_out_date IS NULL
+
+    //   LEFT JOIN m_rooms r
+    //     ON r.room_id = gr.room_id
+
+    //   /* ---- Vehicle chain corrected ---- */
+    //   LEFT JOIN t_guest_vehicle gv
+    //     ON gv.guest_id = g.guest_id
+    //   AND gv.is_active IS TRUE
+
+    //   LEFT JOIN m_vehicle v
+    //     ON v.vehicle_no = gv.vehicle_no
+
+    //   /* ---- Driver ---- */
+    //   LEFT JOIN m_driver d
+    //     ON d.driver_id = gv.driver_id
+
+    //   WHERE
+    //     g.is_active IS TRUE
+    //     AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
+    //     AND (
+    //       g.guest_name ILIKE $1
+    //       OR r.room_no ILIKE $1
+    //       OR v.vehicle_no ILIKE $1
+    //     )
+
+    //   ORDER BY g.guest_id, ti.entry_date DESC
+    //   LIMIT $2 OFFSET $3;
+    // `;
 
     const dataSql = `
     SELECT DISTINCT ON (g.guest_id)
@@ -27,7 +84,7 @@ export class InfoPackageService {
       r.room_no,
       ti.entry_date AS arrival_date,
       ti.exit_date  AS departure_date,
-      gv.vehicle_no,
+      v.vehicle_no,
       d.driver_name
 
     FROM m_guest g
@@ -50,12 +107,19 @@ export class InfoPackageService {
     LEFT JOIN m_rooms r
       ON r.room_id = gr.room_id
 
-    LEFT JOIN t_guest_driver gv
+    LEFT JOIN t_guest_vehicle gv
       ON gv.guest_id = g.guest_id
       AND gv.is_active IS TRUE
 
+    LEFT JOIN t_guest_driver gdrv
+      ON gdrv.guest_id = g.guest_id
+      AND gdrv.is_active IS TRUE
+
+    LEFT JOIN m_vehicle v
+      ON v.vehicle_no = gv.vehicle_no
+
     LEFT JOIN m_driver d
-      ON d.driver_id = gv.driver_id
+      ON d.driver_id = gdrv.driver_id
 
     WHERE
       g.is_active IS TRUE
@@ -63,7 +127,7 @@ export class InfoPackageService {
       AND (
         g.guest_name ILIKE $1
         OR r.room_no ILIKE $1
-        OR gv.vehicle_no ILIKE $1
+        OR v.vehicle_no ILIKE $1
       )
 
     ORDER BY g.guest_id, ti.entry_date DESC
@@ -93,9 +157,16 @@ export class InfoPackageService {
     LEFT JOIN m_rooms r
       ON r.room_id = gr.room_id
 
-    LEFT JOIN t_guest_driver gv
+    LEFT JOIN t_guest_vehicle gv
       ON gv.guest_id = g.guest_id
       AND gv.is_active IS TRUE
+
+    LEFT JOIN m_vehicle v
+      ON v.vehicle_no = gv.vehicle_no
+
+    LEFT JOIN t_guest_driver gdrv
+      ON gdrv.guest_id = g.guest_id
+      AND gdrv.is_active IS TRUE
 
     WHERE
       g.is_active IS TRUE
@@ -103,7 +174,7 @@ export class InfoPackageService {
       AND (
         g.guest_name ILIKE $1
         OR r.room_no ILIKE $1
-        OR gv.vehicle_no ILIKE $1
+        OR v.vehicle_no ILIKE $1
       );
     `;
 
@@ -139,7 +210,7 @@ export class InfoPackageService {
           r.room_no,
           r.room_type,
 
-          gv.vehicle_no,
+          v.vehicle_no,
           d.driver_name,
           d.driver_contact
 
@@ -171,6 +242,9 @@ export class InfoPackageService {
         LEFT JOIN t_guest_driver gv
           ON gv.guest_id = g.guest_id
           AND gv.is_active IS TRUE
+      
+        LEFT JOIN m_vehicle v
+          ON v.vehicle_no = gv.vehicle_no
 
         LEFT JOIN m_driver d
           ON d.driver_id = gv.driver_id

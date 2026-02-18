@@ -394,17 +394,16 @@ export class DriverDutyService {
           drv.driver_name_local_language,
           drv.driver_contact,
           drv.driver_license,
-          drv.driver_license_expiry_date,
+          drv.license_expiry_date,
           cal.duty_date::text AS duty_date,
           d.duty_id,
           d.shift,
           d.duty_in_time,
           d.duty_out_time,
-          d.is_week_off,
 
           CASE
             WHEN d.is_week_off = true THEN true
-            WHEN w.id IS NOT NULL THEN true
+            WHEN w.driver_id IS NOT NULL THEN true
             ELSE false
           END AS is_week_off,
 
