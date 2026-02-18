@@ -26,4 +26,6 @@ export interface ActiveGuestRow {
   inout_status?: InoutStatus | string | null;
   purpose?: string | null;
   room_id?: string | null;
+  allocatedRooms?: number;
+  rooms_required?: number;
 }

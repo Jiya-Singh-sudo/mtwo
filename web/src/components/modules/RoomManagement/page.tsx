@@ -80,6 +80,8 @@ export function RoomManagement() {
   /* ---------------- ASSIGN ROOM BOY ---------------- */
 
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<ActiveGuestRow | null>(null);
+
   const [isRoomBoyModalOpen, setIsRoomBoyModalOpen] = useState(false);
   const [guestOptions, setGuestOptions] = useState<ActiveGuestRow[]>([]);
   const [assignCheckInDate, setAssignCheckInDate] = useState<string>("");
@@ -243,10 +245,16 @@ export function RoomManagement() {
     try {
       const boys = await getRoomBoyOptions();
 
+      // setRoomBoyOptions(
+      //   boys.map((b: Housekeeping) => ({
+      //     id: b.hk_id,
+      //     name: b.hk_name,
+      //   }))
+      // );
       setRoomBoyOptions(
-        boys.map((b: Housekeeping) => ({
-          id: b.hk_id,
-          name: b.hk_name,
+        boys.map((hk: any) => ({
+          id: hk.hk_id,
+          name: hk.hk_name,
         }))
       );
 
@@ -376,8 +384,10 @@ export function RoomManagement() {
       }
       const message =
         err?.response?.data?.message ||
-        'Failed to assign guest due to a conflict';
-      setFormErrors({ guest: message });
+        'Room allocation failed';
+
+      setFormErrors({ guest_id: message });
+
     }
   }
 
@@ -479,7 +489,7 @@ export function RoomManagement() {
   function openAssignGuest(room: RoomRow) {
     try{
     setAssignGuestRoom(room);
-    setSelectedGuestId("");
+    setSelectedGuestId(null);
     setAssignCheckInDate("");
     setAssignCheckOutDate("");
     }
@@ -524,7 +534,7 @@ export function RoomManagement() {
       shift: roomBoyForm.shift,
     };
 
-    const updated = await updateHousekeeping(selectedRoomBoy.hk_name, payload);
+    const updated = await updateHousekeeping(selectedRoomBoy.hk_id, payload);
 
     setRoomBoys((prev) =>
       prev.map((rb) =>
@@ -553,7 +563,7 @@ export function RoomManagement() {
     setDeleteRoomBoyError(null);
 
     try {
-      await softDeleteHousekeeping(selectedRoomBoy.hk_name);
+      await softDeleteHousekeeping(selectedRoomBoy.hk_id);
 
       // ✅ success → update UI
       setRoomBoys((prev) =>
@@ -655,6 +665,7 @@ function resetAssignRoomBoyState() {
 function resetAssignGuestState() {
   setAssignGuestRoom(null);
   setSelectedGuestId(null);
+  setSelectedGuest(null);
   setAssignCheckInDate("");
   setAssignCheckOutDate("");
   resetFormErrors();
@@ -1434,8 +1445,8 @@ function resetAddRoomState() {
                         : null,
                     })
                   }
-                  onBlur={() => validateField(roomCreateEditSchema, "guest", editRoom.guest?.guestId, setFormErrors)}
-                  onKeyUp={() => validateField(roomCreateEditSchema, "guest", editRoom.guest?.guestId, setFormErrors)}
+                  onBlur={() => validateField(roomCreateEditSchema, "guest_id", editRoom.guest?.guestId, setFormErrors)}
+                  onKeyUp={() => validateField(roomCreateEditSchema, "guest_id", editRoom.guest?.guestId, setFormErrors)}
                 >
                   <option value="">— No Guest —</option>
                   {guestOptions.map((g) => (
@@ -1445,10 +1456,10 @@ function resetAddRoomState() {
                   ))}
                 </select>
                 {/* <p className="errorText">{formErrors.guest}</p> */}
-                {formErrors.guest && (
+                {formErrors.guest_id && (
                   <div className="fieldError">
                     <XCircle size={14} />
-                    <span>{formErrors.guest}</span>
+                    <span>{formErrors.guest_id}</span>
                   </div>
                 )}
 
@@ -1774,13 +1785,30 @@ function resetAddRoomState() {
                       const guestId = String(e.target.value);
                       setSelectedGuestId(guestId);
 
-                      const guest = guestOptions.find(
-                        g => g.guest_id.toString() === guestId
-                      );
+                      const foundGuest =
+                        guestOptions.find(g => g.guest_id.toString() === guestId) || null;
 
-                      setAssignCheckInDate(normalizeDateOnly(guest?.entry_date ?? ""));
-                      setAssignCheckOutDate(normalizeDateOnly(guest?.exit_date ?? ""));
+                      setSelectedGuest(foundGuest);
+
+                      setAssignCheckInDate(
+                        normalizeDateOnly(foundGuest?.entry_date ?? "")
+                      );
+                      setAssignCheckOutDate(
+                        normalizeDateOnly(foundGuest?.exit_date ?? "")
+                      );
                     }}
+
+                    // onChange={(e) => {
+                    //   const guestId = String(e.target.value);
+                    //   setSelectedGuestId(guestId);
+
+                    //   const guest = guestOptions.find(
+                    //     g => g.guest_id.toString() === guestId
+                    //   );
+
+                    //   setAssignCheckInDate(normalizeDateOnly(guest?.entry_date ?? ""));
+                    //   setAssignCheckOutDate(normalizeDateOnly(guest?.exit_date ?? ""));
+                    // }}
                   >
                     <option value="">Select Guest</option>
                     {guestOptions.map((g) => (
@@ -1792,11 +1820,19 @@ function resetAddRoomState() {
                   {/* {formErrors.guest && (
                     <p className="errorText">{formErrors.guest}</p>
                   )} */}
-                  {formErrors.guest && (
+                  {formErrors.guest_id && (
                     <div className="fieldError">
                       <XCircle size={14} />
-                      <span>{formErrors.guest}</span>
+                      <span>{formErrors.guest_id}</span>
                     </div>
+                  )}
+
+                </div>
+                <div>
+                  {selectedGuest && (
+                    <p className="text-xs text-gray-500">
+                      {selectedGuest.allocatedRooms ?? 0} / {selectedGuest.rooms_required ?? 0} rooms allocated
+                    </p>
                   )}
 
                 </div>

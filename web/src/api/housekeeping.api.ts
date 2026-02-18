@@ -26,34 +26,27 @@ export async function getAllHousekeeping() {
 
 export async function createHousekeeping(
   data: HousekeepingCreateDto,
-  user = "system"
 ) {
-  const res = await api.post("/housekeeping", data, {
-    headers: { "x-user": user }
-  });
+  const res = await api.post("/housekeeping", data);
   return res.data;
 }
 
 export async function updateHousekeeping(
-  hkName: string,
+  hkId: string,
   data: HousekeepingUpdateDto,
-  user = "system"
 ) {
   const res = await api.put(
-    `/housekeeping/${encodeURIComponent(hkName)}`,
+    `/housekeeping/${encodeURIComponent(hkId)}`,
     data,
-    { headers: { "x-user": user } }
   );
   return res.data;
 }
 
 export async function softDeleteHousekeeping(
-  hkName: string,
-  user = "system"
+  hkId: string,
 ) {
   const res = await api.delete(
-    `/housekeeping/${encodeURIComponent(hkName)}`,
-    { headers: { "x-user": user } }
+    `/housekeeping/${encodeURIComponent(hkId)}`,
   );
   return res.data;
 }

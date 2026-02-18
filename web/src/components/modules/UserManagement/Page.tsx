@@ -83,10 +83,18 @@ export default function UserManagement() {
   useEffect(() => {
     async function loadUsers() {
       userTable.setLoading(true);
+
       try {
         const res = await getActiveUsers(userTable.query);
-        // Map based on the response structure { data: [], totalCount: number }
-        const mapped = res.data.map((u: any) => ({
+
+        // Defensive handling
+        const rows = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res)
+          ? res
+          : [];
+
+        const mapped = rows.map((u: any) => ({
           id: u.user_id,
           username: u.username,
           fullName: u.full_name,
@@ -96,7 +104,12 @@ export default function UserManagement() {
         }));
 
         setUsers(mapped);
-        userTable.setTotal(res.totalCount);
+        userTable.setTotal(res?.totalCount ?? rows.length ?? 0);
+
+      } catch (err) {
+        console.error("Failed to load users", err);
+        setUsers([]);
+        userTable.setTotal(0);
       } finally {
         userTable.setLoading(false);
       }
@@ -104,6 +117,31 @@ export default function UserManagement() {
 
     loadUsers();
   }, [userTable.query]);
+
+  // useEffect(() => {
+  //   async function loadUsers() {
+  //     userTable.setLoading(true);
+  //     try {
+  //       const res = await getActiveUsers(userTable.query);
+  //       // Map based on the response structure { data: [], totalCount: number }
+  //       const mapped = res.data.map((u: any) => ({
+  //         id: u.user_id,
+  //         username: u.username,
+  //         fullName: u.full_name,
+  //         role_id: u.role_id,
+  //         mobile: u.user_mobile,
+  //         email: u.email,
+  //       }));
+
+  //       setUsers(mapped);
+  //       userTable.setTotal(res.totalCount);
+  //     } finally {
+  //       userTable.setLoading(false);
+  //     }
+  //   }
+
+  //   loadUsers();
+  // }, [userTable.query]);
 
   useEffect(() => {
     async function loadRoles() {
@@ -135,7 +173,10 @@ export default function UserManagement() {
     await createUser(payload);
 
     // Reload table to properly handle pagination/sorting update
-    userTable.setPage(1);
+    userTable.batchUpdate(prev => ({
+      ...prev,
+      page: 1
+    }));
 
     setIsAddOpen(false);
     resetForm();
@@ -157,7 +198,10 @@ export default function UserManagement() {
 
     // Reload table or update local state if we want to be optimistic
     // Ideally reload for consistent sort/filter
-    userTable.setPage(1); // Or keep current page: setPage(userTable.query.page)
+    userTable.batchUpdate(prev => ({
+      ...prev,
+      page: 1
+    }));
 
     setIsEditOpen(false);
     setSelectedUser(null);
@@ -171,7 +215,10 @@ export default function UserManagement() {
     await softDeleteUser(selectedUser.username);
 
     // Refresh table
-    userTable.setPage(1);
+    userTable.batchUpdate(prev => ({
+      ...prev,
+      page: 1
+    }));
 
     setIsDeleteOpen(false);
     setSelectedUser(null);
@@ -358,6 +405,7 @@ export default function UserManagement() {
                 <label>Username *</label>
                 <input
                   className="nicInput"
+                  autoComplete="username"
                   value={form.username}
                   onChange={(e) =>
                     setForm({ ...form, username: e.target.value })
@@ -404,6 +452,7 @@ export default function UserManagement() {
                   <label>Password *</label>
                   <input
                     type="password"
+                    autoComplete="new-password"
                     className="nicInput"
                     value={form.password}
                     onChange={(e) =>

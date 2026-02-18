@@ -104,11 +104,21 @@ type GuestWithButler = {
 };
 
 export function FoodService() {
+  // const butlerTable = useTableQuery({
+  //   sortBy: "butler_name",
+  //   sortOrder: "asc",
+  // });
   const butlerTable = useTableQuery({
+    prefix: "butler",
+    page: 1,
+    limit: 6,
     sortBy: "butler_name",
     sortOrder: "asc",
+    status: "Active",
   });
+
   const foodTable = useTableQuery({
+    prefix: "food",
     page: 1,
     limit: 6,
     sortBy: "entry_date",
@@ -302,6 +312,7 @@ export function FoodService() {
       butlerTable.setTotal(res.totalCount);
     } catch (err) {
       console.error("Failed to load butlers", err);
+      console.log("Butler Query:", butlerTable.query);
     } finally {
       butlerTable.setLoading(false);
     }
@@ -318,7 +329,7 @@ export function FoodService() {
 
   useEffect(() => {
     loadFoodData();
-    loadButlers();
+    // loadButlers();
     loadTodayMealPlan();
   }, []);
 
