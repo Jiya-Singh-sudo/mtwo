@@ -21,14 +21,12 @@ export class GuestRoomService {
     `);
     return res.rows[0].id;
   }
-
   //Guest Management page - table view(guests, rooms)
   async getRoomOverview() {
     // 1️⃣ Close guest-room rows for exited / cancelled guests
     return this.db.transaction(async (client) => {
 
       try {
-
       await client.query(`
         UPDATE t_guest_room gr
         SET
@@ -36,7 +34,6 @@ export class GuestRoomService {
           check_out_date = COALESCE(gr.check_out_date, CURRENT_DATE),
           action_type = 'Room-Released',
           action_description = 'Auto-release on guest exit',
-          updated_at = NOW()
         FROM t_guest_inout io
         WHERE
           gr.guest_id = io.guest_id
@@ -64,27 +61,54 @@ export class GuestRoomService {
           r.room_id,
           r.room_no,
           r.room_name,
+          r.building_name,
           r.residence_type,
           r.room_capacity,
+          r.room_type,
+          r.room_category,
           r.status AS room_status,
 
           gr.guest_room_id,
           gr.check_in_date::text  AS check_in_date,
           gr.check_out_date::text AS check_out_date,
+          gr.action_type,
+          gr.action_description,
+          gr.remarks,
 
           g.guest_id,
-          g.guest_name
+          g.guest_name,
+          g.guest_name_local_language,
+
+          md.designation_name,
+          md.designation_name_local_language,
+          gd.department,
+          gd.organization,
+          gd.is_current
 
         FROM m_rooms r
+
         LEFT JOIN t_guest_room gr
           ON gr.room_id = r.room_id
         AND gr.is_active = TRUE
+        AND gr.check_out_date IS NULL
+
         LEFT JOIN m_guest g
           ON g.guest_id = gr.guest_id
         AND g.is_active = TRUE
+
+        LEFT JOIN t_guest_designation gd
+          ON gd.guest_id = g.guest_id
+        AND gd.is_current = TRUE
+        AND gd.is_active = TRUE
+
+        LEFT JOIN m_guest_designation md
+          ON md.designation_id = gd.designation_id
+        AND md.is_active = TRUE
+
         WHERE r.is_active = TRUE
         ORDER BY r.room_no;
       `;
+
 
       const res = await client.query(sql);
       return res.rows;
@@ -93,20 +117,42 @@ export class GuestRoomService {
       }
     });
   }
-
-  async activeGuestsDropDown(){
-    const sql = 
-    `SELECT
-      io.guest_id,
-      g.guest_name
-    FROM t_guest_inout io
-    JOIN m_guest g ON g.guest_id = io.guest_id
-    WHERE io.is_active = TRUE
-    ORDER BY g.guest_name;
+  async activeGuestsDropDown() {
+    const sql = `
+      SELECT
+        io.guest_id,
+        g.guest_name,
+        md.designation_name
+      FROM t_guest_inout io
+      JOIN m_guest g 
+        ON g.guest_id = io.guest_id
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+        AND gd.is_current = TRUE
+        AND gd.is_active = TRUE
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+        AND md.is_active = TRUE
+      WHERE io.is_active = TRUE
+      ORDER BY g.guest_name;
     `;
+
     const res = await this.db.query(sql);
     return res.rows;
   }
+  // async activeGuestsDropDown(){
+  //   const sql = 
+  //   `SELECT
+  //     io.guest_id,
+  //     g.guest_name
+  //   FROM t_guest_inout io
+  //   JOIN m_guest g ON g.guest_id = io.guest_id
+  //   WHERE io.is_active = TRUE
+  //   ORDER BY g.guest_name;
+  //   `;
+  //   const res = await this.db.query(sql);
+  //   return res.rows;
+  // }
 
   //Guest Management page - vacate
   async vacate(guestRoomId: string, user: string, ip: string, client?: any) {
@@ -153,8 +199,7 @@ export class GuestRoomService {
           `
           UPDATE t_room_housekeeping
           SET status = 'Cancelled',
-              is_active = FALSE,
-              completed_at = NOW()
+              is_active = FALSE
           WHERE room_id = $1
             AND is_active = TRUE
           `,
@@ -430,7 +475,6 @@ export class GuestRoomService {
             guest_id,
             room_id,
             check_in_date,
-            check_in_time,
             check_out_date,
             action_type,
             action_description,
@@ -440,7 +484,7 @@ export class GuestRoomService {
             inserted_by,
             inserted_ip
           ) VALUES (
-            $1,$2,$3,$4, CURRENT_TIME, $5,
+            $1,$2,$3,$4,$5,
             'Room-Allocated',$6,$7,
             TRUE, NOW(), $8, $9
           )
@@ -529,10 +573,6 @@ export class GuestRoomService {
 
           return { success: true };
         }
-
-        // 🟢 Normal update path
-        const now = new Date().toISOString();
-
         const sql = `
           UPDATE t_guest_room SET
             room_id = $1,
@@ -588,7 +628,6 @@ export class GuestRoomService {
       if (!existing.rowCount) {
         throw new NotFoundException('Guest Room not found');
       }
-
       const sql = `
         UPDATE t_guest_room SET
           is_active = false,

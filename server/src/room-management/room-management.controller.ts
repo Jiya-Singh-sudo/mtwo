@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Param, Body, Req, Query } from '@nestjs/common';
 import { RoomManagementService } from './room-management.service';
 import { EditRoomFullDto } from './dto/editFullRoom.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('room-management')
 export class RoomManagementController {
@@ -31,11 +32,12 @@ export class RoomManagementController {
     @Body() dto: EditRoomFullDto,
     @Req() req
   ) {
+    const { user, ip } = getRequestContext(req);
     return this.service.updateFullRoom(
       roomId,
       dto,
-      req.user?.username ?? 'system',
-      req.ip
+      user,
+      ip
     );
   }
   @Get('assignable-guests')

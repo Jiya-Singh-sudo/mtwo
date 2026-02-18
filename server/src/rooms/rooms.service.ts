@@ -21,7 +21,6 @@ export class RoomsService {
 
     return result.rows[0]?.count ?? 0;
   }
-
   // private async generateRoomId(client: any): Promise<string> {
   //   const result = await client.query(`
   //     SELECT room_id
@@ -259,7 +258,6 @@ export class RoomsService {
       ];
 
       const result = await client.query(sql, params);
-      
       return result.rows[0];
     });
   }

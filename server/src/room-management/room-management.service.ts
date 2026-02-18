@@ -159,7 +159,6 @@ export class RoomManagementService {
     // ${status ? `AND r.status = $${search ? 2 : 1}` : ''}
 
     /* ================= DATA ================= */
-
     const dataSql = `
       SELECT
         r.room_id,
@@ -174,25 +173,63 @@ export class RoomManagementService {
 
         g.guest_id,
         g.guest_name,
+        g.guest_name_local_language,
+
+        md.designation_name,
+        gd.department,
+
         gr.guest_room_id,
         gr.check_in_date,
         gr.check_out_date,
+        gr.action_type,
+        gr.action_description,
+        gr.remarks,
+
+        io.entry_date,
+        io.exit_date,
 
         gh.guest_hk_id,
         hk.hk_id,
         hk.hk_name,
+        hk.hk_name_local_language,
+        hk.shift,
         gh.task_date,
-        gh.task_shift
+        gh.task_shift,
+        gh.service_type,
+        gh.status,
+        gh.admin_instructions
 
       FROM m_rooms r
+
       LEFT JOIN t_guest_room gr
-        ON gr.room_id = r.room_id AND gr.is_active = true
+        ON gr.room_id = r.room_id
+      AND gr.is_active = true
+      AND gr.check_out_date IS NULL
+
       LEFT JOIN m_guest g
         ON g.guest_id = gr.guest_id
+      AND g.is_active = true
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = true
+      AND gd.is_active = true
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = true
+
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+      AND io.room_id = r.room_id
+      AND io.is_active = true
+      AND io.exit_date IS NULL
+
       LEFT JOIN t_room_housekeeping gh
         ON gh.room_id = r.room_id
       AND gh.is_active = true
       AND gh.status != 'Cancelled'
+
       LEFT JOIN m_housekeeping hk
         ON hk.hk_id = gh.hk_id
 
@@ -201,6 +238,56 @@ export class RoomManagementService {
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1}
     `;
+
+    // const dataSql = `
+    //   SELECT
+    //     r.room_id,
+    //     r.room_no,
+    //     r.room_name,
+    //     r.building_name,
+    //     r.residence_type,
+    //     r.room_category,
+    //     r.room_capacity,
+    //     r.status,
+
+    //     g.guest_id,
+    //     g.guest_name,
+    //     g.guest_name_local_language,
+    //     gr.guest_room_id,
+    //     gr.check_in_date,
+    //     gr.check_out_date,
+    //     gr.action_type,
+    //     gr.action_description,
+    //     gr.remarks,
+
+    //     gh.guest_hk_id,
+    //     hk.hk_id,
+    //     hk.hk_name,
+    //     hk.hk_name_local_language,
+    //     hk.shift,
+    //     gh.task_date,
+    //     gh.task_shift,
+    //     gh.service_type,
+    //     gh.status,
+    //     gh.admin_instructions
+
+    //   FROM m_rooms r
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.room_id = r.room_id AND gr.is_active = true
+    //   LEFT JOIN m_guest g
+    //     ON g.guest_id = gr.guest_id
+    //   LEFT JOIN t_room_housekeeping gh
+    //     ON gh.room_id = r.room_id
+    //   AND gh.is_active = true
+    //   AND gh.status != 'Cancelled'
+    //   LEFT JOIN m_housekeeping hk
+    //     ON hk.hk_id = gh.hk_id
+
+    //   WHERE r.is_active = true
+    //   ${whereSql}
+    //   ORDER BY ${sortColumn} ${order}
+    //   LIMIT $${idx} OFFSET $${idx + 1}
+    // `;
 
     const dataParams = [...params, limit, offset];
 
@@ -211,42 +298,59 @@ export class RoomManagementService {
     const { rows } = await this.db.query(dataSql, dataParams);
 
     /* ================= MAP ================= */
-
     return {
       data: rows.map((r) => ({
         roomId: r.room_id,
         roomNo: r.room_no,
         roomName: r.room_name,
+        roomType: r.room_type,
         buildingName: r.building_name,
         residenceType: r.residence_type,
-        roomType: r.room_type,
         roomCategory: r.room_category,
         roomCapacity: r.room_capacity,
         status: r.status,
 
         guest: r.guest_id
           ? {
-            guestId: r.guest_id,
-            guestName: r.guest_name,
-            guestRoomId: r.guest_room_id,
-            checkInDate: r.check_in_date,
-            checkOutDate: r.check_out_date,
-          }
+              guestId: r.guest_id,
+              guestName: r.guest_name,
+              guestNameLocalLanguage: r.guest_name_local_language,
+
+              designation: r.designation_name
+                ? {
+                    name: r.designation_name,
+                    department: r.department,
+                  }
+                : null,
+
+              guestRoomId: r.guest_room_id,
+              checkInDate: r.check_in_date,
+              checkOutDate: r.check_out_date,
+
+              entryDate: r.entry_date,
+              exitDate: r.exit_date,
+            }
           : null,
 
         housekeeping: r.guest_hk_id
           ? {
-            guestHkId: r.guest_hk_id,
-            hkId: r.hk_id,
-            hkName: r.hk_name,
-            taskDate: r.task_date,
-            taskShift: r.task_shift,
-            isActive: true,
-          }
+              guestHkId: r.guest_hk_id,
+              hkId: r.hk_id,
+              hkName: r.hk_name,
+              hkNameLocalLanguage: r.hk_name_local_language,
+              shift: r.shift,
+              taskDate: r.task_date,
+              taskShift: r.task_shift,
+              serviceType: r.service_type,
+              status: r.status,
+              adminInstructions: r.admin_instructions,
+              isActive: true,
+            }
           : null,
       })),
 
       totalCount: count,
+
       stats: {
         total: Number(statsRow.total),
         available: Number(statsRow.available),
@@ -255,6 +359,50 @@ export class RoomManagementService {
         withHousekeeping: Number(statsRow.with_housekeeping),
       },
     };
+
+    // return {
+    //   data: rows.map((r) => ({
+    //     roomId: r.room_id,
+    //     roomNo: r.room_no,
+    //     roomName: r.room_name,
+    //     buildingName: r.building_name,
+    //     residenceType: r.residence_type,
+    //     roomType: r.room_type,
+    //     roomCategory: r.room_category,
+    //     roomCapacity: r.room_capacity,
+    //     status: r.status,
+
+    //     guest: r.guest_id
+    //       ? {
+    //         guestId: r.guest_id,
+    //         guestName: r.guest_name,
+    //         guestRoomId: r.guest_room_id,
+    //         checkInDate: r.check_in_date,
+    //         checkOutDate: r.check_out_date,
+    //       }
+    //       : null,
+
+    //     housekeeping: r.guest_hk_id
+    //       ? {
+    //         guestHkId: r.guest_hk_id,
+    //         hkId: r.hk_id,
+    //         hkName: r.hk_name,
+    //         taskDate: r.task_date,
+    //         taskShift: r.task_shift,
+    //         isActive: true,
+    //       }
+    //       : null,
+    //   })),
+
+    //   totalCount: count,
+    //   stats: {
+    //     total: Number(statsRow.total),
+    //     available: Number(statsRow.available),
+    //     occupied: Number(statsRow.occupied),
+    //     withGuest: Number(statsRow.with_guest),
+    //     withHousekeeping: Number(statsRow.with_housekeeping),
+    //   },
+    // };
   }
 
   /* ================= FULL UPDATE ================= */
@@ -464,7 +612,6 @@ export class RoomManagementService {
             UPDATE t_guest_room
             SET is_active = FALSE,
                 check_out_date = CURRENT_DATE,
-                check_out_time = CURRENT_TIME,
                 updated_at = NOW(),
                 updated_by = $2,
                 updated_ip = $3
@@ -573,7 +720,6 @@ export class RoomManagementService {
             UPDATE t_room_housekeeping
             SET status = 'Cancelled',
                 is_active = FALSE,
-                completed_at = NOW()
             WHERE room_id = $1
               AND is_active = TRUE
             `,
@@ -596,15 +742,12 @@ export class RoomManagementService {
                 service_type,
                 admin_instructions,
                 status,
-                assigned_by,
-                assigned_at,
                 is_active
               ) VALUES (
                 $1,$2,$3,
                 COALESCE($4, CURRENT_DATE),
                 $5,$6,$7,
                 'Scheduled',
-                $8,NOW(),
                 TRUE
               )
               `,
@@ -616,7 +759,6 @@ export class RoomManagementService {
                 dto.task_shift,
                 dto.service_type,
                 dto.admin_instructions ?? null,
-                user,
               ]
             );
           }
@@ -650,16 +792,58 @@ export class RoomManagementService {
   //   return res.rows;
   // }
   async findCheckedInGuestsWithoutRoom() {
+    // const sql = `
+    //   SELECT DISTINCT ON (io.guest_id)
+    //     io.guest_id,
+    //     g.guest_name,
+    //     io.entry_date,
+    //     io.exit_date
+    //   FROM t_guest_inout io
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+    //   AND g.is_active = TRUE
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = io.guest_id
+    //   AND gr.is_active = TRUE
+
+    //   WHERE io.is_active = TRUE
+    //     AND gr.guest_room_id IS NULL
+
+    //     -- ✅ NEW CONSTRAINT
+    //     AND io.entry_date IS NOT NULL
+    //     AND (
+    //       io.exit_date IS NULL
+    //       OR io.exit_date >= CURRENT_DATE
+    //     )
+
+    //   ORDER BY io.guest_id, io.entry_date DESC;
+    // `;
     const sql = `
       SELECT DISTINCT ON (io.guest_id)
         io.guest_id,
         g.guest_name,
+
+        md.designation_name,
+        gd.department,
+
         io.entry_date,
         io.exit_date
+
       FROM t_guest_inout io
+
       JOIN m_guest g
         ON g.guest_id = io.guest_id
       AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = io.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = io.guest_id
@@ -668,7 +852,6 @@ export class RoomManagementService {
       WHERE io.is_active = TRUE
         AND gr.guest_room_id IS NULL
 
-        -- ✅ NEW CONSTRAINT
         AND io.entry_date IS NOT NULL
         AND (
           io.exit_date IS NULL

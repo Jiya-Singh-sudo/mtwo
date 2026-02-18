@@ -96,11 +96,12 @@ export class GuestHousekeepingService {
             service_type,
             admin_instructions,
             status,
-            assigned_by,
-            assigned_at,
-            is_active            -- ✅ ADD THIS
+            is_active,            -- ✅ ADD THIS
+            inserted_at,
+            inserted_by,
+            inserted_ip,
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',$9,NOW(),True
+            $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',True,NOW(),$9,$10
           )
           RETURNING *;
         `;
@@ -113,7 +114,8 @@ export class GuestHousekeepingService {
           dto.task_shift,
           dto.service_type,
           dto.admin_instructions ?? null,
-          user
+          user,
+          ip
         ];
         const res = await client.query(sql, params);
         return res.rows[0];
@@ -149,9 +151,10 @@ export class GuestHousekeepingService {
           service_type = $5,
           admin_instructions = $6,
           status = $7,
-          completed_at = $8,
-          updated_at = NOW()
-        WHERE guest_hk_id = $9
+          updated_at = NOW(),
+          updates_by = $8,
+          updates_ip = $9
+        WHERE guest_hk_id = $10
         RETURNING *;
       `;
 
@@ -163,7 +166,8 @@ export class GuestHousekeepingService {
         dto.service_type ?? existing.service_type,
         dto.admin_instructions ?? existing.admin_instructions,
         dto.status ?? existing.status,
-        dto.completed_at ?? existing.completed_at,
+        user,
+        ip,
         id,
       ];
 
@@ -175,7 +179,7 @@ export class GuestHousekeepingService {
     });
   }
 
-  async cancel(id: string) {
+  async cancel(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
       // 1️⃣ Fetch housekeeping task
@@ -208,13 +212,14 @@ export class GuestHousekeepingService {
         SET
           status = 'Cancelled',
           is_active = FALSE,
-          completed_at = NOW(),
-          updated_at = NOW()
+          updated_at = NOW(),
+          updates_by = $2,
+          updates_ip = $3
         WHERE guest_hk_id = $1
         RETURNING *;
       `;
 
-      const res = await client.query(sql, [id]);
+      const res = await client.query(sql, [id, user, ip]);
       return res.rows[0];
       } catch (error) {
         throw error;

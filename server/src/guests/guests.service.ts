@@ -892,7 +892,7 @@ export class GuestsService {
   ) {
     // Get guest_id from inout
     const inoutRes = await trx.query(
-      `SELECT guest_id FROM t_guest_inout WHERE inout_id = $1`,
+      `SELECT guest_id FROM t_guest_inout WHERE inout_id = $1 FOR UPDATE`,
       [inoutId]
     );
 
@@ -948,7 +948,6 @@ export class GuestsService {
           SET
             status = 'Cancelled',
             is_active = FALSE,
-            completed_at = NOW()
             updated_at = NOW(),
             updated_by = $2,
             updated_ip = $3

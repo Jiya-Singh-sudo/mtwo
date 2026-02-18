@@ -120,7 +120,6 @@ export class HousekeepingService {
 
   async create(dto: CreateHousekeepingDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
       // 1️⃣ Prevent duplicate housekeeping name (case-insensitive)
       const existingByName = await client.query(
         `
