@@ -124,63 +124,79 @@ export class GuestNetworkService {
 
     /* ---------- DATA ---------- */
     const dataSql = `
-    SELECT
-      g.guest_id,
-      g.guest_name,
+      SELECT
+        g.guest_id,
+        g.guest_name,
 
-      /* -------- Room (from t_guest_room) -------- */
-      r.room_id,
-      r.room_no,
+        /* -------- Room (from t_guest_room) -------- */
+        gr.room_id,
+        gr.room_no,
 
-      /* -------- InOut Context -------- */
-      io.entry_date,
-      io.entry_time,
-      io.status AS inout_status,
+        /* -------- InOut Context -------- */
+        io.entry_date,
+        io.entry_time,
+        io.exit_date,
+        io.exit_time,
+        io.status AS inout_status,
 
-      /* -------- Network (may not exist) -------- */
-      gn.guest_network_id,
-      wp.provider_name,
-      gn.network_status,
-      gn.start_date,
-      gn.start_time,
-      gn.end_date,
-      gn.end_time,
+        /* -------- Designation -------- */
+        md.designation_name,
+        gd.department,
 
-      /* -------- Messenger (may not exist) -------- */
-      gm.guest_messenger_id,
-      CASE 
-        WHEN gm.guest_messenger_id IS NOT NULL THEN 'Assigned'
-        ELSE NULL
-      END AS messenger_status,
-      gm.assignment_date,
-      gm.remarks
+        /* -------- Network (may not exist) -------- */
+        gn.guest_network_id,
+        wp.provider_name,
+        gn.network_status,
+        gn.start_date,
+        gn.start_time,
+        gn.end_date,
+        gn.end_time,
 
-    FROM t_guest_inout io
-    JOIN m_guest g
-      ON g.guest_id = io.guest_id
+        /* -------- Messenger (may not exist) -------- */
+        gm.guest_messenger_id,
+        CASE 
+          WHEN gm.guest_messenger_id IS NOT NULL THEN 'Assigned'
+          ELSE NULL
+        END AS messenger_status,
+        gm.assignment_date,
+        gm.remarks
 
-    LEFT JOIN t_guest_room gr
-      ON gr.guest_id = g.guest_id
-    AND gr.is_active = TRUE
+      FROM t_guest_inout io
 
-    LEFT JOIN m_rooms r
-      ON r.room_id = gr.room_id
+      JOIN m_guest g
+        ON g.guest_id = io.guest_id
+      AND g.is_active = TRUE
 
-    LEFT JOIN t_guest_network gn
-      ON gn.guest_id = g.guest_id
-    AND gn.is_active = TRUE
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+      AND gr.is_active = TRUE
+      AND gr.check_out_date IS NULL
 
-    LEFT JOIN m_wifi_provider wp
-      ON wp.provider_id = gn.provider_id
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
 
-    LEFT JOIN t_guest_messenger gm
-      ON gm.guest_id = g.guest_id
-    AND gm.is_active = TRUE
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
-    ${whereClause}
-    ORDER BY ${sortColumn} ${sortOrder}
-    LIMIT $${idx} OFFSET $${idx + 1};
-  `;
+      LEFT JOIN t_guest_network gn
+        ON gn.guest_id = g.guest_id
+      AND gn.is_active = TRUE
+
+      LEFT JOIN m_wifi_provider wp
+        ON wp.provider_id = gn.provider_id
+
+      LEFT JOIN t_guest_messenger gm
+        ON gm.guest_id = g.guest_id
+      AND gm.is_active = TRUE
+
+      ${whereClause}
+
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT $${idx} OFFSET $${idx + 1};
+    `;
 
     const statsSql = `
     SELECT
@@ -237,7 +253,6 @@ export class GuestNetworkService {
       INSERT INTO t_guest_network (
         guest_network_id, guest_id, provider_id, room_id,
         network_zone_from, network_zone_to,
-        start_date, start_time, end_date, end_time,
         start_status, end_status, network_status,
         description, remarks,
         is_active,
@@ -245,10 +260,9 @@ export class GuestNetworkService {
       ) VALUES (
         $1,$2,$3,$4,
         $5,$6,
-        $7,$8,$9,$10,
-        $11,$12,$13,
-        $14,$15,
-        true, NOW(), $16, $17
+        $7,$8,$9,
+        $10,$11,
+        true, NOW(), $12, $13
       ) RETURNING *;
     `;
 
@@ -259,10 +273,6 @@ export class GuestNetworkService {
       dto.room_id ?? null,
       dto.network_zone_from ?? null,
       dto.network_zone_to ?? null,
-      dto.start_date,
-      dto.start_time,
-      dto.end_date ?? null,
-      dto.end_time ?? null,
       dto.start_status ?? "Waiting",
       dto.end_status ?? "Waiting",
       dto.network_status ?? "Requested",
@@ -292,20 +302,16 @@ export class GuestNetworkService {
           room_id = $2,
           network_zone_from = $3,
           network_zone_to = $4,
-          start_date = $5,
-          start_time = $6,
-          end_date = $7,
-          end_time = $8,
-          start_status = $9,
-          end_status = $10,
-          network_status = $11,
-          description = $12,
-          remarks = $13,
-          is_active = $14,
+          start_status = $5,
+          end_status = $6,
+          network_status = $7,
+          description = $8,
+          remarks = $9,
+          is_active = $10,
           updated_at = NOW(),
-          updated_by = $15,
-          updated_ip = $16
-        WHERE guest_network_id = $17
+          updated_by = $11,
+          updated_ip = $12
+        WHERE guest_network_id = $13
         RETURNING *;
       `;
 
@@ -314,10 +320,6 @@ export class GuestNetworkService {
         dto.room_id ?? existing.room_id,
         dto.network_zone_from ?? existing.network_zone_from,
         dto.network_zone_to ?? existing.network_zone_to,
-        dto.start_date ?? existing.start_date,
-        dto.start_time ?? existing.start_time,
-        dto.end_date ?? existing.end_date,
-        dto.end_time ?? existing.end_time,
         dto.start_status ?? existing.start_status,
         dto.end_status ?? existing.end_status,
         dto.network_status ?? existing.network_status,
@@ -454,9 +456,6 @@ export class GuestNetworkService {
         room_id,
         network_zone_from,
         network_zone_to,
-        start_date,
-        start_time,
-        start_status,
         network_status,
         description,
         remarks,
@@ -468,12 +467,10 @@ export class GuestNetworkService {
       VALUES (
         $1,$2,$3,$4,
         $5,$6,
-        $7,$8,
-        'Waiting',
         'Requested',
-        $9,$10,
+        $7,$8,
         true, NOW(),
-        $11,$12
+        $9,$10
       )
       RETURNING *;
       `,

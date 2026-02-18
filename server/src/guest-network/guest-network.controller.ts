@@ -4,23 +4,11 @@ import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { CloseGuestNetworkDto } from "./dto/close-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
 import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
+import { getRequestContext } from '../../common/utlis/request-context.util';
+
 @Controller("guest-network")
 export class GuestNetworkController {
   constructor(private readonly service: GuestNetworkService) {}
-
-  private extractIp(req: any): string {
-    let ip =
-      req.headers["x-forwarded-for"] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      req.ip ||
-      "";
-    ip = ip.toString().replace("::ffff:", "");
-    if (ip.includes(",")) ip = ip.split(",")[0].trim();
-    if (ip === "::1") ip = "127.0.0.1";
-    return ip;
-  }
-
   @Get('table')
   getTable(@Query() query: GuestNetworkTableQueryDto) {
     return this.service.getGuestNetworkTable(query);
@@ -38,15 +26,13 @@ export class GuestNetworkController {
 
   @Post()
   create(@Body() dto: CreateGuestNetworkDto, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.create(dto, user, ip);
   }
 
   @Put(":id")
   update(@Param("id") id: string, @Body() dto: UpdateGuestNetworkDto, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.update(id, dto, user, ip);
   }
 
@@ -56,20 +42,19 @@ export class GuestNetworkController {
     @Body() dto: CloseGuestNetworkDto,
     @Req() req: any
   ) {
-    const user = req.headers['x-user'] || 'system';
+    const { user, ip } = getRequestContext(req);
     return this.service.closeAndCreateNext(
       id,
       dto,
       user,
-      this.extractIp(req)
+      ip
     );
   }
 
 
   @Delete(":id")
   softDelete(@Param("id") id: string, @Req() req: any) {
-    const user = req.headers["x-user"] || "system";
-    const ip = this.extractIp(req);
-    return this.service.softDelete(id, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
 }

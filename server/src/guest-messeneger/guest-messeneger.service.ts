@@ -104,6 +104,13 @@ export class GuestMessengerService {
         g.guest_name,
 
         io.room_id,
+        io.entry_date,
+        io.entry_time,
+        io.exit_date,
+        io.exit_time,
+
+        md.designation_name,
+        gd.department,
 
         -- Network
         gn.guest_network_id,
@@ -123,26 +130,83 @@ export class GuestMessengerService {
 
       LEFT JOIN t_guest_inout io
         ON io.guest_id = g.guest_id
-       AND io.is_active = TRUE
+      AND io.is_active = TRUE
+      AND io.exit_date IS NULL   -- current stay only
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
 
       LEFT JOIN t_guest_network gn
         ON gn.guest_id = g.guest_id
-       AND gn.is_active = TRUE
+      AND gn.is_active = TRUE
 
       LEFT JOIN m_network n
         ON n.network_id = gn.network_id
 
       LEFT JOIN t_guest_messenger gm
         ON gm.guest_id = g.guest_id
-       AND gm.is_active = TRUE
+      AND gm.is_active = TRUE
 
       LEFT JOIN m_messenger m
         ON m.messenger_id = gm.messenger_id
 
       ${whereSql}
+
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
+
+    // const dataSql = `
+    //   SELECT DISTINCT
+    //     g.guest_id,
+    //     g.guest_name,
+
+    //     io.room_id,
+
+    //     -- Network
+    //     gn.guest_network_id,
+    //     gn.status AS network_status,
+    //     n.network_id,
+    //     n.network_name,
+
+    //     -- Messenger
+    //     gm.guest_messenger_id,
+    //     gm.status AS messenger_status,
+    //     m.messenger_id,
+    //     m.messenger_name,
+
+    //     COALESCE(gn.requested_at, gm.requested_at) AS requested_at
+
+    //   FROM m_guest g
+
+    //   LEFT JOIN t_guest_inout io
+    //     ON io.guest_id = g.guest_id
+    //    AND io.is_active = TRUE
+
+    //   LEFT JOIN t_guest_network gn
+    //     ON gn.guest_id = g.guest_id
+    //    AND gn.is_active = TRUE
+
+    //   LEFT JOIN m_network n
+    //     ON n.network_id = gn.network_id
+
+    //   LEFT JOIN t_guest_messenger gm
+    //     ON gm.guest_id = g.guest_id
+    //    AND gm.is_active = TRUE
+
+    //   LEFT JOIN m_messenger m
+    //     ON m.messenger_id = gm.messenger_id
+
+    //   ${whereSql}
+    //   ORDER BY ${sortColumn} ${order}
+    //   LIMIT $${idx} OFFSET $${idx + 1};
+    // `;
 
     const countRes = await this.db.query(countSql, sqlParams);
 
@@ -376,6 +440,11 @@ export class GuestMessengerService {
         g.guest_id,
         g.guest_name,
         m.messenger_name,
+        m.messenger_name_local_language,
+        m.primary_mobile,
+        m.secondary_mobile,
+        m.email,
+        m.designation,
         gm.assignment_date,
         gm.remarks,
         gm.is_active

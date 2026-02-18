@@ -278,8 +278,6 @@ if (query.status === 'unassigned') {
         designation,
         remarks,
         is_active,
-        inserted_at,
-        updated_at
         FROM m_messenger m
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder}

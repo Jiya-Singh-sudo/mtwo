@@ -3,20 +3,11 @@ import { NetworksService } from './networks.service';
 import { CreateNetworkDto } from './dto/create-network.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { NetworkTableQueryDto } from './dto/network-table-query.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('wifi-providers')
 export class NetworksController {
   constructor(private readonly service: NetworksService) {}
-
-  private extractIp(req: any): string {
-    let ip =
-      req.headers['x-forwarded-for'] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      req.ip || '';
-    ip = ip.replace('::ffff:', '');
-    return ip.includes(',') ? ip.split(',')[0].trim() : ip;
-  }
   @Get('table')
   getNetworkTable(@Query() query: NetworkTableQueryDto) {
     return this.service.getNetworkTable(query);
@@ -34,8 +25,8 @@ export class NetworksController {
 
   @Post()
   create(@Body() dto: CreateNetworkDto, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    return this.service.create(dto, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Put(':provider_id')
@@ -44,13 +35,13 @@ export class NetworksController {
     @Body() dto: UpdateNetworkDto,
     @Req() req: any
   ) {
-    const user = req.headers['x-user'] || 'system';
-    return this.service.update(id, dto, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.update(id, dto, user, ip);
   }
 
   @Delete(':provider_id')
   remove(@Param('provider_id') id: string, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    return this.service.softDelete(id, user, this.extractIp(req));
+    const { user, ip } = getRequestContext(req);
+    return this.service.softDelete(id, user, ip);
   }
 }

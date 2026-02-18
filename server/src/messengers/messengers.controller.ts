@@ -3,27 +3,15 @@ import { MessengerService } from './messengers.service';
 import { CreateMessengerDto } from './dto/create-messenger.dto';
 import { UpdateMessengerDto } from './dto/update-messenger.dto';
 import { MessengerTableQueryDto } from './dto/messenger-table-query.dto';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('messenger')
 export class MessengerController {
   constructor(private readonly service: MessengerService) {}
-
-  private extractIp(req: any): string {
-    let ip =
-      req.headers['x-forwarded-for'] ||
-      req.socket?.remoteAddress ||
-      req.ip ||
-      '';
-    return ip.replace('::ffff:', '').split(',')[0];
-  }
-
   @Post()
   create(@Body() dto: CreateMessengerDto, @Req() req: any) {
-    return this.service.create(
-      dto,
-      req.headers['x-user'] || 'system',
-      this.extractIp(req),
-    );
+    const { user, ip } = getRequestContext(req);
+    return this.service.create(dto, user, ip);
   }
 
   @Put(':id')
@@ -32,20 +20,22 @@ export class MessengerController {
     @Body() dto: UpdateMessengerDto,
     @Req() req: any,
   ) {
+    const { user, ip } = getRequestContext(req);
     return this.service.update(
       id,
       dto,
-      req.headers['x-user'] || 'system',
-      this.extractIp(req),
+      user,
+      ip,
     );
   }
 
   @Delete(':id')
   softDelete(@Param('id') id: string, @Req() req: any) {
+    const { user, ip } = getRequestContext(req);
     return this.service.softDelete(
       id,
-      req.headers['x-user'] || 'system',
-      this.extractIp(req),
+      user,
+      ip,
     );
   }
 

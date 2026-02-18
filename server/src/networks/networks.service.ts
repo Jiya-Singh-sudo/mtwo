@@ -117,8 +117,6 @@ export class NetworksService {
         static_ip,
         address,
         is_active,
-        inserted_at,
-        updated_at
       FROM m_wifi_provider
       ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}
@@ -245,18 +243,7 @@ export class NetworksService {
           updated_at, updated_by, updated_ip
         )
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),$10,$11,NULL,NULL,NULL)
-        RETURNING
-          provider_id,
-          provider_name,
-          provider_name_local_language,
-          network_type,
-          bandwidth_mbps,
-          username,
-          static_ip,
-          address,
-          is_active,
-          inserted_at,
-          updated_at;
+        RETURNING *
       `;
 
       const params = [
