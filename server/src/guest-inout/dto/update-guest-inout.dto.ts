@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsDateString, IsNumber, IsBoolean } from 'class-validator';
 
 export enum GuestInoutStatus {
   Entered = 'Entered',
@@ -38,6 +38,15 @@ export class UpdateGuestInoutDto {
   purpose?: string;
 
   @IsOptional()
-  @IsString()
-  room_id?: string;
+  @IsNumber()
+  rooms_required?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requires_driver?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  companions?: number;
+  
 }

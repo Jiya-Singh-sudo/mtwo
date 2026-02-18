@@ -6,6 +6,12 @@ import { CreateGuestDesignationDto } from './dto/create-guest-designation.dto';
 export class GuestDesignationService {
   constructor(private readonly db: DatabaseService) {}
 
+  private async generateGuestDesignationId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GD_' || LPAD(nextval('guest_designation_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
   // async create(dto: CreateGuestDesignationDto, user: string, ip: string) {
   //   return this.db.transaction(async (client) => {
 
@@ -44,8 +50,8 @@ export class GuestDesignationService {
 
       if (dto.designation_name) {
         await client.query(`
-          INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip)
-          VALUES ($1,$2,$3,$4)
+          INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip, inserted_at)
+          VALUES ($1,$2,$3,$4, NOW())
           ON CONFLICT (designation_id) DO UPDATE
             SET designation_name = EXCLUDED.designation_name,
                 updated_at = NOW(),
@@ -60,16 +66,12 @@ export class GuestDesignationService {
 
         if (check.rowCount === 0) {
           await client.query(`
-            INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip)
-            VALUES ($1,$2,$3,$4)
+            INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip, inserted_at)
+            VALUES ($1,$2,$3,$4, NOW())
           `, [dto.designation_id, null, user, ip]);
         }
       }
-
-      const idRes = await client.query(`
-        SELECT 'GD' || LPAD(nextval('guest_designation_seq')::text, 5, '0') AS id
-      `);
-      const gd_id = idRes.rows[0].id;
+      const gd_id = await this.generateGuestDesignationId(client);
       await client.query(`
         UPDATE t_guest_designation
         SET is_current = false,
@@ -85,9 +87,9 @@ export class GuestDesignationService {
           gd_id, guest_id, designation_id,
           department, organization, office_location,
           is_current, is_active,
-          inserted_by, inserted_ip
+          inserted_by, inserted_ip, inserted_at
         )
-        VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7,$8)
+        VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7,$8, NOW())
         RETURNING *;
       `, [
         gd_id,
@@ -117,8 +119,8 @@ export class GuestDesignationService {
 
       if (dto.designation_name && dto.designation_id) {
         await client.query(`
-          INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip)
-          VALUES ($1,$2,$3,$4)
+          INSERT INTO m_guest_designation (designation_id, designation_name, inserted_by, inserted_ip, inserted_at)
+          VALUES ($1,$2,$3,$4, NOW())
           ON CONFLICT (designation_id) DO UPDATE
           SET designation_name = EXCLUDED.designation_name,
               updated_at = NOW(),

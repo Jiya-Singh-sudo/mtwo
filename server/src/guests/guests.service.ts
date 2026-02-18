@@ -42,7 +42,12 @@ export class GuestsService {
     `);
     return res.rows[0].id;
   }
-
+  private async generateGuestDesignationId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GD_' || LPAD(nextval('guest_designation_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
   private async generateGuestId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'G' || LPAD(nextval('guest_seq')::text, 3, '0') AS id
@@ -65,7 +70,6 @@ export class GuestsService {
   //   const nextNum = parseInt(lastId.substring(1), 10) + 1;
   //   return `G${nextNum.toString().padStart(3, '0')}`;
   // }
-
   async getGuestStatusCounts() {
     const sql = `
       SELECT
@@ -94,218 +98,238 @@ export class GuestsService {
       Cancelled: r.cancelled,
     };
   }
-
-
   // create guest (transactional)
   async createFullGuest(payload: {
-    guest: CreateGuestDto;
-    designation?: {
-      designation_name?: string;
-      department?: string;
-      organization?: string;
-      office_location?: string;
-    };
-    inout?: {
-      entry_date?: string;
-      entry_time?: string;
-      exit_date?: string;
-      exit_time?: string;
-      // status?: 'Entered' | 'Inside' | 'Exited' | 'Scheduled';
-      purpose?: string;
-      remarks?: string;
-    };
-  }, user = 'system', ip = '0.0.0.0') {
-    // transaction start
-    return this.db.transaction(async (client) => {
-    const today = todayISO();
-    let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
+      guest: CreateGuestDto;
+      designation?: {
+        designation_name?: string;
+        department?: string;
+        organization?: string;
+        office_location?: string;
+        is_current?: boolean;
+      };
+      inout?: {
+        entry_date?: string;
+        entry_time?: string;
+        exit_date?: string;
+        exit_time?: string;
+        // status?: 'Entered' | 'Inside' | 'Exited' | 'Scheduled';
+        purpose?: string;
+        remarks?: string;
+        rooms_required?: number;
+        requires_driver?: boolean;
+        companions?: number;
+      };
+    }, user: string, ip: string) {
+      // transaction start
+      return this.db.transaction(async (client) => {
+      const today = todayISO();
+      let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
 
-    // pastedGraphic.png Block back-dated entry
-    // if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
-    //   throw new BadRequestException('Entry date cannot be in the past');
-    // }
+      // pastedGraphic.png Block back-dated entry
+      // if (payload.inout?.entry_date && isBefore(payload.inout.entry_date, today)) {
+      //   throw new BadRequestException('Entry date cannot be in the past');
+      // }
 
-    // pastedGraphic_1.png Auto Scheduled
-    if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
-      status = 'Scheduled';
-    }
-
-    // pastedGraphic_2.png Auto Exited
-    if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
-      status = 'Exited';
-    }
-    try {
-
-      const g = payload.guest;
-
-      if (g.guest_address && g.guest_address.length > 255) {
-        throw new BadRequestException(
-          'Address cannot exceed 255 characters'
-        );
+      // pastedGraphic_1.png Auto Scheduled
+      if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
+        status = 'Scheduled';
       }
 
-      // 1. Generate ID (seconds timestamp to fit integer)
-      const guest_id = await this.generateGuestId(client);
-      // Transliteration (NON-BLOCKING & SAFE)
-      const mr = transliterateToDevanagari(g.guest_name);
-
-      // 2. Insert Guest (Fixed "inserted_ip" typo here)
-      const insertGuestSql = `
-        INSERT INTO m_guest
-          (guest_id, guest_name, guest_name_local_language,
-          guest_mobile, guest_alternate_mobile,
-          guest_address, email,
-          requires_driver,
-          inserted_by, inserted_ip,
-          id_proof_type, id_proof_no)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-        RETURNING *;
-      `;
-
-      const guestRes = await client.query(insertGuestSql, [
-        guest_id, // $1
-        g.guest_name,
-        mr,
-        g.guest_mobile || null,
-        g.guest_alternate_mobile || null,
-        g.guest_address || null,
-        g.email || null,
-        g.requires_driver || false,
-        user,
-        ip,
-        g.id_proof_type || 'Aadhaar',
-        g.id_proof_number || null
-      ]);
-      const guestRow = guestRes.rows[0];
-
-      // 3. Upsert m_guest_designation (MASTER ONLY)
-      if (!payload.designation?.designation_name) {
-        throw new BadRequestException('Designation name is required');
+      // pastedGraphic_2.png Auto Exited
+      if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
+        status = 'Exited';
       }
+      try {
+        const g = payload.guest;
+        if (g.guest_address && g.guest_address.length > 255) {
+          throw new BadRequestException(
+            'Address cannot exceed 255 characters'
+          );
+        }
+        // 1. Generate ID (seconds timestamp to fit integer)
+        const guest_id = await this.generateGuestId(client);
+        // Transliteration (NON-BLOCKING & SAFE)
+        const mr = transliterateToDevanagari(g.guest_name);
 
-      const generatedDesignationId = await this.generateDesignationId(client);
-        const upsertSql = `
-          INSERT INTO m_guest_designation (
-            designation_id,
-            designation_name,
-            inserted_by,
-            inserted_ip
-          )
-          VALUES ($1,$2,$3,$4)
-          ON CONFLICT (designation_name) DO UPDATE
-            SET designation_name = EXCLUDED.designation_name,
-                updated_at = NOW(),
-                updated_by = EXCLUDED.inserted_by,
-                updated_ip = EXCLUDED.inserted_ip::inet
+        // 2. Insert Guest (Fixed "inserted_ip" typo here)
+        const insertGuestSql = `
+          INSERT INTO m_guest
+            (guest_id, guest_name, guest_name_local_language,
+            guest_mobile, guest_alternate_mobile,
+            guest_address, email,
+            inserted_by, inserted_ip,
+            id_proof_type, id_proof_no, inserted_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
           RETURNING *;
         `;
 
-      const desRes = await client.query(upsertSql, [
-        generatedDesignationId,
-        payload.designation.designation_name,
-        user,
-        ip,
-      ]);
+        const guestRes = await client.query(insertGuestSql, [
+          guest_id, // $1
+          g.guest_name,
+          mr,
+          g.guest_mobile || null,
+          g.guest_alternate_mobile || null,
+          g.guest_address || null,
+          g.email || null,
+          user,
+          ip
+        ]);
+        const guestRow = guestRes.rows[0];
 
-      const finalDesignationId = desRes.rows[0].designation_id;
+        // 3. Upsert m_guest_designation
+        if (!payload.designation?.designation_name) {
+          throw new BadRequestException('Designation name is required');
+        }
+        const generatedDesignationId = await this.generateDesignationId(client);
+          const upsertSql = `
+            INSERT INTO m_guest_designation (
+              designation_id,
+              designation_name,
+              inserted_by,
+              inserted_ip,
+              inserted_at
+            )
+            VALUES ($1,$2,$3,$4,NOW())
+            ON CONFLICT (designation_name) DO UPDATE
+              SET designation_name = EXCLUDED.designation_name,
+                  updated_at = NOW(),
+                  updated_by = EXCLUDED.inserted_by,
+                  updated_ip = EXCLUDED.inserted_ip::inet
+            RETURNING *;
+          `;
 
-      // 4. Create t_guest_designation
-      // if (!generatedDesignationId) {
-      //   throw new BadRequestException('Designation is required');
-      // }
+        const desRes = await client.query(upsertSql, [
+          generatedDesignationId,
+          payload.designation.designation_name,
+          user,
+          ip,
+        ]);
 
-      const d = payload.designation;
-      const gd_id = `GD${Date.now()}`;
+        const finalDesignationId = desRes.rows[0].designation_id;
 
-        await client.query(
-          `
-          INSERT INTO t_guest_designation (
-            gd_id,
-            guest_id,
-            designation_id,
-            department,
-            organization,
-            office_location,
-            is_current,
-            is_active,
-            inserted_by,
-            inserted_ip
-          )
-          VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, $7, $8)
-          `,
-          [
-            gd_id,
-            guestRow.guest_id,
-            finalDesignationId,
-            d?.department || null,
-            d?.organization || null,
-            d?.office_location || null,
-            user,
-            ip,
-          ]
-        );
-      // if (generatedDesignationId) {
-      //   gd_id = `GD${Date.now()}`;
+        // 4. Create t_guest_designation
+        // if (!generatedDesignationId) {
+        //   throw new BadRequestException('Designation is required');
+        // }
 
-      // }
+        const d = payload.designation;
+        const gd_id = await this.generateGuestDesignationId(client);
 
-      // 5. Create t_guest_inout
-      if (
-        payload.inout?.entry_date &&
-        payload.inout?.exit_date &&
-        isBefore(payload.inout.exit_date, payload.inout.entry_date)
-      ) {
+          await client.query(
+            `
+            INSERT INTO t_guest_designation (
+              gd_id,
+              guest_id,
+              designation_id,
+              department,
+              organization,
+              office_location,
+              is_current,
+              is_active,
+              inserted_at,
+              inserted_by,
+              inserted_ip
+            )
+            VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, NOW(), $7, $8)
+            `,
+            [
+              gd_id,
+              guestRow.guest_id,
+              finalDesignationId,
+              d?.department || null,
+              d?.organization || null,
+              d?.office_location || null,
+              user,
+              ip,
+            ]
+          );
+        // if (generatedDesignationId) {
+        //   gd_id = `GD${Date.now()}`;
+
+        // }
+
+        // 5. Create t_guest_inout
+        if (
+          payload.inout?.entry_date &&
+          payload.inout?.exit_date &&
+          isBefore(payload.inout.exit_date, payload.inout.entry_date)
+        ) {
+          throw new BadRequestException(
+            'Exit date cannot be before entry date'
+          );
+        }
+        const inout_id = `IN${Date.now()}`;
+        if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
+          throw new BadRequestException("Entry date and time are required");
+        }
+        // BEFORE inserting into t_guest_inout
+        const existing = await client.query(`
+          SELECT 1
+          FROM t_guest_inout
+          WHERE guest_id = $1
+            AND is_active = TRUE
+        `, [guest_id]);
+
+        if (existing.rowCount > 0) {
+          throw new BadRequestException(
+            'Guest already has an active visit'
+          );
+        }
+        const entry_date = payload.inout.entry_date;
+        const entry_time = payload.inout.entry_time;
+        const companions = payload.inout?.companions ?? 0;
+        const roomsRequired = payload.inout?.rooms_required ?? 1;
+
+        if (companions < 0) {
+          throw new BadRequestException('Companions cannot be negative');
+        }
+
+        if (roomsRequired <= 0) {
+          throw new BadRequestException('Rooms required must be at least 1');
+        }
+
+        const insertIoSql = `
+          INSERT INTO t_guest_inout
+            (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, rooms_required, requires_driver, companions, is_active, inserted_at, inserted_by, inserted_ip)
+          VALUES ($1,$2,$3,$4::DATE,$5,$6::DATE,$7,$8,$9,$10, $11, $12, $13, TRUE, NOW(), $14, $15)
+          RETURNING *;
+        `;
+
+        const ioRes = await client.query(insertIoSql, [
+          inout_id,
+          guestRow.guest_id,
+          true,
+          entry_date,
+          entry_time,
+          payload.inout?.exit_date,
+          payload.inout?.exit_time,
+          status,
+          payload.inout?.purpose || null,
+          payload.inout?.remarks || null,
+          payload.inout?.rooms_required ?? 1, // ➕ ADD
+          payload.inout?.requires_driver ?? false, // ➕ ADD
+          payload.inout?.companions ?? 0, // ➕ ADD
+          user,
+          ip
+        ]);
+        return {
+          guest: guestRow,
+          inout: ioRes.rows[0],
+          gd_id
+        };
+      } catch (err) {
+        console.error('CREATE GUEST ERROR:', err);
         throw new BadRequestException(
-          'Exit date cannot be before entry date'
+          err?.message || 'Guest creation failed'
         );
       }
-      const inout_id = `IN${Date.now()}`;
-      const now = new Date();
-      if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
-        throw new BadRequestException("Entry date and time are required");
-      }
-      const entry_date = payload.inout.entry_date;
-      const entry_time = payload.inout.entry_time;
-
-      const insertIoSql = `
-        INSERT INTO t_guest_inout
-          (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, is_active, inserted_by, inserted_ip)
-        VALUES ($1,$2,$3,$4::DATE,$5,$6::DATE,$7,$8,$9,$10, TRUE, $11, $12)
-        RETURNING *;
-      `;
-
-      const ioRes = await client.query(insertIoSql, [
-        inout_id,
-        guestRow.guest_id,
-        true,
-        entry_date,
-        entry_time,
-        payload.inout?.exit_date,
-        payload.inout?.exit_time,
-        status,
-        payload.inout?.purpose || null,
-        payload.inout?.remarks || null,
-        user,
-        ip
-      ]);
-      return {
-        guest: guestRow,
-        inout: ioRes.rows[0],
-        gd_id
-      };
-    } catch (err) {
-      console.error('CREATE GUEST ERROR:', err);
-      throw new BadRequestException(
-        err?.message || 'Guest creation failed'
-      );
-    }
-  });
-}
+    });
+  }
 
   // Generic update
-  async update(guestId: string, dto: UpdateGuestDto, user = 'system', ip = '0.0.0.0') {
+  async update(guestId: string, dto: UpdateGuestDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
       try {
         const statusCheck = await client.query(
           `
@@ -326,12 +350,11 @@ export class GuestsService {
             `Cannot edit guest once status is ${status}`
           );
         }
-        
       }
       
       const allowed = new Set([
         'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
-        'guest_address', 'email', 'requires_driver'
+        'guest_address', 'email'
       ]);
       const fields: string[] = [];
       const vals: any[] = [];
@@ -389,7 +412,7 @@ export class GuestsService {
   //   return r.rows[0];
   // }
 
-  async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
+  async softDeleteGuest(guestId: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
         // 1. Deactivate guest
@@ -403,9 +426,29 @@ export class GuestsService {
           RETURNING *;
         `;
         const r = await client.query(sql, [guestId, user, ip]);
+        const activeInouts = await client.query(`
+          SELECT inout_id
+          FROM t_guest_inout
+          WHERE guest_id = $1
+          AND is_active = TRUE
+          FOR UPDATE
+        `, [guestId]);
+        await client.query(`
+          UPDATE t_guest_inout
+          SET status = 'Exited',
+              is_active = FALSE,
+              updated_at = NOW(),
+              updated_by = $2,
+              updated_ip = $3
+          WHERE guest_id = $1
+            AND is_active = TRUE
+        `, [guestId, user, ip]);
 
+        for (const row of activeInouts.rows) {
+          await this.cascadeGuestExit(row.inout_id, client, user, ip);
+        }
         // 2. Cascade exit
-        await this.cascadeGuestExit(guestId, client, user, ip);
+        // await this.cascadeGuestExit(guestId, client, user, ip);
         return r.rows[0];
       } catch (err) {
         console.error('Guest delete failed:', err);
@@ -520,7 +563,8 @@ export class GuestsService {
         io.exit_time,
         io.status AS inout_status,
         io.purpose,
-        io.room_id
+        io.rooms_required,
+        io.requires_driver
 
       FROM m_guest g
       LEFT JOIN t_guest_inout io
@@ -557,7 +601,7 @@ export class GuestsService {
     };
   }
 
-  async softDeleteInOut(inoutId: string, user = 'system', ip = '0.0.0.0') {
+  async softDeleteInOut(inoutId: string, user: string, ip: string) {
     const sql = `
       UPDATE t_guest_inout
       SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
@@ -576,9 +620,12 @@ export class GuestsService {
       exit_date?: string;
       exit_time?: string;
       status?: 'Scheduled' | 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
+      rooms_required?: number;
+      requires_driver?: boolean;
+      companions?: number;
     },
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
     return this.db.transaction(async (client) => {
       try {
@@ -594,6 +641,42 @@ export class GuestsService {
 
       if (!lockRes.rowCount) {
         throw new BadRequestException('InOut record not found');
+      }
+      const existingInout = lockRes.rows[0];
+
+      const currentRoomsRes = await client.query(`
+        SELECT r.room_capacity
+        FROM t_guest_room gr
+        JOIN m_rooms r ON r.room_id = gr.room_id
+        WHERE gr.guest_id = $1
+          AND gr.is_active = TRUE
+      `, [existingInout.guest_id]);
+
+      const currentRoomCount = currentRoomsRes.rowCount;
+      const currentTotalCapacity = currentRoomsRes.rows.reduce(
+        (sum, r) => sum + Number(r.room_capacity),
+        0
+      );
+
+      const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
+      const newCompanions = payload.companions ?? existingInout.companions ?? 0;
+      const totalPeople = 1 + newCompanions;
+
+      // 🚨 Rule 1: cannot reduce rooms_required below already allocated rooms
+      if (newRoomsRequired < currentRoomCount) {
+        throw new BadRequestException(
+          `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
+        );
+      }
+
+      // 🚨 Rule 2: if allocation is already complete, capacity must still satisfy people
+      if (
+        currentRoomCount === newRoomsRequired &&
+        currentTotalCapacity < totalPeople
+      ) {
+        throw new BadRequestException(
+          `Current allocated room capacity (${currentTotalCapacity}) is insufficient for ${totalPeople} people`
+        );
       }
 
       if (
@@ -653,7 +736,7 @@ export class GuestsService {
         (payload.status === 'Exited' || payload.status === 'Cancelled')
       ) {
         await this.cascadeGuestExit(
-          updated.guest_id,
+          updated.inout_id,
           client,
           user,
           ip
@@ -691,7 +774,7 @@ export class GuestsService {
     });
   }
 
-  async softDeleteAllGuestInOuts(guestId: string, user = 'system', ip = '0.0.0.0') {
+  async softDeleteAllGuestInOuts(guestId: string, user: string, ip: string) {
     const sql = `
       UPDATE t_guest_inout
       SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
@@ -700,57 +783,115 @@ export class GuestsService {
     await this.db.query(sql, [guestId, user, ip]);
   }
   async findCheckedInWithoutVehicle() {
-    const sql = `
-    SELECT
-      g.guest_id,
-      g.guest_name,
-      g.guest_name_local_language,
-      g.guest_mobile,
-      g.guest_alternate_mobile,
-      g.email,
-      g.guest_address,
+  //   const sql = `
+  //   SELECT
+  //     g.guest_id,
+  //     g.guest_name,
+  //     g.guest_name_local_language,
+  //     g.guest_mobile,
+  //     g.guest_alternate_mobile,
+  //     g.email,
+  //     g.guest_address,
 
+  //     io.inout_id,
+  //     io.entry_date,
+  //     io.entry_time,
+  //     io.status,
+  //     io.exit_date,
+  //     io.exit_time,
+  //     io.purpose,
+  //     io.remarks,
+  //     io.requires_driver
 
-      io.inout_id,
-      io.entry_date,
-      io.entry_time,
-      io.status
+  //   FROM t_guest_inout io
+  //   JOIN m_guest g
+  //     ON g.guest_id = io.guest_id
 
+  //   WHERE io.is_active = TRUE
+  //     AND io.status IN ('Entered', 'Inside')
+  //     AND g.is_active = TRUE
+  //     AND NOT EXISTS (
+  //       SELECT 1
+  //       FROM t_guest_vehicle gv
+  //       WHERE gv.guest_id = g.guest_id
+  //         AND gv.is_active = TRUE
+  //     )
+  //   ORDER BY io.entry_date DESC, io.entry_time DESC;
+  // `;
+  const sql = `
+  SELECT
+    g.guest_id,
+    g.guest_name,
+    g.guest_name_local_language,
+    g.guest_mobile,
+    g.guest_alternate_mobile,
+    g.email,
+    g.guest_address,
 
-    FROM t_guest_inout io
-    JOIN m_guest g
-      ON g.guest_id = io.guest_id
+    io.inout_id,
+    io.entry_date,
+    io.entry_time,
+    io.status,
+    io.exit_date,
+    io.exit_time,
+    io.purpose,
+    io.remarks,
+    io.requires_driver,
 
+    gd.department,
+    gd.organization,
+    gd.office_location,
 
-    WHERE io.is_active = TRUE
-      AND io.status IN ('Entered', 'Inside')
-      AND g.is_active = TRUE
+    md.designation_id,
+    md.designation_name,
+    md.designation_name_local_language
 
+  FROM t_guest_inout io
+  JOIN m_guest g
+    ON g.guest_id = io.guest_id
 
-      AND NOT EXISTS (
-        SELECT 1
-        FROM t_guest_vehicle gv
-        WHERE gv.guest_id = g.guest_id
-          AND gv.is_active = TRUE
-      )
+  LEFT JOIN t_guest_designation gd
+    ON gd.guest_id = g.guest_id
+    AND gd.is_current = TRUE
+    AND gd.is_active = TRUE
 
+  LEFT JOIN m_guest_designation md
+    ON md.designation_id = gd.designation_id
+    AND md.is_active = TRUE
 
-    ORDER BY io.entry_date DESC, io.entry_time DESC;
+  WHERE io.is_active = TRUE
+    AND io.status IN ('Entered', 'Inside')
+    AND g.is_active = TRUE
+
+    AND NOT EXISTS (
+      SELECT 1
+      FROM t_guest_vehicle gv
+      WHERE gv.guest_id = g.guest_id
+        AND gv.is_active = TRUE
+    )
+
+  ORDER BY io.entry_date DESC, io.entry_time DESC;
   `;
-
 
     const res = await this.db.query(sql);
     return res.rows;
   }
   private async cascadeGuestExit(
-    guestId: string,
+    inoutId: string,
     trx = this.db,
-    user = 'system',
-    ip = '0.0.0.0'
+    user: string,
+    ip: string
   ) {
-    /* ================= ROOMS (FULL VACATE LOGIC) ================= */
+    // Get guest_id from inout
+    const inoutRes = await trx.query(
+      `SELECT guest_id FROM t_guest_inout WHERE inout_id = $1`,
+      [inoutId]
+    );
 
-    // try {
+    if (!inoutRes.rowCount) return;
+
+    const guestId = inoutRes.rows[0].guest_id;
+
       const guestRooms = await trx.query(
         `
         SELECT guest_room_id, room_id
@@ -800,10 +941,13 @@ export class GuestsService {
             status = 'Cancelled',
             is_active = FALSE,
             completed_at = NOW()
+            updated_at = NOW(),
+            updated_by = $2,
+            updated_ip = $3
           WHERE room_id = $1
             AND is_active = TRUE
           `,
-          [gr.room_id]
+          [gr.room_id, user, ip]
         );
       }
     // } catch (err) {
@@ -907,8 +1051,6 @@ export class GuestsService {
     // } catch (err) {
     //   console.warn('Room cascade skipped:', err.message);
     // }
-
-
     /* ================= HOUSEKEEPING ================= */
 
     await trx.query(
@@ -964,8 +1106,61 @@ export class GuestsService {
       `,
       [guestId, user, ip]
     );
+    /* ================= FOOD ================= */
 
-    /* ================= FREE ROOMS ================= */
+    await trx.query(`
+      UPDATE t_guest_food
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `, [guestId, user, ip]);
+
+
+    /* ================= MESSENGER ================= */
+    await trx.query(`
+      UPDATE t_guest_messenger
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `, [guestId, user, ip]);
+
+    /* ================= NETWORK ================= */
+
+    await trx.query(`
+      UPDATE t_guest_network
+      SET is_active = FALSE,
+          network_status = 'Disconnected',
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `, [guestId, user, ip]);
+
+  
+    /* ================= LIAISONING OFFICER ================= */
+    await trx.query(`
+      UPDATE t_guest_liaisoning_officer
+      SET is_active = FALSE,
+          assignment_end_date = CURRENT_DATE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `, [guestId, user, ip]);
+
+    /* ================= MEDICAL CONTACT ================= */
+    await trx.query(`
+      UPDATE t_guest_medical_contact
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $2,
+          updated_ip = $3
+      WHERE guest_id = $1 AND is_active = TRUE
+    `, [guestId, user, ip]);
 
     // for (const gr of guestRooms.rows) {
     //   await trx.query(
@@ -1022,7 +1217,7 @@ export class GuestsService {
       vehicles: vehicles.rows,
     };
   }
-  async syncExpiredGuestInOuts(user = 'system', ip = '0.0.0.0') {
+  async syncExpiredGuestInOuts(user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
       try {
@@ -1038,7 +1233,7 @@ export class GuestsService {
           FOR UPDATE SKIP LOCKED
         `);
 
-      const guestIds = new Set<string>();
+      // const guestIds = new Set<string>();
 
       for (const row of expired.rows) {
         await client.query(
@@ -1055,11 +1250,11 @@ export class GuestsService {
           [row.inout_id, user, ip]
         );
 
-        guestIds.add(row.guest_id);
+        // guestIds.add(row.guest_id);
       }
 
-      for (const guestId of guestIds) {
-        await this.cascadeGuestExit(guestId, client, user, ip);
+      for (const row of expired.rows) {
+        await this.cascadeGuestExit(row.inout_id, client, user, ip);
       }
         return { updated: expired.rowCount };
       } catch (err) {
@@ -1067,7 +1262,6 @@ export class GuestsService {
       }
     });
   }
-
   private async assertRoomAvailable(
     roomId: string,
     from: string,
@@ -1088,7 +1282,7 @@ export class GuestsService {
               '[]'
             )
             && daterange($2::date, $3::date, '[]')
-        ${excludeGuestId ? 'AND guest_id <> $4' : ''}
+        ${excludeGuestId ? 'AND inout_id <> $4' : ''}
       FOR UPDATE
       LIMIT 1
       `,
@@ -1103,6 +1297,5 @@ export class GuestsService {
       );
     }
   }
-
 
 }

@@ -21,12 +21,16 @@ export class UpdateGuestDto {
   @IsString()
   guest_address?: string;
 
+  // @IsOptional()
+  // @IsString()
+  // Remarks?: string;
+
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  requires_driver?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // requires_driver?: boolean;
 
 }

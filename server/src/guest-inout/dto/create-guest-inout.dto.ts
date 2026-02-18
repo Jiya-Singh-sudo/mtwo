@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsNumber, IsBoolean } from 'class-validator';
 
 export class CreateGuestInOutDto {
   @IsString()
@@ -33,4 +33,15 @@ export class CreateGuestInOutDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+    @IsOptional()
+    @IsNumber()
+    rooms_required?: number;
+  
+    @IsOptional()
+    @IsBoolean()
+    requires_driver?: boolean;
+  
+    @IsOptional()
+    @IsNumber()
+    companions?: number;
 }

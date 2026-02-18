@@ -28,16 +28,18 @@ export class CreateGuestDto {
   @IsEmail()
   email?: string;
 
-  @IsOptional()
-  @IsString()
-  id_proof_type?: string;
+  // @IsOptional()
+  // @IsString()
+  // Remarks?: string;
 
-  @IsOptional()
-  @IsString()
-  id_proof_number?: string;
+  // id_proof_type?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  requires_driver?: boolean;
+  // @IsOptional()
+  // @IsString()
+  // id_proof_number?: string;
+
+  // @IsOptional()
+  // @IsBoolean()
+  // requires_driver?: boolean;
 
 }

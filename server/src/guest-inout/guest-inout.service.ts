@@ -43,8 +43,8 @@ export class GuestInoutService {
 
       const inoutId = await this.generateInoutId(client);
       const sql = `
-        INSERT INTO t_guest_inout (inout_id, guest_id, room_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, inserted_by, inserted_ip)
-        VALUES ($1,$2,$3,$4,$5::DATE,$6,$7::DATE,$8,$9,$10,$11,$12,$13)
+        INSERT INTO t_guest_inout (inout_id, guest_id, room_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, inserted_by, inserted_ip, inserted_at)
+        VALUES ($1,$2,$3,$4,$5::DATE,$6,$7::DATE,$8,$9,$10,$11,$12,$13, NOW())
         RETURNING *;
       `;
       const params = [
@@ -59,8 +59,8 @@ export class GuestInoutService {
         dto.status || 'Entered',
         dto.purpose || null,
         dto.remarks || null,
-        user || 'system',
-        ip || '0.0.0.0'
+        user,
+        ip
       ];
       const r = await client.query(sql, params);
       return r.rows[0];
@@ -181,7 +181,7 @@ export class GuestInoutService {
         WHERE inout_id = $1
         RETURNING *;
       `;
-      const r = await client.query(sql, [inoutId, user||'system', ip||'0.0.0.0']);
+      const r = await client.query(sql, [inoutId, user, ip]);
       return r.rows[0];
     });
   }
@@ -191,7 +191,17 @@ export class GuestInoutService {
     SELECT
       io.inout_id,
       io.guest_id,
-      g.guest_name
+      g.guest_name,
+      io.entry_date,
+      io.entry_time,
+      io.exit_date,
+      io.exit_time,
+      io.status,
+      io.purpose,
+      io.remarks,
+      io.rooms_required,
+      io.requires_driver,
+      io.companions
     FROM t_guest_inout io
     JOIN m_guest g
       ON g.guest_id = io.guest_id

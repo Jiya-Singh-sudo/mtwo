@@ -7,17 +7,6 @@ import { UpdateDesignationDto } from './dto/update-designation.dto';
 export class DesignationService {
   constructor(private readonly db: DatabaseService) {}
 
-  // private async generateDesignationId(): Promise<string> {
-  //   const sql = `SELECT designation_id FROM m_designation ORDER BY designation_id DESC LIMIT 1`;
-  //   const result = await this.db.query(sql);
-
-  //   if (result.rows.length === 0) return 'DGN001';
-
-  //   const last = result.rows[0].designation_id.replace('DGN', '');
-  //   const next = (parseInt(last) + 1).toString().padStart(3, '0');
-
-  //   return `DGN${next}`;
-  // }
   private async generateDesignationId(client: any): Promise<string> {
     return this.db.transaction(async (client) => {
 
