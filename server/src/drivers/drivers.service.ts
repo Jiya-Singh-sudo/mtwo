@@ -28,7 +28,6 @@ export class DriversService {
     `);
     return res.rows[0].id;
   }
-
   async getDriverStats() {
     const sql = `
       SELECT
@@ -310,9 +309,9 @@ export class DriversService {
       const sql = `
       INSERT INTO m_driver
         (driver_id, driver_name, driver_name_local_language, driver_contact, driver_alternate_mobile, driver_license, address, driver_mail, license_expiry_date,
-        is_active, inserted_by, inserted_ip, updated_at, updated_by, updated_ip)
+        is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip)
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7, $8, $9, TRUE,$10,$11, NULL, NULL, NULL)
+        ($1,$2,$3,$4,$5,$6,$7, $8, $9, TRUE,NOW(),$10,$11, NULL, NULL, NULL)
       RETURNING driver_id, driver_name;
     `;
 

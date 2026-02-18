@@ -3,31 +3,11 @@ import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
 import { BadRequestException } from '@nestjs/common';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('drivers')
 export class DriversController {
   constructor(private readonly service: DriversService) {}
-
-  private extractIp(req: any): string {
-    let ip =
-      req.headers['x-forwarded-for'] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      req.ip ||
-      '';
-
-    if (ip === '::1' || ip === '127.0.0.1') {
-      return '127.0.0.1';
-    }
-
-    ip = ip.toString().replace('::ffff:', '');
-
-    if (ip.includes(',')) {
-      ip = ip.split(',')[0].trim();
-    }
-
-    return ip;
-  }
   @Get('stats')
   getDriverStats() {
     return this.service.getDriverStats();
@@ -58,8 +38,7 @@ export class DriversController {
 
   @Post()
   create(@Body() dto: CreateDriverDto, @Req() req: any) {
-    const user = req.user?.username || 'system';
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.create(dto, user, ip);
   }
   @Patch(':id')
@@ -68,8 +47,7 @@ export class DriversController {
     @Body() dto: UpdateDriverDto,
     @Req() req: any
   ) {
-    const user = req.user?.username || 'system';
-    const ip = req.ip || '0.0.0.0';
+    const { user, ip } = getRequestContext(req);
     return this.service.update(id, dto, user, ip);
   }
 
@@ -78,8 +56,7 @@ export class DriversController {
     @Body() body: { guest_vehicle_id: string; driver_id: string },
     @Req() req: any
   ) {
-    const user = req.user?.username || 'system';
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.assignDriver(body, user, ip);
   }
 
@@ -114,8 +91,7 @@ export class DriversController {
   // SOFT DELETE
   @Delete(':driver_id')
   softDelete(@Param('driver_id') driver_id: string, @Req() req: any) {
-    const user = req.headers['x-user'] || 'system';
-    const ip = this.extractIp(req);
+    const { user, ip } = getRequestContext(req);
     return this.service.softDelete(driver_id, user, ip);
   }
 }

@@ -5,8 +5,9 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 
 @Injectable()
 export class VehiclesService {
-    constructor(private readonly db: DatabaseService) {}
-      async getVehicleStats() {
+  constructor(private readonly db: DatabaseService) {}
+  
+  async getVehicleStats() {
         const sql = `
           SELECT
             COUNT(*) AS total,
@@ -16,8 +17,8 @@ export class VehiclesService {
         `;
         const res = await this.db.query(sql);
         return res.rows[0];
-      }
-      async getVehiclesTable(query: {
+  }
+  async getVehiclesTable(query: {
         page: number;
         limit: number;
         search?: string;
@@ -52,83 +53,153 @@ export class VehiclesService {
         //   where.push('v.is_active = FALSE');
         // }
         // const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-        const where: string[] = [];
-        const params: any[] = [];
+    const where: string[] = [];
+    const params: any[] = [];
 
-        if (query.search) {
-          params.push(`%${query.search}%`);
-          where.push(`(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`);
-        }
+    if (query.search) {
+      params.push(`%${query.search}%`);
+      where.push(
+        `(v.vehicle_no ILIKE $${params.length} OR v.vehicle_name ILIKE $${params.length})`
+      );
+    }
 
-        if (query.status === 'ACTIVE') {
-          where.push('v.is_active = TRUE');
-        }
+    if (query.status === 'ACTIVE') {
+      where.push('v.is_active = TRUE');
+    }
 
-        if (query.status === 'INACTIVE') {
-          where.push('v.is_active = FALSE');
-        }
+    if (query.status === 'INACTIVE') {
+      where.push('v.is_active = FALSE');
+    }
 
-        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-        const dataSql = `
-          SELECT *
-          FROM m_vehicle v
-          ${whereSql}
-          ORDER BY ${sortColumn} ${sortOrder}
-          LIMIT $${params.length + 1}
-          OFFSET $${params.length + 2};
-        `;
-        params.push(query.limit);
-        params.push(offset);
+    // ✅ DO NOT push limit/offset into params
+    const dataParams = [...params, query.limit, offset];
 
-        const countSql = `
-          SELECT COUNT(*)::int AS count
-          FROM m_vehicle v
-          ${whereSql};
-        `;
+    const dataSql = `
+      SELECT *
+      FROM m_vehicle v
+      ${whereSql}
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
+    `;
 
-        const [dataRes, countRes] = await Promise.all([
-          this.db.query(dataSql, params),
-          this.db.query(countSql, params),
-        ]);
+    const countSql = `
+      SELECT COUNT(*)::int AS count
+      FROM m_vehicle v
+      ${whereSql};
+    `;
+
+    const [dataRes, countRes] = await Promise.all([
+      this.db.query(dataSql, dataParams), // search + limit + offset
+      this.db.query(countSql, params),    // search only
+    ]);
+
+        // const [dataRes, countRes] = await Promise.all([
+        //   this.db.query(dataSql, params),
+        //   this.db.query(countSql, params),
+        // ]);
 
         return {
           data: dataRes.rows,
           totalCount: countRes.rows[0].count,
         };
-      }
+  }
+  async getFleetOverview() {
+    // const sql = `
+    //       SELECT
+    //         v.vehicle_no,
+    //         v.vehicle_name,
+    //         v.model,
+    //         v.manufacturing,
+    //         v.capacity,
+    //         v.color,
 
-      async getFleetOverview() {
-        const sql = `
-          SELECT
-            v.vehicle_no,
-            v.vehicle_name,
+    //         CASE
+    //           WHEN gv.is_active = TRUE THEN 'ON_DUTY'
+    //           ELSE 'AVAILABLE'
+    //         END AS status,
 
-            CASE
-              WHEN gv.is_active = TRUE THEN 'ON_DUTY'
-              ELSE 'AVAILABLE'
-            END AS status,
+    //         gv.location,
+    //         gv.assigned_at,
+    //         gv.released_at,
+    //         g.guest_name,
+    //         g.guest_name_local_language,
+    //         d.driver_name,
+    //         d.driver_license,
+    //         d.license_expiry_date,
 
-            gv.location,
-            g.guest_name,
-            d.driver_name
+    //       FROM m_vehicle v
+    //       LEFT JOIN t_guest_vehicle gv
+    //         ON gv.vehicle_no = v.vehicle_no
+    //       AND gv.is_active = TRUE
+    //       LEFT JOIN m_guest g
+    //         ON g.guest_id = gv.guest_id
+    //       LEFT JOIN m_driver d
+    //         ON d.driver_id = gv.driver_id
 
-          FROM m_vehicle v
-          LEFT JOIN t_guest_vehicle gv
-            ON gv.vehicle_no = v.vehicle_no
-          AND gv.is_active = TRUE
-          LEFT JOIN m_guest g
-            ON g.guest_id = gv.guest_id
-          LEFT JOIN m_driver d
-            ON d.driver_id = gv.driver_id
+    //       WHERE v.is_active = TRUE
+    //       ORDER BY v.vehicle_name;
+    // `;
+    const sql = `
+      SELECT
+        v.vehicle_no,
+        v.vehicle_name,
+        v.model,
+        v.manufacturing,
+        v.capacity,
+        v.color,
 
-          WHERE v.is_active = TRUE
-          ORDER BY v.vehicle_name;
-        `;
+        CASE
+          WHEN gv.is_active = TRUE THEN 'ON_DUTY'
+          ELSE 'AVAILABLE'
+        END AS status,
 
-        const res = await this.db.query(sql);
-        return res.rows;
-      }
+        gv.location,
+        gv.assigned_at,
+        gv.released_at,
+
+        g.guest_name,
+        g.guest_name_local_language,
+
+        md.designation_name,
+        gd.department,
+
+        d.driver_name,
+        d.driver_license,
+        d.license_expiry_date
+
+      FROM m_vehicle v
+
+      LEFT JOIN t_guest_vehicle gv
+        ON gv.vehicle_no = v.vehicle_no
+      AND gv.is_active = TRUE
+
+      LEFT JOIN m_guest g
+        ON g.guest_id = gv.guest_id
+      AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
+
+      LEFT JOIN m_driver d
+        ON d.driver_id = gv.driver_id
+      AND d.is_active = TRUE
+
+      WHERE v.is_active = TRUE
+      ORDER BY v.vehicle_name;
+    `;
+
+    const res = await this.db.query(sql);
+    return res.rows;
+  }
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
@@ -227,7 +298,7 @@ export class VehiclesService {
     });
   }
 
-    async update(vehicle_no: string, dto: UpdateVehicleDto, user: string, ip: string) {
+  async update(vehicle_no: string, dto: UpdateVehicleDto, user: string, ip: string) {
       return this.db.transaction(async (client) => {
         // const now = new Date().toLocaleString("en-GB", {
         //     timeZone: "Asia/Kolkata",
@@ -366,7 +437,7 @@ export class VehiclesService {
       return result.rows[0];
     });
   }
-    async findAssignable() {
+  async findAssignable() {
       const sql = `
         SELECT
           v.vehicle_no,
