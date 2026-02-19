@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ErrorProvider } from '@/context/ErrorContext';
 import AppRoutes from '@/routes/AppRoutes';
 import { Sidebar } from './components/Sidebar';
 // import { Search, Globe } from 'lucide-react';
@@ -92,8 +93,10 @@ function Layout() {
 export default function App() {
   return (
 
-    <AuthProvider>
-      <Layout />
-    </AuthProvider>
+    <ErrorProvider>
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    </ErrorProvider>
   );
 }

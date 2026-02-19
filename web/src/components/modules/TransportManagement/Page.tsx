@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
-import { Car, UserCheck, X, Trash2 } from "lucide-react";
+import { Car, UserCheck, Trash2, X, UserMinus, MinusCircle } from "lucide-react";
 import "./GuestTransportManagement.css";
 import { Input } from "@/components/ui/input";
-import GuestTransportCardSkeleton from "@/components/skeletons/GuestTransportCardSkeleton";
-import { formatISTDateTime, formatISTDate, formatISTTime, addDays, toISODateOnly, toISOLocalDateTime, combineDateAndTime, splitDateTime } from "../../../utils/dateTime";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import {
+  formatISTDate,
+  formatISTDateTime,
+
+  toISODateOnly,
+  toISOLocalDateTime,
+  combineDateAndTime,
+  splitDateTime
+} from "../../../utils/dateTime";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import TimePicker12h from "@/components/common/TimePicker12h";
 import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
 import { FieldError } from "@/components/ui/FieldError";
@@ -17,7 +26,7 @@ import {
   assignVehicleToGuest,
   // unassignDriver,
   // unassignVehicle,
-  getAssignableDrivers,
+
   getAssignableDriversByDate,
   getAssignableVehicles,
   // updateDriverTrip,
@@ -81,10 +90,7 @@ function GuestTransportManagement() {
     limit: 6, // cards per page
   });
   const [rows, setRows] = useState<GuestTransportRow[]>([]);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(GuestTable.total / GuestTable.query.limit)
-  );
+
 
   /* =======================
      ASSIGN DRIVER MODAL
@@ -155,8 +161,38 @@ function GuestTransportManagement() {
   /* =======================
      DELETE CONFIRMATION
      ======================= */
-  const [deleteGuestId, setDeleteGuestId] = useState<string | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  /* =======================
+     CONFIRM MODAL STATE
+     ======================= */
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => { },
+  });
+
+  function openConfirm(
+    message: string,
+    onConfirm: () => void,
+    options?: { title?: string; confirmText?: string; cancelText?: string }
+  ) {
+    setConfirmModal({
+      isOpen: true,
+      message,
+      onConfirm,
+      ...options,
+    });
+  }
+
+  function closeConfirm() {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  }
 
 
   /* =======================
@@ -223,7 +259,7 @@ function GuestTransportManagement() {
             entry_date: row.entry_date,
             exit_date: row.exit_date,
             inout_status: row.inout_status,
-            requires_driver: row.requires_driver, 
+            requires_driver: row.requires_driver,
           },
 
           driver: row.driver_id
@@ -421,17 +457,17 @@ function GuestTransportManagement() {
 
   async function submitAssignDriver() {
     if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
-      alert("End time cannot be earlier than start time");
+      setFormErrors({ _form: "End time cannot be earlier than start time" });
       return;
     }
 
     if (!driverForm.driver_id) {
-      alert("Please select a driver first!");
+      setFormErrors({ _form: "Please select a driver first!" });
       return;
     }
 
     if (!driverForm.trip_date || !driverForm.start_time) {
-      alert("Trip date and start time are required");
+      setFormErrors({ _form: "Trip date and start time are required" });
       return;
     }
 
@@ -467,14 +503,14 @@ function GuestTransportManagement() {
           break;
 
         case "DRIVER_NOT_ON_DUTY":
-            setHasBackendError(true);
+          setHasBackendError(true);
           setFormErrors({
             _form: "This driver is not on duty during the selected time.",
           });
           break;
 
         case "DRIVER_ALREADY_ASSIGNED":
-            setHasBackendError(true);
+          setHasBackendError(true);
 
           setFormErrors({
             _form: "This driver is already assigned during the selected time.",
@@ -482,7 +518,7 @@ function GuestTransportManagement() {
           break;
 
         case "GUEST_NOT_ASSIGNABLE":
-            setHasBackendError(true);
+          setHasBackendError(true);
 
           setFormErrors({
             _form: "This guest cannot be assigned a driver.",
@@ -490,7 +526,7 @@ function GuestTransportManagement() {
           break;
 
         case "GUEST_STATUS_NOT_FOUND":
-            setHasBackendError(true);
+          setHasBackendError(true);
 
           setFormErrors({
             _form: "Guest status could not be determined.",
@@ -498,7 +534,7 @@ function GuestTransportManagement() {
           break;
 
         default:
-            setHasBackendError(true);
+          setHasBackendError(true);
 
           setFormErrors({
             _form: "Failed to assign driver. Please try again.",
@@ -550,11 +586,11 @@ function GuestTransportManagement() {
     );
 
     if (!assigned_at) {
-      alert("Assigned date and time are required");
+      setFormErrors({ _form: "Assigned date and time are required" });
       return;
     }
     if (released_at && new Date(released_at) < new Date(assigned_at)) {
-      alert("Release time cannot be before assigned time");
+      setFormErrors({ _form: "Release time cannot be before assigned time" });
       return;
     }
 
@@ -677,11 +713,11 @@ function GuestTransportManagement() {
     );
 
     if (!assigned_at) {
-      alert("Assigned date and time are required");
+      setFormErrors({ _form: "Assigned date and time are required" });
       return;
     }
     if (released_at && new Date(released_at) < new Date(assigned_at)) {
-      alert("Release time cannot be before assigned time");
+      setFormErrors({ _form: "Release time cannot be before assigned time" });
       return;
     }
 
@@ -743,6 +779,260 @@ function GuestTransportManagement() {
   /* =======================
      RENDER
      ======================= */
+
+  /* =======================
+     TABLE COLUMNS
+     ======================= */
+  const transportColumns: Column<GuestTransportRow>[] = [
+    {
+      header: "Guest",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.guest.guest_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest.guest_name_local_language}
+          </p>
+        </>
+      ),
+      sortable: true,
+      sortKey: "guest_name",
+    },
+    {
+      header: "Mobile",
+      render: (row) => row.guest.guest_mobile || "—",
+    },
+    {
+      header: "Room",
+      render: (row) => row.guest.room_id || "—",
+    },
+    {
+      header: "Stay",
+      render: (row) => (
+        <div className="text-xs text-gray-600">
+          <p>In: {formatISTDateTime(row.guest.entry_date)}</p>
+          <p>Out: {formatISTDateTime(row.guest.exit_date)}</p>
+        </div>
+      ),
+      sortable: true,
+      sortKey: "entry_date",
+    },
+    {
+      header: "Driver",
+      render: (row) =>
+        !row.guest.requires_driver
+          ? <span className="text-xs text-gray-400 italic">Not required</span>
+          : row.driver
+            ? (
+              <div className="text-sm">
+                <p className="font-medium text-gray-900">{row.driver.driver_name}</p>
+                <div className="text-xs text-gray-500">
+                  {formatISTDate(row.driver.trip_date)}
+                </div>
+              </div>
+            )
+            : <span className="text-gray-400">—</span>,
+    },
+    {
+      header: "Vehicle",
+      render: (row) =>
+        row.vehicle
+          ? (
+            <div className="text-sm">
+              <p className="font-medium text-gray-900">{row.vehicle.vehicle_name}</p>
+              <p className="text-xs text-gray-500">{row.vehicle.vehicle_no}</p>
+            </div>
+          )
+          : <span className="text-gray-400">—</span>,
+    },
+    {
+      header: "Status",
+      sortable: true,
+      sortKey: "inout_status",
+      render: (row) => (
+        <span className={`statusBadge ${row.guest.inout_status?.toLowerCase()}`}>
+          {row.guest.inout_status}
+        </span>
+      ),
+    },
+    {
+      header: "Actions",
+      render: (row) => {
+        const { guest, driver, vehicle } = row;
+        const locked = isGuestLocked(guest.inout_status);
+        const driverExpired = isDriverExpired(driver);
+        const vehicleExpired = isVehicleExpired(vehicle);
+
+        return (
+          <div className="flex gap-2 items-center">
+            {/* DRIVER ACTIONS */}
+            {!driverExpired ? (
+              <div className="flex gap-1">
+                <button
+                  className="icon-btn text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={locked || !guest.requires_driver}
+                  title={driver ? "Edit Driver" : "Assign Driver"}
+                  onClick={() => {
+                    if (locked) return;
+
+                    if (driver) {
+                      setEditingGuestDriverId(driver.guest_driver_id);
+                      setDriverForm({
+                        guest_id: String(guest.guest_id),
+                        driver_id: driver.driver_id,
+                        pickup_location: driver.pickup_location ?? "",
+                        drop_location: driver.drop_location ?? "",
+                        trip_date: driver.trip_date,
+                        start_time: driver.start_time,
+                        end_time: driver.end_time ?? "",
+                        drop_date: driver.drop_date,
+                        drop_time: driver.drop_time,
+                        trip_status: driver.trip_status,
+                      });
+                      setEditDriverModalOpen(true);
+                    } else {
+                      openAssignDriver(
+                        String(guest.guest_id),
+                        guest.entry_date,
+                        guest.exit_date,
+                        guest.inout_status
+                      );
+                    }
+                  }}
+                >
+                  <UserCheck size={18} />
+                </button>
+
+                {driver && (
+                  <button
+                    className="icon-btn text-red-500 disabled:opacity-40"
+                    disabled={locked}
+                    title="Unassign Driver"
+                    onClick={() => {
+                      if (locked) return;
+                      openConfirm(
+                        "Are you sure you want to unassign this driver?",
+                        async () => {
+                          await closeGuestDriver(driver.guest_driver_id);
+                          GuestTable.setPage(1);
+                          closeConfirm();
+                        },
+                        { title: "Unassign Driver", confirmText: "Unassign", cancelText: "Cancel" }
+                      );
+                    }}
+                  >
+                    <UserMinus size={18} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs text-gray-400 italic mr-2">Completed</span>
+            )}
+
+            {/* VEHICLE ACTIONS */}
+            {!vehicleExpired ? (
+              <div className="flex gap-1">
+                <button
+                  className="icon-btn text-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={locked}
+                  title={vehicle ? "Edit Vehicle" : "Assign Vehicle"}
+                  onClick={() => {
+                    if (locked) return;
+
+                    if (vehicle) {
+                      setEditingGuestVehicleId(vehicle.guest_vehicle_id);
+
+                      const assigned = splitDateTime(vehicle.assigned_at || undefined);
+                      const released = splitDateTime(vehicle.released_at || undefined);
+
+                      setVehicleForm({
+                        guest_id: String(guest.guest_id),
+                        vehicle_no: vehicle.vehicle_no,
+                        location: vehicle.location ?? "",
+                        assigned_date: assigned.date,
+                        assigned_time: assigned.time,
+                        released_date: released.date,
+                        released_time: released.time,
+                      });
+
+                      setEditVehicleModalOpen(true);
+                    } else {
+                      openAssignVehicle(
+                        String(guest.guest_id),
+                        guest.entry_date,
+                        guest.exit_date,
+                        guest.inout_status
+                      );
+                    }
+                  }}
+                >
+                  <Car size={18} />
+                </button>
+
+                {vehicle && (
+                  <button
+                    className="icon-btn text-red-500 disabled:opacity-40"
+                    disabled={locked}
+                    title="Unassign Vehicle"
+                    onClick={() => {
+                      if (locked) return;
+                      openConfirm(
+                        "Are you sure you want to unassign this vehicle?",
+                        async () => {
+                          await releaseVehicle(vehicle.guest_vehicle_id);
+                          GuestTable.setPage(1);
+                          closeConfirm();
+                        },
+                        { title: "Unassign Vehicle", confirmText: "Unassign", cancelText: "Cancel" }
+                      );
+                    }}
+                  >
+                    <MinusCircle size={18} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs text-gray-400 italic mr-2">Completed</span>
+            )}
+
+            {/* DELETE GUEST */}
+            <button
+              className="icon-btn text-red-600 disabled:opacity-40"
+              title="Delete Guest"
+              onClick={() => {
+                openConfirm(
+                  "Are you sure you want to delete this guest transport record? This action cannot be undone.",
+                  () => {
+                    softDeleteFromUI(String(guest.guest_id));
+                    closeConfirm();
+                  },
+                  { title: "Delete Record", confirmText: "Delete", cancelText: "Cancel" }
+                );
+              }}
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
+
+  /* =======================
+     RENDER
+     ======================= */
+
+  // Filter rows for assignment logic (client-side for now)
+  const filteredRows = rows.filter((r) => {
+    if (assignmentFilter === "DRIVER_ASSIGNED") return !!r.driver;
+    if (assignmentFilter === "VEHICLE_ASSIGNED") return !!r.vehicle;
+    if (assignmentFilter === "UNASSIGNED") return !r.driver && !r.vehicle;
+    return true;
+  });
+
+  const tableData = filteredRows.map(r => ({
+    ...r,
+    id: String(r.guest.guest_id) // Flat ID for DataTable key
+  }));
 
   return (
     <>
@@ -882,433 +1172,24 @@ function GuestTransportManagement() {
             </div>
           )} */}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* 1️⃣ Loading */}
-          {GuestTable.loading &&
-            Array.from({ length: GuestTable.query.limit }).map((_, i) => (
-              <GuestTransportCardSkeleton key={i} />
-            ))
-          }
-
-          {/* Empty */}
-          {!GuestTable.loading && rows.length === 0 && (
-            <div className="md:col-span-2 text-center py-12 text-gray-500">
-              <p className="text-lg font-medium">No guests found</p>
-              <p className="text-sm mt-1">
-                Try adjusting search, filters, or date range
-              </p>
-            </div>
-          )}
-
-          {/* 3️⃣ Cards */}
-          {!GuestTable.loading &&
-            rows
-              .filter((r) => {
-                if (assignmentFilter === "DRIVER_ASSIGNED") return !!r.driver;
-                if (assignmentFilter === "VEHICLE_ASSIGNED") return !!r.vehicle;
-                if (assignmentFilter === "UNASSIGNED") return !r.driver && !r.vehicle;
-                return true;
-              })
-              .map(({ guest, driver, vehicle }) => {
-                if (!guest) return null;
-
-                return (
-                  <div key={guest.guest_id} className="transportCard">
-
-                    {/* DELETE ICON (top-right) */}
-                    {!isGuestLocked(guest.inout_status) && (
-                      <button
-                        className="cardDeleteBtn"
-                        title="Delete assignment"
-                        onClick={() => {
-                          setDeleteGuestId(String(guest.guest_id));
-                          setDeleteConfirmOpen(true);
-                        }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-
-                    {/* <button
-                      className="cardDeleteBtn"
-                      title="Delete assignment"
-                      onClick={() => {
-                        setDeleteGuestId(String(guest.guest_id));
-                        setDeleteConfirmOpen(true);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button> */}
-
-                    {/* ================= GUEST HEADER ================= */}
-                    <div className="guestHeader">
-                      <div>
-                        <h3 className="guestName">
-                          {guest.guest_name ?? "-"}
-                          {guest.guest_name_local_language && (
-                            <span className="guestLocal">
-                              {" | "}{guest.guest_name_local_language}
-                            </span>
-                          )}
-                        </h3>
-
-                        <div className="guestMetaRow">
-                          <span><b>Contact:</b> {guest.guest_mobile ?? "—"}</span>
-                          <span><b>Room:</b> {guest.room_id ?? "—"}</span>
-                          <span className={`statusBadge ${guest.inout_status?.toLowerCase()}`}>
-                            {guest.inout_status}
-                          </span>
-                        </div>
-
-                        <div className="guestStay">
-                          <b>Stay:</b>{" "}
-                          {formatISTDateTime(guest.entry_date)} →{" "}
-                          {formatISTDateTime(guest.exit_date)}
-                          {transportConflicts[guest.guest_id] && (
-                            <div className="transportWarning">
-                              ⚠️ Stay dates changed.
-                              {transportConflicts[guest.guest_id].drivers > 0 && (
-                                <> {transportConflicts[guest.guest_id].drivers} driver trip(s)</>
-                              )}
-                              {transportConflicts[guest.guest_id].vehicles > 0 && (
-                                <> {transportConflicts[guest.guest_id].vehicles} vehicle assignment(s)</>
-                              )}
-                              {" "}may be outside the current stay period.
-                            </div>
-                          )}
-
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ================= DRIVER ================= */}
-                    <div className="infoSection">
-                      <h4><UserCheck size={16} /> Driver</h4>
-                      {!guest.requires_driver ? (
-
-                        <span className="text-sm text-gray-500">
-                          Driver not required
-                        </span>
-
-                      ) : driver ? (
-
-                        <>
-                          <div className="infoGrid">
-                            <div><strong>Name:</strong> {driver.driver_name}</div>
-                            <div><strong>Contact:</strong> {driver.driver_contact}</div>
-                            <div><strong>Pickup:</strong> {driver.pickup_location ?? "-"}</div>
-                            <div><strong>Drop:</strong> {driver.drop_location ?? "-"}</div>
-                            <div><strong>Date:</strong> {formatISTDate(driver.trip_date)}</div>
-                            <div>
-                              <strong>Time:</strong>{" "}
-                              {driver.start_time
-                                ? formatISTTime(`${driver.trip_date}T${driver.start_time}`)
-                                : "-"}
-                              {" → "}
-                              {driver.end_time
-                                ? formatISTTime(`${driver.trip_date}T${driver.end_time}`)
-                                : "-"}
-                            </div>
-                            <div><strong>Status:</strong> {driver.trip_status}</div>
-                          </div>
-
-                          <div className="actionRow">
-                            {!isGuestLocked(guest.inout_status || undefined) && !isDriverExpired(driver) ? (
-                              <>
-                                <button
-                                  className="secondaryBtn"
-                                  onClick={() => {
-                                    setEditingGuestDriverId(driver.guest_driver_id);
-                                    setDriverForm({
-                                      guest_id: String(guest.guest_id),
-                                      driver_id: driver.driver_id,
-                                      pickup_location: driver.pickup_location ?? "",
-                                      drop_location: driver.drop_location ?? "",
-                                      trip_date: driver.trip_date,
-                                      start_time: driver.start_time,
-                                      end_time: driver.end_time ?? "",
-                                      drop_date: driver.drop_date,
-                                      drop_time: driver.drop_time,
-                                      trip_status: driver.trip_status,
-                                    });
-                                    setEditDriverModalOpen(true);
-                                  }}
-                                >
-                                  Edit Driver Trip
-                                </button>
-
-                                <button
-                                  className="dangerBtn"
-                                  onClick={async () => {
-                                    await closeGuestDriver(driver.guest_driver_id);
-                                    GuestTable.setPage(1);
-                                  }}
-                                >
-                                  Unassign Driver
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs uppercase tracking-wide text-gray-400">
-                                Completed
-                              </span>
-                            )}
-                          </div>
-                        </>
-
-                      ) : !isGuestLocked(guest.inout_status || undefined) ? (
-
-                        <button
-                          className="primaryBtn mt-2"
-                          onClick={() => {
-                            if (!guest.entry_date || !guest.exit_date) {
-                              alert("Guest must have check-in and check-out dates before assignment.");
-                              return;
-                            }
-
-                            openAssignDriver(
-                              String(guest.guest_id),
-                              guest.entry_date,
-                              guest.exit_date,
-                              guest.inout_status
-                            );
-                          }}
-                        >
-                          Assign Driver
-                        </button>
-
-                      ) : (
-
-                        <span className="text-sm text-gray-500">
-                          Guest exited / cancelled
-                        </span>
-
-                      )}
-
-                      {/* {driver ? (
-                        <>
-                          <div className="infoGrid">
-                            <div><strong>Name:</strong> {driver.driver_name}</div>
-                            <div><strong>Contact:</strong> {driver.driver_contact}</div>
-                            <div><strong>Pickup:</strong> {driver.pickup_location ?? "-"}</div>
-                            <div><strong>Drop:</strong> {driver.drop_location ?? "-"}</div>
-                            <div>  <strong>Date:</strong> {formatISTDate(driver.trip_date)}</div>
-                            <div>
-                              <strong>Time:</strong>{" "}
-                              {driver.start_time
-                                ? formatISTTime(`${driver.trip_date}T${driver.start_time}`)
-                                : "-"}
-                              {" → "}
-                              {driver.end_time
-                                ? formatISTTime(`${driver.trip_date}T${driver.end_time}`)
-                                : "-"}
-
-                            </div>
-                            <div><strong>Status:</strong> {driver.trip_status}</div>
-                          </div>
-
-                          <div className="actionRow">
-                            {!isGuestLocked(guest.inout_status || undefined) && !isDriverExpired(driver) ? (
-                              <>
-                                <button
-                                  className="secondaryBtn"
-                                  onClick={() => {
-                                    setEditingGuestDriverId(driver.guest_driver_id);
-                                    setDriverForm({
-                                      guest_id: String(guest.guest_id),
-                                      driver_id: driver.driver_id,
-                                      pickup_location: driver.pickup_location ?? "",
-                                      drop_location: driver.drop_location ?? "",
-                                      trip_date: driver.trip_date,
-                                      start_time: driver.start_time,
-                                      end_time: driver.end_time ?? "",
-                                      drop_date: driver.drop_date,
-                                      drop_time: driver.drop_time,
-                                      trip_status: driver.trip_status,
-                                    });
-                                    setEditDriverModalOpen(true);
-                                  }}
-                                >
-                                  Edit Driver Trip
-                                </button>
-
-                                <button
-                                  className="dangerBtn"
-                                  onClick={async () => {
-                                    await closeGuestDriver(driver.guest_driver_id);
-                                    GuestTable.setPage(1);
-                                  }}
-                                >
-                                  Unassign Driver
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs uppercase tracking-wide text-gray-400">
-                                Completed
-                              </span>
-                            )}
-                          </div>
-
-
-                        </>
-                      ) : (
-                        !isGuestLocked(guest.inout_status || undefined) ? (
-                          <button
-                            className="primaryBtn mt-2"
-                            onClick={() => {
-                              if (!guest.entry_date || !guest.exit_date) {
-                                alert("Guest must have check-in and check-out dates before assignment.");
-                                return;
-                              }
-
-                              openAssignDriver(
-                                String(guest.guest_id),
-                                guest.entry_date,
-                                guest.exit_date,
-                                guest.inout_status
-                              );
-                            }}
-                          >
-                            Assign Driver
-                          </button>
-                        ) : (
-                          <span className="text-sm text-gray-500">
-                            Guest exited / cancelled
-                          </span>
-                        )
-                      )} */}
-                    </div>
-
-                    {/* ================= VEHICLE ================= */}
-                    <div className="infoSection">
-                      <h4><Car size={16} /> Vehicle</h4>
-
-                      {vehicle ? (
-                        <>
-                          <div className="infoGrid">
-                            <div>
-                              <strong>Vehicle:</strong>{" "}
-                              {vehicle.vehicle_name} ({vehicle.vehicle_no})
-                            </div>
-                            <div><strong>Model:</strong> {vehicle.model ?? "-"}</div>
-                            <div><strong>Color:</strong> {vehicle.color ?? "-"}</div>
-                            <div><strong>Location:</strong> {vehicle.location ?? "-"}</div>
-                            <div>
-                              <strong>From:</strong> {formatISTDateTime(vehicle.assigned_at)}
-                            </div>
-                            <div>
-                              <strong>To:</strong>{" "}
-                              {vehicle.released_at
-                                ? formatISTDateTime(vehicle.released_at)
-                                : "Ongoing"}
-                            </div>
-                          </div>
-
-                          <div className="actionRow">
-                            {!isGuestLocked(guest.inout_status || undefined) && !isVehicleExpired(vehicle) ? (
-                              <>
-                                <button
-                                  className="secondaryBtn"
-                                  onClick={() => {
-                                    setEditingGuestVehicleId(vehicle.guest_vehicle_id);
-                                    const assigned = splitDateTime(vehicle.assigned_at);
-                                    const released = splitDateTime(vehicle.released_at ?? undefined);
-                                    setVehicleForm({
-                                      guest_id: String(guest.guest_id),
-                                      vehicle_no: vehicle.vehicle_no,
-                                      location: vehicle.location ?? "",
-                                      assigned_date: assigned.date,
-                                      assigned_time: assigned.time,
-                                      released_date: released.date,
-                                      released_time: released.time,
-                                    });
-                                    setEditVehicleModalOpen(true);
-                                  }}
-                                >
-                                  Edit Vehicle Assignment
-                                </button>
-
-                                <button
-                                  className="dangerBtn"
-                                  onClick={async () => {
-                                    await releaseVehicle(vehicle.guest_vehicle_id);
-                                    GuestTable.setPage(1);
-                                  }}
-                                >
-                                  Unassign Vehicle
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-sm text-gray-500">
-                                Assignment completed / guest closed
-                              </span>
-                            )}
-                          </div>
-
-
-                        </>
-                      ) : (
-                        !isGuestLocked(guest.inout_status || undefined) ? (
-                          <button
-                            className="primaryBtn"
-                            onClick={() => {
-                              if (!guest.entry_date || !guest.exit_date) {
-                                alert("Guest must have check-in and check-out dates before assignment.");
-                                return;
-                              }
-
-                              openAssignVehicle(
-                                String(guest.guest_id),
-                                guest.entry_date,
-                                guest.exit_date,
-                                guest.inout_status
-                              );
-                            }}
-                          >
-                            Assign Vehicle
-                          </button>
-                        ) : (
-                          <span className="text-sm text-gray-500">
-                            Guest exited / cancelled
-                          </span>
-                        )
-                      )}
-                    </div>
-
-                  </div>
-                );
-              })}
+        <div className="bg-white border rounded-sm overflow-hidden mt-4">
+          <DataTable
+            data={tableData}
+            columns={transportColumns}
+            keyField="id"
+            page={GuestTable.query.page}
+            limit={GuestTable.query.limit}
+            totalCount={GuestTable.total}
+            sortBy={GuestTable.query.sortBy}
+            sortOrder={GuestTable.query.sortOrder}
+            loading={GuestTable.loading}
+            onPageChange={GuestTable.setPage}
+            onLimitChange={GuestTable.setLimit}
+            onSortChange={GuestTable.setSort}
+          />
         </div>
-        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredRows.map(card)}
-      </div> */}
 
-        <div className="flex justify-between items-center mt-6">
-          <div className="text-sm text-gray-600">
-            Page {GuestTable.query.page} of{totalPages}
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              className="secondaryBtn"
-              disabled={GuestTable.query.page === 1}
-              onClick={() => GuestTable.setPage(GuestTable.query.page - 1)}
-            >
-              Previous
-            </button>
-
-            <button
-              className="secondaryBtn"
-              disabled={
-                GuestTable.query.page >= totalPages
-              }
-              onClick={() => GuestTable.setPage(GuestTable.query.page + 1)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+      </div >
 
       {/* ASSIGN DRIVER MODAL */}
       {
@@ -1325,7 +1206,7 @@ function GuestTransportManagement() {
               <FormErrorAlert
                 errors={formErrors}
                 onClose={() => setFormErrors({})}
-                
+
               />
 
 
@@ -1413,7 +1294,7 @@ function GuestTransportManagement() {
                       setFormErrors
                     );
                   }}
-                  //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
                 <FieldError message={formErrors.trip_date} />
                 {/* <p className="errorText">{formErrors.trip_date}</p> */}
@@ -1654,8 +1535,8 @@ function GuestTransportManagement() {
                       "trip_date",
                       driverForm.trip_date,
                       setFormErrors
-                  );
-                }}
+                    );
+                  }}
                 // onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
                 />
                 <FieldError message={formErrors.trip_date} />
@@ -1845,53 +1726,15 @@ function GuestTransportManagement() {
         )
       }
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {
-        deleteConfirmOpen && (
-          <div className="modalOverlay">
-            <div className="nicModal">
-              <div className="nicModalHeader">
-                <h2>Confirm Delete</h2>
-                <button onClick={() => setDeleteConfirmOpen(false)}>
-                  <X />
-                </button>
-              </div>
-
-              <p className="px-6 py-4">
-                Are you sure you want to delete this guest transport record?
-                <br />
-                <span className="text-red-600 font-medium">
-                  This action cannot be undone.
-                </span>
-              </p>
-
-              <div className="nicModalActions">
-                <button
-                  className="cancelBtn"
-                  onClick={() => setDeleteConfirmOpen(false)}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="dangerBtn"
-                  onClick={() => {
-                    if (!deleteGuestId) return;
-
-                    // frontend-only soft delete
-                    softDeleteFromUI(deleteGuestId);
-
-                    setDeleteConfirmOpen(false);
-                    setDeleteGuestId(null);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+      />
     </>
   );
 }

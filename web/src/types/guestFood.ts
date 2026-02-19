@@ -16,6 +16,10 @@ export type GuestFoodTableRow = {
   food_stage?: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
   delivery_status?: string;
 
+  room_number?: string;
+  room_id?: string; // keeping just in case
+  food_name?: string;
+
   butler_name?: string;
   specialrequest?: string;
 };

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Download, FileText, Calendar, TrendingUp, Wifi, Utensils, Car, Users, BedDouble, Eye } from 'lucide-react';
+import { Download, TrendingUp } from 'lucide-react';
+import './Report.css';
 // import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf, viewReport } from '@/api/reportsPkg.api';
 import { generateSectionReport } from '@/api/reportsPkg.api';
 
@@ -135,8 +136,8 @@ export function Reports() {
       {/* Global Report Generator */}
       <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm">
         <h3 className="text-[#00247D] text-lg font-semibold mb-4 border-b pb-2 border-gray-100">Generate Custom Report</h3>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-          <div className="md:col-span-3">
+        <div className="reportFilters">
+          <div className="reportType">
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
             <select
               value={selectedSection}
@@ -153,8 +154,8 @@ export function Reports() {
 
           </div>
 
-         
-          <div className="md:col-span-3">
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
             <select
               value={globalRange}
@@ -169,7 +170,7 @@ export function Reports() {
             </select>
           </div>
 
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Language
             </label>
@@ -184,19 +185,19 @@ export function Reports() {
           </div>
 
           {globalRange === 'Custom Range' && (
-            <div className="md:col-span-4 grid grid-cols-2 gap-2">
+            <div className="xl:col-span-4 grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
@@ -204,23 +205,24 @@ export function Reports() {
             </div>
           )}
 
-          <div className={globalRange === 'Custom Range' ? "md:col-span-2" : "md:col-span-3"}>
-             <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
-              >
-                <option value="PDF">PDF</option>
-                <option value="EXCEL">Excel (XLSX)</option>
-                <option value="VIEW">View</option>
-              </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as any)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+            >
+              <option value="PDF">PDF</option>
+              <option value="EXCEL">Excel (XLSX)</option>
+              <option value="VIEW">View</option>
+            </select>
           </div>
 
-          <div className="md:col-span-3">
-            <button 
+          <div>
+            <button
               onClick={handleGlobalGenerate}
-              className="w-full px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 font-medium">
+              className="primaryBtn generateBtn w-full flex items-center justify-center gap-2"
+            >
               <Download className="w-4 h-4" />
               Generate
             </button>
@@ -327,223 +329,6 @@ export function Reports() {
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReportSection({ section, language }: { section: any, language: 'en' | 'mr' }) {
-  const [range, setRange] = useState('Daily');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-
-  // async function handleDownload(
-  //   format: 'PDF' | 'EXCEL' | 'VIEW',
-  //   sectionId: string,
-  //   range: string,
-  //   startDate?: string,
-  //   endDate?: string
-  // ) {
-  //   if (range === 'Custom Range' && (!startDate || !endDate)) {
-  //     alert('Please select start and end dates');
-  //     return;
-  //   }
-
-  //   const payload = {
-  //     rangeType: range,
-  //     startDate: range === 'Custom Range' ? startDate : undefined,
-  //     endDate: range === 'Custom Range' ? endDate : undefined,
-  //   };
-  //   /* ================= VIEW ================= */
-  //   if (format === 'VIEW') {
-  //     try {
-  //       const response = await viewReport({
-  //         section: sectionId as any,
-  //         ...payload,
-  //       });
-
-  //       console.log('VIEW RESPONSE:', response);
-  //       // 🔥 Later you can open modal and show response.rows
-  //     } catch (err) {
-  //       console.error('View failed:', err);
-  //     }
-  //     return;
-  //   }
-  //   // ---- Guest Reports ----
-  //   if (sectionId === 'guest') {
-  //     if (format === 'PDF') {
-  //       downloadGuestSummaryPdf(payload);
-  //     } else {
-  //       downloadGuestSummaryExcel(payload);
-  //     }
-  //     return;
-  //   }
-
-  //   // ---- Room Reports ----
-  //   if (sectionId === 'room') {
-  //     if (format === 'EXCEL') {
-  //       downloadRoomSummaryExcel(payload);
-  //     }
-  //     if (format === 'PDF') {
-  //       downloadRoomSummaryPdf(payload);
-  //     }
-  //     return;
-  //   }
-  //   if (sectionId === 'vehicle') {
-  //     if (format === 'PDF') {
-  //       downloadVehicleDriverPdf(payload);
-  //     } else {
-  //       downloadVehicleDriverExcel(payload);
-  //     }
-  //     return;
-  //   }
-  //   if (sectionId === 'food') {
-  //     if (format === 'PDF') {
-  //       downloadFoodServicePdf(payload);
-  //     } else {
-  //       downloadFoodServiceExcel(payload);
-  //     }
-  //     return;
-  //   }
-  //   if (sectionId === 'network') {
-  //     if (format === 'PDF') {
-  //       downloadNetworkPdf(payload);
-  //     } else {
-  //       downloadNetworkExcel(payload);
-  //     }
-  //     return;
-  //   }
-  //   if (sectionId === 'driver') {
-  //     if (format === 'PDF') {
-  //       downloadDriverDutyPdf(payload);
-  //     } else {
-  //       downloadDriverDutyExcel(payload);
-  //     }
-  //     return;
-  //   }
-  //   // ---- Future hooks ----
-  //   // vehicle, food, network go here later
-  // }
-  async function handleDownload(
-    format: 'PDF' | 'EXCEL' | 'VIEW',
-    sectionId: string,
-    range: string,
-    startDate?: string,
-    endDate?: string
-  ) {
-    if (range === 'Custom Range' && (!startDate || !endDate)) {
-      alert('Please select start and end dates');
-      return;
-    }
-
-    await generateSectionReport({
-      section: sectionId as any,
-      rangeType: range,
-      format,
-      startDate: range === 'Custom Range' ? startDate : undefined,
-      endDate: range === 'Custom Range' ? endDate : undefined,
-      language, // or dynamic later
-    });
-  }
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-      <div className="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center gap-3">
-        <div className="p-2 bg-[#00247D] bg-opacity-10 rounded-sm">
-          <section.icon className="w-5 h-5 text-[#00247D]" />
-        </div>
-        <div>
-          <h3 className="text-[#00247D] font-semibold text-lg">{section.category}</h3>
-          <p className="text-xs text-gray-500">Report Generation Module</p>
-        </div>
-      </div>
-     
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
-          {/* Info Column */}
-          <div className="md:col-span-12 lg:col-span-3">
-             <h4 className="font-medium text-gray-900 mb-1">{section.title}</h4>
-             <p className="text-sm text-gray-500">{section.description}</p>
-          </div>
-
-          {/* Controls Column */}
-          <div className="md:col-span-12 lg:col-span-9 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-           
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Range Type</label>
-              <select
-                value={range}
-                onChange={(e) => setRange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
-              >
-                <option value="Daily">Daily</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Monthly">Monthly</option>
-                <option value="Custom Range">Custom Range</option>
-              </select>
-            </div>
-
-            {range === 'Custom Range' ? (
-              <>
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                  <input 
-                    type="date" 
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
-                </div>
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <input 
-                    type="date" 
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]" />
-                </div>
-              </>
-            ) : (
-              // Spacer or alternative inputs for standard ranges could go here, but for now we keep it clean
-              <div className="md:col-span-6 flex items-center text-sm text-gray-500 italic pb-3">
-                {range === 'Daily' && 'Generates report for today'}
-                {range === 'Weekly' && 'Generates report for current week'}
-                {range === 'Monthly' && 'Generates report for current month'}
-              </div>
-            )}
-
-            <div className="md:col-span-3 flex gap-2">
-               <button 
-                  className="flex-1 px-4 py-2 bg-[#00247D] text-white rounded-sm hover:bg-blue-900 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() =>
-                    handleDownload('PDF', section.id, range, startDate, endDate)
-                  }
-
-                >
-                 <Download className="w-4 h-4" />
-                 PDF
-               </button>
-               <button 
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() =>
-                    handleDownload('EXCEL', section.id, range, startDate, endDate)
-                  }
-                  >
-                 <FileText className="w-4 h-4" />
-                 Excel
-               </button>
-               <button 
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-sm hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  onClick={() =>
-                    handleDownload('VIEW', section.id, range, startDate, endDate)
-                  }
-                  >
-                 <Eye className="w-4 h-4" />
-                 View
-               </button>
-            </div>
-
-          </div>
         </div>
       </div>
     </div>

@@ -357,27 +357,38 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  gap: 16px;
+  gap: 12px;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .searchWrapper {
-  position: relative;
   flex: 1;
-  max-width: 400px;
+  min-width: 260px;
 }
 
-.searchWrapper .searchIcon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.searchWrapper .searchInput {
-  padding-left: 40px;
+.searchInput {
   width: 100%;
+}
+
+.filterRow input[type="date"] {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.secondaryBtn {
+  flex-shrink: 0;
+}
+
+.nicPrimaryBtn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* ================= EMPTY STATE ================= */
@@ -1033,4 +1044,40 @@
 
 .viewCard.full {
   grid-column: span 2;
+}
+.transportFilters {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: end;
+}
+
+/* SEARCH */
+.filterSearch {
+  min-width: 0;
+}
+
+/* DATE + RESET GROUP */
+.filterGroup {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+}
+
+.filterGroup > div {
+  display: flex;
+  flex-direction: column;
+}
+
+/* PLAN MENU BUTTON */
+.filterAction {
+  display: flex;
+  justify-content: flex-end;
+  align-items: end;
+}
+
+/* 🔥 CRITICAL – stop button stretching */
+.filterAction .nicPrimaryBtn {
+  width: auto;
+  white-space: nowrap;
 }

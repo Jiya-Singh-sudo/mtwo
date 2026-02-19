@@ -32,19 +32,23 @@ export const createGuestFood = async (
   return res.data;
 };
 
-export const updateFoodStatus = async (
+
+
+export const updateGuestFood = async (
   guestFoodId: string,
   payload: {
+    food_id?: string;
     food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
-    delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
-    delivered_datetime?: string;
+    delivery_status?: string;
     remarks?: string;
   }
 ) => {
-  const res = await apiClient.put(
-    `/guest-food/${guestFoodId}`,
-    payload
-  );
+  const res = await apiClient.put(`/guest-food/${guestFoodId}`, payload);
+  return res.data;
+};
+
+export const createDayMealPlan = async (meals: Record<string, string[]>) => {
+  const res = await apiClient.post("/guest-food/plan/day", { meals });
   return res.data;
 };
 export const getTodayGuestOrders = async () => {

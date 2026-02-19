@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Download, Send, User, BedDouble, Car, Calendar, X,} from "lucide-react";
+import { FileText, Download, Send, User, BedDouble, Car, Calendar, X, } from "lucide-react";
 import { formatDateTime } from "@/utils/dateTime";
 import {
   getInfoPackageGuests,
@@ -8,6 +8,7 @@ import {
 } from "@/api/info-package.api";
 
 import { DataTable, Column } from "@/components/ui/DataTable";
+import GlobalTableFilters from "@/components/common/GlobalTableFilters";
 
 export default function InfoPackage() {
   const [guests, setGuests] = useState<any[]>([]);
@@ -26,11 +27,16 @@ export default function InfoPackage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  /* ================= FILTER STATE ================= */
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     loadGuests();
-  }, [page, limit, sortBy, sortOrder, debouncedSearch]);
+  }, [page, limit, sortBy, sortOrder, debouncedSearch, fromDate, toDate]);
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
@@ -47,13 +53,15 @@ export default function InfoPackage() {
         page,
         limit,
         search: debouncedSearch,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       });
 
-    setGuests(Array.isArray(res?.data) ? res.data : []);
-    setTotalCount(typeof res?.total === 'number' ? res.total : 0);
-    // console.log('InfoPackage API response:', res);
-    // console.log('Guests state:', res?.data);
-    // console.log('Guests state:', res?.total);
+      setGuests(Array.isArray(res?.data) ? res.data : []);
+      setTotalCount(typeof res?.total === 'number' ? res.total : 0);
+      // console.log('InfoPackage API response:', res);
+      // console.log('Guests state:', res?.data);
+      // console.log('Guests state:', res?.total);
 
     } finally {
       setLoading(false);
@@ -93,7 +101,7 @@ export default function InfoPackage() {
   const columns: Column<any>[] = [
     {
       header: "Name",
-      render: (g) => (
+      render: (g: any) => (
         <>
           <div className="font-medium">{g.guest_name}</div>
           <p className="text-sm text-gray-600">{g.designation_name}</p>
@@ -115,18 +123,18 @@ export default function InfoPackage() {
       accessor: "arrival_date",
       sortable: true,
       sortKey: "arrival_date",
-      render: (g) => formatDateTime(g.arrival_date),
+      render: (g: any) => formatDateTime(g.arrival_date),
     },
     {
       header: "Departure",
       accessor: "departure_date",
       sortable: true,
       sortKey: "departure_date",
-      render: (g) => formatDateTime(g.departure_date),
+      render: (g: any) => formatDateTime(g.departure_date),
     },
     {
       header: "Actions",
-      render: (g) => (
+      render: (g: any) => (
         <div className="flex gap-2">
           <button
             onClick={() => handleGeneratePDF(g)}
@@ -157,81 +165,22 @@ export default function InfoPackage() {
   return (
     <div className="space-y-6">
       <h2 className="text-[#00247D]">Guest Info Package Generator</h2>
-      <div className="bg-white border rounded-sm p-4 flex items-center gap-3">
-        <input
-          type="text"
-          placeholder="Search by guest name, room or vehicle"
-          value={search}
-          maxLength={50}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 px-3 border rounded-sm focus:outline-none focus:ring-2 focus:ring-[#00247D]"
+
+      {/* ===== GENERATE CUSTOM REPORT ===== */}
+      <div className="bg-white">
+        <GlobalTableFilters
+          search={search}
+          setSearch={setSearch}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          onReset={() => {
+            setSearch("");
+            setFromDate("");
+            setToDate("");
+          }}
         />
-
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="text-gray-500 hover:text-black"
-            title="Clear"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-      {/* ===== CARD VIEW (UNCHANGED UI) ===== */}
-      <div className="bg-white border rounded-sm p-6 space-y-4">
-        {Array.isArray(guests) && guests.map((guest) => (
-          <div
-            key={guest.guest_id}
-            className="border rounded-sm p-6"
-          >
-            <div className="flex justify-between mb-4">
-              <div>
-                <h4>{guest.guest_name}</h4>
-                <p className="text-sm text-gray-600">{guest.designation_name}</p>
-              </div>
-
-              <span className="guestBadge vip">
-                {guest.designation_name}
-              </span>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-3 text-sm mb-4">
-              <div className="flex items-center gap-2">
-                <BedDouble className="w-4 h-4" /> {guest.room_no || "Pending"}
-              </div>
-              <div className="flex items-center gap-2">
-                <Car className="w-4 h-4" /> {guest.vehicle_no || "Pending"}
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Arrival: {formatDateTime(guest.arrival_date)}
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Departure: {formatDateTime(guest.departure_date)}
-              </div>
-              {guest.driver_name && (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4" /> Driver: {guest.driver_name}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleGeneratePDF(guest)}
-                className="flex-1 bg-[#00247D] text-white py-2 rounded-sm"
-              >
-                Generate PDF Package
-              </button>
-
-              <button
-                onClick={() => handleSendWhatsApp(guest)}
-                className="flex-1 bg-green-600 text-white py-2 rounded-sm"
-              >
-                Send via WhatsApp
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* ===== DATA TABLE (ALL GUESTS) ===== */}
@@ -248,7 +197,7 @@ export default function InfoPackage() {
           loading={loading}
           onPageChange={setPage}
           onLimitChange={setLimit}
-          onSortChange={(s, o) => {
+          onSortChange={(s: string, o: "asc" | "desc") => {
             setSortBy(s);
             setSortOrder(o);
           }}

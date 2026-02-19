@@ -136,7 +136,50 @@
   margin-bottom: 20px;
 }
 
+/* ================= REPORT FILTERS (CLONE OF TRANSPORT) ================= */
+
+.reportFilters {
+  display: grid;
+  grid-template-columns: 1.5fr auto auto auto auto;
+  gap: 12px;
+  align-items: end;
+  width: 100%;
+}
+
+/* first field grows */
+.reportType {
+  width: 100%;
+  min-width: 260px;
+}
+
+/* same height as transport controls */
+.reportFilters select,
+.reportFilters button {
+  height: 40px;
+}
+
+/* button size */
+.generateBtn {
+  min-width: 120px;
+  padding: 0 18px;
+}
+
+
 /* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 1024px) {
+  .reportFilters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .reportFilters {
+    grid-template-columns: 1fr;
+
+  }
+}
+
 @media (max-width: 768px) {
   .reportCard {
     padding: 14px;

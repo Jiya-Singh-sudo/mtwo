@@ -14,6 +14,10 @@ export const getInfoPackageGuests = async (params: {
   search?: string;
   page?: number;
   limit?: number;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  assignment?: string;
 }): Promise<InfoPackageGuestSearchResponse> => {
   const response = await api.get('/info-package/guests', {
     params,
