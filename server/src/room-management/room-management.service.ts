@@ -26,6 +26,8 @@ export class RoomManagementService {
     sortBy,
     sortOrder,
     status,
+    entryDateFrom,
+    entryDateTo,
   }: {
     page: number;
     limit: number;
@@ -33,6 +35,8 @@ export class RoomManagementService {
     sortBy: string;
     sortOrder: 'asc' | 'desc';
     status?: 'Available' | 'Occupied';
+    entryDateFrom?: string;
+    entryDateTo?: string;
   }) {
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
@@ -64,6 +68,30 @@ export class RoomManagementService {
 
     const whereSql =
       whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
+
+    /* ---------------- ENTRY / EXIT DATE FILTER ---------------- */
+
+    if (entryDateFrom) {
+      whereParts.push(`
+        (
+          io.entry_date IS NOT NULL
+          AND io.entry_date >= $${idx}
+        )
+      `);
+      params.push(entryDateFrom);
+      idx++;
+    }
+
+    if (entryDateTo) {
+      whereParts.push(`
+        (
+          io.entry_date IS NOT NULL
+          AND io.entry_date <= $${idx}
+        )
+      `);
+      params.push(entryDateTo);
+      idx++;
+    }
 
     /* ================= COUNT ================= */
 

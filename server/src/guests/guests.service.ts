@@ -483,17 +483,31 @@ export class GuestsService {
     let idx = 1;
 
     /* ---------------- DATE FILTER ---------------- */
-    if (entryDateFrom) {
-      where.push(`io.entry_date >= $${idx}`);
-      values.push(entryDateFrom);
-      idx++;
+    let fromDate = entryDateFrom;
+    let toDate = entryDateTo;
+
+    /* If no date filters provided → apply default window */
+    if (!fromDate && !toDate) {
+      where.push(`
+        io.entry_date BETWEEN
+          (CURRENT_DATE - INTERVAL '15 days')
+          AND
+          (CURRENT_DATE + INTERVAL '15 days')
+      `);
+    } else {
+      if (fromDate) {
+        where.push(`io.entry_date >= $${idx}`);
+        values.push(fromDate);
+        idx++;
+      }
+
+      if (toDate) {
+        where.push(`io.entry_date <= $${idx}`);
+        values.push(toDate);
+        idx++;
+      }
     }
 
-    if (entryDateTo) {
-      where.push(`io.entry_date <= $${idx}`);
-      values.push(entryDateTo);
-      idx++;
-    }
     /* ---------------- SORTING ---------------- */
     const allowedSorts: Record<string, string> = {
       guest_name: 'g.guest_name',

@@ -7,7 +7,7 @@ import { getRequestContext } from "common/utlis/request-context.util";
 
 @Controller("guest-food")
 export class GuestFoodController {
-  constructor(private readonly service: GuestFoodService) {}
+  constructor(private readonly service: GuestFoodService) { }
   @Get("dashboard")
   getDashboard() {
     return this.service.getDashboardStats();
@@ -17,10 +17,10 @@ export class GuestFoodController {
     return this.service.getTodaySchedule();
   }
 
-@Get("plan/today")
-getTodayMealPlanOverview() {
-  return this.service.getTodayMealPlanOverview();
-}
+  @Get("plan/today")
+  getTodayMealPlanOverview() {
+    return this.service.getTodayMealPlanOverview();
+  }
 
   @Get()
   getActive() {
@@ -36,6 +36,12 @@ getTodayMealPlanOverview() {
   create(@Body() dto: CreateGuestFoodDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
     return this.service.create(dto, user, ip);
+  }
+
+  @Post("plan/day")
+  createDayMealPlan(@Body() dto: { meals: Record<string, string[]> }, @Req() req: any) {
+    const { user, ip } = getRequestContext(req);
+    return this.service.createDayMealPlan(dto.meals, user, ip);
   }
 
   @Put(":id")

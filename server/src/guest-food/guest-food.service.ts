@@ -199,6 +199,96 @@ export class GuestFoodService {
     });
   }
 
+  async createDayMealPlan(meals: Record<string, string[]>, user: string, ip: string) {
+    return this.db.transaction(async (client) => {
+      // 1. Get all active guests currently checked in
+      const guestSql = `
+          SELECT guest_id, room_id 
+          FROM t_guest_inout 
+          WHERE is_active = TRUE 
+            AND guest_inout = TRUE 
+            AND status = 'Entered'
+            AND exit_date IS NULL
+        `;
+      const guests = await client.query(guestSql);
+
+      // 2. Map meal names to food_ids (bulk lookup) in one go would be better, 
+      // but strictly speaking we can look them up effectively.
+      // For updated simplicity: logic for finding food_id by name
+      const foodMap = new Map<string, string>();
+      const allFoodNames = Object.values(meals).flat();
+
+      if (allFoodNames.length > 0) {
+        // Safe parameter expansion for "IN (...)"
+        const uniqueNames = [...new Set(allFoodNames)];
+        const placeholders = uniqueNames.map((_, i) => `$${i + 1}`).join(",");
+        const foodRes = await client.query(
+          `SELECT food_id, food_name FROM m_food_items WHERE is_active = TRUE AND food_name IN (${placeholders})`,
+          uniqueNames
+        );
+        foodRes.rows.forEach((r: any) => foodMap.set(r.food_name, r.food_id));
+      }
+
+      const planDate = new Date().toISOString().split("T")[0];
+      let insertCount = 0;
+
+      // 3. Loop guests and insert meals
+      for (const guest of guests.rows) {
+        for (const [mealType, items] of Object.entries(meals)) {
+          // normalize mealType if needed, frontend sends "breakfast", "lunch", etc.
+          // map to "Breakfast", "Lunch", "High Tea", "Dinner"
+          let dbMealType = "";
+          if (mealType === "breakfast") dbMealType = "Breakfast";
+          else if (mealType === "lunch") dbMealType = "Lunch";
+          else if (mealType === "highTea") dbMealType = "High Tea";
+          else if (mealType === "dinner") dbMealType = "Dinner";
+          else continue;
+
+          for (const item of items) {
+            const foodId = foodMap.get(item);
+            if (!foodId) continue; // Skip unknown food items
+
+            // Check existence to avoid duplicate for same day/meal/food
+            // Optional: Hard check or UPSERT. For now, simple check.
+            const existCheck = await client.query(
+              `SELECT 1 FROM t_guest_food 
+                 WHERE guest_id = $1 
+                   AND meal_type = $2 
+                   AND food_id = $3 
+                   AND plan_date = $4
+                   AND is_active = TRUE`,
+              [guest.guest_id, dbMealType, foodId, planDate]
+            );
+
+            if (existCheck.rowCount > 0) continue;
+
+            const id = await this.generateId(client);
+            await client.query(
+              `INSERT INTO t_guest_food (
+                  guest_food_id, guest_id, room_id, food_id, quantity, 
+                  meal_type, plan_date, food_stage, delivery_status, 
+                  is_active, inserted_at, inserted_by, inserted_ip
+                ) VALUES ($1, $2, $3, $4, 1, $5, $6, 'PLANNED', 'Requested', TRUE, NOW(), $7, $8)`,
+              [
+                id,
+                guest.guest_id,
+                guest.room_id,
+                foodId,
+                dbMealType,
+                planDate,
+                user,
+                ip
+              ]
+            );
+            insertCount++;
+          }
+        }
+      }
+
+      return { success: true, inserted: insertCount };
+    });
+  }
+
   async update(id: string, dto: UpdateGuestFoodDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
@@ -206,7 +296,7 @@ export class GuestFoodService {
         `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
         [id]
       );
-      
+
       const existing = existingRes.rows[0];
       if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
       if (existing.food_stage === 'DELIVERED' && dto.food_stage === 'PLANNED') {
@@ -546,17 +636,32 @@ export class GuestFoodService {
       idx++;
     }
 
-    if (entryDateFrom) {
-      where.push(`io.entry_date >= $${idx}`);
-      sqlParams.push(entryDateFrom);
-      idx++;
+    /* ---------- DEFAULT ENTRY WINDOW ---------- */
+
+    let fromDate = entryDateFrom;
+    let toDate = entryDateTo;
+
+    if (!fromDate && !toDate) {
+      where.push(`
+        io.entry_date BETWEEN
+          (CURRENT_DATE - INTERVAL '15 days')
+          AND
+          (CURRENT_DATE + INTERVAL '15 days')
+      `);
+    } else {
+      if (fromDate) {
+        where.push(`io.entry_date >= $${idx}`);
+        sqlParams.push(fromDate);
+        idx++;
+      }
+
+      if (toDate) {
+        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        sqlParams.push(toDate);
+        idx++;
+      }
     }
 
-    if (entryDateTo) {
-      where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
-      sqlParams.push(entryDateTo);
-      idx++;
-    }
 
     if (foodStatus === 'SERVED') {
       where.push(`gf.food_stage = 'DELIVERED'`);

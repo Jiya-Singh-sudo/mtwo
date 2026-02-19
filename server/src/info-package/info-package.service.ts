@@ -170,7 +170,14 @@ export class InfoPackageService {
 
     WHERE
       g.is_active IS TRUE
+      AND (
+        ti.entry_date BETWEEN
+          (CURRENT_DATE - INTERVAL '15 days')
+          AND
+          (CURRENT_DATE + INTERVAL '15 days')
+      )
       AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
+
       AND (
         g.guest_name ILIKE $1
         OR r.room_no ILIKE $1

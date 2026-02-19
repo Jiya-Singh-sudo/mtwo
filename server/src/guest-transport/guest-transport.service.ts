@@ -104,17 +104,31 @@ export class GuestTransportService {
     }
 
     /* ---------------- ENTRY DATE RANGE ---------------- */
-    if (entryDateFrom) {
-      where.push(`io.entry_date >= $${idx}`);
-      sqlParams.push(entryDateFrom);
-      idx++;
+    let fromDate = entryDateFrom;
+    let toDate = entryDateTo;
+
+    /* If no date filters provided → apply default window */
+    if (!fromDate && !toDate) {
+      where.push(`
+        io.entry_date BETWEEN
+          (CURRENT_DATE - INTERVAL '15 days')
+          AND
+          (CURRENT_DATE + INTERVAL '15 days')
+      `);
+    } else {
+      if (fromDate) {
+        where.push(`io.entry_date >= $${idx}`);
+        sqlParams.push(fromDate);
+        idx++;
+      }
+
+      if (toDate) {
+        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        sqlParams.push(toDate);
+        idx++;
+      }
     }
 
-    if (entryDateTo) {
-      where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
-      sqlParams.push(entryDateTo);
-      idx++;
-    }
 
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {

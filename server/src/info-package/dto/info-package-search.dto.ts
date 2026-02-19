@@ -12,4 +12,12 @@ export class InfoPackageSearchDto {
   @IsOptional()
   @IsNumberString()
   limit?: string;
+
+  @IsOptional()
+  @IsString()
+  entryDateFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  entryDateTo?: string;
 }

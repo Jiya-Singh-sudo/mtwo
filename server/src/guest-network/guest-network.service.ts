@@ -62,6 +62,13 @@ export class GuestNetworkService {
     )
     `,
     ];
+    /* ---------- DEFAULT ±15 DAY ENTRY WINDOW ---------- */
+    where.push(`
+      io.entry_date BETWEEN
+        (CURRENT_DATE - INTERVAL '15 days')
+        AND
+        (CURRENT_DATE + INTERVAL '15 days')
+    `);
 
     const params: any[] = [];
     let idx = 1;
