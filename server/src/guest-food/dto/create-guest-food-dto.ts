@@ -15,9 +15,18 @@ export class CreateGuestFoodDto {
   @IsOptional()
   @IsString()
   room_id?: string;
-
+  
+  @IsOptional()
   @IsString()
-  food_id: string;
+  food_id?: string;
+
+  @IsOptional()
+  @IsString()
+  food_name?: string;
+
+  @IsOptional()
+  @IsIn(['Veg', 'Non-Veg', 'Jain', 'Vegan', 'Egg'])
+  food_type?: 'Veg' | 'Non-Veg' | 'Jain' | 'Vegan' | 'Egg';
 
   @Type(() => Number)
   @IsInt()

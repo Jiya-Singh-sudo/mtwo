@@ -211,10 +211,13 @@ export class GuestButlerService {
         `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1 FOR UPDATE`,
         [id]
       );
+
       const existing = existingRes.rows[0];
+
       if (!existing) {
         throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
       }
+
       const sql = `
         UPDATE t_guest_butler
         SET
@@ -225,12 +228,14 @@ export class GuestButlerService {
         WHERE guest_butler_id = $4
         RETURNING *;
       `;
+
       const params = [
         dto.specialRequest ?? existing.special_request,
         user,
         ip,
         id,
       ];
+
       const res = await client.query(sql, params);
       return res.rows[0];
     });
@@ -249,9 +254,9 @@ export class GuestButlerService {
         UPDATE t_guest_butler SET 
           is_active = false,
           updated_at = NOW(),
-          updated_by = $2,
-          updated_ip = $3
-        WHERE guest_butler_id = $4
+          updated_by = $1,
+          updated_ip = $2
+        WHERE guest_butler_id = $3
         RETURNING *;
       `;
       const res = await client.query(sql, [user, ip, id]);

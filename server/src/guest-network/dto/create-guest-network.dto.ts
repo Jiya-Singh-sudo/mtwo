@@ -15,6 +15,10 @@ export class CreateGuestNetworkDto {
   @Matches(/^N[0-9]+$/)
   provider_id: string;
 
+  @IsString()
+  @Matches(/^R[0-9]+$/)
+  room_id: string;
+
   @IsOptional()
   @IsIn([
     'Requested',

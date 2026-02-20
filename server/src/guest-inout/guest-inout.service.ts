@@ -3,10 +3,11 @@ import { DatabaseService } from '../database/database.service';
 import { CreateGuestInOutDto } from './dto/create-guest-inout.dto';
 import { UpdateGuestInoutDto } from './dto/update-guest-inout.dto';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
+import { GuestFoodService } from 'src/guest-food/guest-food.service';
 
 @Injectable()
 export class GuestInoutService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly guestFoodService: GuestFoodService) {}
 
   // private async generateInoutId(): Promise<string> {
   //   const sql = `
@@ -63,7 +64,26 @@ export class GuestInoutService {
         ip
       ];
       const r = await client.query(sql, params);
-      return r.rows[0];
+      const insertedRow = r.rows[0];
+
+      // ✅ Propagate daily meal plan ONLY if guest actually entered today
+      const today = todayISO();
+
+      if (
+        insertedRow.status === 'Entered' &&
+        insertedRow.entry_date?.toISOString().split('T')[0] === today
+      ) {
+
+        await this.guestFoodService.propagateTodayPlanToGuest(
+          client,
+          insertedRow.guest_id,
+          insertedRow.room_id,
+          user || 'system',
+          ip || '0.0.0.0'
+        );
+      }
+
+      return insertedRow;
     });
   }
 

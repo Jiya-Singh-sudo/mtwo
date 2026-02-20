@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestNetworkDto } from "./dto/create-guest-network.dto";
 import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
@@ -89,28 +89,50 @@ export class GuestNetworkService {
 
     /* ---------- COUNT ---------- */
     const countSql = `
-      SELECT COUNT(*)::int AS count
+      SELECT COUNT(DISTINCT g.guest_id)::int AS count
       FROM t_guest_inout io
-      JOIN m_guest g
+      JOIN m_guest g 
         ON g.guest_id = io.guest_id
+        AND g.is_active = TRUE
 
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
-      AND gr.is_active = TRUE
+        AND gr.is_active = TRUE
+        AND gr.check_out_date IS NULL
 
-      LEFT JOIN t_guest_network gn
+      LEFT JOIN t_guest_network gn 
         ON gn.guest_id = g.guest_id
-      AND gn.is_active = TRUE
+        AND gn.room_id = gr.room_id
+        AND gn.is_active = TRUE
 
-      LEFT JOIN m_wifi_provider wp
-        ON wp.provider_id = gn.provider_id   -- 🔥 ADD THIS
-
-      LEFT JOIN t_guest_messenger gm
-        ON gm.guest_id = g.guest_id
-      AND gm.is_active = TRUE
+      LEFT JOIN m_wifi_provider wp 
+        ON wp.provider_id = gn.provider_id
 
       ${whereClause};
     `;
+    // const countSql = `
+    //   SELECT COUNT(*)::int AS count
+    //   FROM t_guest_inout io
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = g.guest_id
+    //   AND gr.is_active = TRUE
+
+    //   LEFT JOIN t_guest_network gn
+    //     ON gn.guest_id = g.guest_id
+    //   AND gn.is_active = TRUE
+
+    //   LEFT JOIN m_wifi_provider wp
+    //     ON wp.provider_id = gn.provider_id   -- 🔥 ADD THIS
+
+    //   LEFT JOIN t_guest_messenger gm
+    //     ON gm.guest_id = g.guest_id
+    //   AND gm.is_active = TRUE
+
+    //   ${whereClause};
+    // `;
 
   //   const countSql = `
   //   SELECT COUNT(*)::int AS count
@@ -137,7 +159,7 @@ export class GuestNetworkService {
 
         /* -------- Room -------- */
         gr.room_id,
-        r.room_no,
+        STRING_AGG(DISTINCT r.room_no, ', ') AS room_no,
 
         /* -------- InOut Context -------- */
         io.entry_date,
@@ -150,7 +172,7 @@ export class GuestNetworkService {
         md.designation_name,
         gd.department,
 
-        /* -------- Network (may not exist) -------- */
+        /* -------- Network -------- */
         wp.username,
         gn.provider_id,
         gn.network_status,
@@ -158,51 +180,73 @@ export class GuestNetworkService {
         wp.provider_name,
         gn.remarks,
 
-        /* -------- Messenger (may not exist) -------- */
+        /* -------- Messenger -------- */
         gm.guest_messenger_id,
         CASE 
           WHEN gm.guest_messenger_id IS NOT NULL THEN 'Assigned'
           ELSE NULL
         END AS messenger_status,
         gm.assignment_date,
-        gm.remarks
+        gm.remarks AS messenger_remarks
 
       FROM t_guest_inout io
 
       JOIN m_guest g
         ON g.guest_id = io.guest_id
-      AND g.is_active = TRUE
+        AND g.is_active = TRUE
 
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
-      AND gr.is_active = TRUE
-      AND gr.check_out_date IS NULL
+        AND gr.is_active = TRUE
+        AND gr.check_out_date IS NULL
 
       LEFT JOIN m_rooms r
         ON r.room_id = gr.room_id
-      AND r.is_active = TRUE
+        AND r.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = g.guest_id
-      AND gd.is_current = TRUE
-      AND gd.is_active = TRUE
+        AND gd.is_current = TRUE
+        AND gd.is_active = TRUE
 
       LEFT JOIN m_guest_designation md
         ON md.designation_id = gd.designation_id
-      AND md.is_active = TRUE
+        AND md.is_active = TRUE
 
       LEFT JOIN t_guest_network gn
         ON gn.guest_id = g.guest_id
-      AND gn.is_active = TRUE
+        AND gn.room_id = gr.room_id
+        AND gn.is_active = TRUE
 
       LEFT JOIN m_wifi_provider wp
         ON wp.provider_id = gn.provider_id
 
       LEFT JOIN t_guest_messenger gm
         ON gm.guest_id = g.guest_id
-      AND gm.is_active = TRUE
+        AND gm.is_active = TRUE
 
       ${whereClause}
+
+      GROUP BY
+        g.guest_id,
+        g.guest_name,
+        gr.room_id,
+        io.entry_date,
+        io.entry_time,
+        io.exit_date,
+        io.exit_time,
+        io.status,
+        md.designation_name,
+        gd.department,
+        wp.username,
+        gn.provider_id,
+        gn.network_status,
+        gn.guest_network_id,
+        wp.provider_name,
+        gn.remarks,
+        gm.guest_messenger_id,
+        gm.assignment_date,
+        gm.remarks
 
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${idx} OFFSET $${idx + 1};
@@ -330,6 +374,21 @@ export class GuestNetworkService {
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
   }
+  async getActiveProviders() {
+    const sql = `
+      SELECT
+        provider_id,
+        provider_name,
+        username
+      FROM m_wifi_provider
+      WHERE is_active = TRUE
+      ORDER BY provider_name ASC
+    `;
+
+    const res = await this.db.query(sql);
+
+    return res.rows;
+  }
   async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
@@ -345,24 +404,40 @@ export class GuestNetworkService {
         throw new NotFoundException('Network provider not found or inactive');
       }
 
-      // Prevent duplicate active assignment
-      const existing = await client.query(
-        `SELECT 1 FROM t_guest_network
+      const room = await client.query(`
+        SELECT room_id
+        FROM t_guest_room
         WHERE guest_id = $1
-        AND is_active = TRUE`,
-        [dto.guest_id]
-      );
+        AND is_active = TRUE
+        AND check_out_date IS NULL
+        LIMIT 1
+      `, [dto.guest_id]);
 
-      if (existing.rowCount > 0) {
-        throw new Error('Guest already has an active network');
+      if (!room.rowCount) {
+        throw new NotFoundException('Guest has no active room');
       }
 
+      const roomId = room.rows[0].room_id;
+      // Prevent duplicate active network for same guest + room
+      const existing = await client.query(`
+        SELECT 1
+        FROM t_guest_network
+        WHERE guest_id = $1
+        AND room_id = $2
+        AND is_active = TRUE
+        LIMIT 1
+      `, [dto.guest_id, roomId]);
+
+      if (existing.rowCount > 0) {
+        throw new ConflictException('Guest already has an active network for this room');
+}
       const id = await this.generateId(client);
 
       const sql = `
         INSERT INTO t_guest_network (
           guest_network_id,
           guest_id,
+          room_id,
           provider_id,
           network_status,
           remarks,
@@ -378,6 +453,7 @@ export class GuestNetworkService {
       const params = [
         id,
         dto.guest_id,
+        roomId,
         dto.provider_id,
         dto.network_status ?? 'Requested',
         dto.remarks ?? null,
@@ -429,44 +505,51 @@ export class GuestNetworkService {
   //   return res.rows[0];
   //   });
   // }
-
   async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+
       const existing = await client.query(
         `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
         [id]
       );
-      if (!existing.rowCount) throw new NotFoundException(`Guest Network entry '${id}' not found`);
+
+      if (!existing.rowCount)
+        throw new NotFoundException(`Guest Network entry '${id}' not found`);
+
+      if (dto.provider_id) {
+        const provider = await client.query(
+          `SELECT 1 FROM m_wifi_provider
+          WHERE provider_id = $1
+          AND is_active = TRUE`,
+          [dto.provider_id]
+        );
+
+        if (!provider.rowCount) {
+          throw new NotFoundException('Network provider not found or inactive');
+        }
+      }
       const old = existing.rows[0];
 
       const sql = `
         UPDATE t_guest_network SET
           provider_id = $1,
           room_id = $2,
-          network_zone_from = $3,
-          network_zone_to = $4,
-          start_status = $5,
-          end_status = $6,
-          network_status = $7,
-          description = $8,
-          remarks = $9,
-          is_active = $10,
+          network_status = $3,
+          remarks = $4,
+          is_active = $5,
           updated_at = NOW(),
-          updated_by = $11,
-          updated_ip = $12
-        WHERE guest_network_id = $13
+          updated_by = $6,
+          updated_ip = $7
+        WHERE guest_network_id = $8
         RETURNING *;
       `;
 
       const params = [
         dto.provider_id ?? old.provider_id,
-        dto.room_id ?? existing.room_id,
-        dto.network_zone_from ?? existing.network_zone_from,
-        dto.network_zone_to ?? existing.network_zone_to,
-        dto.network_status ?? existing.network_status,
-        dto.description ?? existing.description,
-        dto.remarks ?? existing.remarks,
-        dto.is_active ?? existing.is_active,
+        old.room_id,
+        dto.network_status ?? old.network_status,
+        dto.remarks ?? old.remarks,
+        dto.is_active ?? old.is_active,
         user,
         ip,
         id,
@@ -476,6 +559,52 @@ export class GuestNetworkService {
       return res.rows[0];
     });
   }
+  // async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
+  //     const existing = await client.query(
+  //       `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+  //       [id]
+  //     );
+  //     if (!existing.rowCount) throw new NotFoundException(`Guest Network entry '${id}' not found`);
+  //     const old = existing.rows[0];
+
+  //     const sql = `
+  //       UPDATE t_guest_network SET
+  //         provider_id = $1,
+  //         room_id = $2,
+  //         network_zone_from = $3,
+  //         network_zone_to = $4,
+  //         start_status = $5,
+  //         end_status = $6,
+  //         network_status = $7,
+  //         description = $8,
+  //         remarks = $9,
+  //         is_active = $10,
+  //         updated_at = NOW(),
+  //         updated_by = $11,
+  //         updated_ip = $12
+  //       WHERE guest_network_id = $13
+  //       RETURNING *;
+  //     `;
+
+  //     const params = [
+  //       dto.provider_id ?? old.provider_id,
+  //       dto.room_id ?? old.room_id,
+  //       dto.network_zone_from ?? old.network_zone_from,
+  //       dto.network_zone_to ?? old.network_zone_to,
+  //       dto.network_status ?? old.network_status,
+  //       dto.description ?? old.description,
+  //       dto.remarks ?? old.remarks,
+  //       dto.is_active ?? old.is_active,
+  //       user,
+  //       ip,
+  //       id,
+  //     ];
+
+  //     const res = await client.query(sql, params);
+  //     return res.rows[0];
+  //   });
+  // }
 
   // async changeStatus(
   //   id: string,
@@ -622,8 +751,6 @@ export class GuestNetworkService {
           existing.room_id,
           existing.network_zone_from,
           existing.network_zone_to,
-          existing.start_date,
-          existing.start_time,
           existing.description,
           existing.remarks,
           user,

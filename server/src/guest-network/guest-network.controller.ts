@@ -23,7 +23,10 @@ export class GuestNetworkController {
   getAll() {
     return this.service.findAll(false);
   }
-
+  @Get('active-providers')
+  getActiveProviders() {
+    return this.service.getActiveProviders();
+  }
   @Post()
   create(@Body() dto: CreateGuestNetworkDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
