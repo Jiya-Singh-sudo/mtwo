@@ -12,6 +12,8 @@ export type GuestFoodTableRow = {
   inout_status: 'Entered' | 'Inside' | 'Exited' | 'Cancelled';
 
   guest_food_id?: string;
+  guest_butler_id?: string;
+  food_id?: string;
   meal_type?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
   food_stage?: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
   delivery_status?: string;

@@ -14,6 +14,10 @@ export async function getGuestNetworkTable(
   const res = await api.get('/guest-network/table', { params: query });
   return res.data;
 }
+export async function getActiveProviders() {
+  const res = await api.get('/guest-network/active-providers');
+  return res.data;
+}
 
 /* ---------- CREATE ---------- */
 export async function createGuestNetwork(

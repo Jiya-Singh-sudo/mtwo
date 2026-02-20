@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Search, Pencil, X } from "lucide-react";
+import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X } from "lucide-react";
 import "./FoodService.css";
 import { getFoodDashboard, updateGuestFood, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable } from "@/api/guestFood.api";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { butlerManagementSchema } from "@/validation/butler.validation";
 // import { guestFoodSchema } from "@/validation/guestFood.validation";
 // import { mealManagementSchema } from "@/validation/meals.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
-import { getActiveMeals } from "@/api/meals.api";
+import { getActiveMeals, createMeal } from "@/api/meals.api";
 import { useError } from "@/context/ErrorContext";
 
 /* ---------------- TYPES ---------------- */
@@ -154,7 +154,11 @@ export function FoodService() {
   const [foodItems, setFoodItems] = useState<any[]>([]);
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<keyof DailyMealPlan>("breakfast");
-  const [menuInput, setMenuInput] = useState("");
+  const [selectedFoodId, setSelectedFoodId] = useState<string>("");
+  const [newFoodName, setNewFoodName] = useState<string>("");
+  const [newFoodType, setNewFoodType] = useState<
+    "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg"
+  >("Veg");
   const [menuMode, setMenuMode] = useState<"create" | "edit">("create");
   const [activeGuestForEdit, setActiveGuestForEdit] = useState<GuestWithButler | null>(null);
 
@@ -162,7 +166,7 @@ export function FoodService() {
   /* ---------------- SPECIAL REQUEST MODAL STATE ---------------- */
   const [specialReqModalOpen, setSpecialReqModalOpen] = useState(false);
   const [specialReqText, setSpecialReqText] = useState("");
-  const [activeGuestForRequest] = useState<GuestWithButler | null>(null);
+  const [activeGuestForRequest, _setActiveGuestForRequest] = useState<GuestWithButler | null>(null);
 
 
   /* ---------------- BUTLER MANAGEMENT STATE ---------------- */
@@ -230,13 +234,15 @@ export function FoodService() {
     existing.forEach(item => {
       const meal = normalizeMealType(item.meal_type);
       if (!meal) return;
-
-      const key =
-        meal === "High Tea" ? "highTea" : meal.toLowerCase();
+      const key = (
+        meal === "High Tea"
+          ? "highTea"
+          : meal.toLowerCase()
+      ) as keyof DailyMealPlan;
 
       // Avoid duplicates in the UI list if multiple rows exist for same item (though shouldn't happen often)
-      if (!mappedPlan[key as keyof DailyMealPlan].includes(item.food_name!)) {
-        mappedPlan[key as keyof DailyMealPlan].push(item.food_name!);
+      if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
+        mappedPlan[key].push(item.food_id);
       }
     });
 
@@ -318,6 +324,9 @@ export function FoodService() {
       loadButlers();
     }
   }, [butlerTable.query, activeTab]);
+  useEffect(() => {
+  loadButlers();
+}, [butlerTable.query]);
 
   useEffect(() => {
     loadFoodData();
@@ -368,17 +377,18 @@ export function FoodService() {
   // });
 
   /* ---------------- BUTLER ASSIGNMENT ---------------- */
-  /* ---------------- BUTLER ASSIGNMENT ---------------- */
   async function handleAssignButler(
     guestId: string,
     roomId: string | null | undefined,
-    butlerId: string
+    butlerId: string,
+    specialRequest?: string
   ) {
     try {
       await createGuestButler({
         guest_id: guestId,
         room_id: roomId ?? undefined,
         butler_id: butlerId,
+        specialRequest: specialRequest
       });
 
       await loadGuests();
@@ -387,56 +397,35 @@ export function FoodService() {
     }
   }
 
-
-
-
   /* ---------------- DAILY MEAL PLANNING (UI-ONLY) ---------------- */
-  // async function handleAddMenuItem() {
-  //   if (!menuInput.trim()) return;
 
-  //   await createMeal({
-  //     food_name: menuInput.trim(),
-  //     food_type: (
-  //       selectedMeal === "highTea"
-  //         ? "Veg"
-  //         : "Veg"
-  //     ) as "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg",
-  //   });
+  async function handleAddMenuItem() {
+    if (!selectedFoodId) return;
 
-  //   setMenuInput("");
-  //   const updated = await getActiveMeals();
-  //   setFoodItems(updated);
-  // }
-  // async function handleAddMenuItem() {
-  //   if (!menuInput.trim()) return;
+    let finalFoodId = selectedFoodId;
 
-  //   // 1. Create master food item
-  //   await createMeal({
-  //     food_name: menuInput.trim(),
-  //     food_type: "Veg",
-  //   });
+    // If new item selected → create in master first
+    if (selectedFoodId === "__new__") {
+      if (!newFoodName.trim()) return;
 
-  //   // 2. Update UI meal plan immediately
-  //   setDailyPlan((prev) => ({
-  //     ...prev,
-  //     [selectedMeal]: [...prev[selectedMeal], menuInput.trim()],
-  //   }));
+      const created = await createMeal({
+        food_name: newFoodName.trim(),
+        food_type: newFoodType,
+      });
 
-  //   // 3. Refresh food master list
-  //   const updated = await getActiveMeals();
-  //   setFoodItems(updated);
+      finalFoodId = created.food_id;
 
-  //   setMenuInput("");
-  // }
-  function handleAddMenuItem() {
-    if (!menuInput.trim()) return;
+      const updated = await getActiveMeals();
+      setFoodItems(updated);
+    }
 
-    setDailyPlan((prev) => ({
+    setDailyPlan(prev => ({
       ...prev,
-      [selectedMeal]: [...prev[selectedMeal], menuInput.trim()],
+      [selectedMeal]: [...prev[selectedMeal], finalFoodId],
     }));
 
-    setMenuInput("");
+    setSelectedFoodId("");
+    setNewFoodName("");
   }
 
   function handleRemoveMenuItem(meal: keyof DailyMealPlan, index: number) {
@@ -445,8 +434,6 @@ export function FoodService() {
       [meal]: prev[meal].filter((_, i) => i !== index),
     }));
   }
-
-
 
   /* ---------------- DERIVED STATS (LIVE FROM UI STATE) ---------------- */
   // const servedCount = guests.filter((g) => g.foodStatus === "Served").length;
@@ -561,8 +548,6 @@ export function FoodService() {
 
   /* ---------------- ACTION HANDLERS ---------------- */
 
-
-
   function openAssignButlerModal(row: GuestFoodTableRow) {
     setActiveGuestForEdit({
       guest_id: row.guest_id,
@@ -572,7 +557,35 @@ export function FoodService() {
 
     setButlerAssignModalOpen(true);
   }
+  // const guestFoodPlan = async () => {
+  //   const mealLabel =
+  //     mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
 
+  //   for (const foodId of dailyPlan[selectedMeal]) {
+
+  //     const already = existing.find(
+  //       e => e.food_id === foodId && e.meal_type === mealLabel
+  //     );
+
+  //     if (already?.guest_food_id) {
+  //       await updateGuestFood(already.guest_food_id, {
+  //         meal_type: mealLabel,
+  //         plan_date: new Date().toISOString().split("T")[0],
+  //         food_stage: "PLANNED",
+  //       });
+  //     } else {
+  //       await createGuestFood({
+  //         guest_id: activeGuestForEdit.guest_id,
+  //         room_id: activeGuestForEdit.room_id ?? undefined,
+  //         food_id: foodId,   // ✅ REQUIRED
+  //         quantity: 1,
+  //         meal_type: mealLabel,
+  //         plan_date: new Date().toISOString().split("T")[0],
+  //         food_stage: "PLANNED",
+  //       });
+  //     }
+  //   }
+  // }
   /* ---------------- TABLE COLUMNS ---------------- */
 
   const foodColumns: Column<GuestFoodTableRow>[] = [
@@ -612,7 +625,7 @@ export function FoodService() {
       emptyFallback: "-",
     },
 
-    /* âœ… ACTIONS COLUMN */
+    /* ACTIONS COLUMN */
     {
       header: "Actions",
       render: (row) => (
@@ -628,13 +641,13 @@ export function FoodService() {
           </button>
 
           {/* âž• ADD FOOD */}
-          <button
+          {/* <button
             className="iconBtn text-blue-600"
             title="Add Food"
             onClick={() => openAddFoodModal(row)}
           >
             <Plus size={16} />
-          </button>
+          </button> */}
 
           {/* ðŸ‘¤ ASSIGN BUTLER */}
           <button
@@ -879,7 +892,6 @@ export function FoodService() {
                   setMenuMode("create");
                   setActiveGuestForEdit(null);
                   setSelectedMeal("breakfast");
-                  setMenuInput("");
                   setMenuModalOpen(true);
                 }}
               >
@@ -1290,21 +1302,54 @@ export function FoodService() {
               <div className="fullWidth">
                 <label>Add Menu Item</label>
                 <div className="menuInputRow">
-                  <input
+                  <select
                     className="nicInput"
-                    placeholder="Enter menu item..."
-                    value={menuInput}
-                    onChange={(e) => setMenuInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && menuInput.trim()) {
-                        handleAddMenuItem();
+                    value={selectedFoodId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedFoodId(val);
+
+                      if (val !== "__new__") {
+                        setNewFoodName("");
                       }
                     }}
-                  />
+                  >
+                    <option value="">Select Food Item</option>
+                    {foodItems.map((f) => (
+                      <option key={f.food_id} value={f.food_id}>
+                        {f.food_name}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Add New Item</option>
+                  </select>
+
+                  {selectedFoodId === "__new__" && (
+                    <>
+                      <input
+                        className="nicInput"
+                        placeholder="Enter new food name"
+                        value={newFoodName}
+                        onChange={(e) => setNewFoodName(e.target.value)}
+                      />
+
+                      <select
+                        className="nicInput"
+                        value={newFoodType}
+                        onChange={(e) => setNewFoodType(e.target.value as any)}
+                      >
+                        <option value="Veg">Veg</option>
+                        <option value="Non-Veg">Non-Veg</option>
+                        <option value="Jain">Jain</option>
+                        <option value="Vegan">Vegan</option>
+                        <option value="Egg">Egg</option>
+                      </select>
+                    </>
+                  )}
+
                   <button
                     className="addItemBtn"
                     onClick={handleAddMenuItem}
-                    disabled={!menuInput.trim()}
+                    disabled={!selectedFoodId}
                   >
                     Add
                   </button>
@@ -1320,7 +1365,7 @@ export function FoodService() {
                   <ul className="menuList">
                     {dailyPlan[selectedMeal].map((item, i) => (
                       <li key={i}>
-                        {item}
+                        {foodItems.find(f => f.food_id === item)?.food_name}
                         <button
                           className="removeItemBtn"
                           onClick={() => handleRemoveMenuItem(selectedMeal, i)}
@@ -1365,6 +1410,7 @@ export function FoodService() {
                     if (menuMode === "create") {
                       // BULK PLAN CREATE (Backend does logic)
                       await createDayMealPlan(dailyPlan);
+                      await loadTodayMealPlan();
                       await loadGuests();
                       // await loadTodayMealPlan();
                       setMenuModalOpen(false);
@@ -1381,32 +1427,23 @@ export function FoodService() {
                       r => r.guest_id === activeGuestForEdit.guest_id
                     );
 
-                    for (const foodName of dailyPlan[selectedMeal]) {
-                      const food = foodItems.find((f: { food_id: string; food_name: string }) =>
-                        f.food_name === foodName
-                      );
+                    const mealLabel =
+                      mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
 
-                      if (!food) continue;
-
-                      const mealLabel =
-                        mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
-
-                      // Check if already exists in foodRows
+                    for (const foodId of dailyPlan[selectedMeal]) {
                       const already = existing.find(
-                        e => e.food_id === food.food_id && e.meal_type === mealLabel
+                        e => e.food_id === foodId && e.meal_type === mealLabel
                       );
 
                       if (already?.guest_food_id) {
-                        // ✅ UPDATE
                         await updateGuestFood(already.guest_food_id, {
                           food_stage: "PLANNED",
                         });
                       } else {
-                        // ✅ CREATE ONLY IF NEW
                         await createGuestFood({
                           guest_id: activeGuestForEdit.guest_id,
                           room_id: activeGuestForEdit.room_id ?? undefined,
-                          food_id: food.food_id,
+                          food_id: foodId,
                           quantity: 1,
                           meal_type: mealLabel,
                           plan_date: new Date().toISOString().split("T")[0],
@@ -1471,76 +1508,24 @@ export function FoodService() {
                 className="saveBtn"
                 onClick={async () => {
                   if (!activeGuestForRequest || !specialReqText.trim()) return;
+
                   try {
-                    // Logic to save special request -> likely updates Guest Butler record
-                    // Assuming createGuestButler or updateGuestButler handles this
-                    // For now, if we don't have a direct API for just special request on guest_butler,
-                    // we might need to verify.
-                    // Based on previous code, let's assume updateGuestButler is the way if exists,
-                    // or we check if there's a guest_butler_id on the row.
+                    const row = foodRows.find(
+                      r => r.guest_id === activeGuestForRequest.guest_id
+                    );
 
-                    // Since specific API usage for special request wasn't explicit in the diffs, 
-                    // I will implement a safe fallback or use updateGuestButler if I can find the ID.
-                    // Inspecting existing code... access to guest_butler_id is needed.
-                    // The row data has `butler_id`? 
-                    // Let's look at `openAssignButlerModal` which sets `activeGuestForEdit`.
-                    // Here we are in `activeGuestForRequest`.
-
-                    // Ideally we should have passed the GuestFoodTableRow to `activeGuestForRequest` 
-                    // which contains `guest_butler_id` if we look at the query.
-                    // BUT `activeGuestForRequest` seems to be `GuestWithButler` type relative.
-
-                    // SIMPLIFICATION: I will use the `updateGuestButler` if I can find an ID, 
-                    // OR `createGuestButler` if not.
-                    // Since I don't have the ID handy in `activeGuestForRequest` (it only has guest_id),
-                    // I'll optimistically try to create/update based on guest_id if the API supports it
-                    // OR I will fetch the guest's butler record first.
-
-                    // Actually, looking at `foodRows` state, I can find the row for this guest.
-                    const row = foodRows.find(r => r.guest_id === activeGuestForRequest.guest_id);
-                    // row doesn't strictly have guest_butler_id in the Type definition shown earlier?
-                    // Wait, `GuestFoodTableRow` definition in Step 804 implies `guest_food_id` but not `guest_butler_id`.
-                    // BUT the SQL query in `guest-food.service.ts` (Step 816) SELECTS `gb.guest_butler_id`.
-                    // So the type might be missing it, but the data has it.
-
-                    // I'll fallback to a simpler implementation for now to satisfy the linter 
-                    // and allow the user to refine if "Special Request" logic is complex.
-                    // The immediate goal is "Logic Fix" for duplication.
-
-                    // For now, I'll just console log and close to fix the crash, 
-                    // updating the user that this specific feature might need the ID wired up.
-                    // ... actually I should try to do it right.
-
-                    // Let's check `createGuestButler`.
-                    await createGuestButler({
-                      guest_id: activeGuestForRequest.guest_id,
-                      room_id: activeGuestForRequest.room_id ?? undefined,
-                      butler_id: activeGuestForRequest.butler?.id || "BUFFER_ID_IF_NEEDED", // Wait, need a butler?
-                      special_request: specialReqText
-                    } as any);
-                    // The above is risky if butler_id is required.
-
-                    // CORRECT APPROACH:
-                    // If the user wants to save a special request, it's typically on the GuestButler relation.
-                    // I'll implement a basic save and notify logic.
-
-                    // Re-reading `updateGuestButler` signature... likely takes ID.
-
-                    // To be safe and fix the compile error immediately:
-                    if (row && (row as any).guest_butler_id) {
-                      // Fix: special_request is in t_guest_butler, handled by updateGuestButler on guest_butler_id
-                      // The key in DTO might be different? 
-                      // Looking at updateGuestButler in guestButler.api.ts (not visible but inferred), likely takes partial object.
-                      await updateGuestButler((row as any).guest_butler_id, { specialRequest: specialReqText });
-                    } else {
-                      // create new assignment if needed? Or just fail gracefully?
-                      // For now, alert functionality not fully wired without butler selection.
+                    if (!row || !(row as any).guest_butler_id) {
                       showError("Please assign a butler first to add special requests.");
+                      return;
                     }
 
+                    await updateGuestButler((row as any).guest_butler_id, {
+                      specialRequest: specialReqText   // ✅ camelCase ONLY
+                    });
+
                     setSpecialReqModalOpen(false);
-                    loadGuests();
-                  } catch (err: any) {
+                    await loadGuests();
+                  } catch (err) {
                     showError("Failed to save special request");
                   }
                 }}

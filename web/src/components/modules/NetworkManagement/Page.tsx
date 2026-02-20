@@ -7,7 +7,7 @@ import "./NetworkManagement.css";
 import { StatCard } from "@/components/ui/StatCard";
 import { getNetworkTable, softDeleteNetwork, updateNetwork, createNetwork } from "@/api/network.api";
 import { getMessengerTable, softDeleteMessenger, createMessenger, updateMessenger } from "@/api/messenger.api";
-import { getGuestNetworkTable, updateGuestNetwork, createGuestNetwork } from "@/api/guestNetwork.api";
+import { getGuestNetworkTable, updateGuestNetwork, createGuestNetwork, getActiveProviders } from "@/api/guestNetwork.api";
 import { unassignGuestMessenger, createGuestMessenger } from "@/api/guestMessenger.api";
 import { NetworkProvider } from "@/types/network";
 import { Messenger } from "@/types/messenger";
@@ -33,15 +33,12 @@ type GuestNetworkView = {
     room_id: string | null;
     room_no: string | null;
 
+    provider_id: string | null;
+    username: string | null;
     guest_network_id: string | null;
     provider_name: string | null;
     network_status: string | null;
 
-    start_date: string | null;
-    start_time: string | null;
-    end_date: string | null;
-    end_time: string | null;
-    start_status: string | null;
     remarks: string | null;
 
     guest_messenger_id: string | null;
@@ -85,9 +82,11 @@ export default function NetworkManagement() {
 
     /* ================= GUEST NETWORK ================= */
     const [networks, setNetworks] = useState<NetworkProvider[]>([]);
+    const [activeProviders, setActiveProviders] = useState<NetworkProvider[]>([]);
     // const [rooms, setRooms] = useState<any[]>([]);
     const [guestRows, setGuestRows] = useState<GuestNetworkView[]>([]);
     const [assignModal, setAssignModal] = useState(false);
+    const [assignTouched, setAssignTouched] = useState(false);
     const [selectedGuest, setSelectedGuest] = useState<GuestNetworkView | null>(null);
 
     const [assignForm, setAssignForm] = useState<AssignMessengerForm>({
@@ -129,34 +128,15 @@ export default function NetworkManagement() {
     });
 
     type GuestNetworkEditForm = {
-        guest_name: string;
-        room_no: string;
-
-        start_date: string;
-        start_time: string;
-        end_date: string;
-        end_time: string;
-
-        network_status: GuestNetwork['network_status'] | "";
-        start_status: "Waiting" | "Success" | "";
+        provider_id: string;
         remarks: string;
     };
 
     const [editGuest, setEditGuest] = useState<GuestNetworkView | null>(null);
     const [guestForm, setGuestForm] = useState<GuestNetworkEditForm>({
-        guest_name: "",
-        room_no: "",
-
-        start_date: "",
-        start_time: "",
-        end_date: "",
-        end_time: "",
-
-        network_status: "",
-        start_status: "",
+        provider_id: "",
         remarks: "",
     });
-
     /* ================= MESSENGERS ================= */
     const [messengers, setMessengers] = useState<Messenger[]>([]);
     const [showAddMessenger, setShowAddMessenger] = useState(false);
@@ -223,20 +203,20 @@ export default function NetworkManagement() {
 
     }
     const resetNetworkForm = () => {
-    setNetworkForm({
-        provider_name: "",
-        provider_name_local_language: "",
-        network_type: "WiFi",
-        bandwidth_mbps: "",
-        username: "",
-        password: "",
-        static_ip: "",
-        address: "",
-    });
+        setNetworkForm({
+            provider_name: "",
+            provider_name_local_language: "",
+            network_type: "WiFi",
+            bandwidth_mbps: "",
+            username: "",
+            password: "",
+            static_ip: "",
+            address: "",
+        });
 
-    setEditNetwork(null);
-    setIsAddNetwork(false);
-    setFormErrors({});
+        setEditNetwork(null);
+        setIsAddNetwork(false);
+        setFormErrors({});
     };
     /* ================= PREFILL EFFECTS ================= */
     useEffect(() => {
@@ -253,24 +233,31 @@ export default function NetworkManagement() {
             });
         }
     }, [editMessenger]);
-
     useEffect(() => {
         if (editGuest) {
             setGuestForm({
-                guest_name: editGuest.guest_name,
-                room_no: editGuest.room_no || "—",
-
-                start_date: editGuest.start_date || "",
-                start_time: editGuest.start_time || "",
-                end_date: editGuest.end_date || "",
-                end_time: editGuest.end_time || "",
-
-                network_status: (editGuest.network_status as GuestNetwork['network_status']) || "",
-                start_status: (editGuest.start_status as "Waiting" | "Success") || "",
+                provider_id: editGuest.provider_id || "",
                 remarks: editGuest.remarks || "",
             });
         }
     }, [editGuest]);
+    // useEffect(() => {
+    //     if (editGuest) {
+    //         setGuestForm({
+    //             guest_name: editGuest.guest_name,
+    //             room_no: editGuest.room_no || "—",
+
+    //             start_date: editGuest.start_date || "",
+    //             start_time: editGuest.start_time || "",
+    //             end_date: editGuest.end_date || "",
+    //             end_time: editGuest.end_time || "",
+
+    //             network_status: (editGuest.network_status as GuestNetwork['network_status']) || "",
+    //             start_status: (editGuest.start_status as "Waiting" | "Success") || "",
+    //             remarks: editGuest.remarks || "",
+    //         });
+    //     }
+    // }, [editGuest]);
     useEffect(() => {
         if (editNetwork) {
             setNetworkForm({
@@ -285,33 +272,9 @@ export default function NetworkManagement() {
             });
         }
     }, [editNetwork]);
-    // useEffect(() => {
-    //     async function loadRooms() {
-    //         const res = await getActiveRooms();
-    //         setRooms(res);
-    //     }
-
-    //     loadRooms();
-    // }, []);
-
-    // async function loadGuestNetwork() {
-    //     setGuestLoading(true);
-
-    //     const res = await getGuestNetworkTable({
-    //         page: guestTable.query.page,
-    //         limit: guestTable.query.limit,
-    //         sortBy: ["guest_name", "network_status"].includes(guestTable.query.sortBy)
-    //             ? guestTable.query.sortBy
-    //             : "guest_name" as any,
-    //         sortOrder: guestTable.query.sortOrder,
-    //         search: guestTable.query.search,
-    //     });
-
-    //     setGuestRows(res.data);
-    //     setGuestTotal(res.totalCount);
-    //     setGuestStats(res.stats);
-    //     setGuestLoading(false);
-    // }
+    useEffect(() => {
+        loadActiveProviders();
+    }, []);
     async function loadGuestNetwork() {
         setGuestLoading(true);
 
@@ -347,39 +310,15 @@ export default function NetworkManagement() {
             setGuestLoading(false);
         }
     }
-
-
-    // async function loadNetworks() {
-    //     setNetworkLoading(true);
-
-    //     const res = await getNetworkTable({
-    //         page: networkTable.query.page,
-    //         limit: networkTable.query.limit,
-    //         sortBy: [
-    //             "provider_name",
-    //             "network_type",
-    //             "bandwidth_mbps",
-    //         ].includes(networkTable.query.sortBy)
-    //             ? networkTable.query.sortBy
-    //             : "provider_name" as any,
-
-    //         sortOrder: networkTable.query.sortOrder,
-    //         status: networkTable.query.status as "all" | "active" | "inactive" | undefined,
-    //     });
-
-    //     setNetworks(res.data);
-    //     setNetworkTotal(res.totalCount);
-    //     setNetworkStats({
-    //         total: res.stats.total ?? 0,
-    //         active: res.stats.active ?? 0,
-    //         inactive: res.stats.inactive ?? 0,
-    //         wifi: res.stats.wifi ?? 0,
-    //         broadband: res.stats.broadband ?? 0,
-    //         hotspot: res.stats.hotspot ?? 0,
-    //         leasedLine: res.stats.leasedLine ?? 0,
-    //     });
-    //     setNetworkLoading(false);
-    // }
+    async function loadActiveProviders() {
+        try {
+            const res = await getActiveProviders();
+            setActiveProviders(res ?? []);
+        } catch (err) {
+            console.error("Failed to load active providers:", err);
+            setActiveProviders([]);
+        }
+    }
     async function loadNetworks() {
         setNetworkLoading(true);
 
@@ -591,7 +530,7 @@ export default function NetworkManagement() {
         },
         {
             header: "Room",
-            render: (row) => row.room_id || "—",
+            render: (row) => row.room_no || "—",
         },
         {
             header: "Provider",
@@ -606,10 +545,10 @@ export default function NetworkManagement() {
                     return "—";
                 }
 
-                if (row.network_status === "Active") {
+                if (row.network_status === "Connected") {
                     return (
                         <span className={`${base} bg-green-100 text-green-800`}>
-                            Network Active
+                            Network Connected
                         </span>
                     );
                 }
@@ -1333,7 +1272,11 @@ export default function NetworkManagement() {
                     <div className="nicModal">
                         <div className="nicModalHeader">
                             <h2>Assign Messenger</h2>
-                            <button className="closeBtn" onClick={() => setAssignModal(false)}>✕</button>
+                            <button className="closeBtn" 
+                            onClick={() => {
+                                setAssignModal(false);
+                                setAssignTouched(false);
+                            }}>✕</button>
                         </div>
 
                         <div className="nicModalBody">
@@ -1356,7 +1299,7 @@ export default function NetworkManagement() {
                                             </option>
                                         ))}
                                     </select>
-                                    {!assignForm.assigned_to && (
+                                    {assignTouched && !assignForm.assigned_to && (
                                         <p className="errorText">Messenger is required</p>
                                     )}
                                 </div>
@@ -1377,12 +1320,19 @@ export default function NetworkManagement() {
                         </div>
 
                         <div className="nicModalActions">
-                            <button className="cancelBtn" onClick={() => setAssignModal(false)}>
+                            <button className="cancelBtn" 
+                            onClick={() => {
+                                setAssignModal(false);
+                                setAssignTouched(false);
+                            }}>
                                 Cancel
                             </button>
                             <button
                                 className="saveBtn"
-                                onClick={handleAssignMessenger}
+                                onClick={() => {
+                                    setAssignTouched(true);
+                                    handleAssignMessenger();
+                                }}
                                 disabled={!assignForm.assigned_to}
                             >
                                 Assign
@@ -1710,47 +1660,47 @@ export default function NetworkManagement() {
                             <button
                                 className="saveBtn"
                                 onClick={async () => {
-                                setFormErrors({});
+                                    setFormErrors({});
 
-                                try {
-                                    const parsed = networkProviderSchema.parse({
-                                    ...networkForm,
-                                    bandwidth_mbps: networkForm.bandwidth_mbps
-                                        ? Number(networkForm.bandwidth_mbps)
-                                        : undefined,
-                                    });
+                                    try {
+                                        const parsed = networkProviderSchema.parse({
+                                            ...networkForm,
+                                            bandwidth_mbps: networkForm.bandwidth_mbps
+                                                ? Number(networkForm.bandwidth_mbps)
+                                                : undefined,
+                                        });
 
-                                    const payload = { ...parsed };
+                                        const payload = { ...parsed };
 
-                                    // Remove empty password for edit
-                                    if (!payload.password) {
-                                    delete payload.password;
+                                        // Remove empty password for edit
+                                        if (!payload.password) {
+                                            delete payload.password;
+                                        }
+
+                                        if (editNetwork?.provider_id) {
+                                            await updateNetwork(editNetwork.provider_id, payload);
+                                        } else {
+                                            await createNetwork(payload);
+                                        }
+
+                                        // Reset form
+                                        resetNetworkForm();
+                                        setNetworkModalOpen(false);
+
+                                        await loadNetworks();
+                                        networkTable.setPage(1);
+
+                                    } catch (err: any) {
+                                        if (err instanceof ZodError) {
+                                            const errors: Record<string, string> = {};
+                                            err.issues.forEach((issue: any) => {
+                                                errors[issue.path[0] as string] = issue.message;
+                                            });
+                                            setFormErrors(errors);
+                                        } else {
+                                            console.error(err);
+                                        }
                                     }
-
-                                    if (editNetwork?.provider_id) {
-                                    await updateNetwork(editNetwork.provider_id, payload);
-                                    } else {
-                                    await createNetwork(payload);
-                                    }
-
-                                    // Reset form
-                                    resetNetworkForm();
-                                    setNetworkModalOpen(false);
-
-                                    await loadNetworks();
-                                    networkTable.setPage(1);
-
-                                } catch (err: any) {
-                                    if (err instanceof ZodError) {
-                                    const errors: Record<string, string> = {};
-                                    err.issues.forEach((issue: any) => {
-                                        errors[issue.path[0] as string] = issue.message;
-                                    });
-                                    setFormErrors(errors);
-                                    } else {
-                                    console.error(err);
-                                    }
-                                }
                                 }}
                             >
                                 Save
@@ -1998,15 +1948,19 @@ export default function NetworkManagement() {
                 <div className="modalOverlay">
                     <div className="nicModal">
                         <div className="nicModalHeader">
-                            <h2>Edit Guest Network</h2>
+                            <h2>Assign Network</h2>
                             <button onClick={() => setEditGuest(null)}>✕</button>
                         </div>
                         <div className="nicFormStack">
                             <div>
+                                <div>
+                                    <label>Guest ID</label>
+                                    <input value={editGuest.guest_id} disabled />
+                                </div>
                                 <label className="nicLabel">Guest Name</label>
                                 <input
                                     className="nicInput"
-                                    value={guestForm.guest_name}
+                                    value={editGuest.guest_name}
                                     disabled
                                 />
                             </div>
@@ -2026,146 +1980,69 @@ export default function NetworkManagement() {
                                     disabled
                                 />
                             </div>
-                            <div>
-                                <label className="nicLabel">
-                                    Network Status <span className="required">*</span>
-                                </label>
-                                <select
-                                    className="nicInput"
-                                    value={guestForm.network_status}
-                                    onChange={(e) => setGuestForm({ ...guestForm, network_status: e.target.value as GuestNetwork['network_status'] })}
-                                >
-                                    <option value="Requested">Requested</option>
-                                    <option value="Connected">Connected</option>
-                                    <option value="Disconnected">Disconnected</option>
-                                    <option value="Issue-Reported">Issue Reported</option>
-                                    <option value="Resolved">Resolved</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                            </div>
-                            {/* 
-                            <div className="formRow">
-                                <div>
-                                    <label className="nicLabel">Start Date</label>
-                                    <input
-                                        type="date"
-                                        className="nicInput"
-                                        value={guestForm.start_date}
-                                        disabled={!!editGuest?.start_date}
-                                        onChange={(e) =>
-                                            setGuestForm({ ...guestForm, start_date: e.target.value })
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label className="nicLabel">Start Time</label>
-                                    <input
-                                        type="time"
-                                        className="nicInput"
-                                        value={guestForm.start_time}
-                                        disabled={!!editGuest?.start_time}
-                                        onChange={(e) =>
-                                            setGuestForm({ ...guestForm, start_time: e.target.value })
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="formRow">
-                                <div>
-                                    <label className="nicLabel">End Date</label>
-                                    <input
-                                        type="date"
-                                        className="nicInput"
-                                        value={guestForm.end_date}
-                                        onChange={(e) =>
-                                            setGuestForm({ ...guestForm, end_date: e.target.value })
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label className="nicLabel">End Time</label>
-                                    <input
-                                        type="time"
-                                        className="nicInput"
-                                        value={guestForm.end_time}
-                                        onChange={(e) =>
-                                            setGuestForm({ ...guestForm, end_time: e.target.value })
-                                        }
-                                    />
-                                </div>
-                            </div> */}
-
-                            {/* <div>
-                                <label className="nicLabel">Start Status</label>
-                                <select
-                                    className="nicInput"
-                                    value={guestForm.start_status}
-                                    onChange={(e) =>
-                                        setGuestForm({
-                                            ...guestForm,
-                                            start_status: e.target.value as "Waiting" | "Success",
-                                        })
-                                    }
-                                >
-                                    <option value="">—</option>
-                                    <option value="Waiting">Waiting</option>
-                                    <option value="Success">Success</option>
-                                </select>
-                            </div> */}
 
                             <div>
-                                <label className="nicLabel">Remarks</label>
-                                <textarea
-                                    className="nicInput"
-                                    rows={3}
-                                    maxLength={500}
-                                    value={guestForm.remarks}
-                                    onChange={(e) =>
-                                        setGuestForm({ ...guestForm, remarks: e.target.value })
-                                    }
-                                />
+                            <label>Username *</label>
+                            <select
+                                value={guestForm.provider_id}
+                                onChange={(e) =>
+                                setGuestForm({ ...guestForm, provider_id: e.target.value })
+                                }
+                            >
+                                <option value="">Select Username</option>
+                                {activeProviders
+                                .filter(p => p.username)
+                                .map(p => (
+                                    <option key={p.provider_id} value={p.provider_id}>
+                                        {p.username} ({p.provider_name})
+                                    </option>
+                                ))}
+                            </select>
+                            </div>
+
+                            <div>
+                            <label>Remarks</label>
+                            <textarea
+                                value={guestForm.remarks}
+                                onChange={(e) =>
+                                setGuestForm({ ...guestForm, remarks: e.target.value })
+                                }
+                            />
                             </div>
                         </div>
                         <div className="nicModalActions">
                             <button className="cancelBtn" onClick={() => setEditGuest(null)}>Cancel</button>
                             <button
                                 className="saveBtn"
+                                disabled={!guestForm.provider_id}
                                 onClick={async () => {
+                                    if (!guestForm.provider_id) {
+                                        alert('Please select username');
+                                        return;
+                                    }
+
                                     try {
-                                        if (editGuest?.guest_network_id) {
-                                            // UPDATE existing guest network
-                                            await updateGuestNetwork(editGuest.guest_network_id, {
-                                                start_date: guestForm.start_date,
-                                                start_time: guestForm.start_time,
-
-                                                end_date: guestForm.end_date || undefined,
-                                                end_time: guestForm.end_time || undefined,
-
-                                                network_status: guestForm.network_status || undefined,
-                                                start_status: guestForm.start_status || undefined,
-                                                remarks: guestForm.remarks || undefined,
-                                            });
-                                        } else {
-                                            // CREATE new guest network (because it does not exist yet)
-                                            await createGuestNetwork({
-                                                guest_id: editGuest!.guest_id,
-                                                network_status: guestForm.network_status as GuestNetwork['network_status'],
-
-                                                // REQUIRED fields for CreateGuestNetworkDto
-                                                provider_id: "N001", // <-- replace with actual default or selected provider
-                                                start_date: new Date().toISOString().slice(0, 10),
-                                                start_time: new Date().toISOString().slice(11, 16),
-                                            });
-                                        }
+                                        await createGuestNetwork({
+                                            guest_id: editGuest.guest_id,
+                                            provider_id: guestForm.provider_id,
+                                            remarks: guestForm.remarks || undefined,
+                                        });
 
                                         await loadGuestNetwork();
                                         setEditGuest(null);
+                                        setGuestForm({
+                                            provider_id: "",
+                                            remarks: "",
+                                        });
 
-                                    } catch (err) {
-                                        console.error(err);
+                                    } catch (err: any) {
+                                        const message =
+                                            err?.response?.data?.message ||
+                                            "Unable to assign network";
+                                        alert(message);
                                     }
                                 }}
+
                             >
                                 Save
                             </button>

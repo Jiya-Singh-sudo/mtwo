@@ -1,26 +1,12 @@
 /* ======================================================
    CORE ENTITY (TABLE VIEW)
 ====================================================== */
-
-export type GuestNetwork = {
+export interface GuestNetwork {
   guest_network_id: string;
-
   guest_id: string;
-  guest_name: string;
-
   provider_id: string;
-  provider_name: string;
-
-  room_no?: string;
-
-  start_date: string;
-  start_time: string;
-  end_date?: string;
-  end_time?: string;
-
-  start_status: 'Waiting' | 'Success';
-  end_status: 'Waiting' | 'Success';
-
+  provider_name?: string;
+  username?: string;
   network_status:
   | 'Requested'
   | 'Connected'
@@ -28,12 +14,41 @@ export type GuestNetwork = {
   | 'Issue-Reported'
   | 'Resolved'
   | 'Cancelled';
-
-  description?: string;
   remarks?: string;
-
   is_active: boolean;
-};
+}
+// export type GuestNetwork = {
+//   guest_network_id: string;
+
+//   guest_id: string;
+//   guest_name: string;
+
+//   provider_id: string;
+//   provider_name: string;
+
+//   room_no?: string;
+
+//   start_date: string;
+//   start_time: string;
+//   end_date?: string;
+//   end_time?: string;
+
+//   start_status: 'Waiting' | 'Success';
+//   end_status: 'Waiting' | 'Success';
+
+//   network_status:
+//   | 'Requested'
+//   | 'Connected'
+//   | 'Disconnected'
+//   | 'Issue-Reported'
+//   | 'Resolved'
+//   | 'Cancelled';
+
+//   description?: string;
+//   remarks?: string;
+
+//   is_active: boolean;
+// };
 
 /* ======================================================
    CREATE / UPDATE
@@ -46,15 +61,6 @@ export type CreateGuestNetworkPayload = {
 
   network_zone_from?: string;
   network_zone_to?: string;
-
-  start_date: string;
-  start_time: string;
-
-  end_date?: string;
-  end_time?: string;
-
-  start_status?: 'Waiting' | 'Success';
-  end_status?: 'Waiting' | 'Success';
 
   network_status?: GuestNetwork['network_status'];
 
@@ -75,7 +81,9 @@ export interface GuestNetworkRow {
   /* -------- Network -------- */
   guest_network_id: string | null;
   network_id: string | null;
+  provider_id: string | null;
   provider_name: string | null;
+  username: string | null;
   network_status: string | null;
 
   /* -------- Messenger -------- */
@@ -86,12 +94,6 @@ export interface GuestNetworkRow {
 
   requested_at: string | null;
 
-  /* -------- Lifecycle -------- */
-  start_date: string | null;
-  start_time: string | null;
-  end_date: string | null;
-  end_time: string | null;
-  start_status: string | null;
   remarks: string | null;
 }
 
