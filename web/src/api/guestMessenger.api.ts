@@ -1,11 +1,5 @@
 import api from '@/api/apiClient';
-import {
-  GuestMessenger,
-  GuestMessengerTableQuery,
-  GuestMessengerTableResponse,
-  CreateGuestMessengerPayload,
-  UnassignGuestMessengerPayload,
-} from '@/types/guestMessenger';
+import { GuestMessenger, GuestMessengerTableQuery, GuestMessengerTableResponse, CreateGuestMessengerPayload, UnassignGuestMessengerPayload,} from '@/types/guestMessenger';
 import { GuestNetworkTableQuery, GuestNetworkTableResponse } from '@/types/guestNetwork';
 
 /* ======================================================
