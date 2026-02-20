@@ -8,4 +8,4 @@ import { DatabaseModule } from 'src/database/database.module';
   controllers: [GuestMessengerController],
   providers: [GuestMessengerService]
 })
-export class GuestMessenegerModule {}
+export class GuestMessengerModule {}

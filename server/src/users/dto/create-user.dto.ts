@@ -29,16 +29,19 @@ export class CreateUserDto {
   password: string;
 
   @IsOptional()
-@Type(() => Number)
-@IsNumber()
-  user_mobile?: number;
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Primary mobile must be a number' })
+  primary_mobile?: number;
 
   @IsOptional()
-@Type(() => Number)
-@IsNumber()
-  user_alternate_mobile?: number;
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Alternate mobile must be a number' })
+  alternate_mobile?: number;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

@@ -1,11 +1,8 @@
-import {
-  IsString,
-  IsOptional,
-  IsEmail,
-  IsBoolean,
-} from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsBoolean, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateUserDto {
+
   @IsOptional()
   @IsString()
   username?: string;
@@ -16,28 +13,29 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  full_name_local_language?: string;
-
-  @IsOptional()
-  @IsString()
   role_id?: string;
 
-  @IsOptional()
-  @IsString()
-  user_mobile?: string;
-
-  @IsOptional()
-  @IsString()
-  user_alternate_mobile?: string;
-
-  // if provided, will be hashed server-side
   @IsOptional()
   @IsString()
   password?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  primary_mobile?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  alternate_mobile?: number;
+
+  @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsBoolean()

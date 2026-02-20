@@ -87,7 +87,12 @@ export class NetworksService {
       params.push(query.networkType);
       where.push(`network_type = $${params.length}`);
     }
-
+    if (query.networkType && !['WiFi','Broadband','Hotspot','Leased-Line'].includes(query.networkType)) {
+      throw new BadRequestException('Invalid network type filter');
+    }
+    if (query.limit > 100) {
+      throw new BadRequestException('Limit too large');
+    }
     // search → provider_name, network_type, bandwidth
     if (query.search) {
       params.push(`%${query.search}%`);
@@ -206,10 +211,43 @@ export class NetworksService {
       // const now = new Date()
       //   .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
       //   .replace(',', '');
+
       const providerId = await this.generateProviderId(client);
       const hashedPassword = dto.password
         ? sha256(dto.password)
         : null;
+      // Normalize input
+      const providerName = dto.provider_name?.trim();
+      const username = dto.username?.trim() || null;
+      const staticIp = dto.static_ip?.trim() || null;
+      const address = dto.address?.trim() || null;
+
+      if (!providerName) {
+        throw new BadRequestException('Provider name is required');
+      }
+
+      if (!['WiFi','Broadband','Hotspot','Leased-Line'].includes(dto.network_type)) {
+        throw new BadRequestException('Invalid network type');
+      }
+
+      if (dto.bandwidth_mbps !== undefined) {
+        if (!Number.isInteger(dto.bandwidth_mbps) || dto.bandwidth_mbps <= 0) {
+          throw new BadRequestException('Bandwidth must be a positive integer');
+        }
+      }
+      if (staticIp) {
+        const ipRegex =
+          /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+        if (!ipRegex.test(staticIp)) {
+          throw new BadRequestException('Invalid static IP format');
+        }
+      }
+      if (dto.password) {
+        if (dto.password.length < 6) {
+          throw new BadRequestException('Password must be at least 6 characters');
+        }
+      }
       // 🔴 Duplicate provider name check
       const duplicate = await client.query(
         `
@@ -274,7 +312,51 @@ export class NetworksService {
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Provider '${id}' not found`);
       }
+      if (!id.startsWith('N')) {
+        throw new BadRequestException('Invalid provider ID format');
+      }
+      const providerName = dto.provider_name?.trim();
+      const staticIp = dto.static_ip?.trim();
+      if (dto.network_type) {
+        if (!['WiFi','Broadband','Hotspot','Leased-Line'].includes(dto.network_type)) {
+          throw new BadRequestException('Invalid network type');
+        }
+      }
+      if (dto.bandwidth_mbps !== undefined) {
+        if (!Number.isInteger(dto.bandwidth_mbps) || dto.bandwidth_mbps <= 0) {
+          throw new BadRequestException('Bandwidth must be a positive integer');
+        }
+      }
+      if (staticIp) {
+        const ipRegex =
+          /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+        if (!ipRegex.test(staticIp)) {
+          throw new BadRequestException('Invalid static IP format');
+        }
+      }
+      if (dto.password) {
+        if (dto.password.length < 6) {
+          throw new BadRequestException('Password must be at least 6 characters');
+        }
+      }
       const existing = existingRes.rows[0];
+      if (dto.is_active === false && existing.is_active === true) {
+        const assigned = await client.query(`
+          SELECT 1
+          FROM t_guest_network
+          WHERE provider_id = $1
+            AND is_active = TRUE
+          LIMIT 1
+        `, [id]);
+
+        if (assigned.rowCount > 0) {
+          throw new BadRequestException(
+            'Cannot deactivate provider while assigned to a guest'
+          );
+        }
+      }
+
       const passwordToStore =
         dto.password !== undefined
           ? sha256(dto.password)

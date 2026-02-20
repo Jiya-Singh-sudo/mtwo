@@ -101,13 +101,14 @@ export class GuestsService {
   // create guest (transactional)
   async createFullGuest(payload: {
       guest: CreateGuestDto;
-      designation?: {
-        designation_name?: string;
-        department?: string;
-        organization?: string;
-        office_location?: string;
-        is_current?: boolean;
-      };
+        designation?: {
+          designation_id?: string;   // 👈 ADD THIS LINE
+          designation_name?: string;
+          department?: string;
+          organization?: string;
+          office_location?: string;
+          is_current?: boolean;
+        };
       inout?: {
         entry_date?: string;
         entry_time?: string;
@@ -158,9 +159,8 @@ export class GuestsService {
             (guest_id, guest_name, guest_name_local_language,
             guest_mobile, guest_alternate_mobile,
             guest_address, email,
-            inserted_by, inserted_ip,
-            id_proof_type, id_proof_no, inserted_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+            inserted_by, inserted_ip, inserted_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
           RETURNING *;
         `;
 
@@ -177,12 +177,31 @@ export class GuestsService {
         ]);
         const guestRow = guestRes.rows[0];
 
-        // 3. Upsert m_guest_designation
-        if (!payload.designation?.designation_name) {
-          throw new BadRequestException('Designation name is required');
+        // 3. Resolve designation (existing OR new)
+
+        if (
+          !payload.designation?.designation_id &&
+          !payload.designation?.designation_name
+        ) {
+          throw new BadRequestException(
+            'Either designation must be selected or new designation name must be provided'
+          );
         }
-        const generatedDesignationId = await this.generateDesignationId(client);
-        const designation_name_local_language = transliterateToDevanagari(payload.designation.designation_name);
+
+        let finalDesignationId: string;
+
+        if (payload.designation.designation_id) {
+          // Existing designation selected
+          finalDesignationId = payload.designation.designation_id;
+        } else {
+          // New designation → create / upsert
+          const generatedDesignationId =
+            await this.generateDesignationId(client);
+
+          const designation_name_local_language =
+            transliterateToDevanagari(
+              payload.designation.designation_name!
+            );
 
           const upsertSql = `
             INSERT INTO m_guest_designation (
@@ -203,15 +222,16 @@ export class GuestsService {
             RETURNING *;
           `;
 
-        const desRes = await client.query(upsertSql, [
-          generatedDesignationId,
-          payload.designation.designation_name,
-          designation_name_local_language,
-          user,
-          ip,
-        ]);
+          const desRes = await client.query(upsertSql, [
+            generatedDesignationId,
+            payload.designation.designation_name,
+            designation_name_local_language,
+            user,
+            ip,
+          ]);
 
-        const finalDesignationId = desRes.rows[0].designation_id;
+          finalDesignationId = desRes.rows[0].designation_id;
+        }
 
         // 4. Create t_guest_designation
         // if (!generatedDesignationId) {

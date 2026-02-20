@@ -31,7 +31,7 @@ import { RoomManagementModule } from './room-management/room-management.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { GuestTransportModule } from './guest-transport/guest-transport.module';
 import { MessengersModule } from './messengers/messengers.module';
-import { GuestMessenegerModule } from './guest-messeneger/guest-messeneger.module';
+import { GuestMessengerModule } from './guest-messeneger/guest-messeneger.module';
 import { InfoPackageModule } from './info-package/info-package.module';
 import { ReportsPkgModule } from './reports-pkg/reports-pkg.module';
 import { PermissionsModule } from './permissions/permissions.module';
@@ -84,7 +84,7 @@ import { GuestLiasoningOfficerModule } from './guest-liasoning-officer/guest-lia
     ActivityLogModule,
     GuestTransportModule,
     MessengersModule,
-    GuestMessenegerModule,
+    GuestMessengerModule,
     InfoPackageModule,
     ReportsPkgModule,
     PermissionsModule,

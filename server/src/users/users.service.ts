@@ -34,7 +34,12 @@ export class UsersService {
     `);
     return res.rows[0].id;
   }
-
+  private async generateStaffId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
+    `);
+    return res.rows[0].id;
+  }
   private hashPassword(plain: string): string {
     return crypto.createHash('sha256').update(plain).digest('hex');
   }
@@ -64,8 +69,8 @@ export class UsersService {
 
     const SORT_MAP: Record<string, string> = {
       username: 'u.username',
-      full_name: 'u.full_name',
-      email: 'u.email',
+      full_name: 's.full_name',
+      email: 's.email',
       role_id: 'u.role_id',
       is_active: 'u.is_active',
     };
@@ -97,9 +102,9 @@ export class UsersService {
     if (search) {
       where.push(`(
         u.username ILIKE $${idx}
-        OR u.full_name ILIKE $${idx}
-        OR u.email ILIKE $${idx}
-        OR u.user_mobile ILIKE $${idx}
+        OR s.full_name ILIKE $${idx}
+        OR s.email ILIKE $${idx}
+        OR s.primary_mobile ILIKE $${idx}
       )`);
       sqlParams.push(`%${search}%`);
       idx++;
@@ -108,7 +113,12 @@ export class UsersService {
     const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
     // Count
-    const countSql = `SELECT COUNT(*)::int AS total FROM m_user u ${whereSql}`;
+    const countSql = `
+      SELECT COUNT(*)::int AS total 
+      FROM m_user u 
+      LEFT JOIN m_staff s ON s.staff_id = u.staff_id 
+      ${whereSql}
+    `;
     const countRes = await this.db.query(countSql, sqlParams);
 
     // Data
@@ -116,12 +126,13 @@ export class UsersService {
       SELECT 
         u.user_id, 
         u.username, 
-        u.full_name, 
-        u.full_name_local_language, 
+        s.full_name, 
+        s.full_name_local_language, 
         u.role_id, 
-        u.user_mobile, 
-        u.user_alternate_mobile, 
-        u.email, 
+        s.primary_mobile, 
+        s.alternate_mobile, 
+        s.email,
+        s.address,
         u.last_login, 
         u.is_active, 
         u.inserted_at, 
@@ -131,6 +142,7 @@ export class UsersService {
         u.updated_by, 
         u.updated_ip 
       FROM m_user u
+      LEFT JOIN m_staff s ON s.staff_id = u.staff_id
       ${whereSql}
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1}
@@ -146,13 +158,43 @@ export class UsersService {
   }
 
   async findOneByUsername(username: string) {
-    const sql = `SELECT * FROM m_user WHERE username = $1`;
+    const sql = `SELECT u.*, s.*
+                FROM m_user u
+                LEFT JOIN m_staff s ON s.staff_id = u.staff_id
+                WHERE u.username = $1
+                `;
     const res = await this.db.query(sql, [username]);
     return res.rows[0];
   }
 
   async findOneById(user_id: string) {
-    const sql = `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user WHERE user_id = $1`;
+    // const sql = `SELECT user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip FROM m_user WHERE user_id = $1`;
+    const sql = `
+      SELECT
+        u.user_id,
+        u.username,
+        u.role_id,
+        u.last_login,
+        u.is_active,
+
+        s.staff_id,
+        s.full_name,
+        s.full_name_local_language,
+        s.primary_mobile,
+        s.alternate_mobile,
+        s.email,
+        s.address,
+
+        u.inserted_at,
+        u.inserted_by,
+        u.inserted_ip,
+        u.updated_at,
+        u.updated_by,
+        u.updated_ip
+      FROM m_user u
+      LEFT JOIN m_staff s ON s.staff_id = u.staff_id
+      WHERE u.user_id = $1
+    `;
     const res = await this.db.query(sql, [user_id]);
     return res.rows[0];
   }
@@ -164,8 +206,37 @@ export class UsersService {
       // ensure username uniqueness should be handled by DB unique constraint,
       // you may wish to check and throw custom error if desired.
       const user_id = await this.generateUserId(client);
+      const staff_id = await this.generateStaffId(client);
       const hashed = this.hashPassword(dto.password);
+
       const full_name_local_language = transliterateToDevanagari(dto.full_name);
+
+      await client.query(`
+        INSERT INTO m_staff (
+          staff_id,
+          full_name,
+          full_name_local_language,
+          primary_mobile,
+          alternate_mobile,
+          email,
+          address,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW(),$8,$9)
+      `, [
+        staff_id,
+        dto.full_name,
+        full_name_local_language,
+        dto.primary_mobile ?? null,
+        dto.alternate_mobile ?? null,
+        dto.email ?? null,
+        dto.address ?? null,
+        user,
+        ip
+      ]);
 
       // server/src/users/users.service.ts (Inside the create method)
 
@@ -173,35 +244,26 @@ export class UsersService {
         INSERT INTO m_user (
           user_id,
           username,
-          full_name,
-          full_name_local_language,
           role_id,
-          user_mobile,
-          user_alternate_mobile,
+          staff_id,
           password,
-          email,
           last_login,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, true, NOW(), $10, $11)
+        VALUES ($1,$2,$3,$4,$5,NULL,true,NOW(),$6,$7)
         RETURNING *;
-      `;  
-
+      `;
       const params = [
         user_id,                         // $1
         dto.username,                    // $2
-        dto.full_name,                   // $3
-        full_name_local_language,        // $4
-        dto.role_id,                     // $5
-        dto.user_mobile ?? null,         // $6
-        dto.user_alternate_mobile ?? null, // $7
-        hashed,                          // $8
-        dto.email ?? null,               // $9 
-        user,                            // $10
-        ip,                              // $11
+        dto.role_id,                     // $3
+        staff_id,                         // $4
+        hashed,                          // $5
+        user,                            // $6
+        ip,                              // $7
       ];
 
       const res = await client.query(sql, params);
@@ -295,7 +357,11 @@ export class UsersService {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
-        `SELECT * FROM m_user WHERE username = $1 FOR UPDATE`,
+        `SELECT u.*, s.*
+        FROM m_user u
+        INNER JOIN m_staff s ON s.staff_id = u.staff_id
+        WHERE u.username = $1
+        FOR UPDATE`,
         [username]
       );
 
@@ -305,35 +371,48 @@ export class UsersService {
       const existing = existingRes.rows[0];
       // If incoming password present, hash it; else preserve existing.password
       const passwordHash = dto.password ? this.hashPassword(dto.password) : existing.password;
-      const full_name_local_language = transliterateToDevanagari(dto.full_name);
+      const updatedFullName = dto.full_name ?? existing.full_name;
+      const updatedLocal = dto.full_name ? transliterateToDevanagari(dto.full_name) : existing.full_name_local_language;
+
+      await client.query(`
+        UPDATE m_staff SET
+          full_name = $1,
+          full_name_local_language = $2,
+          primary_mobile = $3,
+          alternate_mobile = $4,
+          email = $5,
+          updated_at = NOW(),
+          updated_by = $6,
+          updated_ip = $7
+        WHERE staff_id = $8
+      `, [
+        updatedFullName,
+        updatedLocal,
+        dto.primary_mobile ?? existing.primary_mobile,
+        dto.alternate_mobile ?? existing.alternate_mobile,
+        dto.email ?? existing.email,
+        user,
+        ip,
+        existing.staff_id
+      ]);
 
       const sql = `
         UPDATE m_user SET
           username = $1,
-          full_name = $2,
-          full_name_local_language = $3,
-          role_id = $4,
-          user_mobile = $5,
-          user_alternate_mobile = $6,
-          password = $7,
-          email = $8,
-          is_active = $9,
+          role_id = $2,
+          password = $3,
+          is_active = $4,
           updated_at = NOW(),
-          updated_by = $10,
-          updated_ip = $11
-        WHERE user_id = $12
+          updated_by = $5,
+          updated_ip = $6
+        WHERE user_id = $7
         RETURNING *;
       `;
 
       const params = [
         dto.username ?? existing.username,
-        dto.full_name ?? existing.full_name,
-        full_name_local_language,
         dto.role_id ?? existing.role_id,
-        dto.user_mobile ?? existing.user_mobile,
-        dto.user_alternate_mobile ?? existing.user_alternate_mobile,
         passwordHash,
-        dto.email ?? existing.email,
         dto.is_active ?? existing.is_active,
         user,
         ip,
@@ -342,6 +421,7 @@ export class UsersService {
 
       const res = await client.query(sql, params);
       const updated = res.rows[0];
+      console.log('UPDATE DTO:', dto);
       await this.activityLog.log({
         message: `User ${updated.username} updated`,
         module: 'USER',
@@ -353,39 +433,94 @@ export class UsersService {
       return updated;
     });
   }
-
   async softDelete(username: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+
       const existingRes = await client.query(
-        `SELECT * FROM m_user WHERE username = $1 FOR UPDATE`,
+        `SELECT u.user_id, u.staff_id
+        FROM m_user u
+        INNER JOIN m_staff s ON s.staff_id = u.staff_id
+        WHERE u.username = $1
+        FOR UPDATE`,
         [username]
       );
+
       if (!existingRes.rowCount) {
         throw new NotFoundException(`User '${username}' not found`);
       }
-      const existing = existingRes.rows[0];
-      const sql = `
-        UPDATE m_user SET
-          is_active = false,
-          updated_at = NOW(),
-          updated_by = $1,
-          updated_ip = $2
-        WHERE user_id = $3
-        RETURNING *;
-      `;
-      const res = await client.query(sql, [user, ip, existing.user_id]);
-      const deleted = res.rows[0];
+
+      const { user_id, staff_id } = existingRes.rows[0];
+
+      // 1️⃣ Deactivate user
+      await client.query(
+        `UPDATE m_user
+        SET is_active = false,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
+        WHERE user_id = $3`,
+        [user, ip, user_id]
+      );
+
+      // 2️⃣ Deactivate staff
+      await client.query(
+        `UPDATE m_staff
+        SET is_active = false,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
+        WHERE staff_id = $3`,
+        [user, ip, staff_id]
+      );
+
       await this.activityLog.log({
-        message: `User ${deleted.username} deactivated`,
+        message: `User ${username} deactivated`,
         module: 'USER',
         action: 'USER_DELETE',
-        referenceId: deleted.user_id,
+        referenceId: user_id,
         performedBy: user,
         ipAddress: ip,
       }, client);
-      return deleted;
+
+      return { message: 'User deactivated successfully' };
     });
   }
+  // async softDelete(username: string, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
+  //     const existingRes = await client.query(
+  //       `SELECT u.*, s.*
+  //         FROM m_user u
+  //         INNER JOIN m_staff s ON s.staff_id = u.staff_id
+  //         WHERE u.username = $1
+  //         FOR UPDATE`,
+  //       [username]
+  //     );
+  //     if (!existingRes.rowCount) {
+  //       throw new NotFoundException(`User '${username}' not found`);
+  //     }
+  //     const existing = existingRes.rows[0];
+  //     const sql = `
+  //       UPDATE m_user SET
+  //         is_active = false,
+  //         updated_at = NOW(),
+  //         updated_by = $1,
+  //         updated_ip = $2
+  //       WHERE user_id = $3
+  //       RETURNING *;
+  //     `;
+  //     const res = await client.query(sql, [user, ip, existing.user_id]);
+  //     const deleted = res.rows[0];
+  //     await this.activityLog.log({
+  //       message: `User ${deleted.username} deactivated`,
+  //       module: 'USER',
+  //       action: 'USER_DELETE',
+  //       referenceId: deleted.user_id,
+  //       performedBy: user,
+  //       ipAddress: ip,
+  //     }, client);
+  //     return deleted;
+  //   });
+  // }
 
   // Login: accepts plaintext password, hashes and compares, updates last_login on success
   async login(username: string, plainPassword: string, ip: string) {
@@ -400,11 +535,28 @@ export class UsersService {
     // update last_login
     const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
     const updSql = `
-      UPDATE m_user SET last_login = $1, updated_at = $2, updated_ip = $3
-      WHERE user_id = $4
-      RETURNING user_id, username, full_name, full_name_local_language, role_id, user_mobile, user_alternate_mobile, email, last_login, is_active;
+      UPDATE m_user u
+      SET last_login = $1,
+          updated_at = $2,
+          updated_ip = $3,
+          updated_by = $4
+      FROM m_staff s
+      WHERE u.user_id = $5
+        AND s.staff_id = u.staff_id
+      RETURNING 
+        u.user_id,
+        u.username,
+        u.role_id,
+        u.last_login,
+        u.is_active,
+        s.full_name,
+        s.full_name_local_language,
+        s.primary_mobile AS user_mobile,
+        s.alternate_mobile AS user_alternate_mobile,
+        s.email,
+        s.address;
     `;
-    const res = await this.db.query(updSql, [now, now, ip, existing.user_id]);
+    const res = await this.db.query(updSql, [now, now, ip, existing.user_id, existing.user_id]);
     // return user without password
     return res.rows[0];
   }

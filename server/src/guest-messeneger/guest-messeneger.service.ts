@@ -66,7 +66,7 @@ export class GuestMessengerService {
         (
           g.guest_name ILIKE $${idx}
           OR n.network_name ILIKE $${idx}
-          OR m.messenger_name ILIKE $${idx}
+          OR s.full_name ILIKE $${idx}
         )
       `);
       sqlParams.push(`%${search}%`);
@@ -93,6 +93,9 @@ export class GuestMessengerService {
 
       LEFT JOIN m_messenger m
         ON m.messenger_id = gm.messenger_id
+
+      LEFT JOIN m_staff s
+        ON s.staff_id = m.staff_id
 
       ${whereSql};
     `;
@@ -122,7 +125,7 @@ export class GuestMessengerService {
         gm.guest_messenger_id,
         gm.status AS messenger_status,
         m.messenger_id,
-        m.messenger_name,
+        s.full_name AS messenger_name,
 
         COALESCE(gn.requested_at, gm.requested_at) AS requested_at
 
@@ -154,8 +157,10 @@ export class GuestMessengerService {
       AND gm.is_active = TRUE
 
       LEFT JOIN m_messenger m
-        ON m.messenger_id = gm.messenger_id
+        ON m.messenger_id = gm.messenger_id AND m.is_active = TRUE
 
+      LEFT JOIN m_staff s
+        ON s.staff_id = m.staff_id AND s.is_active = TRUE
       ${whereSql}
 
       ORDER BY ${sortColumn} ${order}
@@ -243,7 +248,14 @@ export class GuestMessengerService {
 
       // 🔒 Validate messenger
       const messenger = await client.query(
-        `SELECT 1 FROM m_messenger WHERE messenger_id = $1 AND is_active = TRUE FOR UPDATE`,
+        `SELECT 1
+        FROM m_messenger m
+        JOIN m_staff s ON s.staff_id = m.staff_id
+        WHERE m.messenger_id = $1
+          AND m.is_active = TRUE
+          AND s.is_active = TRUE
+        FOR UPDATE
+        `,
         [dto.messenger_id]
       );
 
@@ -409,7 +421,7 @@ export class GuestMessengerService {
     const SORT_MAP: Record<string, string> = {
       assignment_date: 'gm.assignment_date',
       guest_name: 'g.guest_name',
-      messenger_name: 'm.messenger_name',
+      messenger_name: 's.full_name',
     };
 
     const sortColumn =
@@ -427,7 +439,7 @@ export class GuestMessengerService {
       where.push(`
         (
           g.guest_name ILIKE $${params.length}
-          OR m.messenger_name ILIKE $${params.length}
+          OR s.full_name ILIKE $${params.length}
         )
       `);
     }
@@ -439,18 +451,21 @@ export class GuestMessengerService {
         gm.guest_messenger_id,
         g.guest_id,
         g.guest_name,
-        m.messenger_name,
-        m.messenger_name_local_language,
-        m.primary_mobile,
-        m.secondary_mobile,
-        m.email,
-        m.designation,
+        s.full_name AS messenger_name,
+        s.full_name_local_language,
+        s.primary_mobile,
+        s.alternate_mobile AS secondary_mobile,
+        s.email,
+        s.designation,
         gm.assignment_date,
         gm.remarks,
         gm.is_active
       FROM t_guest_messenger gm
       JOIN m_guest g ON g.guest_id = gm.guest_id
-      JOIN m_messenger m ON m.messenger_id = gm.messenger_id
+      JOIN m_messenger m ON m.messenger_id = gm.messenger_id AND m.is_active = TRUE
+      JOIN m_staff s 
+        ON s.staff_id = m.staff_id
+        AND s.is_active = TRUE
       ${whereClause}
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${params.length + 1}
@@ -461,10 +476,10 @@ export class GuestMessengerService {
       SELECT COUNT(*)::int AS count
       FROM t_guest_messenger gm
       JOIN m_guest g ON g.guest_id = gm.guest_id
-      JOIN m_messenger m ON m.messenger_id = gm.messenger_id
+      JOIN m_messenger m ON m.messenger_id = gm.messenger_id AND m.is_active = TRUE
+      JOIN m_staff s ON s.staff_id = m.staff_id AND s.is_active = TRUE
       ${whereClause};
     `;
-
     const data = await this.db.query(dataSql, [...params, query.limit, offset]);
     const count = await this.db.query(countSql, params);
 
