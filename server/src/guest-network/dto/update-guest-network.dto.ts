@@ -27,30 +27,6 @@ export class UpdateGuestNetworkDto {
   network_zone_to?: string;
 
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
-  start_date?: string;
-
-  @IsOptional()
-  @Matches(/^\d{2}:\d{2}$/)
-  start_time?: string;
-
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
-  end_date?: string;
-
-  @IsOptional()
-  @Matches(/^\d{2}:\d{2}$/)
-  end_time?: string;
-
-  @IsOptional()
-  @IsIn(['Waiting', 'Success'])
-  start_status?: 'Waiting' | 'Success';
-
-  @IsOptional()
-  @IsIn(['Waiting', 'Success'])
-  end_status?: 'Waiting' | 'Success';
-
-  @IsOptional()
   @IsIn([
     'Requested',
     'Connected',

@@ -151,13 +151,12 @@ export class GuestNetworkService {
         gd.department,
 
         /* -------- Network (may not exist) -------- */
+        wp.username,
+        gn.provider_id,
+        gn.network_status,
         gn.guest_network_id,
         wp.provider_name,
-        gn.network_status,
-        gn.start_date,
-        gn.start_time,
-        gn.end_date,
-        gn.end_time,
+        gn.remarks,
 
         /* -------- Messenger (may not exist) -------- */
         gm.guest_messenger_id,
@@ -331,47 +330,105 @@ export class GuestNetworkService {
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
   }
-
   async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+
+      // Validate provider exists & active
+      const provider = await client.query(
+        `SELECT 1 FROM m_wifi_provider
+        WHERE provider_id = $1
+        AND is_active = TRUE`,
+        [dto.provider_id]
+      );
+
+      if (!provider.rowCount) {
+        throw new NotFoundException('Network provider not found or inactive');
+      }
+
+      // Prevent duplicate active assignment
+      const existing = await client.query(
+        `SELECT 1 FROM t_guest_network
+        WHERE guest_id = $1
+        AND is_active = TRUE`,
+        [dto.guest_id]
+      );
+
+      if (existing.rowCount > 0) {
+        throw new Error('Guest already has an active network');
+      }
+
       const id = await this.generateId(client);
+
       const sql = `
-      INSERT INTO t_guest_network (
-        guest_network_id, guest_id, provider_id, room_id,
-        network_zone_from, network_zone_to,
-        start_status, end_status, network_status,
-        description, remarks,
-        is_active,
-        inserted_at, inserted_by, inserted_ip
-      ) VALUES (
-        $1,$2,$3,$4,
-        $5,$6,
-        $7,$8,$9,
-        $10,$11,
-        true, NOW(), $12, $13
-      ) RETURNING *;
-    `;
+        INSERT INTO t_guest_network (
+          guest_network_id,
+          guest_id,
+          provider_id,
+          network_status,
+          remarks,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,TRUE,NOW(),$6,$7)
+        RETURNING *;
+      `;
 
-    const params = [
-      id,
-      dto.guest_id,
-      dto.provider_id,
-      dto.room_id ?? null,
-      dto.network_zone_from ?? null,
-      dto.network_zone_to ?? null,
-      dto.start_status ?? "Waiting",
-      dto.end_status ?? "Waiting",
-      dto.network_status ?? "Requested",
-      dto.description ?? null,
-      dto.remarks ?? null,
-      user,
-      ip,
-    ];
+      const params = [
+        id,
+        dto.guest_id,
+        dto.provider_id,
+        dto.network_status ?? 'Requested',
+        dto.remarks ?? null,
+        user,
+        ip,
+      ];
 
-    const res = await client.query(sql, params);
-    return res.rows[0];
+      const res = await client.query(sql, params);
+      return res.rows[0];
     });
   }
+  // async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
+  //   return this.db.transaction(async (client) => {
+  //     const id = await this.generateId(client);
+  //     const sql = `
+  //     INSERT INTO t_guest_network (
+  //       guest_network_id, guest_id, provider_id, room_id,
+  //       network_zone_from, network_zone_to,
+  //       start_status, end_status, network_status,
+  //       description, remarks,
+  //       is_active,
+  //       inserted_at, inserted_by, inserted_ip
+  //     ) VALUES (
+  //       $1,$2,$3,$4,
+  //       $5,$6,
+  //       $7,$8,$9,
+  //       $10,$11,
+  //       true, NOW(), $12, $13
+  //     ) RETURNING *;
+  //   `;
+
+  //   const params = [
+  //     id,
+  //     dto.guest_id,
+  //     dto.provider_id,
+  //     dto.room_id ?? null,
+  //     dto.network_zone_from ?? null,
+  //     dto.network_zone_to ?? null,
+  //     dto.start_status ?? "Waiting",
+  //     dto.end_status ?? "Waiting",
+  //     dto.network_status ?? "Requested",
+  //     dto.description ?? null,
+  //     dto.remarks ?? null,
+  //     user,
+  //     ip,
+  //   ];
+
+  //   const res = await client.query(sql, params);
+  //   return res.rows[0];
+  //   });
+  // }
 
   async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
@@ -406,8 +463,6 @@ export class GuestNetworkService {
         dto.room_id ?? existing.room_id,
         dto.network_zone_from ?? existing.network_zone_from,
         dto.network_zone_to ?? existing.network_zone_to,
-        dto.start_status ?? existing.start_status,
-        dto.end_status ?? existing.end_status,
         dto.network_status ?? existing.network_status,
         dto.description ?? existing.description,
         dto.remarks ?? existing.remarks,

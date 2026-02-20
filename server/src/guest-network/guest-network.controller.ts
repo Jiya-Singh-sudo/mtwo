@@ -51,7 +51,6 @@ export class GuestNetworkController {
     );
   }
 
-
   @Delete(":id")
   softDelete(@Param("id") id: string, @Req() req: any) {
     const { user, ip } = getRequestContext(req);

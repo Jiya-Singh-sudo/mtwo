@@ -17,7 +17,7 @@ export class GuestMessengerController {
     return this.service.getGuestNetworkTable(query);
   }
 
-  @Post("assign")
+  @Post('assign')
   create(@Body() dto: CreateGuestMessengerDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
     return this.service.create(dto, user, ip);
