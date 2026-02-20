@@ -15,9 +15,10 @@ import { GuestNetwork } from "@/types/guestNetwork";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
-import { messengerCreateSchema } from "@/validation/messenger.validation";
+import { messengerSchema } from "@/validation/messenger.validation";
 import { networkProviderSchema } from "@/validation/network.validation";
 import { validateSingleField as validateField } from "@/utils/validateSingleField";
+import { FieldError } from "@/components/ui/FieldError";
 // import { getActiveRooms } from "@/api/rooms.api";
 
 type AssignMessengerForm = {
@@ -59,28 +60,27 @@ type MessengerFormState = {
 
 export default function NetworkManagement() {
 
-    const [activeTab, setActiveTab] =
-        useState<"guestMng" | "networks" | "messengers">("guestMng");
+    const [activeTab, setActiveTab] = useState<"guestMng" | "networks" | "messengers">("guestMng");
 
     // Guest Network
-const guestTable = useTableQuery({
-  prefix: "guest",
-  sortBy: "guest_name",
-  sortOrder: "asc",
-});
+    const guestTable = useTableQuery({
+        prefix: "guest",
+        sortBy: "guest_name",
+        sortOrder: "asc",
+    });
 
-const networkTable = useTableQuery({
-  prefix: "network",
-  sortBy: "provider_name",
-  sortOrder: "asc",
-  status: "all",
-});
+    const networkTable = useTableQuery({
+        prefix: "network",
+        sortBy: "provider_name",
+        sortOrder: "asc",
+        status: "all",
+    });
 
-const messengerTable = useTableQuery({
-  prefix: "messenger",
-  sortBy: "messenger_name",
-  sortOrder: "asc",
-});
+    const messengerTable = useTableQuery({
+        prefix: "messenger",
+        sortBy: "messenger_name",
+        sortOrder: "asc",
+    });
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     /* ================= GUEST NETWORK ================= */
@@ -88,8 +88,7 @@ const messengerTable = useTableQuery({
     // const [rooms, setRooms] = useState<any[]>([]);
     const [guestRows, setGuestRows] = useState<GuestNetworkView[]>([]);
     const [assignModal, setAssignModal] = useState(false);
-    const [selectedGuest, setSelectedGuest] =
-        useState<GuestNetworkView | null>(null);
+    const [selectedGuest, setSelectedGuest] = useState<GuestNetworkView | null>(null);
 
     const [assignForm, setAssignForm] = useState<AssignMessengerForm>({
         assigned_to: "",
@@ -97,8 +96,7 @@ const messengerTable = useTableQuery({
     });
 
     /* ================= VIEW MODALS ================= */
-    const [viewGuestNetwork, setViewGuestNetwork] =
-        useState<GuestNetworkView | null>(null);
+    const [viewGuestNetwork, setViewGuestNetwork] = useState<GuestNetworkView | null>(null);
     const [viewNetwork, setViewNetwork] = useState<NetworkProvider | null>(null);
     const [viewMessenger, setViewMessenger] = useState<Messenger | null>(null);
 
@@ -218,13 +216,28 @@ const messengerTable = useTableQuery({
         networkTable.setNetworkType?.(type);
     }
     function applyMessengerStatus(
-    status: 'active' | 'inactive' | 'assigned' | 'unassigned'
+        status: 'active' | 'inactive' | 'assigned' | 'unassigned'
     ) {
-    messengerTable.setPage(1);
-    messengerTable.setStatus(status);
+        messengerTable.setPage(1);
+        messengerTable.setStatus(status);
 
     }
+    const resetNetworkForm = () => {
+    setNetworkForm({
+        provider_name: "",
+        provider_name_local_language: "",
+        network_type: "WiFi",
+        bandwidth_mbps: "",
+        username: "",
+        password: "",
+        static_ip: "",
+        address: "",
+    });
 
+    setEditNetwork(null);
+    setIsAddNetwork(false);
+    setFormErrors({});
+    };
     /* ================= PREFILL EFFECTS ================= */
     useEffect(() => {
         if (editMessenger) {
@@ -258,7 +271,20 @@ const messengerTable = useTableQuery({
             });
         }
     }, [editGuest]);
-
+    useEffect(() => {
+        if (editNetwork) {
+            setNetworkForm({
+                provider_name: editNetwork.provider_name || "",
+                provider_name_local_language: editNetwork.provider_name_local_language || "",
+                network_type: editNetwork.network_type || "WiFi",
+                bandwidth_mbps: editNetwork.bandwidth_mbps?.toString() || "",
+                username: editNetwork.username || "",
+                password: "", // leave empty for security
+                static_ip: editNetwork.static_ip || "",
+                address: editNetwork.address || "",
+            });
+        }
+    }, [editNetwork]);
     // useEffect(() => {
     //     async function loadRooms() {
     //         const res = await getActiveRooms();
@@ -421,23 +447,23 @@ const messengerTable = useTableQuery({
     //     setMessengerLoading(false);
     // }
     async function loadMessengers() {
-    setMessengerLoading(true);
+        setMessengerLoading(true);
 
-    try {
-        const res = await getMessengerTable({
-        page: messengerTable.query.page,
-        limit: messengerTable.query.limit,
-        sortBy: [
-            "messenger_name",
-            "primary_mobile",
-            "email",
-        ].includes(messengerTable.query.sortBy)
-            ? messengerTable.query.sortBy
-            : "messenger_name" as any,
-        sortOrder: messengerTable.query.sortOrder,
-        status: messengerTable.query.status as any,
-        search: messengerTable.query.search,   // 👈 ADD THIS
-        });
+        try {
+            const res = await getMessengerTable({
+                page: messengerTable.query.page,
+                limit: messengerTable.query.limit,
+                sortBy: [
+                    "messenger_name",
+                    "primary_mobile",
+                    "email",
+                ].includes(messengerTable.query.sortBy)
+                    ? messengerTable.query.sortBy
+                    : "messenger_name" as any,
+                sortOrder: messengerTable.query.sortOrder,
+                status: messengerTable.query.status as any,
+                search: messengerTable.query.search,   // 👈 ADD THIS
+            });
 
             setMessengers(res?.data ?? []);
             setMessengerTotal(res?.totalCount ?? 0);
@@ -483,7 +509,7 @@ const messengerTable = useTableQuery({
         setFormErrors({});
 
         try {
-            const parsed = messengerCreateSchema.parse(messengerForm);
+            const parsed = messengerSchema.parse(messengerForm);
 
             await createMessenger({
                 messenger_name: parsed.messenger_name,
@@ -545,14 +571,14 @@ const messengerTable = useTableQuery({
     ]);
 
     useEffect(() => {
-    loadMessengers();
+        loadMessengers();
     }, [
-    messengerTable.query.page,
-    messengerTable.query.limit,
-    messengerTable.query.search,
-    messengerTable.query.status,
-    messengerTable.query.sortBy,
-    messengerTable.query.sortOrder,
+        messengerTable.query.page,
+        messengerTable.query.limit,
+        messengerTable.query.search,
+        messengerTable.query.status,
+        messengerTable.query.sortBy,
+        messengerTable.query.sortOrder,
     ]);
 
     /* ================= COLUMN DEFINITIONS ================= */
@@ -1086,18 +1112,8 @@ const messengerTable = useTableQuery({
                         <div className="flex items-center gap-3">
                             <Button
                                 onClick={() => {
+                                    resetNetworkForm();
                                     setIsAddNetwork(true);
-                                    setEditNetwork(null);
-                                    setNetworkForm({
-                                        provider_name: "",
-                                        provider_name_local_language: "",
-                                        network_type: "WiFi",
-                                        bandwidth_mbps: "",
-                                        username: "",
-                                        password: "",
-                                        static_ip: "",
-                                        address: "",
-                                    });
                                     setNetworkModalOpen(true);
                                 }}
                                 className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text h-10 px-4"
@@ -1567,9 +1583,7 @@ const messengerTable = useTableQuery({
                                         }
                                         onBlur={() => validateField(networkProviderSchema, "provider_name", networkForm.provider_name, setFormErrors)}
                                     />
-                                    {formErrors.provider_name && (
-                                        <p className="errorText">{formErrors.provider_name}</p>
-                                    )}
+                                    <FieldError message={formErrors.provider_name} />
                                 </div>
 
                                 <div>
@@ -1621,9 +1635,7 @@ const messengerTable = useTableQuery({
                                         }
                                         onBlur={() => validateField(networkProviderSchema, "bandwidth_mbps", networkForm.bandwidth_mbps, setFormErrors)}
                                     />
-                                    {formErrors.bandwidth_mbps && (
-                                        <p className="errorText">{formErrors.bandwidth_mbps}</p>
-                                    )}
+                                    <FieldError message={formErrors.bandwidth_mbps} />
                                 </div>
 
                                 <div>
@@ -1653,9 +1665,7 @@ const messengerTable = useTableQuery({
                                         }
                                         onBlur={() => validateField(networkProviderSchema, "password", networkForm.password, setFormErrors)}
                                     />
-                                    {formErrors.password && (
-                                        <p className="errorText">{formErrors.password}</p>
-                                    )}
+                                    <FieldError message={formErrors.password} />
                                 </div>
 
                                 <div>
@@ -1668,9 +1678,7 @@ const messengerTable = useTableQuery({
                                         }
                                         onBlur={() => validateField(networkProviderSchema, "static_ip", networkForm.static_ip, setFormErrors)}
                                     />
-                                    {formErrors.static_ip && (
-                                        <p className="errorText">{formErrors.static_ip}</p>
-                                    )}
+                                    <FieldError message={formErrors.static_ip} />
                                 </div>
 
                                 <div>
@@ -1693,7 +1701,7 @@ const messengerTable = useTableQuery({
                                 className="cancelBtn"
                                 onClick={() => {
                                     setNetworkModalOpen(false);
-                                    setEditNetwork(null);
+                                    resetNetworkForm();
                                 }}
                             >
                                 Cancel
@@ -1701,6 +1709,54 @@ const messengerTable = useTableQuery({
 
                             {/* SAVE */}
                             <button
+                                className="saveBtn"
+                                onClick={async () => {
+                                setFormErrors({});
+
+                                try {
+                                    const parsed = networkProviderSchema.parse({
+                                    ...networkForm,
+                                    bandwidth_mbps: networkForm.bandwidth_mbps
+                                        ? Number(networkForm.bandwidth_mbps)
+                                        : undefined,
+                                    });
+
+                                    const payload = { ...parsed };
+
+                                    // Remove empty password for edit
+                                    if (!payload.password) {
+                                    delete payload.password;
+                                    }
+
+                                    if (editNetwork?.provider_id) {
+                                    await updateNetwork(editNetwork.provider_id, payload);
+                                    } else {
+                                    await createNetwork(payload);
+                                    }
+
+                                    // Reset form
+                                    resetNetworkForm();
+                                    setNetworkModalOpen(false);
+
+                                    await loadNetworks();
+                                    networkTable.setPage(1);
+
+                                } catch (err: any) {
+                                    if (err instanceof ZodError) {
+                                    const errors: Record<string, string> = {};
+                                    err.issues.forEach((issue: any) => {
+                                        errors[issue.path[0] as string] = issue.message;
+                                    });
+                                    setFormErrors(errors);
+                                    } else {
+                                    console.error(err);
+                                    }
+                                }
+                                }}
+                            >
+                                Save
+                            </button>
+                            {/* <button
                                 className="saveBtn"
                                 onClick={async () => {
                                     setFormErrors({});
@@ -1731,7 +1787,7 @@ const messengerTable = useTableQuery({
                                 }}
                             >
                                 Save
-                            </button>
+                            </button> */}
 
                             {/* SAVE & ADD NEW */}
                             {!editNetwork?.provider_id && (
@@ -1768,6 +1824,7 @@ const messengerTable = useTableQuery({
                                                 console.error(err);
                                             }
                                         }
+                                        setEditNetwork(null);
                                     }}
                                 >
                                     Save & Add New
@@ -1803,8 +1860,9 @@ const messengerTable = useTableQuery({
                                             messenger_name: e.target.value,
                                         })
                                     }
-                                    onBlur={() => validateField(messengerCreateSchema, "messenger_name", messengerEditForm.messenger_name, setFormErrors)}
+                                    onBlur={() => validateField(messengerSchema, "messenger_name", messengerEditForm.messenger_name, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.messenger_name} />
                             </div>
 
                             <div>
@@ -1820,12 +1878,13 @@ const messengerTable = useTableQuery({
                                             primary_mobile: e.target.value,
                                         })
                                     }
-                                    onBlur={() => validateField(messengerCreateSchema, "primary_mobile", messengerEditForm.primary_mobile, setFormErrors)}
+                                    onBlur={() => validateField(messengerSchema, "primary_mobile", messengerEditForm.primary_mobile, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.primary_mobile} />
                             </div>
 
                             <div>
-                                <label className="nicLabel">Email</label>
+                                <label className="nicLabel">Email <span className="required">*</span></label>
                                 <input
                                     className="nicInput"
                                     value={messengerEditForm.email}
@@ -1835,8 +1894,9 @@ const messengerTable = useTableQuery({
                                             email: e.target.value,
                                         })
                                     }
-                                    onBlur={() => validateField(messengerCreateSchema, "email", messengerEditForm.email, setFormErrors)}
+                                    onBlur={() => validateField(messengerSchema, "email", messengerEditForm.email, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.email} />
                             </div>
 
                             <div>
@@ -1866,7 +1926,9 @@ const messengerTable = useTableQuery({
                                             secondary_mobile: e.target.value.replace(/\D/g, ""),
                                         })
                                     }
+                                    onBlur={() => validateField(messengerSchema, "secondary_mobile", messengerEditForm.secondary_mobile, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.secondary_mobile} />
                             </div>
 
                             <div>
@@ -1881,7 +1943,9 @@ const messengerTable = useTableQuery({
                                             designation: e.target.value,
                                         })
                                     }
+                                    onBlur={() => validateField(messengerSchema, "designation", messengerEditForm.designation, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.designation} />
                             </div>
 
                             <div>
@@ -1897,7 +1961,9 @@ const messengerTable = useTableQuery({
                                             remarks: e.target.value,
                                         })
                                     }
+                                    onBlur={() => validateField(messengerSchema, "remarks", messengerEditForm.remarks, setFormErrors)}
                                 />
+                                <FieldError message={formErrors.remarks} />
                             </div>
                         </div>
 

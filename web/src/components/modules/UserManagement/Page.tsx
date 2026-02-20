@@ -7,6 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { Column, DataTable } from "@/components/ui/DataTable";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { StatCard } from "@/components/ui/StatCard";
+import { validateSingleField } from "@/utils/validateSingleField";
+import { FieldError } from "@/components/ui/FieldError";
+import { userCreateSchema, userUpdateSchema } from "@/validation/user.validation";
 
 /* ======================================================
    Types – mapped to m_User table
@@ -16,8 +19,10 @@ interface User {
   username: string; // username
   fullName: string;
   role_id: string;
-  mobile?: string;
+  primary_mobile?: string;
+  alternate_mobile?: string;
   email?: string;
+  address?: string;
 }
 
 /* ======================================================
@@ -26,6 +31,8 @@ interface User {
 export default function UserManagement() {
   /* ---------------- STATE ---------------- */
   const [users, setUsers] = useState<User[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   // const [loading, setLoading] = useState(false); // Handled by userTable
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -39,9 +46,11 @@ export default function UserManagement() {
     username: "",
     fullName: "",
     role_id: "",
-    mobile: "",
+    primary_mobile: "",
+    alternate_mobile: "",
     email: "",
     password: "",
+    address: "",
   });
 
   const [roles, setRoles] = useState<Role[]>([]);
@@ -59,9 +68,11 @@ export default function UserManagement() {
       username: "",
       fullName: "",
       role_id: "",
-      mobile: "",
+      primary_mobile: "",
+      alternate_mobile: "",
       email: "",
       password: "",
+      address: "",
     });
 
   const validate = (isEdit = false) => {
@@ -73,8 +84,19 @@ export default function UserManagement() {
       alert("Password is required");
       return false;
     }
-    if (form.mobile && !/^\d{10}$/.test(form.mobile)) {
+    if (
+      form.primary_mobile.trim() !== "" &&
+      !/^\d{10}$/.test(form.primary_mobile.trim())
+    ) {
       alert("Mobile number must be 10 digits");
+      return false;
+    }
+    if (!form.email.trim()) {
+      alert("Email is required");
+      return false;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      alert("Invalid email format");
       return false;
     }
     return true;
@@ -97,10 +119,12 @@ export default function UserManagement() {
         const mapped = rows.map((u: any) => ({
           id: u.user_id,
           username: u.username,
-          fullName: u.full_name,
+          fullName: u.full_name ?? "",
           role_id: u.role_id,
-          mobile: u.user_mobile,
-          email: u.email,
+          primary_mobile: u.primary_mobile ?? "",
+          alternate_mobile: u.alternate_mobile ?? "",
+          email: u.email ?? "",
+          address: u.address ?? "",
         }));
 
         setUsers(mapped);
@@ -114,7 +138,6 @@ export default function UserManagement() {
         userTable.setLoading(false);
       }
     }
-
     loadUsers();
   }, [userTable.query]);
 
@@ -129,7 +152,7 @@ export default function UserManagement() {
   //         username: u.username,
   //         fullName: u.full_name,
   //         role_id: u.role_id,
-  //         mobile: u.user_mobile,
+  //         primary_mobile: u.user_primary_mobile,
   //         email: u.email,
   //       }));
 
@@ -166,8 +189,16 @@ export default function UserManagement() {
       full_name: form.fullName,
       role_id: form.role_id,
       password: form.password,
-      email: form.email || undefined,
-      user_mobile: form.mobile ? Number(form.mobile) : undefined,
+      email: form.email.trim(),
+      primary_mobile:
+        form.primary_mobile.trim() !== ""
+          ? Number(form.primary_mobile.trim())
+          : undefined,
+      alternate_mobile:
+        form.alternate_mobile.trim() !== ""
+          ? Number(form.alternate_mobile.trim())
+          : undefined,
+      address: form.address || undefined,
     };
 
     await createUser(payload);
@@ -182,7 +213,6 @@ export default function UserManagement() {
     resetForm();
   }
 
-
   async function editUser() {
     if (!selectedUser || !validate(true)) return;
 
@@ -190,8 +220,17 @@ export default function UserManagement() {
       username: form.username,
       full_name: form.fullName,
       role_id: form.role_id,
-      email: form.email || undefined,
-      user_mobile: form.mobile ? Number(form.mobile) : undefined,
+      email: form.email.trim(),
+      primary_mobile:
+        form.primary_mobile.trim() !== ""
+          ? Number(form.primary_mobile.trim())
+          : undefined,
+
+      alternate_mobile:
+        form.alternate_mobile.trim() !== ""
+          ? Number(form.alternate_mobile.trim())
+          : undefined,
+      address: form.address || undefined,
     };
 
     await updateUser(selectedUser.username, payload);
@@ -263,9 +302,11 @@ export default function UserManagement() {
                   username: row.username,
                   fullName: row.fullName,
                   role_id: row.role_id,
-                  mobile: row.mobile ?? "",
+                  primary_mobile: row.primary_mobile ?? "",
+                  alternate_mobile: row.alternate_mobile ?? "",
                   email: row.email ?? "",
                   password: "",
+                  address: row.address ?? "",
                 });
                 setIsEditOpen(true);
               }}
@@ -291,10 +332,9 @@ export default function UserManagement() {
     },
   ];
 
-
   /* ======================================================
      UI
-====================================================== */
+  ====================================================== */
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -345,6 +385,7 @@ export default function UserManagement() {
             className="pl-3 pr-3 py-2 w-full border rounded-sm"
             placeholder="Search username or name..."
             value={userTable.searchInput}
+            maxLength={100}
             onChange={(e) => userTable.setSearchInput(e.target.value)}
           />
         </div>
@@ -402,73 +443,117 @@ export default function UserManagement() {
 
             <div className="nicForm">
               <div>
-                <label>Username *</label>
+                <label>Username <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   autoComplete="username"
                   value={form.username}
+                  maxLength={30}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "username", form.username, setFormErrors)}
                   onChange={(e) =>
-                    setForm({ ...form, username: e.target.value })
+                    {
+                      validateSingleField(userCreateSchema, "username", e.target.value, setFormErrors);
+                      setForm({ ...form, username: e.target.value })
+                    }
                   }
                 />
+                <FieldError message={formErrors.username} />
               </div>
 
               <div>
-                <label>Full Name *</label>
+                <label>Full Name <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={form.fullName}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "full_name", form.fullName, setFormErrors)}
                   onChange={(e) =>
-                    setForm({ ...form, fullName: e.target.value })
+                    {
+                      validateSingleField(userCreateSchema, "full_name", e.target.value, setFormErrors);
+                      setForm({ ...form, fullName: e.target.value })
+                    }
                   }
                 />
+                <FieldError message={formErrors.full_name} />
               </div>
 
 
               <div>
-                <label>Email</label>
+                <label>Email <span className="required">*</span></label>
                 <input
                   className="nicInput"
                   value={form.email}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "email", form.email, setFormErrors)}
                   onChange={(e) =>
-                    setForm({ ...form, email: e.target.value })
+                    {
+                      validateSingleField(userCreateSchema, "email", e.target.value, setFormErrors);
+                      setForm({ ...form, email: e.target.value })
+                    }
                   }
                 />
+                <FieldError message={formErrors.email} />
               </div>
 
               <div>
-                <label>Mobile</label>
+                <label>Mobile <span className="required">*</span></label>
                 <input
                   className="nicInput"
-                  value={form.mobile}
+                  value={form.primary_mobile}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "user_mobile", form.primary_mobile, setFormErrors)}
                   onChange={(e) =>
-                    setForm({ ...form, mobile: e.target.value })
+                    {
+                      validateSingleField(userCreateSchema, "user_mobile", e.target.value, setFormErrors);
+                      setForm({ ...form, primary_mobile: e.target.value })
+                    }
                   }
                 />
+                <FieldError message={formErrors.user_mobile} />
+              </div>
+              <div>
+                <label>Alternate Mobile</label>
+                <input
+                  className="nicInput"
+                  value={form.alternate_mobile}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "user_alternate_mobile", form.alternate_mobile, setFormErrors)}
+                  onChange={(e) =>
+                    {
+                      validateSingleField(userCreateSchema, "user_alternate_mobile", e.target.value, setFormErrors);
+                      setForm({ ...form, alternate_mobile: e.target.value })
+                    }
+                  }
+                />
+                <FieldError message={formErrors.user_alternate_mobile} />
               </div>
 
               {!isEditOpen && (
                 <div>
-                  <label>Password *</label>
+                  <label>Password <span className="required">*</span></label>
                   <input
                     type="password"
                     autoComplete="new-password"
                     className="nicInput"
                     value={form.password}
+                    onBlur={(e) => validateSingleField(userCreateSchema, "password", form.password, setFormErrors)}
                     onChange={(e) =>
-                      setForm({ ...form, password: e.target.value })
+                      {
+                        validateSingleField(userCreateSchema, "password", e.target.value, setFormErrors);
+                        setForm({ ...form, password: e.target.value })
+                      }
                     }
                   />
                 </div>
               )}
 
               <div>
-                <label>Role *</label>
+                <label>Role <span className="required">*</span></label>
                 <select
                   className="nicInput"
                   value={form.role_id}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "role_id", form.role_id, setFormErrors)}
                   onChange={(e) =>
-                    setForm({ ...form, role_id: e.target.value })
+                    {
+                      validateSingleField(userCreateSchema, "role_id", e.target.value, setFormErrors);
+                      setForm({ ...form, role_id: e.target.value })
+                    }
                   }
                 >
                   <option value="">Select role</option>
@@ -478,8 +563,25 @@ export default function UserManagement() {
                     </option>
                   ))}
                 </select>
+                <FieldError message={formErrors.role_id} />
+              </div>
+              <div>
+                <label>Address</label>
+                <input
+                  className="nicInput"
+                  value={form.address}
+                  onBlur={(e) => validateSingleField(userCreateSchema, "address", form.address, setFormErrors)}
+                  onChange={(e) =>
+                    {
+                      validateSingleField(userCreateSchema, "address", e.target.value, setFormErrors);
+                      setForm({ ...form, address: e.target.value })
+                    }
+                  }
+                />
+                <FieldError message={formErrors.address} />
               </div>
             </div>
+
 
             <div className="nicModalActions">
               <button

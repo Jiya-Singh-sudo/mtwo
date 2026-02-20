@@ -28,7 +28,7 @@ export async function getGuestMessengerTable(
 export async function createGuestMessenger(
   payload: CreateGuestMessengerPayload
 ): Promise<GuestMessenger> {
-  const res = await api.post('/guest-messenger', payload);
+  const res = await api.post('/guest-messenger/assign', payload);
   return res.data;
 }
 
