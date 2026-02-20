@@ -7,9 +7,8 @@ import { GuestNetworkTableQueryDto } from './dto/guest-network-table.dto';
 
 @Injectable()
 export class GuestMessengerService {
-  constructor(private readonly db: DatabaseService) {}
-
-  /* ---------- ID GENERATION ---------- */
+    constructor(private readonly db: DatabaseService) {}
+      /* ---------- ID GENERATION ---------- */
   // private async generateId(): Promise<string> {
   //   const sql = `
   //     SELECT guest_messenger_id

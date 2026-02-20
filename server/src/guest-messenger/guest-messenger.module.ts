@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
-import { GuestMessengerController } from './guest-messeneger.controller';
-import { GuestMessengerService } from './guest-messeneger.service';
+import { GuestMessengerController } from './guest-messenger.controller';
+import { GuestMessengerService } from './guest-messenger.service';
 import { DatabaseModule } from 'src/database/database.module';
-
 @Module({
   imports: [DatabaseModule],
   controllers: [GuestMessengerController],

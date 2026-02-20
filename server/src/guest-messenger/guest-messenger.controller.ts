@@ -1,14 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req,} from '@nestjs/common';
-import { GuestMessengerService } from './guest-messeneger.service';
-import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
-import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
-import { GuestMessengerTableQueryDto } from './dto/guest-messenger-table-query.dto';
-import { GuestNetworkTableQueryDto } from './dto/guest-network-table.dto';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, } from '@nestjs/common';
+import { GuestMessengerService } from './guest-messenger.service';
+import { CreateGuestMessengerDto } from '../guest-messenger/dto/create-guest-messenger.dto';
+import { UnassignGuestMessengerDto } from '../guest-messenger/dto/unassign-guest-messenger.dto';
+import { GuestMessengerTableQueryDto } from '../guest-messenger/dto/guest-messenger-table-query.dto';
+import { GuestNetworkTableQueryDto } from '../guest-messenger/dto/guest-network-table.dto';
 import { getRequestContext } from '../../common/utlis/request-context.util';
 
 @Controller('guest-messenger')
 export class GuestMessengerController {
-  constructor(private readonly service: GuestMessengerService) {}
+  constructor(private readonly service: GuestMessengerService) { }
+
   @Get('network-table')
   async getGuestNetworkTable(
     @Query() query: GuestNetworkTableQueryDto,
