@@ -7,7 +7,12 @@ import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 @Injectable()
 export class GuestFoodService {
   constructor(private readonly db: DatabaseService) { }
-
+  private readonly MEAL_WINDOWS: Record<string, { start: string; end: string }> = {
+    Breakfast: { start: "07:00", end: "10:00" },
+    Lunch: { start: "12:30", end: "15:00" },
+    "High Tea": { start: "16:30", end: "18:00" },
+    Dinner: { start: "19:00", end: "22:00" }
+  };
   // private async generateId(): Promise<string> {
   //   const sql = `SELECT guest_food_id FROM t_guest_food ORDER BY guest_food_id DESC LIMIT 1`;
   //   const res = await this.db.query(sql);
@@ -133,6 +138,7 @@ export class GuestFoodService {
 
   async create(dto: CreateGuestFoodDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      const planDate = new Date().toISOString().split("T")[0];
       const id = await this.generateId(client);
       let foodId = dto.food_id;
 
@@ -275,13 +281,20 @@ export class GuestFoodService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
-
       const planDate = new Date().toISOString().split("T")[0];
-
       // Reset today's plan
+      // Deactivate today's previous plan (preserve history)
       await client.query(
-        `DELETE FROM t_daily_meal_plan WHERE plan_date = $1 AND is_active = TRUE`,
-        [planDate]
+        `
+        UPDATE t_daily_meal_plan
+        SET is_active = FALSE,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
+        WHERE plan_date = $3
+          AND is_active = TRUE
+        `,
+        [user, ip, planDate]
       );
       let insertCount = 0;
 
@@ -295,50 +308,80 @@ export class GuestFoodService {
         else continue;
 
         for (const foodId of items) {
-
-          await client.query(
+          const existingPlan = await client.query(
             `
-            INSERT INTO t_daily_meal_plan (
-              plan_date,
-              meal_type,
-              food_id,
-              is_active,
-              inserted_at,
-              inserted_by,
-              inserted_ip
-            )
-            VALUES ($1, $2, $3, TRUE, NOW(), $4, $5)
+            SELECT 1
+            FROM t_daily_meal_plan
+            WHERE plan_date = $1
+              AND meal_type = $2
+              AND food_id = $3
             `,
-            [planDate, dbMealType, foodId, user, ip]
+            [planDate, dbMealType, foodId]
           );
 
+          if (existingPlan.rowCount > 0) {
+            await client.query(
+              `
+              UPDATE t_daily_meal_plan
+              SET is_active = TRUE,
+                  updated_at = NOW(),
+                  updated_by = $1,
+                  updated_ip = $2
+              WHERE plan_date = $3
+                AND meal_type = $4
+                AND food_id = $5
+              `,
+              [user, ip, planDate, dbMealType, foodId]
+            );
+          } else {
+            await client.query(
+              `
+              INSERT INTO t_daily_meal_plan (
+                plan_date,
+                meal_type,
+                food_id,
+                is_active,
+                inserted_at,
+                inserted_by,
+                inserted_ip
+              )
+              VALUES ($1, $2, $3, TRUE, NOW(), $4, $5)
+              `,
+              [planDate, dbMealType, foodId, user, ip]
+            );
+          }
           insertCount++;
         }
       }
       // 2️⃣ Get active guests
       const guests = await client.query(`
-        SELECT gi.guest_id, gr.room_id
+        SELECT 
+          gi.guest_id,
+          gi.entry_date,
+          gi.entry_time,
+          gi.exit_date,
+          gi.exit_time,
+          gr.room_id
         FROM t_guest_inout gi
         LEFT JOIN t_guest_room gr
           ON gr.guest_id = gi.guest_id
           AND gr.is_active = TRUE
-          AND gr.check_out_date IS NULL
         WHERE gi.is_active = TRUE
           AND gi.guest_inout = TRUE
           AND gi.status = 'Entered'
-          AND gi.exit_date IS NULL
       `);
 
       for (const guest of guests.rows) {
         await this.propagateTodayPlanToGuest(
           client,
-          guest.guest_id,
-          guest.room_id,
+          guest,
           user,
           ip
         );
       }
       console.log("Inserted rows:", insertCount);
+      console.log("Propagated rows:", insertCount);
+      console.log("Guests found:", guests.rowCount);
       return {
         success: true,
         inserted: insertCount
@@ -426,75 +469,6 @@ export class GuestFoodService {
     });
   }
 
-  // async softDelete(id: string, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-
-  //     const sql = `
-  //       UPDATE t_guest_food SET
-  //         is_active = false,
-  //         updated_at = NOW(),
-  //         updated_by = $1,
-  //         updated_ip = $2
-  //       WHERE guest_food_id = $3
-  //       RETURNING *;
-  //     `;
-
-  //     const res = await client.query(sql, [user, ip, id]);
-  //     return res.rows[0];
-  //   });
-  // }
-  // async getTodayGuestOrders() {
-  //   const sql = `
-  //     SELECT
-  //       g.guest_id,
-  //       g.guest_name,
-  //       gi.room_id,
-
-  //       gf.guest_food_id,
-  //       mi.food_name,
-  //       mi.food_type,
-  //       gf.delivery_status,
-  //       gf.meal_type,
-  //       gf.plan_date,
-  //       gf.food_stage,
-
-  //       gb.guest_butler_id,
-  //       b.butler_id,
-  //       b.butler_name,
-  //       gb.special_request
-
-  //     FROM t_guest_inout gi
-  //     JOIN m_guest g
-  //       ON g.guest_id = gi.guest_id
-  //     AND g.is_active = TRUE
-
-  //     LEFT JOIN t_guest_food gf
-  //       ON gf.guest_id = g.guest_id
-  //     AND gf.is_active = TRUE
-  //     AND gf.plan_date = CURRENT_DATE
-  //     AND gf.food_stage != 'CANCELLED'
-
-  //     LEFT JOIN m_food_items mi
-  //       ON mi.food_id = gf.food_id
-
-  //     LEFT JOIN t_guest_butler gb
-  //       ON gb.guest_id = g.guest_id
-  //     AND gb.is_active = TRUE
-
-  //     LEFT JOIN m_butler b
-  //       ON b.butler_id = gb.butler_id
-
-  //     WHERE gi.is_active = TRUE
-  //       AND gi.guest_inout = TRUE
-  //       AND gi.status = 'Entered'
-  //       AND gi.exit_date IS NULL
-
-  //     ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-  //   return res.rows;
-  // }
   async getTodayGuestOrders() {
     const sql = `
       SELECT
@@ -547,7 +521,6 @@ export class GuestFoodService {
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
       AND gr.is_active = TRUE
-      AND gr.check_out_date IS NULL
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = g.guest_id
@@ -577,8 +550,8 @@ export class GuestFoodService {
       WHERE gi.is_active = TRUE
         AND gi.guest_inout = TRUE
         AND gi.status = 'Entered'
-        AND gi.exit_date IS NULL
-
+        AND gi.entry_date <= CURRENT_DATE
+        AND (gi.exit_date IS NULL OR gi.exit_date >= CURRENT_DATE)
       ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
     `;
     const res = await this.db.query(sql);
@@ -613,39 +586,6 @@ export class GuestFoodService {
 
     return result;
   }
-  // async getTodayMealPlanOverview() {
-  //   const sql = `
-  //     SELECT
-  //       gf.meal_type,
-  //       ARRAY_AGG(DISTINCT mi.food_id ORDER BY mi.food_id) AS items
-  //     FROM t_guest_food gf
-  //     JOIN m_food_items mi
-  //       ON mi.food_id = gf.food_id
-  //     WHERE gf.plan_date = CURRENT_DATE
-  //       AND gf.is_active = TRUE
-  //       AND gf.food_stage != 'CANCELLED'
-  //       AND gf.meal_type IS NOT NULL
-  //     GROUP BY gf.meal_type;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-
-  //   // Normalize into fixed shape for frontend
-  //   const result = {
-  //     Breakfast: [] as string[],
-  //     Lunch: [] as string[],
-  //     "High Tea": [] as string[],
-  //     Dinner: [] as string[],
-  //   };
-
-  //   for (const row of res.rows) {
-  //     if (result[row.meal_type as keyof typeof result]) {
-  //       result[row.meal_type as keyof typeof result] = row.items ?? [];
-  //     }
-  //   }
-
-  //   return result;
-  // }
 
   async getGuestFoodTable(
     params: GuestFoodTableQueryDto
@@ -766,7 +706,7 @@ export class GuestFoodService {
 
     /* ---------- DATA ---------- */
     const dataSql = `
-      SELECT 
+      SELECT DISTINCT ON (g.guest_id)
         g.guest_id,
         g.guest_name,
         g.guest_name_local_language,
@@ -777,7 +717,6 @@ export class GuestFoodService {
         io.entry_time,
         io.exit_date,
         io.exit_time,
-        io.remarks,
         io.status AS inout_status,
 
         md.designation_name,
@@ -786,19 +725,8 @@ export class GuestFoodService {
         gr.room_id,
         r.room_no,
 
-        gf.guest_food_id,
-        gf.meal_type,
-        gf.food_stage,
-        gf.delivery_status,
-
         gb.guest_butler_id,
         s.full_name AS butler_name,
-        s.full_name_local_language AS butler_name_local_language,
-        s.primary_mobile AS butler_mobile,
-        s.alternate_mobile AS butler_secondary_mobile,
-        s.email AS butler_email,
-        b.remarks,
-        b.shift,
         gb.special_request
 
       FROM t_guest_inout io
@@ -828,7 +756,6 @@ export class GuestFoodService {
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
       AND gr.is_active = TRUE
-      AND gr.check_out_date IS NULL
 
       LEFT JOIN m_rooms r
         ON r.room_id = gr.room_id
@@ -846,117 +773,6 @@ export class GuestFoodService {
       ORDER BY g.guest_id, ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
-
-    // const dataSql = `
-    //   SELECT DISTINCT ON (g.guest_id)
-    //     g.guest_id,
-    //     g.guest_name,
-    //     g.guest_name_local_language,
-    //     g.guest_mobile,
-
-    //     io.inout_id,
-    //     io.entry_date,
-    //     io.entry_time,
-    //     io.exit_date,
-    //     io.exit_time,
-    //     io.status AS inout_status,
-
-    //     md.designation_name,
-    //     gd.department,
-
-    //     gr.room_id,
-    //     gr.room_no,   -- ✅ now coming from t_guest_room
-
-    //     gf.guest_food_id,
-    //     gf.meal_type,
-    //     gf.food_stage,
-    //     gf.delivery_status,
-
-    //     gb.guest_butler_id,
-    //     b.butler_name,
-    //     gb.special_request
-
-    //   FROM t_guest_inout io
-
-    //   JOIN m_guest g
-    //     ON g.guest_id = io.guest_id
-    //   AND g.is_active = TRUE
-
-    //   LEFT JOIN t_guest_designation gd
-    //     ON gd.guest_id = g.guest_id
-    //   AND gd.is_current = TRUE
-    //   AND gd.is_active = TRUE
-
-    //   LEFT JOIN m_guest_designation md
-    //     ON md.designation_id = gd.designation_id
-    //   AND md.is_active = TRUE
-
-    //   LEFT JOIN t_guest_food gf
-    //     ON gf.guest_id = g.guest_id
-    //   AND gf.is_active = TRUE
-    //   AND gf.plan_date = CURRENT_DATE
-
-    //   LEFT JOIN t_guest_butler gb
-    //     ON gb.guest_id = g.guest_id
-    //   AND gb.is_active = TRUE
-
-    //   LEFT JOIN t_guest_room gr
-    //     ON gr.guest_id = g.guest_id
-    //   AND gr.is_active = TRUE
-    //   AND gr.check_out_date IS NULL   -- important for current room only
-
-    //   LEFT JOIN m_butler b
-    //     ON b.butler_id = gb.butler_id
-
-    //   ${whereSql}
-
-    //   ORDER BY g.guest_id, ${sortColumn} ${order}
-    //   LIMIT $${idx} OFFSET $${idx + 1};
-    // `;
-
-    // const dataSql = `
-    //   SELECT DISTINCT ON (g.guest_id)
-    //     g.guest_id,
-    //     g.guest_name,
-    //     g.guest_name_local_language,
-    //     g.guest_mobile,
-
-    //     io.inout_id,
-    //     io.entry_date,
-    //     io.entry_time,
-    //     io.status AS inout_status,
-    //     io.room_id,
-
-    //     gf.guest_food_id,
-    //     gf.meal_type,
-    //     gf.food_stage,
-    //     gf.delivery_status,
-
-    //     gb.guest_butler_id,
-    //     b.butler_name,
-    //     gb.special_request
-
-    //   FROM t_guest_inout io
-    //   JOIN m_guest g
-    //     ON g.guest_id = io.guest_id
-
-    //   LEFT JOIN t_guest_food gf
-    //     ON gf.guest_id = g.guest_id
-    //     AND gf.is_active = TRUE
-    //     AND gf.plan_date = CURRENT_DATE
-
-    //   LEFT JOIN t_guest_butler gb
-    //     ON gb.guest_id = g.guest_id
-    //     AND gb.is_active = TRUE
-
-    //   LEFT JOIN m_butler b
-    //     ON b.butler_id = gb.butler_id
-
-    //   ${whereSql}
-    //   ORDER BY g.guest_id, ${sortColumn} ${order}
-    //   LIMIT $${idx} OFFSET $${idx + 1};
-    // `;
-
     const countRes = await this.db.query(countSql, sqlParams);
 
     sqlParams.push(limit, offset);
@@ -967,50 +783,88 @@ export class GuestFoodService {
       totalCount: countRes.rows[0].total
     };
   }
+  
   async propagateTodayPlanToGuest(
     client: any,
-    guestId: string,
-    roomId: string | null,
+    guest: any,
     user: string,
     ip: string
   ) {
-      const planDate = new Date().toISOString().split("T")[0];
+    const planDate = new Date().toISOString().split("T")[0];
+    const { guest_id, room_id, entry_date, entry_time, exit_date, exit_time } = guest;
+    const planRes = await client.query(
+      `
+      SELECT meal_type, food_id
+      FROM t_daily_meal_plan
+      WHERE plan_date = $1
+        AND is_active = TRUE
+      `,
+      [planDate]
+    );
 
-      // 1️⃣ Fetch today's plan
-      const planRes = await client.query(
+    if (planRes.rowCount === 0) {
+      return { inserted: 0 };
+    }
+
+    let affected = 0;
+    const entryDateTime = entry_date
+      ? new Date(`${entry_date}T${entry_time ?? "00:00"}`)
+      : null;
+
+    const exitDateTime = exit_date
+      ? new Date(`${exit_date}T${exit_time ?? "23:59"}`)
+      : null;
+    for (const row of planRes.rows) {
+
+      const window = this.MEAL_WINDOWS[row.meal_type];
+      if (!window) continue;
+
+      const mealStart = new Date(`${planDate}T${window.start}`);
+      const mealEnd = new Date(`${planDate}T${window.end}`);
+
+      // 🧠 Presence Logic
+
+      // Skip if guest enters AFTER meal ends
+      if (entryDateTime && mealEnd < entryDateTime) continue;
+
+      // Skip if guest exits BEFORE meal starts
+      if (exitDateTime && mealStart >= exitDateTime) continue;
+      const existing = await client.query(
         `
-        SELECT meal_type, food_id
-        FROM t_daily_meal_plan
-        WHERE plan_date = $1
-          AND is_active = TRUE
+        SELECT guest_food_id, is_active
+        FROM t_guest_food
+        WHERE guest_id = $1
+          AND meal_type = $2
+          AND food_id = $3
+          AND plan_date = $4
         `,
-        [planDate]
+        [guest_id, row.meal_type, row.food_id, planDate]
       );
 
-      if (planRes.rowCount === 0) {
-        return { inserted: 0 };
-      }
-
-      let insertCount = 0;
-
-      for (const row of planRes.rows) {
-
-        // Prevent duplicate entries
-        const exists = await client.query(
+      if (existing.rowCount > 0) {
+        await client.query(
           `
-          SELECT 1
-          FROM t_guest_food
-          WHERE guest_id = $1
-            AND meal_type = $2
-            AND food_id = $3
-            AND plan_date = $4
-            AND is_active = TRUE
+          UPDATE t_guest_food
+          SET is_active = TRUE,
+              room_id = $1,
+              food_stage = CASE
+                  WHEN food_stage = 'CANCELLED' THEN 'PLANNED'
+                  ELSE food_stage
+              END,
+              updated_at = NOW(),
+              updated_by = $2,
+              updated_ip = $3
+          WHERE guest_food_id = $4
           `,
-          [guestId, row.meal_type, row.food_id, planDate]
+          [
+            room_id,
+            user,
+            ip,
+            existing.rows[0].guest_food_id
+          ]
         );
-
-        if (exists.rowCount > 0) continue;
-
+        affected++;
+      } else {
         const id = await this.generateId(client);
 
         await client.query(
@@ -1036,8 +890,8 @@ export class GuestFoodService {
           `,
           [
             id,
-            guestId,
-            roomId,
+            guest_id,
+            room_id,
             row.food_id,
             row.meal_type,
             planDate,
@@ -1046,9 +900,29 @@ export class GuestFoodService {
           ]
         );
 
-        insertCount++;
+        affected++;
       }
-
-      return { inserted: insertCount };
+    }
+    // Deactivate items not in today's plan
+    await client.query(
+      `
+      UPDATE t_guest_food
+      SET is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+      WHERE guest_id = $3
+        AND plan_date = $4
+        AND food_stage = 'PLANNED'
+        AND food_id NOT IN (
+          SELECT food_id
+          FROM t_daily_meal_plan
+          WHERE plan_date = $4
+            AND is_active = TRUE
+        )
+      `,
+      [user, ip, guest_id, planDate]
+    );
+    return { affected };
   }
 }

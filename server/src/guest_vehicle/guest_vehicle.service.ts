@@ -6,25 +6,6 @@ import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
 export class GuestVehicleService {
   constructor(private readonly db: DatabaseService) { }
 
-  // private async generateGuestVehicleId(): Promise<string> {
-  //   const sql = `
-  //       SELECT guest_vehicle_id
-  //       FROM t_guest_vehicle
-  //       ORDER BY guest_vehicle_id DESC
-  //       LIMIT 1;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rowCount === 0) {
-  //     return 'GV001';
-  //   }
-
-  //   const lastId: string = res.rows[0].guest_vehicle_id; // e.g. GV023
-  //   const num = parseInt(lastId.replace('GV', ''), 10) + 1;
-
-  //   return `GV${num.toString().padStart(3, '0')}`;
-  // }
   private async generateGuestVehicleId(client: any): Promise<string> {
     const res = await client.query(`
     SELECT 'GV' || LPAD(nextval('guest_vehicle_seq')::text, 3, '0') AS id
@@ -307,53 +288,6 @@ export class GuestVehicleService {
     return res.rows;
   }
 
-  // async getWithoutDriver() {
-  //   const sql = `
-  //   SELECT
-  //     gv.guest_vehicle_id,
-  //     gv.vehicle_no,
-  //     g.guest_name
-  //   FROM t_guest_vehicle gv
-  //   JOIN m_guest g ON g.guest_id = gv.guest_id
-  //   WHERE gv.driver_id IS NULL
-  //     AND gv.is_active = TRUE;
-  // `;
-
-  //   const res = await this.db.query(sql);
-  //   return res.rows;
-  // }
-  //   async updateVehicleAssignment(
-  //   guestVehicleId: string,
-  //   payload: {
-  //     location?: string;
-  //     released_at?: string;
-  //   },
-  //   user: string,
-  //   ip: string
-  // ) {
-  //   const sql = `
-  //     UPDATE t_guest_vehicle
-  //     SET
-  //       location = COALESCE($2, location),
-  //       released_at = COALESCE($3, released_at),
-  //       updated_at = NOW(),
-  //       updated_by = $4,
-  //       updated_ip = $5
-  //     WHERE guest_vehicle_id = $1
-  //       AND is_active = TRUE
-  //     RETURNING *;
-  //   `;
-
-  //   const res = await this.db.query(sql, [
-  //     guestVehicleId,
-  //     payload.location,
-  //     payload.released_at,
-  //     user,
-  //     ip,
-  //   ]);
-
-  //   return res.rows[0];
-  // }
   /**
      * Reassign a vehicle: close the old assignment and create a new one in a transaction.
      * If the new assignment fails, the old assignment remains active (rollback).

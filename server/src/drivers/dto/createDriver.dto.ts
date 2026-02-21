@@ -10,22 +10,26 @@ export class CreateDriverDto {
   driver_name: string;
 
   @IsString()
-  driver_name_ll: string;
+  @IsOptional()
+  driver_name_ll?: string;
 
   @IsString()
   driver_contact: string;
 
   @IsString()
-  driver_alternate_contact: string;
+  @IsOptional()
+  driver_alternate_contact?: string;
 
   @IsString()
   driver_license: string;
 
+  @IsOptional()
   @IsEmail()
   driver_mail: string;
 
   @IsString()
-  address: string;
+  @IsOptional()
+  address?: string;
 
   @IsOptional()
   @IsDateString()

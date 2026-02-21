@@ -203,13 +203,8 @@ export class UsersService {
       if (normalizedUsername === dto.password.toLowerCase()) {
         throw new BadRequestException('Password cannot be same as username');
       }
-
       const hashed = this.hashPassword(dto.password);
       const full_name_local_language = transliterateToDevanagari(dto.full_name);
-      // Prevent username equal to password
-      if (normalizedUsername === dto.password.toLowerCase()) {
-        throw new BadRequestException('Password cannot be same as username');
-      }
 
       await client.query(`
         INSERT INTO m_staff (
@@ -283,7 +278,8 @@ export class UsersService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
-    const user = await this.findOneByUsername(dto.username);
+    const normalizedUsername = this.usersValidator.normalizeUsername(dto.username);
+    const user = await this.findOneByUsername(normalizedUsername);
     if (!user) {
       // IMPORTANT: do NOT reveal user existence
       return { message: 'If the user exists, a reset link has been sent.' };
@@ -328,12 +324,11 @@ export class UsersService {
         FOR UPDATE
       `;
       const res = await client.query(sql, [dto.token]);
-      this.usersValidator.validatePasswordStrength(dto.new_password);
       if (res.rows.length === 0) {
         throw new BadRequestException('Invalid or expired reset token');
       }
+      this.usersValidator.validatePasswordStrength(dto.new_password);
       const userId = res.rows[0].user_id;
-      const hashed = this.hashPassword(dto.new_password);
       const existingUser = await client.query(
         `SELECT password FROM m_user WHERE user_id = $1`,
         [userId]
@@ -356,7 +351,7 @@ export class UsersService {
       `;
 
       await client.query(updateSql, [
-        hashed,
+        newHashed,
         ip,
         userId,
       ]);
@@ -367,14 +362,14 @@ export class UsersService {
 
   async update(username: string, dto: UpdateUserDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      const normalizedUsername = this.usersValidator.normalizeUsername(username);
       const existingRes = await client.query(
         `SELECT u.*, s.*
         FROM m_user u
         INNER JOIN m_staff s ON s.staff_id = u.staff_id
         WHERE u.username = $1
         FOR UPDATE`,
-        [username]
+        [normalizedUsername]
       );
 
       if (!existingRes.rowCount) {
@@ -535,9 +530,10 @@ export class UsersService {
     });
   }
 
-  // Login: accepts plaintext password, hashes and compares, updates last_login on success
+  // t_login on success
   async login(username: string, plainPassword: string, ip: string) {
-    const existing = await this.findOneByUsername(username);
+    const normalizedUsername = this.usersValidator.normalizeUsername(username);
+    const existing = await this.findOneByUsername(normalizedUsername);
     if (!existing) return null; // keep response generic for security if you want
     if (!existing.is_active) return null;
     if (!existing.staff_is_active) return null;
@@ -568,7 +564,7 @@ export class UsersService {
         s.email,
         s.address;
     `;
-    const res = await this.db.query(updSql, [ip, existing.user_id, existing.user_id]);
+    const res = await this.db.query(updSql, [ip, existing.user_id, normalizedUsername]);
     // return user without password
     return res.rows[0];
   }

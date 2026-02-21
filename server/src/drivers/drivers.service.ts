@@ -8,23 +8,15 @@ import { transliterateToDevanagari } from '../../common/utlis/transliteration.ut
 @Injectable()
 export class DriversService {
   constructor(private readonly db: DatabaseService) { }
-
-  // Generate ID like D001, D002 ...
-  // private async generateDriverId(): Promise<string> {
-  //   const sql = `SELECT driver_id FROM m_driver ORDER BY driver_id DESC LIMIT 1`;
-  //   const result = await this.db.query(sql);
-
-  //   if (result.rows.length === 0) {
-  //     return 'D001';
-  //   }
-
-  //   const lastId = result.rows[0].driver_id; // e.g. 'D015'
-  //   const number = parseInt(lastId.replace('D', '')) + 1;
-  //   return 'D' + number.toString().padStart(3, '0');
-  // }
   private async generateDriverId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'D' || LPAD(nextval('driver_id_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
+  private async generateStaffId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
     `);
     return res.rows[0].id;
   }
@@ -39,73 +31,7 @@ export class DriversService {
     const res = await this.db.query(sql);
     return res.rows[0];
   }
-  // async getDriversTable(query: {
-  //   page: number;
-  //   limit: number;
-  //   search?: string;
-  //   sortBy: string;
-  //   sortOrder: 'asc' | 'desc';
-  // }) {
-  //   const offset = (query.page - 1) * query.limit;
 
-  //   const SORT_MAP: Record<string, string> = {
-  //     driver_name: 'd.driver_name',
-  //     driver_contact: 'd.driver_contact',
-  //     driver_license: 'd.driver_license',
-  //   };
-
-  //   const sortColumn = SORT_MAP[query.sortBy] ?? 'd.driver_name';
-  //   const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
-
-  //   const where: string[] = ['d.is_active = TRUE'];
-  //   const params: any[] = [];
-
-  //   if (query.search) {
-  //     params.push(`%${query.search}%`);
-  //     where.push(`
-  //       (
-  //         d.driver_name ILIKE $${params.length}
-  //         OR d.driver_contact ILIKE $${params.length}
-  //         OR d.driver_license ILIKE $${params.length}
-  //       )
-  //     `);
-  //   }
-
-  //   const whereSql = `WHERE ${where.join(' AND ')}`;
-
-  //   const dataSql = `
-  //     SELECT
-  //       d.driver_id,
-  //       d.driver_name,
-  //       d.driver_name_local_language,
-  //       d.driver_contact,
-  //       d.driver_alternate_mobile,
-  //       d.driver_license,
-  //       d.address,
-  //       d.is_active
-  //     FROM m_driver d
-  //     ${whereSql}
-  //     ORDER BY ${sortColumn} ${sortOrder}
-  //     LIMIT ${query.limit}
-  //     OFFSET ${offset};
-  //   `;
-
-  //   const countSql = `
-  //     SELECT COUNT(*)::int AS count
-  //     FROM m_driver d
-  //     ${whereSql};
-  //   `;
-
-  //   const [dataRes, countRes] = await Promise.all([
-  //     this.db.query(dataSql, params),
-  //     this.db.query(countSql, params),
-  //   ]);
-
-  //   return {
-  //     data: dataRes.rows,
-  //     totalCount: countRes.rows[0].count,
-  //   };
-  // }
   async getDriversTable(query: {
     page: number;
     limit: number;
@@ -117,14 +43,15 @@ export class DriversService {
     const offset = (query.page - 1) * query.limit;
 
     const SORT_MAP: Record<string, string> = {
-      driver_name: 'd.driver_name',
-      driver_contact: 'd.driver_contact',
+      driver_name: 's.full_name',
+      driver_contact: 's.primary_mobile',
       driver_license: 'd.driver_license',
     };
 
-    const sortColumn = SORT_MAP[query.sortBy] ?? 'd.driver_name';
+    const sortColumn = SORT_MAP[query.sortBy] ?? 's.full_name';
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
+    // const where: string[] = ['d.is_active = true'];
     const where: string[] = [];
     const params: any[] = [];
 
@@ -132,14 +59,13 @@ export class DriversService {
       params.push(`%${query.search}%`);
       where.push(`
         (
-          d.driver_name ILIKE $${params.length}
-          OR d.driver_contact ILIKE $${params.length}
+          s.full_name ILIKE $${params.length}
+          OR s.primary_mobile ILIKE $${params.length}
           OR d.driver_license ILIKE $${params.length}
         )
       `);
     }
-
-    if (query.status === 'ACTIVE') {
+    if (!query.status || query.status === 'ACTIVE') {
       where.push('d.is_active = TRUE');
     }
 
@@ -152,16 +78,17 @@ export class DriversService {
     const dataSql = `
       SELECT
         d.driver_id,
-        d.driver_name,
-        d.driver_name_local_language,
-        d.driver_contact,
-        d.driver_alternate_mobile,
+        s.full_name AS driver_name,
+        s.full_name_local_language,
+        s.primary_mobile AS driver_contact,
+        s.alternate_mobile AS driver_alternate_mobile,
+        s.email AS driver_mail,
+        s.address,
         d.driver_license,
-        d.address,
-        d.driver_mail,
         d.license_expiry_date,
         d.is_active
       FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
       ${whereSql}
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT ${query.limit}
@@ -171,7 +98,8 @@ export class DriversService {
     const countSql = `
       SELECT COUNT(*)::int AS count
       FROM m_driver d
-      ${whereSql};
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      ${whereSql}
     `;
 
     const [dataRes, countRes] = await Promise.all([
@@ -187,24 +115,26 @@ export class DriversService {
 
   async findAssignableDrivers() {
     const sql = `
-    SELECT
-      d.driver_id,
-      d.driver_name,
-      d.driver_contact,
-      d.driver_alternate_mobile,
-      d.driver_license,
-      d.driver_mail,
-      d.license_expiry_date
-    FROM m_driver d
-    WHERE d.is_active = TRUE
-      AND NOT EXISTS (
-        SELECT 1
-        FROM t_guest_vehicle gv
-        WHERE gv.driver_id = d.driver_id
-          AND gv.is_active = TRUE
-      )
-    ORDER BY d.driver_name;
-  `;
+      SELECT
+        d.driver_id,
+        s.full_name AS driver_name,
+        s.primary_mobile AS driver_contact,
+        s.alternate_mobile AS driver_alternate_mobile,
+        d.driver_license,
+        s.email AS driver_mail,
+        d.license_expiry_date
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      WHERE d.is_active = TRUE
+        AND s.is_active = TRUE
+        AND NOT EXISTS (
+          SELECT 1
+          FROM t_guest_driver gd
+          WHERE gd.driver_id = d.driver_id
+            AND gd.is_active = TRUE
+        )
+      ORDER BY s.full_name;
+    `;
 
     const res = await this.db.query(sql);
     return res.rows;
@@ -214,29 +144,31 @@ export class DriversService {
     const sql = `
     SELECT
       d.driver_id,
-      d.driver_name,
-      d.driver_name_local_language,
-      d.driver_contact,
-      d.driver_alternate_mobile,
+      s.full_name AS driver_name,
+      s.full_name_local_language,
+      s.primary_mobile AS driver_contact,
+      s.alternate_mobile AS driver_alternate_mobile,
       d.driver_license,
-      d.address,
-      d.driver_mail,
+      s.address,
+      s.email AS driver_mail,
       d.license_expiry_date,
       d.is_active,
+      s.is_active AS staff_is_active,
+      s.staff_id,
 
       EXISTS (
         SELECT 1
-        FROM t_guest_vehicle gv
-        WHERE gv.driver_id = d.driver_id
-          AND gv.is_active = TRUE
+        FROM t_guest_driver gd
+        WHERE gd.driver_id = d.driver_id
+          AND gd.is_active = TRUE
       ) AS is_assigned,
 
       CASE
         WHEN EXISTS (
           SELECT 1
-          FROM t_guest_vehicle gv
-          WHERE gv.driver_id = d.driver_id
-            AND gv.is_active = TRUE
+          FROM t_guest_driver gd
+          WHERE gd.driver_id = d.driver_id
+            AND gd.is_active = TRUE
         )
         THEN 'On Duty'
         ELSE 'Available'
@@ -250,33 +182,34 @@ export class DriversService {
               g.guest_mail,
               g.guest_address,
               g.requires_driver
-        FROM t_guest_vehicle gv
-        JOIN m_guest g ON g.guest_id = gv.guest_id
-        WHERE gv.driver_id = d.driver_id
-          AND gv.is_active = TRUE
+        FROM t_guest_driver gd
+        JOIN m_guest g ON g.guest_id = gd.guest_id
+        WHERE gd.driver_id = d.driver_id
+          AND gd.is_active = TRUE
         LIMIT 1
       ) AS guest_details,
 
-        gv_data.vehicle_no,
-        gv_data.assigned_at,
-        gv_data.release_at,
-        gv_data.location
+      gd_data.pickup_location,
+      gd_data.drop_location,
+      gd_data.remarks
 
-        FROM m_driver d
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id AND s.is_active = TRUE
 
-        LEFT JOIN LATERAL (
+      LEFT JOIN LATERAL (
           SELECT
-            gv.vehicle_no,
-            gv.assigned_at,
-            gv.release_at,
-            gv.location
-          FROM t_guest_vehicle gv
-          WHERE gv.driver_id = d.driver_id
-            AND gv.is_active = TRUE
+            gd.guest_id,
+            gd.pickup_location,
+            gd.drop_location,
+            gd.remarks
+          FROM t_guest_driver gd
+          JOIN m_guest g ON g.guest_id = gd.guest_id
+          WHERE gd.driver_id = d.driver_id
+            AND gd.is_active = TRUE
           LIMIT 1
-        ) gv_data ON true
+        ) gd_data ON true
     WHERE d.is_active = TRUE
-    ORDER BY d.driver_name;
+    ORDER BY s.full_name;
   `;
 
     const res = await this.db.query(sql);
@@ -286,6 +219,9 @@ export class DriversService {
   async create(dto: CreateDriverDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
+      const driverName = dto.driver_name?.trim();
+      const driverId = await this.generateDriverId(client);
+      const staffId = await this.generateStaffId(client);
       const license = dto.driver_license?.trim();
       if (license) {
         const exists = await client.query(
@@ -298,38 +234,62 @@ export class DriversService {
           `,
           [license]
         );
-
         if (exists.rows.length > 0) {
           throw new BadRequestException(
             `Driver with license '${license}' already exists`
           );
         }
       }
+      // 1️⃣ Insert into m_staff
+      await client.query(`
+        INSERT INTO m_staff (
+          staff_id,
+          full_name,
+          full_name_local_language,
+          primary_mobile,
+          alternate_mobile,
+          email,
+          address,
+          designation,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,'Driver',true,NOW(),$8,$9)
+      `, [
+        staffId,
+        dto.driver_name,
+        driver_name_local_language,
+        dto.driver_contact ?? null,
+        dto.driver_alternate_contact ?? null,
+        dto.driver_mail ?? null,
+        dto.address ?? null,
+        user,
+        ip
+      ]);
 
-      const sql = `
-      INSERT INTO m_driver
-        (driver_id, driver_name, driver_name_local_language, driver_contact, driver_alternate_mobile, driver_license, address, driver_mail, license_expiry_date,
-        is_active, inserted_at, inserted_by, inserted_ip, updated_at, updated_by, updated_ip)
-      VALUES
-        ($1,$2,$3,$4,$5,$6,$7, $8, $9, TRUE,NOW(),$10,$11, NULL, NULL, NULL)
-      RETURNING driver_id, driver_name;
-    `;
-
-      const driverId = await this.generateDriverId(client);
-
-      const driverName = dto.driver_name?.trim();
-      const res = await client.query(sql, [
-        driverId,                          // $1
-        driverName,                        // $2
-        driver_name_local_language,        // $3
-        dto.driver_contact,                // $4
-        dto.driver_alternate_contact,      // $5
-        license,                           // $6
-        dto.address,                       // $7
-        dto.driver_mail ?? null,           // $8
-        dto.license_expiry_date ?? null,   // $9
-        user,                              // $10
-        ip                                 // $11
+      // 2️⃣ Insert into m_driver
+      const res = await client.query(`
+        INSERT INTO m_driver (
+          driver_id,
+          staff_id,
+          driver_license,
+          license_expiry_date,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
+        )
+        VALUES ($1,$2,$3,$4,true,NOW(),$5,$6)
+        RETURNING *;
+      `, [
+        driverId,
+        staffId,
+        license,
+        dto.license_expiry_date ?? null,
+        user,
+        ip
       ]);
 
       return res.rows[0];
@@ -400,17 +360,18 @@ export class DriversService {
     const sql = `
       SELECT DISTINCT
         d.driver_id,
-        d.driver_name,
-        d.driver_contact
+        s.full_name AS driver_name,
+        s.primary_mobile AS driver_contact
       FROM m_driver d
-      JOIN t_driver_duty dd
-        ON dd.driver_id = d.driver_id
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      JOIN t_driver_duty dd ON dd.driver_id = d.driver_id
       WHERE
         d.is_active = TRUE
+        AND s.is_active = TRUE
         AND dd.is_active = TRUE
         AND dd.is_week_off = FALSE
         AND dd.duty_date = $1
-      ORDER BY d.driver_name;
+      ORDER BY s.full_name;
     `;
 
     const res = await this.db.query(sql, [dutyDate]);
@@ -419,21 +380,41 @@ export class DriversService {
 
   async findAll(activeOnly = true) {
     const sql = activeOnly
-      ? `SELECT * FROM m_driver WHERE is_active = $1 ORDER BY driver_name`
-      : `SELECT * FROM m_driver ORDER BY driver_name`;
-
+      ? `
+      SELECT d.*, s.full_name
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      WHERE d.is_active = $1
+      ORDER BY s.full_name
+    `
+    : `
+      SELECT d.*, s.full_name
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      ORDER BY s.full_name
+    `;
     const result = await this.db.query(sql, activeOnly ? [true] : []);
     return result.rows;
   }
 
   async findOneByName(driver_name: string) {
-    const sql = `SELECT * FROM m_driver WHERE driver_name = $1`;
+    const sql = `
+      SELECT d.*, s.*
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      WHERE s.full_name = $1
+    `;
     const result = await this.db.query(sql, [driver_name]);
     return result.rows[0];
   }
 
   async findOneById(driver_id: string) {
-    const sql = `SELECT * FROM m_driver WHERE driver_id = $1`;
+    const sql = `
+      SELECT d.*, s.*
+      FROM m_driver d
+      JOIN m_staff s ON s.staff_id = d.staff_id
+      WHERE d.driver_id = $1
+    `;
     const result = await this.db.query(sql, [driver_id]);
     return result.rows[0];
   }
@@ -442,7 +423,12 @@ export class DriversService {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
-        `SELECT * FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
+        `
+        SELECT d.*, s.*
+        FROM m_driver d
+        JOIN m_staff s ON s.staff_id = d.staff_id
+        WHERE d.driver_id = $1
+        FOR UPDATE`,
         [driver_id]
       );
 
@@ -462,18 +448,15 @@ export class DriversService {
 
       // 🚫 CHECK: Prevent deactivation if driver is assigned
       if (dto.is_active === false && existing.is_active === true) {
-        const assignmentCheck = await client.query(
-          `
+        const assignmentCheck = await client.query(`
           SELECT 1
-          FROM t_guest_vehicle
+          FROM t_guest_driver
           WHERE driver_id = $1
             AND is_active = TRUE
           LIMIT 1
-          `,
-          [driver_id]
-        );
+        `, [driver_id]);
 
-        if (assignmentCheck.rows.length > 0) {
+        if (assignmentCheck.rowCount > 0) {
           throw new BadRequestException(
             `Cannot deactivate driver '${driver_id}' because the driver is currently assigned`
           );
@@ -505,64 +488,51 @@ export class DriversService {
           );
         }
       }
-      const sql = `
-        UPDATE m_driver SET
-          driver_name = $1,
-          driver_name_local_language = $2,
-          driver_contact = $3,
-          driver_alternate_mobile = $4,
-          driver_license = $5,
+      await client.query(`
+        UPDATE m_staff SET
+          full_name = $1,
+          full_name_local_language = $2,
+          primary_mobile = $3,
+          alternate_mobile = $4,
+          email = $5,
           address = $6,
-          driver_mail= $7,
-          license_expiry_date = $8,
-          is_active = $9,
           updated_at = NOW(),
-          updated_by = $10,
-          updated_ip = $11
-        WHERE driver_id = $12
-        RETURNING *;
-      `;
-
-      const params = [
+          updated_by = $7,
+          updated_ip = $8
+        WHERE staff_id = $9
+      `, [
         updatedName ?? existing.driver_name,
         driver_name_local_language,
         dto.driver_contact ?? existing.driver_contact,
         dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
-        updatedLicense ?? existing.driver_license,
-        dto.address ?? existing.address,
         dto.driver_mail ?? existing.driver_mail,
+        dto.address ?? existing.address,
+        user,
+        ip,
+        existing.staff_id,
+      ]);
+      const driverRes = await client.query(`
+        UPDATE m_driver SET
+          driver_license = $1,
+          license_expiry_date = $2,
+          is_active = $3,
+          updated_at = NOW(),
+          updated_by = $4,
+          updated_ip = $5
+        WHERE driver_id = $6
+        RETURNING *;
+      `, [
+        updatedLicense ?? existing.driver_license,
         dto.license_expiry_date ?? existing.license_expiry_date,
         dto.is_active ?? existing.is_active,
         user,
         ip,
         driver_id,
-      ];
+      ]);
 
-      const result = await client.query(sql, params);
-      return result.rows[0];
+      return driverRes.rows[0];
     });
   }
-
-  // async softDelete(driver_id: string, user: string, ip: string) {
-  //   const existing = await this.findOneById(driver_id);
-  //   if (!existing) {
-  //     throw new Error(`Driver '${driver_id}' not found`);
-  //   }
-  //   const now = new Date().toISOString();
-
-  //   const sql = `
-  //     UPDATE m_driver SET
-  //       is_active = false,
-  //       updated_at = $1,
-  //       updated_by = $2,
-  //       updated_ip = $3
-  //     WHERE driver_id = $4
-  //     RETURNING *;
-  //   `;
-
-  //   const result = await this.db.query(sql, [now, user, ip, driver_id]);
-  //   return result.rows[0];
-  // }
 
   async softDelete(driver_id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
@@ -580,11 +550,11 @@ export class DriversService {
       // 🚫 CHECK: Is driver currently assigned?
       const assignmentCheck = await client.query(
         `
-        SELECT 1
-        FROM t_guest_vehicle
-        WHERE driver_id = $1
-          AND is_active = TRUE
-        LIMIT 1
+          SELECT 1
+          FROM t_guest_driver
+          WHERE driver_id = $1
+            AND is_active = TRUE
+          LIMIT 1
         `,
         [driver_id]
       );
@@ -594,6 +564,14 @@ export class DriversService {
           `Cannot deactivate driver '${driver_id}' because the driver is currently assigned to an active duty`
         );
       }
+      await client.query(`
+        UPDATE m_staff SET
+          is_active = FALSE,
+          updated_at = NOW(),
+          updated_by = $1,
+          updated_ip = $2
+        WHERE staff_id = $3
+      `, [user, ip, existing.staff_id]);
 
       const sql = `
         UPDATE m_driver SET

@@ -31,7 +31,7 @@ export class GuestTransportService {
       guest_name: 'base.guest_name',
       driver_name: 'base.driver_name',
       vehicle_no: 'base.vehicle_no',
-      trip_status: 'base.trip_status',
+      start_datetime: 'base.start_datetime',
     };
 
     const sortColumn =
@@ -44,35 +44,6 @@ export class GuestTransportService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
-
-    // const where: string[] = [
-    //   'io.is_active = TRUE',
-    //   'g.is_active = TRUE',
-
-    //   /* -------- VISIBILITY WINDOW -------- */
-    //   `
-    //   (
-    //     /* Scheduled: today or future */
-    //     (
-    //       io.status = 'Scheduled'
-    //       AND io.entry_date >= CURRENT_DATE
-    //     )
-
-    //     /* Entered / Inside */
-    //     OR io.status IN ('Entered', 'Inside')
-
-    //     /* Exited: within 24 hours of checkout */
-    //     OR (
-    //       io.status = 'Exited'
-    //       AND NOW() <= (
-    //         io.exit_date + COALESCE(io.exit_time, TIME '00:00')
-    //       ) + INTERVAL '24 hours'
-    //     )
-    //   )
-        
-    //   `,
-    // ];
-
     const sqlParams: any[] = [];
     let idx = 1;
 
@@ -84,18 +55,15 @@ export class GuestTransportService {
           OR g.guest_mobile ILIKE $${idx}
           OR EXISTS (
             SELECT 1
-            FROM t_guest_driver gd2
-            JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
-            WHERE gd2.guest_id = g.guest_id
-              AND gd2.is_active = TRUE
-              AND d2.driver_name ILIKE $${idx}
-          )
-          OR EXISTS (
-            SELECT 1
-            FROM t_guest_vehicle gv2
-            WHERE gv2.guest_id = g.guest_id
-              AND gv2.is_active = TRUE
-              AND gv2.vehicle_no ILIKE $${idx}
+            FROM t_guest_transport gt2
+            LEFT JOIN m_driver d2 ON d2.driver_id = gt2.driver_id
+            LEFT JOIN m_vehicle v2 ON v2.vehicle_id = gt2.vehicle_id
+            WHERE gt2.guest_id = g.guest_id
+              AND gt2.is_active = TRUE
+              AND (
+                d2.driver_name ILIKE $${idx}
+                OR v2.vehicle_no ILIKE $${idx}
+              )
           )
         )
       `);
@@ -129,7 +97,6 @@ export class GuestTransportService {
       }
     }
 
-
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {
       where.push(`io.status = $${idx}`);
@@ -146,19 +113,15 @@ export class GuestTransportService {
       JOIN m_guest g
         ON g.guest_id = io.guest_id
 
-      LEFT JOIN t_guest_driver gd
-        ON gd.guest_id = g.guest_id
-        AND gd.is_active = TRUE
+      LEFT JOIN t_guest_transport gt
+        ON gt.guest_id = g.guest_id
+        AND gt.is_active = TRUE
 
       LEFT JOIN m_driver d
-        ON d.driver_id = gd.driver_id
-
-      LEFT JOIN t_guest_vehicle gv
-        ON gv.guest_id = g.guest_id
-        AND gv.is_active = TRUE
+        ON d.driver_id = gt.driver_id
 
       LEFT JOIN m_vehicle v
-        ON v.vehicle_no = gv.vehicle_no
+        ON v.vehicle_id = gt.vehicle_id
 
       ${whereSql};
     `;
@@ -186,28 +149,21 @@ export class GuestTransportService {
           io.requires_driver,
           io.companions,
 
-          gd.guest_driver_id,
-          gd.driver_id,
+          gt.guest_transport_id,
+          gt.driver_id,
           d.driver_name,
           d.driver_contact,
           d.driver_license,
-          gd.pickup_location,
-          gd.drop_location,
-          gd.trip_date,
-          gd.start_time,
-          gd.drop_date,
-          gd.drop_time,
-          gd.trip_status,
-
-          gv.guest_vehicle_id,
+          gt.guest_transport_id,
+          gt.pickup_location,
+          gt.drop_location,
+          gt.start_datetime,
+          gt.end_datetime,
           v.vehicle_no,
           v.vehicle_name,
           v.model,
           v.color,
           v.capacity,
-          gv.location,
-          gv.assigned_at,
-          gv.released_at
 
         FROM t_guest_inout io
 
@@ -226,60 +182,50 @@ export class GuestTransportService {
 
         LEFT JOIN LATERAL (
           SELECT *
-          FROM t_guest_driver
-          WHERE guest_id = g.guest_id
-            AND is_active = TRUE
-          ORDER BY trip_date DESC, start_time DESC
+          FROM t_guest_transport gt
+          WHERE gt.guest_id = g.guest_id
+            AND gt.is_active = TRUE
+          ORDER BY gt.start_datetime DESC
           LIMIT 1
-        ) gd ON TRUE
+        ) gt ON TRUE
 
         LEFT JOIN m_driver d
-          ON d.driver_id = gd.driver_id
-
-        LEFT JOIN LATERAL (
-          SELECT *
-          FROM t_guest_vehicle
-          WHERE guest_id = g.guest_id
-            AND is_active = TRUE
-          ORDER BY assigned_at DESC
-          LIMIT 1
-        ) gv ON TRUE
+          ON d.driver_id = gt.driver_id
 
         LEFT JOIN m_vehicle v
-          ON v.vehicle_no = gv.vehicle_no
+          ON v.vehicle_no = gt.vehicle_no
 
         ${whereSql}
       )
       SELECT
         base.*,
-
         CASE
-          WHEN base.guest_driver_id IS NOT NULL
+          WHEN base.driver_id IS NOT NULL
           AND (
-            (base.trip_date::timestamp + COALESCE(base.start_time, TIME '00:00'))
-              < (base.entry_date::timestamp + base.entry_time::time)
+            base.start_datetime <
+              (base.entry_date::timestamp + base.entry_time::time)
             OR
-            COALESCE(
-              (base.drop_date::timestamp + COALESCE(base.drop_time, TIME '23:59')),
-              'infinity'
-            ) >
-            COALESCE(
-              (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
-              'infinity'
-            )
+            COALESCE(base.end_datetime, 'infinity') >
+              COALESCE(
+                (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
+                'infinity'
+              )
           )
           THEN TRUE
           ELSE FALSE
         END AS driver_conflict,
 
         CASE
-          WHEN base.guest_vehicle_id IS NOT NULL
+          WHEN base.vehicle_id IS NOT NULL
           AND (
-            base.assigned_at <
+            base.start_datetime <
               (base.entry_date::timestamp + base.entry_time::time)
             OR
-            COALESCE(base.released_at, 'infinity') >
-              (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59'))
+            COALESCE(base.end_datetime, 'infinity') >
+              COALESCE(
+                (base.exit_date::timestamp + COALESCE(base.exit_time, TIME '23:59')),
+                'infinity'
+              )
           )
           THEN TRUE
           ELSE FALSE
@@ -419,41 +365,27 @@ export class GuestTransportService {
       }
     });
   }
-  async findTransportConflictsForGuest(guestId: string, newEntry: Date, newExit: Date, client?: any) {
+  async findTransportConflictsForGuest(
+    guestId: string,
+    newStart: Date,
+    newEnd: Date,
+    client?: any
+  ) {
     const res = await client.query(
       `
       SELECT
-        'DRIVER' AS type,
-        gd.guest_driver_id AS ref_id,
-        (gd.trip_date::timestamp + COALESCE(gd.start_time, TIME '00:00'))
- AS from_time,
-        COALESCE(
-          (gd.drop_date::timestamp + gd.drop_time::time),
-          'infinity'
-        ) AS to_time
-      FROM t_guest_driver gd
-      WHERE gd.guest_id = $1
-        AND gd.is_active = TRUE
-        AND (
-          (gd.trip_date::timestamp + COALESCE(gd.start_time, TIME '00:00')),
-          COALESCE((gd.drop_date::timestamp + COALESCE(gd.drop_time, TIME '23:59')), 'infinity')
-        )
-        OVERLAPS ($2, $3)
-
-      UNION ALL
-
-      SELECT
-        'VEHICLE',
-        gv.guest_vehicle_id,
-        gv.assigned_at,
-        COALESCE(gv.released_at, 'infinity')
-      FROM t_guest_vehicle gv
-      WHERE gv.guest_id = $1
-        AND gv.is_active = TRUE
-        AND (gv.assigned_at, COALESCE(gv.released_at, 'infinity'))
+        guest_transport_id,
+        driver_id,
+        vehicle_id,
+        start_datetime,
+        COALESCE(end_datetime, 'infinity') AS end_datetime
+      FROM t_guest_transport
+      WHERE guest_id = $1
+        AND is_active = TRUE
+        AND (start_datetime, COALESCE(end_datetime, 'infinity'))
         OVERLAPS ($2, $3)
       `,
-      [guestId, newEntry, newExit]
+      [guestId, newStart, newEnd]
     );
 
     return res.rows;

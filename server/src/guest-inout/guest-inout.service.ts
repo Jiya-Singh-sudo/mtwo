@@ -76,8 +76,7 @@ export class GuestInoutService {
 
         await this.guestFoodService.propagateTodayPlanToGuest(
           client,
-          insertedRow.guest_id,
-          insertedRow.room_id,
+          insertedRow,
           user || 'system',
           ip || '0.0.0.0'
         );
