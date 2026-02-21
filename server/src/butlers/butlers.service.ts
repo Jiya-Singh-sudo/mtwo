@@ -12,7 +12,12 @@ export class ButlersService {
     const result = await client.query(sql);
     return result.rows[0].butler_id;
   }
-
+  private async generateStaffId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
+    `);
+    return res.rows[0].id;
+  }
   async getTable(query: any) {
     const {
       page = 1,
@@ -27,7 +32,7 @@ export class ButlersService {
 
     const SORT_MAP: Record<string, string> = {
       butler_id: "b.butler_id",
-      butler_name: "b.butler_name",
+      butler_name: "s.full_name",
       shift: "b.shift",
       is_active: "b.is_active",
       inserted_at: "b.inserted_at",
@@ -42,7 +47,7 @@ export class ButlersService {
     if (search) {
       params.push(`%${search}%`);
       where.push(
-        `(b.butler_name ILIKE $${params.length} OR b.butler_id ILIKE $${params.length})`
+        `(s.full_name ILIKE $${params.length} OR b.butler_id ILIKE $${params.length})`
       );
     }
 
@@ -62,12 +67,12 @@ export class ButlersService {
     const dataSql = `
       SELECT
         b.butler_id,
-        b.butler_name,
-        b.butler_name_local_language,
+        s.full_name AS butler_name,
+        s.full_name_local_language AS butler_name_local_language,
         b.is_active,
-        b.butler_mobile,
-        b.butler_alternate_mobile,
-        b.address,
+        s.primary_mobile AS butler_mobile,
+        s.alternate_mobile AS butler_alternate_mobile,
+        s.address,
         b.remarks,
         b.shift,
         b.inserted_at,
@@ -77,6 +82,7 @@ export class ButlersService {
         b.updated_by,
         b.updated_ip
       FROM m_butler b
+      JOIN m_staff s ON s.staff_id = b.staff_id
       ${whereSql}
       ORDER BY ${orderColumn} ${orderDir}
       LIMIT $${params.length + 1}
@@ -110,8 +116,33 @@ export class ButlersService {
   async findAll(activeOnly = true) {
     return this.db.transaction(async (client) => {
       const sql = activeOnly
-        ? `SELECT * FROM m_butler WHERE is_active = $1 ORDER BY butler_name`
-        : `SELECT * FROM m_butler ORDER BY butler_name`;
+        ? `SELECT 
+            b.butler_id,
+            s.full_name,
+            s.full_name_local_language,
+            s.primary_mobile,
+            s.alternate_mobile,
+            s.address,
+            b.shift,
+            b.remarks,
+            b.is_active
+          FROM m_butler b
+          JOIN m_staff s ON s.staff_id = b.staff_id
+          WHERE b.is_active = $1
+          ORDER BY s.full_name`
+        : `SELECT 
+            b.butler_id,
+            s.full_name,
+            s.full_name_local_language,
+            s.primary_mobile,
+            s.alternate_mobile,
+            s.address,
+            b.shift,
+            b.remarks,
+            b.is_active
+          FROM m_butler b
+          JOIN m_staff s ON s.staff_id = b.staff_id
+          ORDER BY s.full_name`;
 
       const result = await client.query(sql, activeOnly ? [true] : []);
       return result.rows;
@@ -120,7 +151,22 @@ export class ButlersService {
 
   async findOneById(id: string) {
     return this.db.transaction(async (client) => {
-      const sql = `SELECT * FROM m_butler WHERE butler_id = $1`;
+      const sql = `
+                  SELECT 
+              b.butler_id,
+              b.shift,
+              b.remarks,
+              b.is_active,
+              s.staff_id,
+              s.full_name,
+              s.full_name_local_language,
+              s.primary_mobile,
+              s.alternate_mobile,
+              s.address
+            FROM m_butler b
+            JOIN m_staff s ON s.staff_id = b.staff_id
+            WHERE b.butler_id = $1
+            `;
       const result = await client.query(sql, [id]);
       return result.rows[0];
     });
@@ -129,143 +175,166 @@ export class ButlersService {
   async create(dto: CreateButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const butlerId = await this.generateButlerId(client);
-      const now = new Date()
-        .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-        .replace(',', '');
+      const staffId = await this.generateStaffId(client);
       const butler_name_local_language = transliterateToDevanagari(dto.butler_name);
 
-      const sql = `
-        INSERT INTO m_butler (
-          butler_id,
-          butler_name,
-          butler_name_local_language,
-          butler_mobile,
-          butler_alternate_mobile,
+      // 1️⃣ Insert into m_staff
+      await client.query(`
+        INSERT INTO m_staff (
+          staff_id,
+          full_name,
+          full_name_local_language,
+          primary_mobile,
+          alternate_mobile,
           address,
-          remarks,
-          shift,
+          designation,
           is_active,
           inserted_at,
           inserted_by,
-          inserted_ip,
-          updated_at,
-          updated_by,
-          updated_ip
+          inserted_ip
         )
-        VALUES (
-          $1,  -- butler_id
-          $2,  -- butler_name
-          $3,  -- butler_name_local_language
-          $4,  -- butler_mobile
-          $5,  -- butler_alternate_mobile
-          $6,  -- address
-          $7,  -- remarks
-          $8,  -- shift
-          true,
-          NOW(),  -- inserted_at
-          $9, -- inserted_by
-          $10, -- inserted_ip
-          NULL,
-          NULL,
-          NULL
+        VALUES ($1,$2,$3,$4,$5,$6,'Butler',true,NOW(),$7,$8)
+      `, [
+        staffId,
+        dto.butler_name,
+        butler_name_local_language,
+        dto.butler_mobile ?? null,
+        dto.butler_alternate_mobile ?? null,
+        dto.address ?? null,
+        user,
+        ip
+      ]);
+
+      // 2️⃣ Insert into m_butler
+      const res = await client.query(`
+        INSERT INTO m_butler (
+          butler_id,
+          staff_id,
+          shift,
+          remarks,
+          is_active,
+          inserted_at,
+          inserted_by,
+          inserted_ip
         )
-        RETURNING *`;
+        VALUES ($1,$2,$3,$4,true,NOW(),$5,$6)
+        RETURNING *;
+      `, [
+        butlerId,
+        staffId,
+        dto.shift,
+        dto.remarks ?? null,
+        user,
+        ip
+      ]);
 
-    const params = [
-      butlerId,                        // $1
-      dto.butler_name,                // $2
-      butler_name_local_language, // $3
-      dto.butler_mobile,              // $4
-      dto.butler_alternate_mobile ?? null, // $5
-      dto.address ?? null,            // $6
-      dto.remarks ?? null,            // $7
-      dto.shift,                      // $8  ← THIS was missing
-      user,                           // $9
-      ip                              // $10
-    ];
-
-      const res = await client.query(sql, params);
       return res.rows[0];
     });
   }
 
   async update(id: string, dto: UpdateButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      const existingResult = await client.query(
-        `SELECT * FROM m_butler WHERE butler_id = $1 FOR UPDATE`,
-        [id]
-      );
+      const existingRes = await client.query(`
+        SELECT b.*, s.*
+        FROM m_butler b
+        JOIN m_staff s ON s.staff_id = b.staff_id
+        WHERE b.butler_id = $1
+        FOR UPDATE
+      `, [id]);
 
-      const existing = existingResult.rows[0];
-      if (!existing) throw new NotFoundException(`Butler '${id}' not found`);
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Butler '${id}' not found`);
+      }
 
-      const now = new Date()
-        .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-        .replace(',', '');
+      const existing = existingRes.rows[0];
+
+      const updatedName = dto.butler_name ?? existing.full_name;
+      const updatedLocal = dto.butler_name
+        ? transliterateToDevanagari(dto.butler_name)
+        : existing.full_name_local_language;
       
-      const butler_name_local_language = transliterateToDevanagari(dto.butler_name);
-
-      const sql = `
-        UPDATE m_butler SET
-          butler_name = $1,
-          butler_name_local_language = $2,
-          butler_mobile = $3,
-          butler_alternate_mobile = $4,
+      // 1️⃣ Update m_staff
+      await client.query(`
+        UPDATE m_staff SET
+          full_name = $1,
+          full_name_local_language = $2,
+          primary_mobile = $3,
+          alternate_mobile = $4,
           address = $5,
-          remarks = $6,
-          shift = $7,
-          is_active = $8,
           updated_at = NOW(),
-          updated_by = $9,
-          updated_ip = $10
-        WHERE butler_id = $11
-        RETURNING *;
-      `;
-
-      const params = [
-        dto.butler_name ?? existing.butler_name,
-        butler_name_local_language,
-        dto.butler_mobile ?? existing.butler_mobile,
-        dto.butler_alternate_mobile ?? existing.butler_alternate_mobile,
+          updated_by = $6,
+          updated_ip = $7
+        WHERE staff_id = $8
+      `, [
+        updatedName,
+        updatedLocal,
+        dto.butler_mobile ?? existing.primary_mobile,
+        dto.butler_alternate_mobile ?? existing.alternate_mobile,
         dto.address ?? existing.address,
-        dto.remarks ?? existing.remarks,
+        user,
+        ip,
+        existing.staff_id
+      ]);
+
+      // 2️⃣ Update m_butler
+      const res = await client.query(`
+        UPDATE m_butler SET
+          shift = $1,
+          remarks = $2,
+          is_active = $3,
+          updated_at = NOW(),
+          updated_by = $4,
+          updated_ip = $5
+        WHERE butler_id = $6
+        RETURNING *;
+      `, [
         dto.shift ?? existing.shift,
+        dto.remarks ?? existing.remarks,
         dto.is_active ?? existing.is_active,
         user,
         ip,
-        existing.butler_id,
-      ];
+        id
+      ]);
 
-      const res = await client.query(sql, params);
       return res.rows[0];
     });
   }
 
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      const existingResult = await client.query(
-        `SELECT * FROM m_butler WHERE butler_id = $1 FOR UPDATE`,
-        [id]
-      );
 
-      const existing = existingResult.rows[0];
-      if (!existing) throw new NotFoundException(`Butler '${id}' not found`);
+      const existingRes = await client.query(`
+        SELECT b.staff_id
+        FROM m_butler b
+        WHERE b.butler_id = $1
+        FOR UPDATE
+      `, [id]);
 
-      const now = new Date().toISOString();
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Butler '${id}' not found`);
+      }
 
-      const sql = `
-        UPDATE m_butler SET
-          is_active = false,
-          updated_at = NOW(),
-          updated_by = $1,
-          updated_ip = $2
+      const { staff_id } = existingRes.rows[0];
+
+      await client.query(`
+        UPDATE m_butler
+        SET is_active = false,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
         WHERE butler_id = $3
-        RETURNING *;
-      `;
+      `, [user, ip, id]);
 
-      const params = [user, ip, existing.butler_id];
-      const res = await client.query(sql, params);
-      return res.rows[0];
+      await client.query(`
+        UPDATE m_staff
+        SET is_active = false,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
+        WHERE staff_id = $3
+      `, [user, ip, staff_id]);
+
+      return { message: 'Butler deactivated successfully' };
     });
   }
 }

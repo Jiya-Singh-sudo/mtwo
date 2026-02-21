@@ -14,31 +14,91 @@ export class GuestButlerService {
   }
 
   async findAll(activeOnly = true) {
-    const sql = activeOnly
-      ? `SELECT * FROM t_guest_butler WHERE is_active = $1 ORDER BY inserted_at DESC`
-      : `SELECT * FROM t_guest_butler ORDER BY inserted_at DESC`;
+    const sql = `
+      SELECT
+        gb.guest_butler_id,
+        gb.guest_id,
+        gb.room_id,
+        gb.special_request,
+        gb.is_active,
+        gb.inserted_at,
 
-    const res = await this.db.query(sql, activeOnly ? [true] : []);
+        b.butler_id,
+        s.full_name AS butler_name,
+        s.primary_mobile AS butler_mobile,
+        b.shift
+
+      FROM t_guest_butler gb
+      JOIN m_butler b ON b.butler_id = gb.butler_id
+      JOIN m_staff s ON s.staff_id = b.staff_id
+      WHERE ($1::boolean IS FALSE OR gb.is_active = TRUE)
+      ORDER BY gb.inserted_at DESC
+    `;
+
+    const res = await this.db.query(sql, [activeOnly]);
     return res.rows;
   }
 
   async findOne(id: string) {
-    const sql = `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1`;
+    const sql = `
+      SELECT
+        gb.*,
+        b.butler_id,
+        s.full_name AS butler_name,
+        s.primary_mobile AS butler_mobile,
+        b.shift
+      FROM t_guest_butler gb
+      JOIN m_butler b ON b.butler_id = gb.butler_id
+      JOIN m_staff s ON s.staff_id = b.staff_id
+      WHERE gb.guest_butler_id = $1
+    `;
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
   }
 
   async create(dto: CreateGuestButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+
+      // 🔒 Validate guest exists
+      const guestCheck = await client.query(
+        `SELECT 1 
+        FROM m_guest 
+        WHERE guest_id = $1 AND is_active = TRUE
+        FOR UPDATE`,
+        [dto.guest_id]
+      );
+
+      if (!guestCheck.rowCount) {
+        throw new NotFoundException("Guest not found or inactive");
+      }
+
+      // 🔒 Validate butler exists AND staff active
+      const butlerCheck = await client.query(
+        `
+        SELECT 1
+        FROM m_butler b
+        JOIN m_staff s ON s.staff_id = b.staff_id
+        WHERE b.butler_id = $1
+          AND b.is_active = TRUE
+          AND s.is_active = TRUE
+        FOR UPDATE
+        `,
+        [dto.butler_id]
+      );
+
+      if (!butlerCheck.rowCount) {
+        throw new NotFoundException("Butler not found or inactive");
+      }
+
     // 🔒 Lock butler assignments
     await client.query(
-      `SELECT 1 FROM t_guest_butler WHERE butler_id = $1 FOR UPDATE`,
+      `SELECT 1 FROM t_guest_butler WHERE butler_id = $1 AND is_active = TRUE FOR UPDATE`,
       [dto.butler_id]
     );
 
     // 🔒 Lock guest assignments
     await client.query(
-      `SELECT 1 FROM t_guest_butler WHERE guest_id = $1 FOR UPDATE`,
+      `SELECT 1 FROM t_guest_butler WHERE guest_id = $1 AND is_active = TRUE  FOR UPDATE`,
       [dto.guest_id]
     );
       const existingSql = `
@@ -57,8 +117,7 @@ export class GuestButlerService {
 
       // 🔒 ENFORCE BUTLER CAPACITY (MAX 3)
       const countSql = `
-        SELECT COUNT(*) AS count
-        FROM t_guest_butler
+        SELECT COUNT(*) AS count FROM t_guest_butler
         WHERE butler_id = $1 AND is_active = TRUE
       `;
       const countRes = await client.query(countSql, [dto.butler_id]);
@@ -208,7 +267,11 @@ export class GuestButlerService {
   async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const existingRes = await client.query(
-        `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1 FOR UPDATE`,
+        `SELECT *
+        FROM t_guest_butler
+        WHERE guest_butler_id = $1
+          AND is_active = TRUE
+        FOR UPDATE`,
         [id]
       );
 
@@ -245,11 +308,17 @@ export class GuestButlerService {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
-        `SELECT * FROM t_guest_butler WHERE guest_butler_id = $1 FOR UPDATE`,
+        `SELECT *
+          FROM t_guest_butler
+          WHERE guest_butler_id = $1
+            AND is_active = TRUE
+          FOR UPDATE`,
         [id]
       );
 
-      const existing = existingRes.rows[0];
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Assignment '${id}' not found`);
+      }
       const sql = `
         UPDATE t_guest_butler SET 
           is_active = false,

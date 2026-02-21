@@ -74,82 +74,6 @@ export class MealsService {
     });
   }
 
-//   async create(dto: CreateMealDto, user: string, ip: string) {
-//     const now = new Date()
-//       .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-//       .replace(',', '');
-
-//     const foodId = await this.generateFoodId();
-
-//     const sql = `
-//       INSERT INTO m_food_items (
-//         food_id,
-//         food_name,
-//         food_desc,
-//         food_type,
-//         is_active,
-//         inserted_at, inserted_by, inserted_ip,
-//         updated_at, updated_by, updated_ip
-//       )
-//       VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,NULL,NULL,NULL)
-//       RETURNING *;
-//     `;
-
-// const params = [
-//   foodId,
-//   dto.food_name,
-//   dto.food_desc ?? null,
-//   dto.food_type,
-//   now,
-//   user,
-//   ip,
-// ];
-
-
-//     const result = await this.db.query(sql, params);
-//     return result.rows[0];
-//   }
-  // async create(dto: CreateMealDto, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-
-  //     // const now = new Date()
-  //     //   .toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour12: false })
-  //     //   .replace(",", "");
-
-  //     // ✅ 1. Check for existing food by name (because UNIQUE constraint exists)
-  //     const existing = await client.query(`SELECT * FROM m_food_items WHERE food_name = $1 FOR UPDATE`, [dto.food_name]);
-  //     if (existing.rows.length > 0) {
-  //       return existing.rows[0]; // ⬅️ IMPORTANT: do NOT insert again
-  //     }
-
-  //     // ✅ 2. Insert without food_id (Postgres generates it)
-  //     const sql = `
-  //       INSERT INTO m_food_items (
-  //         food_name,
-  //         food_desc,
-  //         food_type,
-  //         is_active,
-  //         inserted_at,
-  //         inserted_by,
-  //         inserted_ip
-  //       )
-  //       VALUES ($1, $2, $3, TRUE, NOW(), $4, $5)
-  //       RETURNING *;
-  //     `;
-
-  //     const params = [
-  //       dto.food_name.trim(),
-  //       dto.food_desc ?? null,
-  //       dto.food_type,
-  //       user,
-  //       ip,
-  //     ];
-
-  //     const result = await client.query(sql, params);
-  //     return result.rows[0];
-  //   });
-  // }
-
   async update(name: string, dto: UpdateMealDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
@@ -205,14 +129,6 @@ export class MealsService {
         throw new NotFoundException(`Meal '${name}' not found`);
       }
       const foodId = existingRes.rows[0].food_id;
-
-      // const existing = await this.findOneByName(name);
-      // if (!existing) {
-      //   throw new NotFoundException(`Meal '${name}' not found`);
-      // }
-
-      // const now = new Date().toISOString();
-
       const sql = `
         UPDATE m_food_items SET
           is_active = false,
@@ -306,52 +222,4 @@ export class MealsService {
     const res = await this.db.query(sql);
     return res.rows;
   }
-
-  // async getTodayGuests() {
-  //   const sql = `
-  //     SELECT
-  //       g.guest_id,
-  //       g.guest_name,
-  //       g.guest_name_local_language
-  //       gi.room_id,
-
-  //       gb.guest_butler_id,
-  //       gb.butler_id,
-  //       b.butler_name,
-  //       gb.specialrequest,
-
-  //       gf.guest_food_id,
-  //       mi.food_name,
-  //       mi.food_type,
-  //       gf.delivery_status
-
-  //     FROM t_guest_inout gi
-  //     JOIN m_guest g
-  //       ON g.guest_id = gi.guest_id
-  //      AND g.is_active = TRUE
-
-  //     LEFT JOIN t_guest_butler gb
-  //       ON gb.guest_id = g.guest_id
-  //      AND gb.is_active = TRUE
-
-  //     LEFT JOIN m_butler b
-  //       ON b.butler_id = gb.butler_id
-
-  //     LEFT JOIN t_guest_food gf
-  //       ON gf.guest_id = g.guest_id
-  //      AND gf.is_active = TRUE
-  //      AND DATE(gf.order_datetime) = CURRENT_DATE
-
-  //     LEFT JOIN m_food_items mi
-  //       ON mi.food_id = gf.food_id
-
-  //     WHERE gi.is_active = TRUE
-  //       AND gi.status = 'Entered'
-
-  //     ORDER BY g.guest_name, gf.order_datetime;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-  //   return res.rows;
-  // }
 }

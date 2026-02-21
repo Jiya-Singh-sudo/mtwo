@@ -14,6 +14,10 @@ export class CreateGuestFoodDto {
 
   @IsOptional()
   @IsString()
+  butler_id?: string;
+
+  @IsOptional()
+  @IsString()
   room_id?: string;
   
   @IsOptional()

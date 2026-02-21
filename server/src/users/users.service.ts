@@ -8,26 +8,20 @@ import { UserTableQueryDto } from './dto/user-table-query.dto';
 import * as crypto from 'crypto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
+import { UsersValidator } from './users.validator';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly db: DatabaseService,
     private readonly activityLog: ActivityLogService,
+    private readonly usersValidator: UsersValidator,
   ) { }
 
   private generateResetToken(): string {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  // private async generateUserId(): Promise<string> {
-  //   const sql = `SELECT user_id FROM m_user ORDER BY user_id DESC LIMIT 1`;
-  //   const result = await this.db.query(sql);
-  //   if (result.rows.length === 0) return 'U001';
-  //   const last = result.rows[0].user_id; // e.g. 'U015'
-  //   const num = parseInt(last.replace(/^U/, ''), 10) + 1;
-  //   return 'U' + num.toString().padStart(3, '0');
-  // }
   private async generateUserId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'U' || LPAD(nextval('user_seq')::text, 3, '0') AS id
@@ -158,11 +152,12 @@ export class UsersService {
   }
 
   async findOneByUsername(username: string) {
-    const sql = `SELECT u.*, s.*
-                FROM m_user u
-                LEFT JOIN m_staff s ON s.staff_id = u.staff_id
-                WHERE u.username = $1
-                `;
+    const sql = `
+      SELECT u.*, s.*, s.is_active AS staff_is_active
+      FROM m_user u
+      LEFT JOIN m_staff s ON s.staff_id = u.staff_id
+      WHERE u.username = $1
+    `;
     const res = await this.db.query(sql, [username]);
     return res.rows[0];
   }
@@ -198,18 +193,23 @@ export class UsersService {
     const res = await this.db.query(sql, [user_id]);
     return res.rows[0];
   }
-  // private sha256Hex(val: string): string {
-  //   return crypto.createHash('sha256').update(val, 'utf8').digest('hex');
-  // }
+
   async create(dto: CreateUserDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      // ensure username uniqueness should be handled by DB unique constraint,
-      // you may wish to check and throw custom error if desired.
       const user_id = await this.generateUserId(client);
       const staff_id = await this.generateStaffId(client);
-      const hashed = this.hashPassword(dto.password);
+      const normalizedUsername = await this.usersValidator.validateCreate(dto, client);
 
+      if (normalizedUsername === dto.password.toLowerCase()) {
+        throw new BadRequestException('Password cannot be same as username');
+      }
+
+      const hashed = this.hashPassword(dto.password);
       const full_name_local_language = transliterateToDevanagari(dto.full_name);
+      // Prevent username equal to password
+      if (normalizedUsername === dto.password.toLowerCase()) {
+        throw new BadRequestException('Password cannot be same as username');
+      }
 
       await client.query(`
         INSERT INTO m_staff (
@@ -258,7 +258,7 @@ export class UsersService {
       `;
       const params = [
         user_id,                         // $1
-        dto.username,                    // $2
+        normalizedUsername,                    // $2
         dto.role_id,                     // $3
         staff_id,                         // $4
         hashed,                          // $5
@@ -291,7 +291,9 @@ export class UsersService {
 
     const token = this.generateResetToken();
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
+    if (!user.is_active) {
+      return { message: 'If the user exists, a reset link has been sent.' };
+    }
     const sql = `
       UPDATE m_user
       SET
@@ -325,14 +327,24 @@ export class UsersService {
           AND is_active = true
         FOR UPDATE
       `;
-
       const res = await client.query(sql, [dto.token]);
+      this.usersValidator.validatePasswordStrength(dto.new_password);
       if (res.rows.length === 0) {
         throw new BadRequestException('Invalid or expired reset token');
       }
       const userId = res.rows[0].user_id;
       const hashed = this.hashPassword(dto.new_password);
+      const existingUser = await client.query(
+        `SELECT password FROM m_user WHERE user_id = $1`,
+        [userId]
+      );
 
+      const newHashed = this.hashPassword(dto.new_password);
+      const oldHashed = existingUser.rows[0].password;
+
+      if (newHashed === oldHashed) {
+        throw new BadRequestException('New password cannot be same as old password');
+      }
       const updateSql = `
         UPDATE m_user SET
           password = $1,
@@ -369,11 +381,31 @@ export class UsersService {
         throw new NotFoundException(`User '${username}' not found`);
       }
       const existing = existingRes.rows[0];
+      await this.usersValidator.validateUpdate(dto, existing, client);
+
       // If incoming password present, hash it; else preserve existing.password
       const passwordHash = dto.password ? this.hashPassword(dto.password) : existing.password;
       const updatedFullName = dto.full_name ?? existing.full_name;
       const updatedLocal = dto.full_name ? transliterateToDevanagari(dto.full_name) : existing.full_name_local_language;
+      if (
+        dto.is_active === false &&
+        existing.user_id === user
+      ) {
+        throw new BadRequestException('You cannot deactivate your own account');
+      }
+      if (
+        dto.role_id &&
+        existing.role_id === 'SUPER_ADMIN' &&
+        dto.role_id !== 'SUPER_ADMIN'
+      ) {
+        const res = await client.query(
+          `SELECT COUNT(*) FROM m_user WHERE role_id = 'SUPER_ADMIN' AND is_active = true`
+        );
 
+        if (parseInt(res.rows[0].count) <= 1) {
+          throw new BadRequestException('Cannot change role of last SUPER_ADMIN');
+        }
+      }
       await client.query(`
         UPDATE m_staff SET
           full_name = $1,
@@ -410,7 +442,9 @@ export class UsersService {
       `;
 
       const params = [
-        dto.username ?? existing.username,
+        dto.username
+          ? this.usersValidator.normalizeUsername(dto.username)
+          : existing.username,
         dto.role_id ?? existing.role_id,
         passwordHash,
         dto.is_active ?? existing.is_active,
@@ -448,9 +482,24 @@ export class UsersService {
       if (!existingRes.rowCount) {
         throw new NotFoundException(`User '${username}' not found`);
       }
-
+      if (existingRes.rows[0].user_id === user) {
+        throw new BadRequestException('You cannot deactivate your own account');
+      }
       const { user_id, staff_id } = existingRes.rows[0];
+      const roleCheck = await client.query(
+        `SELECT role_id FROM m_user WHERE user_id = $1`,
+        [user_id]
+      );
 
+      if (roleCheck.rows[0].role_id === 'SUPER_ADMIN') {
+        const res = await client.query(
+          `SELECT COUNT(*) FROM m_user WHERE role_id = 'SUPER_ADMIN' AND is_active = true`
+        );
+
+        if (parseInt(res.rows[0].count) <= 1) {
+          throw new BadRequestException('Cannot deactivate last SUPER_ADMIN');
+        }
+      }
       // 1️⃣ Deactivate user
       await client.query(
         `UPDATE m_user
@@ -485,63 +534,26 @@ export class UsersService {
       return { message: 'User deactivated successfully' };
     });
   }
-  // async softDelete(username: string, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-  //     const existingRes = await client.query(
-  //       `SELECT u.*, s.*
-  //         FROM m_user u
-  //         INNER JOIN m_staff s ON s.staff_id = u.staff_id
-  //         WHERE u.username = $1
-  //         FOR UPDATE`,
-  //       [username]
-  //     );
-  //     if (!existingRes.rowCount) {
-  //       throw new NotFoundException(`User '${username}' not found`);
-  //     }
-  //     const existing = existingRes.rows[0];
-  //     const sql = `
-  //       UPDATE m_user SET
-  //         is_active = false,
-  //         updated_at = NOW(),
-  //         updated_by = $1,
-  //         updated_ip = $2
-  //       WHERE user_id = $3
-  //       RETURNING *;
-  //     `;
-  //     const res = await client.query(sql, [user, ip, existing.user_id]);
-  //     const deleted = res.rows[0];
-  //     await this.activityLog.log({
-  //       message: `User ${deleted.username} deactivated`,
-  //       module: 'USER',
-  //       action: 'USER_DELETE',
-  //       referenceId: deleted.user_id,
-  //       performedBy: user,
-  //       ipAddress: ip,
-  //     }, client);
-  //     return deleted;
-  //   });
-  // }
 
   // Login: accepts plaintext password, hashes and compares, updates last_login on success
   async login(username: string, plainPassword: string, ip: string) {
     const existing = await this.findOneByUsername(username);
     if (!existing) return null; // keep response generic for security if you want
-
+    if (!existing.is_active) return null;
+    if (!existing.staff_is_active) return null;
     const hashed = this.hashPassword(plainPassword);
     if (existing.password !== hashed) {
       return null;
     }
-
     // update last_login
-    const now = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false }).replace(',', '');
     const updSql = `
       UPDATE m_user u
-      SET last_login = $1,
-          updated_at = $2,
-          updated_ip = $3,
-          updated_by = $4
+      SET last_login = NOW(),
+          updated_at = NOW(),
+          updated_ip = $1,
+          updated_by = $2
       FROM m_staff s
-      WHERE u.user_id = $5
+      WHERE u.user_id = $3
         AND s.staff_id = u.staff_id
       RETURNING 
         u.user_id,
@@ -556,7 +568,7 @@ export class UsersService {
         s.email,
         s.address;
     `;
-    const res = await this.db.query(updSql, [now, now, ip, existing.user_id, existing.user_id]);
+    const res = await this.db.query(updSql, [ip, existing.user_id, existing.user_id]);
     // return user without password
     return res.rows[0];
   }
