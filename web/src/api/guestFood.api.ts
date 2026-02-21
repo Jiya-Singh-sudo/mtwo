@@ -47,10 +47,14 @@ export const updateGuestFood = async (
   return res.data;
 };
 
-export const createDayMealPlan = async (meals: Record<string, string[]>) => {
-  const res = await apiClient.post("/guest-food/plan/day", { meals });
+export async function createDayMealPlan(meals: Record<string, string[]>) {
+  const res = await apiClient.post(
+    "/guest-food/plan/day",
+    { meals },
+  );
+
   return res.data;
-};
+}
 export const getTodayGuestOrders = async () => {
   const res = await apiClient.get("/guest-food/guests/today");
   return res.data;

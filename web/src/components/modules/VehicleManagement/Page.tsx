@@ -37,6 +37,7 @@ interface Driver {
   driver_alternate_contact?: string;
   driver_license: string;
   license_expiry_date?: string;
+  driver_mail: string;
   address?: string;
   is_active: boolean;
   inserted_at: string;
@@ -183,14 +184,16 @@ export function VehicleManagement() {
     driver_license: string;
     address?: string;
     license_expiry_date?: string;
+    driver_mail: string;
   }>({
     driver_name: '',
-    driver_name_ll: undefined,
+    driver_name_ll: '',
     driver_contact: '',
-    driver_alternate_contact: undefined,
+    driver_alternate_contact: '',
     driver_license: '',
-    address: undefined,
+    address: '',
     license_expiry_date: '',
+    driver_mail: '',
   });
 
   // const [assignDriver, setAssignDriver] = useState('');
@@ -201,6 +204,7 @@ export function VehicleManagement() {
       await createVehicle(vehicleFormData);
       vehicleTable.setPage(1);
       setShowAddVehicle(false);
+      setFormErrors({});
       resetVehicleForm();
     } catch (error) {
       console.error('Failed to create vehicle', error);
@@ -225,6 +229,9 @@ export function VehicleManagement() {
     );
 
     setShowEditVehicle(false);
+    setFormErrors({});
+    resetVehicleForm();
+    setDirty(false);
   };
 
 
@@ -280,11 +287,13 @@ export function VehicleManagement() {
         driver_alternate_contact: driverFormData.driver_alternate_contact,
         driver_license: driverFormData.driver_license,
         address: driverFormData.address,
+        driver_mail: driverFormData.driver_mail,
         license_expiry_date: driverFormData.license_expiry_date,
       };
 
       await createDriver(payload);
       driverTable.setPage(1);
+      setFormErrors({});
       setShowAddDriver(false);
       resetDriverForm();
     } catch (error) {
@@ -302,19 +311,22 @@ export function VehicleManagement() {
         driver_contact: driverFormData.driver_contact,
         driver_alternate_contact: driverFormData.driver_alternate_contact,
         driver_license: driverFormData.driver_license,
-        address: driverFormData.address,
+        address: driverFormData.address ?? undefined,
         license_expiry_date: driverFormData.license_expiry_date,
       };
+      await updateDriver(selectedDriver.driver_id, payload);
+      // Force reload
+      const res = await getDriversTable({
+        ...driverTable.query,
+        status: driverTable.query.status as 'ACTIVE' | 'INACTIVE' | undefined,
+      });
 
-
-      const updated = await updateDriver(selectedDriver.driver_id, payload);
-
-      setDrivers(prev =>
-        prev.map(d => (d.driver_id === updated.driver_id ? updated : d))
-      );
+      setDrivers(res.data);
+      driverTable.setTotal(res.totalCount);
 
       setShowEditDriver(false);
       setSelectedDriver(null);
+      setFormErrors({});
       resetDriverForm();
     } catch (err: any) {
       setApiError(err.message);
@@ -341,7 +353,11 @@ export function VehicleManagement() {
 
     try {
       await softDeleteDriver(selectedDriver.driver_id);
-      driverTable.setPage(1);
+
+      setDrivers(prev =>
+        prev.filter(d => d.driver_id !== selectedDriver.driver_id)
+      );
+      setFormErrors({});
       setShowDeleteDriverConfirm(false);
       setSelectedDriver(null);
     } catch (err: any) {
@@ -357,7 +373,9 @@ export function VehicleManagement() {
       driver_contact: driver.driver_contact,
       driver_alternate_contact: driver.driver_alternate_contact,
       driver_license: driver.driver_license,
-      address: driver.address
+      address: driver.address,
+      driver_mail: driver.driver_mail,
+      license_expiry_date: driver.license_expiry_date,
     });
     setShowEditDriver(true);
   };
@@ -375,53 +393,11 @@ export function VehicleManagement() {
       driver_alternate_contact: undefined,
       driver_license: '',
       address: undefined,
+      driver_mail: '',
+      license_expiry_date: '',
     });
   };
-  // const driverValidationAdapter = {
-  //   driver_name: driverFormData.driver_name,
-  //   driver_name_local: driverFormData.driver_name_ll,
-  //   contact_number: driverFormData.driver_contact,
-  //   alternate_contact_number: driverFormData.driver_alternate_contact,
-  //   license_number: driverFormData.driver_license,
-  //   address: driverFormData.address,
-  //   license_expiry_date: driverFormData.license_expiry_date,
-  // };
-  // const filteredVehicles = vehicles
-  //   .filter(v =>
-  //     vehicleFilter === "ALL" ? true : v.is_active
-  //   )
-  //   .filter(v =>
-  //     v.vehicle_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     v.vehicle_name.toLowerCase().includes(searchQuery.toLowerCase())
-  //   );
 
-  // const filteredDrivers = drivers
-  //   .filter(d =>
-  //     driverFilter === "ALL" ? true : d.is_active
-  //   )
-  //   .filter(driver =>
-  //     driver.driver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     driver.driver_contact.toLowerCase().includes(searchQuery.toLowerCase())
-  //   );
-  const driverValidationAdapter = {
-    driver_name: driverFormData.driver_name,
-    driver_name_local: driverFormData.driver_name_ll,
-    contact_number: driverFormData.driver_contact,
-    alternate_contact_number: driverFormData.driver_alternate_contact,
-    license_number: driverFormData.driver_license,
-    address: driverFormData.address,
-    license_expiry_date: driverFormData.license_expiry_date,
-  };
-  const vehicleValidationAdapter = {
-    vehicle_number: vehicleFormData.vehicle_no,
-    vehicle_name: vehicleFormData.vehicle_name,
-    model: vehicleFormData.model,
-    manufacturing_year: vehicleFormData.manufacturing
-      ? Number(vehicleFormData.manufacturing)
-      : undefined,
-    capacity: vehicleFormData.capacity,
-    color: vehicleFormData.color,
-  };
   const vehicleColumns: Column<Vehicle>[] = [
     {
       header: 'Vehicle No',
@@ -739,7 +715,12 @@ export function VehicleManagement() {
 
             <Button
               className="bg-[#00247D] text-white btn-icon-text"
-              onClick={() => setShowAddDriver(true)}
+              onClick={() => {
+                setShowAddDriver(true);
+                setDirty(false);
+                resetDriverForm();
+                setFormErrors({});
+              }}
             >
               <Plus className="w-4 h-4" />
               Add Driver
@@ -785,6 +766,7 @@ export function VehicleManagement() {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowAddVehicle(false);
                   resetVehicleForm();
+                  setFormErrors({});
                   setDirty(false);
                 }}
               >
@@ -808,8 +790,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={15}
-                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
                     placeholder="MH-01-XX-XXXX"
                   />
                   {/* {formErrors.vehicle_number && (
@@ -833,8 +815,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
                     placeholder="e.g., Toyota Fortuner"
                   />
                   <FieldError message={formErrors.vehicle_name} />
@@ -851,8 +833,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
                     placeholder="e.g., ZX"
                   />
                   <FieldError message={formErrors.model} />
@@ -869,8 +851,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={30}
-                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
                     placeholder="e.g., 2024"
                   />
                   <FieldError message={formErrors.manufacturing} />
@@ -890,8 +872,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={20}
-                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
                     placeholder="e.g., 5"
                   />
                   <FieldError message={formErrors.capacity} />
@@ -908,8 +890,8 @@ export function VehicleManagement() {
                     }}
                     placeholder="e.g., White"
                     maxLength={50}
-                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
                   />
                   <FieldError message={formErrors.color} />
                 </div>
@@ -927,6 +909,7 @@ export function VehicleManagement() {
                 // }}
                 onClick={() => {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
+                  setFormErrors({});
                   setShowAddVehicle(false);
                   resetVehicleForm();
                   setDirty(false);
@@ -961,6 +944,7 @@ export function VehicleManagement() {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowEditVehicle(false);
                   resetVehicleForm();
+                  setFormErrors({});
                   setDirty(false);
                 }}
 
@@ -982,8 +966,8 @@ export function VehicleManagement() {
                     value={vehicleFormData.vehicle_no}
                     disabled
                     maxLength={50}
-                  // onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleValidationAdapter, setFormErrors)}
-                  // onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleValidationAdapter, setFormErrors)}
+                  // onBlur={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
+                  // onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_number", vehicleFormData.vehicle_no, setFormErrors)}
                   />
                 </div>
 
@@ -999,8 +983,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "vehicle_name", vehicleFormData.vehicle_name, setFormErrors)}
                   />
                   <FieldError message={formErrors.vehicle_name} />
                 </div>
@@ -1015,8 +999,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "model", vehicleFormData.model, setFormErrors)}
                   />
                   <FieldError message={formErrors.model} />
                 </div>
@@ -1031,8 +1015,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "manufacturing_year", vehicleFormData.manufacturing, setFormErrors)}
                   />
                   <FieldError message={formErrors.manufacturing} />
                 </div>
@@ -1051,8 +1035,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={20}
-                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "capacity", vehicleFormData.capacity, setFormErrors)}
                   />
                   <FieldError message={formErrors.capacity} />
                 </div>
@@ -1067,8 +1051,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
+                    onKeyUp={() => validateSingleField(vehicleSchema, "color", vehicleFormData.color, setFormErrors)}
                   />
                   <FieldError message={formErrors.color} />
                 </div>
@@ -1087,6 +1071,7 @@ export function VehicleManagement() {
                 onClick={() => {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowEditVehicle(false);
+                  setFormErrors({});
                   resetVehicleForm();
                   setDirty(false);
                 }}
@@ -1120,6 +1105,7 @@ export function VehicleManagement() {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowAddDriver(false);
                   resetDriverForm();
+                  setFormErrors({});
                   setDirty(false);
                 }}
               >
@@ -1143,8 +1129,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name, setFormErrors)}
                     placeholder="Enter full name"
                   />
                   <FieldError message={formErrors.driver_name} />
@@ -1160,8 +1146,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(driverSchema, "driver_name_local", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "driver_name_local", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name_local", driverFormData.driver_name_ll, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name_local", driverFormData.driver_name_ll, setFormErrors)}
                     placeholder="Enter full name in local language"
                   />
                   <FieldError message={formErrors.driver_name_local} />
@@ -1180,8 +1166,8 @@ export function VehicleManagement() {
                     }}
                     placeholder="+91 XXXXX XXXXX"
                     maxLength={10}
-                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
                   />
                   <FieldError message={formErrors.contact_number} />
                 </div>
@@ -1196,8 +1182,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={10}
-                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
                     placeholder="+91 XXXXX XXXXX"
                   />
                   {/* {formErrors.alternate_contact_number && (
@@ -1220,8 +1206,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={50}
-                    onBlur={() => validateSingleField(driverSchema, "license_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
                     placeholder="MH-XXXXXXXXXXXX"
                   />
                   {/* {formErrors.license_number && (
@@ -1243,8 +1229,8 @@ export function VehicleManagement() {
                     }}
                     placeholder="Enter address"
                     maxLength={200}
-                    onBlur={() => validateSingleField(driverSchema, "address", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "address", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                   <FieldError message={formErrors.address} />
                 </div>
@@ -1267,7 +1253,7 @@ export function VehicleManagement() {
                       validateSingleField(
                         driverSchema,
                         "license_expiry_date",
-                        driverValidationAdapter,
+                        driverFormData.license_expiry_date,
                         setFormErrors
                       )
                     }
@@ -1279,7 +1265,20 @@ export function VehicleManagement() {
                   )} */}
                   <FieldError message={formErrors.license_expiry_date} />
                 </div>
-
+                <div>
+                  <label className="nicLabel">
+                    Email <span className="nicRequired">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="nicInput"
+                    value={driverFormData.driver_mail}
+                    onChange={(e) => {
+                      setDriverFormData({ ...driverFormData, driver_mail: e.target.value });
+                      setDirty(true);
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1294,6 +1293,7 @@ export function VehicleManagement() {
                 onClick={() => {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowAddDriver(false);
+                  setFormErrors({});
                   resetDriverForm();
                   setDirty(false);
                 }}
@@ -1327,6 +1327,7 @@ export function VehicleManagement() {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowEditDriver(false);
                   resetDriverForm();
+                  setFormErrors({});
                   setDirty(false);
                 }}
               >
@@ -1363,8 +1364,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={100}
-                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name_ll, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name_ll, setFormErrors)}
                   />
                   <FieldError message={formErrors.driver_name_ll} />
                 </div>
@@ -1381,8 +1382,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={10}
-                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "contact_number", driverFormData.driver_contact, setFormErrors)}
                   />
                   {/* {formErrors.contact_number && (
                     <p className="text-red-500 text-sm mt-1">
@@ -1402,8 +1403,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={10}
-                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "alternate_contact_number", driverFormData.driver_alternate_contact, setFormErrors)}
                   />
                   <FieldError message={formErrors.driver_alternate_contact} />
                 </div>
@@ -1420,8 +1421,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={20}
-                    onBlur={() => validateSingleField(driverSchema, "license_number", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "license_number", driverFormData.driver_license, setFormErrors)}
                   />
                   <FieldError message={formErrors.driver_license} />
                 </div>
@@ -1436,8 +1437,8 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                     maxLength={250}
-                    onBlur={() => validateSingleField(driverSchema, "address", driverValidationAdapter, setFormErrors)}
-                    onKeyUp={() => validateSingleField(driverSchema, "address", driverValidationAdapter, setFormErrors)}
+                    onBlur={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
+                    onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                   <FieldError message={formErrors.address} />
                 </div>
@@ -1460,7 +1461,7 @@ export function VehicleManagement() {
                       validateSingleField(
                         driverSchema,
                         "license_expiry_date",
-                        driverValidationAdapter,
+                        driverFormData.license_expiry_date,
                         setFormErrors
                       )
                     }
@@ -1488,6 +1489,7 @@ export function VehicleManagement() {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   setShowEditDriver(false);
                   resetDriverForm();
+                  setFormErrors({});
                   setDirty(false);
                 }}
               >
@@ -1519,6 +1521,7 @@ export function VehicleManagement() {
               <button
                 onClick={() => {
                   setShowDeleteVehicleConfirm(false);
+                  setFormErrors({});
                   setApiError(null);
                 }}
                 className="linkBtn"
@@ -1554,6 +1557,7 @@ export function VehicleManagement() {
                 onClick={() => {
                   setShowDeleteDriverConfirm(false);
                   setApiError(null);
+                  setFormErrors({});
                 }}
                 className="linkBtn"
               >
@@ -1577,7 +1581,10 @@ export function VehicleManagement() {
 
             <div className="nicModalHeader">
               <h2>Vehicle Details</h2>
-              <button className="closeBtn" onClick={() => setViewVehicle(null)}>
+              <button className="closeBtn" onClick={() => {
+                setViewVehicle(null);
+                setFormErrors({});
+              }}>
                 ✕
               </button>
             </div>
@@ -1620,7 +1627,10 @@ export function VehicleManagement() {
 
             <div className="nicModalHeader">
               <h2>Driver Details</h2>
-              <button className="closeBtn" onClick={() => setViewDriver(null)}>
+              <button className="closeBtn" onClick={() => {
+                setViewDriver(null);
+                setFormErrors({});
+              }}>
                 ✕
               </button>
             </div>

@@ -211,46 +211,67 @@ export function FoodService() {
   }
 
   /* ---------------- LOADERS ---------------- */
-
-  function openEditFood(row: GuestFoodTableRow) {
+  async function openEditFood(row: GuestFoodTableRow) {
     setMenuMode("edit");
 
     setActiveGuestForEdit({
       guest_id: row.guest_id,
       guest_name: row.guest_name,
-      room_id: row.room_id,
+      room_id: row.room_id ?? null,
     } as any);
 
-    // 🔥 LOAD EXISTING GUEST FOOD
-    const existing = foodRows.filter(r => r.guest_id === row.guest_id);
+    // 🔥 LOAD TODAY'S MASTER PLAN (NOT GUEST ASSIGNMENTS)
+    const data = await getTodayMealPlanOverview();
 
-    const mappedPlan: DailyMealPlan = {
-      breakfast: [],
-      lunch: [],
-      highTea: [],
-      dinner: [],
-    };
-
-    existing.forEach(item => {
-      const meal = normalizeMealType(item.meal_type);
-      if (!meal) return;
-      const key = (
-        meal === "High Tea"
-          ? "highTea"
-          : meal.toLowerCase()
-      ) as keyof DailyMealPlan;
-
-      // Avoid duplicates in the UI list if multiple rows exist for same item (though shouldn't happen often)
-      if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
-        mappedPlan[key].push(item.food_id);
-      }
+    setDailyPlan({
+      breakfast: data.Breakfast ?? [],
+      lunch: data.Lunch ?? [],
+      highTea: data["High Tea"] ?? [],
+      dinner: data.Dinner ?? [],
     });
-
-    setDailyPlan(mappedPlan);
 
     setSelectedMeal("breakfast");
     setMenuModalOpen(true);
   }
+  // function openEditFood(row: GuestFoodTableRow) {
+  //   setMenuMode("edit");
+
+  //   setActiveGuestForEdit({
+  //     guest_id: row.guest_id,
+  //     guest_name: row.guest_name,
+  //     room_id: row.room_id,
+  //   } as any);
+
+  //   // 🔥 LOAD EXISTING GUEST FOOD
+  //   const existing = foodRows.filter(r => r.guest_id === row.guest_id);
+
+  //   const mappedPlan: DailyMealPlan = {
+  //     breakfast: [],
+  //     lunch: [],
+  //     highTea: [],
+  //     dinner: [],
+  //   };
+
+  //   existing.forEach(item => {
+  //     const meal = normalizeMealType(item.meal_type);
+  //     if (!meal) return;
+  //     const key = (
+  //       meal === "High Tea"
+  //         ? "highTea"
+  //         : meal.toLowerCase()
+  //     ) as keyof DailyMealPlan;
+
+  //     // Avoid duplicates in the UI list if multiple rows exist for same item (though shouldn't happen often)
+  //     if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
+  //       mappedPlan[key].push(item.food_id);
+  //     }
+  //   });
+
+  //   setDailyPlan(mappedPlan);
+
+  //   setSelectedMeal("breakfast");
+  //   setMenuModalOpen(true);
+  // }
   async function loadFoodData() {
     try {
       const dashboard = await getFoodDashboard();
@@ -340,41 +361,10 @@ export function FoodService() {
     }
   }, [menuModalOpen, menuMode]);
 
-  // useEffect(() => {
-  //   loadGuests();
-  // }, [searchQuery, statsFilter]);
   useEffect(() => {
     loadGuests();
   }, [foodTable.query]);
 
-  /* ---------------- GUEST FILTERING ---------------- */
-  // const hasMealPlan = Object.values(dailyPlan).some((items) => items.length > 0);
-
-  // const filteredGuests = guests.filter((g) => {
-  //   // Search filter
-  //   if (searchQuery.trim()) {
-  //     const q = searchQuery.toLowerCase();
-  //     if (
-  //       !g.guest_name.toLowerCase().includes(q) &&
-  //       !String(g.room_id ?? "").toLowerCase().includes(q)
-  //     ) {
-  //       return false;
-  //     }
-  //   }
-
-  //   // Stats filter
-  //   switch (statsFilter) {
-  //     case "SERVED":
-  //       return g.foodStatus === "Served";
-  //     case "SPECIAL":
-  //       return Boolean(g.specialRequest && g.specialRequest.trim());
-  //     case "MENU":
-  //       return hasMealPlan; // Show all guests if menu exists
-  //     case "ALL":
-  //     default:
-  //       return true;
-  //   }
-  // });
 
   /* ---------------- BUTLER ASSIGNMENT ---------------- */
   async function handleAssignButler(
@@ -1408,11 +1398,17 @@ export function FoodService() {
                     setSaving(true);
 
                     if (menuMode === "create") {
-                      // BULK PLAN CREATE (Backend does logic)
+                      const hasItems = Object.values(dailyPlan).some(arr => arr.length > 0);
+
+                      if (!hasItems) {
+                        showError("Please add at least one menu item before saving.");
+                        setSaving(false);
+                        return;
+                      }
+
                       await createDayMealPlan(dailyPlan);
                       await loadTodayMealPlan();
                       await loadGuests();
-                      // await loadTodayMealPlan();
                       setMenuModalOpen(false);
                       setSaving(false);
                       return;
