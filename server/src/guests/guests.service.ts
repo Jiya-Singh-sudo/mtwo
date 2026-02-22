@@ -12,30 +12,6 @@ export class GuestsService {
     private readonly db: DatabaseService,
     private readonly guestTransportService: GuestTransportService
   ) { }
-
-  // private async generateDesignationId(): Promise<string> {
-  //   const sql = `
-  //     SELECT
-  //       COALESCE(
-  //         MAX(
-  //           CAST(num_part AS INTEGER)
-  //         ),
-  //         0
-  //       ) + 1 AS next_num
-  //     FROM (
-  //       SELECT
-  //         REGEXP_REPLACE(designation_id, '[^0-9]', '', 'g') AS num_part
-  //       FROM m_guest_designation
-  //       WHERE designation_id IS NOT NULL
-  //     ) t
-  //     WHERE num_part <> ''
-  //   `;
-
-  //   const result = await this.db.query(sql);
-  //   const next = result.rows[0].next_num;
-
-  //   return `DGN_${String(next).padStart(3, '0')}`;
-  // }
   private async generateDesignationId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'DGN_' || LPAD(nextval('designation_seq')::text, 3, '0') AS id
@@ -54,22 +30,6 @@ export class GuestsService {
     `);
     return res.rows[0].id;
   }
-
-  // private async generateGuestId(): Promise<string> {
-  //   const sql = `
-  //     SELECT guest_id 
-  //     FROM m_guest
-  //     ORDER BY CAST(SUBSTRING(guest_id, 2) AS VARCHAR) DESC
-  //     LIMIT 1;
-  //   `;
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) {
-  //     return 'G001';
-  //   }
-  //   const lastId = res.rows[0].guest_id; // e.g. "G023"
-  //   const nextNum = parseInt(lastId.substring(1), 10) + 1;
-  //   return `G${nextNum.toString().padStart(3, '0')}`;
-  // }
   async getGuestStatusCounts() {
     const sql = `
       SELECT
@@ -178,7 +138,6 @@ export class GuestsService {
         const guestRow = guestRes.rows[0];
 
         // 3. Resolve designation (existing OR new)
-
         if (
           !payload.designation?.designation_id &&
           !payload.designation?.designation_name
@@ -234,10 +193,6 @@ export class GuestsService {
         }
 
         // 4. Create t_guest_designation
-        // if (!generatedDesignationId) {
-        //   throw new BadRequestException('Designation is required');
-        // }
-
         const d = payload.designation;
         const gd_id = await this.generateGuestDesignationId(client);
 
@@ -269,10 +224,6 @@ export class GuestsService {
               ip,
             ]
           );
-        // if (generatedDesignationId) {
-        //   gd_id = `GD${Date.now()}`;
-
-        // }
 
         // 5. Create t_guest_inout
         if (
@@ -426,17 +377,6 @@ export class GuestsService {
     return r.rows[0];
   }
 
-  // async softDeleteGuest(guestId: string, user = 'system', ip = '0.0.0.0') {
-  //   const sql = `
-  //     UPDATE m_guest
-  //     SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
-  //     WHERE guest_id = $1
-  //     RETURNING *;
-  //   `;
-  //   const r = await this.db.query(sql, [guestId, user, ip]);
-  //   return r.rows[0];
-  // }
-
   async softDeleteGuest(guestId: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
@@ -473,7 +413,6 @@ export class GuestsService {
           await this.cascadeGuestExit(row.inout_id, client, user, ip);
         }
         // 2. Cascade exit
-        // await this.cascadeGuestExit(guestId, client, user, ip);
         return r.rows[0];
       } catch (err) {
         console.error('Guest delete failed:', err);
@@ -623,20 +562,13 @@ export class GuestsService {
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
 
-
     /* ---------------- EXECUTION ---------------- */
     const countResult = await this.db.query(
       countSql,
       values.slice(0, idx - 1)
     );
-
-
     values.push(limit, offset);
-
-
     const dataResult = await this.db.query(dataSql, values);
-
-
     return {
       data: dataResult.rows,
       totalCount: countResult.rows[0].total,
@@ -763,9 +695,6 @@ export class GuestsService {
     `;
 
       values.push(inoutId);
-
-      // const res = await client.query(sql, values);
-      // return res.rows[0];
       const res = await client.query(sql, values);
       const updated = res.rows[0]; 
       if (!updated){
@@ -825,41 +754,6 @@ export class GuestsService {
     await this.db.query(sql, [guestId, user, ip]);
   }
   async findCheckedInWithoutVehicle() {
-  //   const sql = `
-  //   SELECT
-  //     g.guest_id,
-  //     g.guest_name,
-  //     g.guest_name_local_language,
-  //     g.guest_mobile,
-  //     g.guest_alternate_mobile,
-  //     g.email,
-  //     g.guest_address,
-
-  //     io.inout_id,
-  //     io.entry_date,
-  //     io.entry_time,
-  //     io.status,
-  //     io.exit_date,
-  //     io.exit_time,
-  //     io.purpose,
-  //     io.remarks,
-  //     io.requires_driver
-
-  //   FROM t_guest_inout io
-  //   JOIN m_guest g
-  //     ON g.guest_id = io.guest_id
-
-  //   WHERE io.is_active = TRUE
-  //     AND io.status IN ('Entered', 'Inside')
-  //     AND g.is_active = TRUE
-  //     AND NOT EXISTS (
-  //       SELECT 1
-  //       FROM t_guest_vehicle gv
-  //       WHERE gv.guest_id = g.guest_id
-  //         AND gv.is_active = TRUE
-  //     )
-  //   ORDER BY io.entry_date DESC, io.entry_time DESC;
-  // `;
   const sql = `
   SELECT
     g.guest_id,
@@ -978,120 +872,20 @@ export class GuestsService {
         // 3️⃣ Cancel housekeeping
         await trx.query(
           `
-          UPDATE t_room_housekeeping
+          UPDATE t_guest_hk
           SET
-            status = 'Cancelled',
+            status = 'Unassigned',
             is_active = FALSE,
             updated_at = NOW(),
             updated_by = $2,
             updated_ip = $3
-          WHERE room_id = $1
+          WHERE guest_id = $1
             AND is_active = TRUE
           `,
-          [gr.room_id, user, ip]
+          [gr.guest_id, user, ip]
         );
       }
-    // } catch (err) {
-    //   console.warn('Room cascade skipped:', err.message);
-    // }
-
-
-    // try {
-    //   const guestRooms = await trx.query(
-    //     `
-    //     SELECT guest_room_id, room_id
-    //     FROM t_guest_room
-    //     WHERE guest_id = $1 AND is_active = TRUE
-    //     `,
-    //     [guestId]
-    //   );
-
-    //   // await trx.query(
-    //   //   `
-    //   //   UPDATE t_guest_room
-    //   //   SET is_active = FALSE,
-    //   //       action_type = 'Room-Released',
-    //   //       action_description = 'Auto-released on guest exit',
-    //   //       updated_at = NOW(),
-    //   //       updated_by = $2,
-    //   //       updated_ip = $3
-    //   //   WHERE guest_id = $1 AND is_active = TRUE
-    //   //   `,
-    //   //   [guestId, user, ip]
-    //   // );
-    //   // ================= ROOMS (FULL VACATE LOGIC) =================
-
-    //   const guestRooms = await trx.query(
-    //     `
-    //     SELECT guest_room_id, room_id
-    //     FROM t_guest_room
-    //     WHERE guest_id = $1 AND is_active = TRUE
-    //     `,
-    //     [guestId]
-    //   );
-
-    //   for (const gr of guestRooms.rows) {
-    //     // 1️⃣ Close guest-room assignment
-    //     await trx.query(
-    //       `
-    //       UPDATE t_guest_room
-    //       SET
-    //         is_active = FALSE,
-    //         check_out_date = CURRENT_DATE,
-    //         action_type = 'Room-Released',
-    //         action_description = 'Auto-released on guest exit',
-    //         updated_at = NOW(),
-    //         updated_by = $2,
-    //         updated_ip = $3
-    //       WHERE guest_room_id = $1
-    //       `,
-    //       [gr.guest_room_id, user, ip]
-    //     );
-
-    //     // 2️⃣ Free the room
-    //     await trx.query(
-    //       `
-    //       UPDATE m_rooms
-    //       SET status = 'Available',
-    //           updated_at = NOW(),
-    //           updated_by = $2,
-    //           updated_ip = $3
-    //       WHERE room_id = $1
-    //       `,
-    //       [gr.room_id, user, ip]
-    //     );
-
-    //     // 3️⃣ Cancel housekeeping
-    //     await trx.query(
-    //       `
-    //       UPDATE t_room_housekeeping
-    //       SET
-    //         status = 'Cancelled',
-    //         is_active = FALSE,
-    //         completed_at = NOW()
-    //       WHERE room_id = $1
-    //         AND is_active = TRUE
-    //       `,
-    //       [gr.room_id]
-    //     );
-    //   }
-
-    //   for (const gr of guestRooms.rows) {
-    //     await trx.query(
-    //       `
-    //       UPDATE m_rooms
-    //       SET status = 'Available',
-    //           updated_at = NOW(),
-    //           updated_by = $2,
-    //           updated_ip = $3
-    //       WHERE room_id = $1
-    //       `,
-    //       [gr.room_id, user, ip]
-    //     );
-    //   }
-    // } catch (err) {
-    //   console.warn('Room cascade skipped:', err.message);
-    // }
+ 
     /* ================= HOUSEKEEPING ================= */
 
     await trx.query(
@@ -1202,20 +996,6 @@ export class GuestsService {
           updated_ip = $3
       WHERE guest_id = $1 AND is_active = TRUE
     `, [guestId, user, ip]);
-
-    // for (const gr of guestRooms.rows) {
-    //   await trx.query(
-    //     `
-    //     UPDATE m_rooms
-    //     SET status = 'Available',
-    //         updated_at = NOW(),
-    //         updated_by = $2,
-    //         updated_ip = $3
-    //     WHERE room_id = $1
-    //     `,
-    //     [gr.room_id, user, ip]
-    //   );
-    // }
   }
   async getTransportConflictsForGuest(guestId: string) {
     const driverSql = `

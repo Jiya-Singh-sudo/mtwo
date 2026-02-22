@@ -80,11 +80,11 @@ export class DashboardService {
       this.db.query(`
         SELECT COALESCE(
           ROUND(
-            100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_room_housekeeping), 0)
+            100.0 * COUNT(*) / NULLIF((SELECT COUNT(*) FROM t_guest_hk), 0)
           ), 
           0
         ) AS percent
-        FROM t_room_housekeeping
+        FROM t_guest_hk
         WHERE is_active = TRUE
       `),
 

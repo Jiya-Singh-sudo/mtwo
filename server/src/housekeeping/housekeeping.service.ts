@@ -314,7 +314,7 @@ export class HousekeepingService {
       const activeAssignment = await client.query(
         `
         SELECT 1
-        FROM t_room_housekeeping
+        FROM t_guest_hk
         WHERE hk_id = $1
           AND is_active = TRUE
         FOR UPDATE
@@ -463,7 +463,7 @@ export class HousekeepingService {
       const assigned = await client.query(
         `
         SELECT 1
-        FROM t_room_housekeeping
+        FROM t_guest_hk
         WHERE hk_id = $1
           AND is_active = TRUE
         FOR UPDATE

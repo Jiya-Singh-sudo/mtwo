@@ -195,16 +195,16 @@ export class GuestRoomService {
           SET status = 'Available'
           WHERE room_id = $1
         `, [roomId]);
-        await trx.query(
-          `
-          UPDATE t_room_housekeeping
-          SET status = 'Cancelled',
-              is_active = FALSE
-          WHERE room_id = $1
-            AND is_active = TRUE
-          `,
-          [roomId]
-        );
+        // await trx.query(
+        //   `
+        //   UPDATE t_guest_hk
+        //   SET status = 'Unassigned',
+        //       is_active = FALSE
+        //   WHERE guest_id = $1
+        //     AND is_active = TRUE
+        //   `,
+        //   [guestId]
+        // );
         return { success: true };
 
       } catch (err) {

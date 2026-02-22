@@ -7,18 +7,21 @@ export class CreateGuestHousekeepingDto {
   @IsString()
   hk_id: string;        // Staff ID
 
+  // @IsString()
+  // guest_id: string;        // Staff ID
   @IsString()
-  room_id: string;     // Guest receiving service
+  room_id: string;        // Staff ID
+
+  // @IsString()
+  // assignment_date: string;   // YYYY-MM-DD
 
   @IsString()
-  task_date: string;   // YYYY-MM-DD
-
-  @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'])
-  task_shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
+  @IsOptional()
+  status?:string;
 
   @IsOptional()
   @IsString()
-  admin_instructions?: string;
+  remarks?: string;
 
   // status handled by DB defaults
 }

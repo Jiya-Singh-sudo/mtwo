@@ -21,8 +21,10 @@ export type RoomRow = {
     guestHkId: string;
     hkId: string;
     hkName: string;
-    taskDate?: string;
-    taskShift?: "Morning" | "Evening" | "Night" | "Full-Day";
+    remarks?: string;
+    status: "Assigned" | "Unassigned";
+    // taskDate?: string;
+    // taskShift?: "Morning" | "Evening" | "Night" | "Full-Day";
     isActive?: boolean;
   } | null;
 };
@@ -55,6 +57,7 @@ export type EditRoomFullPayload = {
 
   // housekeeping assignment
   hk_id?: string | null;
+  room_id?: string | null;
   task_date?: string; // YYYY-MM-DD
   task_shift?: "Morning" | "Evening" | "Night" | "Full-Day";
   admin_instructions?: string;

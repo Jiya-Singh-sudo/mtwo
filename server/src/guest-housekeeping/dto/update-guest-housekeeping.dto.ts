@@ -4,34 +4,24 @@ export class UpdateGuestHousekeepingDto {
   @IsOptional()
   @IsString()
   hk_id?: string;
+  @IsString()
+  room_id: string;        // Staff ID
+
+  // @IsOptional()
+  // @IsString()
+  // guest_id?: string;
+
+  // @IsOptional()
+  // @IsString()
+  // assignment_date?: string;
 
   @IsOptional()
   @IsString()
-  room_id?: string;
+  status?: string;
 
   @IsOptional()
   @IsString()
-  task_date?: string;
-
-  @IsOptional()
-  @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'])
-  task_shift?: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
-
-  @IsOptional()
-  @IsString()
-  service_type?: string;
-
-  @IsOptional()
-  @IsString()
-  admin_instructions?: string;
-
-  @IsOptional()
-  @IsIn(['Scheduled', 'In-Progress', 'Completed', 'Cancelled'])
-  status?: 'Scheduled' | 'In-Progress' | 'Completed' | 'Cancelled';
-
-  @IsOptional()
-  @IsString()
-  completed_at?: string;
+  remarks?: string;
 
   @IsOptional()
   @IsBoolean()

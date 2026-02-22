@@ -37,12 +37,11 @@ type RoomFormState = {
 type RoomBoyOption = {
   id: string;
   name: string;
+  status: "Assigned" | "Unassigned";
 };
 // Separate type for assignment form (different from HousekeepingCreateDto)
 type AssignmentFormType = {
   roomBoyId: string;
-  shift: ShiftType | "";
-  taskDate: string;
   remarks: string;
 };
 
@@ -122,8 +121,7 @@ export function RoomManagement() {
   // Assignment form (for assigning room boy to a room)
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormType>({
     roomBoyId: "",
-    shift: "",
-    taskDate: "",
+    // assignmentDate: "",
     remarks: "",
   });
 
@@ -362,8 +360,8 @@ export function RoomManagement() {
 
         // HOUSEKEEPING (unchanged)
         hk_id: editRoom.housekeeping?.hkId ?? null,
-        task_date: editRoom.housekeeping?.taskDate ?? undefined,
-        task_shift: editRoom.housekeeping?.taskShift ?? undefined,
+        // assignment_date: editRoom.housekeeping?.assignmentDate ?? undefined,
+        remarks: editRoom.housekeeping?.remarks ?? undefined,
       };
 
       await updateFullRoom(editRoom.roomId, payload);
@@ -428,8 +426,7 @@ export function RoomManagement() {
       setActiveRoom(room);
       setAssignmentForm({
         roomBoyId: "",
-        shift: "",
-        taskDate: "",
+        // assignmentDate: "",
         remarks: "",
       });
       await loadRoomBoysAndShifts();
@@ -449,44 +446,44 @@ export function RoomManagement() {
 
   /* ================= SUBMIT ================= */
   async function submitRoomBoyAssignment() {
-    if (!activeRoom) return;
+    if (!activeRoom?.guest) {
+      setFormErrors({ guest: "No active guest in this room" });
+      return;
+    }
 
     setFormErrors({});
 
     try {
+      setAssigning(true);
       const parsed = roomBoyAssignmentSchema.parse({
         room_boy_id: assignmentForm.roomBoyId,
-        assignment_start_date: assignmentForm.taskDate,
-        shift: assignmentForm.shift,
         remarks: assignmentForm.remarks,
       });
-
       // 🔒 Hard guarantee for TS + runtime
-      if (!parsed.room_boy_id || !parsed.assignment_start_date) {
+      if (!parsed.room_boy_id) {
         throw new Error("Required assignment fields missing");
       }
-
-      setAssigning(true);
-
       await assignRoomBoyToRoom({
         room_id: activeRoom.roomId,
         hk_id: parsed.room_boy_id,
-        task_date: parsed.assignment_start_date,
-        task_shift: parsed.shift as ShiftType,
-        service_type: "Room Cleaning",
-        admin_instructions: parsed.remarks || undefined,
+        remarks: parsed.remarks || undefined,
       });
 
       setIsRoomBoyModalOpen(false);
       await loadRooms();
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof ZodError) {
         const errors: Record<string, string> = {};
         err.issues.forEach(i => {
           errors[i.path.join(".")] = i.message;
         });
+
         setFormErrors(errors);
       }
+      const message =
+        err?.response?.data?.message || "Assignment failed";
+
+      setFormErrors({ general: message });
     } finally {
       setAssigning(false);
     }
@@ -676,8 +673,7 @@ export function RoomManagement() {
   function resetAssignRoomBoyState() {
     setAssignmentForm({
       roomBoyId: "",
-      shift: "",
-      taskDate: "",
+      // assignmentDate: "",
       remarks: "",
     });
     setActiveRoom(null);
@@ -1109,7 +1105,7 @@ export function RoomManagement() {
               </div>
 
               <div>
-                <label className="nicLabel">
+                {/* <label className="nicLabel">
                   Shift
                   <span className="required">*</span>
                 </label>
@@ -1137,20 +1133,20 @@ export function RoomManagement() {
                       {s}
                     </option>
                   ))}
-                </select>
+                </select> */}
                 {/* {formErrors.shift && (
                   <p className="errorText">{formErrors.shift}</p>
-                )} */}
+                )}
                 {formErrors.shift && (
                   <div className="fieldError">
                     <XCircle size={14} />
                     <span>{formErrors.shift}</span>
                   </div>
-                )}
+                )} */}
 
               </div>
 
-              <div>
+              {/* <div>
                 <label className="nicLabel">
                   Task Date
                   <span className="required">*</span>
@@ -1158,33 +1154,33 @@ export function RoomManagement() {
                 <input
                   type="date"
                   className="nicInput"
-                  value={assignmentForm.taskDate}
+                  value={assignmentForm.assignmentDate}
                   onChange={(e) =>
                     setAssignmentForm({
                       ...assignmentForm,
-                      taskDate: e.target.value,
+                      assignmentDate: e.target.value,
                     })
                   }
                   onBlur={() =>
                     validateField(
                       roomBoyAssignmentSchema,
                       "assignment_start_date",
-                      assignmentForm.taskDate,
+                      assignmentForm.assignmentDate,
                       setFormErrors
                     )
                   }
-                />
+                /> */}
                 {/* {formErrors.assignment_start_date && (
                   <p className="errorText">{formErrors.assignment_start_date}</p>
                 )} */}
-                {formErrors.assignment_start_date && (
+                {/* {formErrors.assignment_start_date && (
                   <div className="fieldError">
                     <XCircle size={14} />
                     <span>{formErrors.assignment_start_date}</span>
                   </div>
-                )}
+                )} */}
 
-              </div>
+              {/* </div> */}
 
               <div className="fullWidth">
                 <label>Remarks</label>
@@ -1447,22 +1443,6 @@ export function RoomManagement() {
 
                 </div>
 
-                {/* NOTE: Guest and Room Boy assignment should ideally be separate or handled carefully. 
-                  For now we are keeping the logic where Edit Room acts mostly on the Room itself. 
-                  The original code had logic to change Guest/RoomBoy here, but the new design implies separating concerns.
-                  However, based on the prompt, we just fix the "form state" pattern first.
-                  
-                  If we want to support guest change here, we need to add guest_id/hk_id to editRoomForm.
-                  But your prompt said: "setEditRoom({ ...editRoom, roomNo: e.target.value }) mutates table row... Create dedicated form state".
-                  So I am focusing on the ROOM fields. I will leave the Guest/HK sections as is (read-only or disabled) 
-                  or remove them if they are handled by separate "Assign Guest" modals which exist.
-                  
-                  Actually, the original code allowed changing them. Let's keep it simple and just map the ROOM attributes for now, 
-                  as that's the main source of the "mutation" bug.
-              */}
-
-
-
                 {/* Guest */}
                 <div className="fullWidth">
                   <label>Guest <span className="required">*</span></label>
@@ -1520,8 +1500,7 @@ export function RoomManagement() {
                             hkId: e.target.value,
                             hkName:
                               roomBoyOptions.find(rb => rb.id === e.target.value)?.name || "",
-                            taskDate: normalizeDateOnly(new Date()),
-                            taskShift: "Morning",
+                            status: "Assigned",
                             isActive: true,
                           }
                           : null,
@@ -1983,8 +1962,9 @@ export function RoomManagement() {
                     {viewRoom.housekeeping ? (
                       <>
                         <p><b>Room Boy:</b> {viewRoom.housekeeping.hkName}</p>
-                        <p><b>Shift:</b> {viewRoom.housekeeping.taskShift}</p>
-                        <p><b>Task Date:</b> {formatDate(viewRoom.housekeeping.taskDate)}</p>
+                        <p><b>Status:</b> {viewRoom.housekeeping.status}</p>
+                        {/* <p><b>Shift:</b> {viewRoom.housekeeping.taskShift}</p> */}
+                        {/* <p><b>Task Date:</b> {formatDate(viewRoom.housekeeping.taskDate)}</p> */}
                         <p>
                           <b>Status:</b>{" "}
                           {viewRoom.housekeeping.isActive ? "Assigned" : "Inactive"}

@@ -133,9 +133,12 @@ export class RoomManagementService {
         COUNT(*) FILTER (
           WHERE EXISTS (
             SELECT 1
-            FROM t_room_housekeeping gh2
-            WHERE gh2.room_id = r.room_id
-            AND gh2.is_active = true
+            FROM t_guest_room gr2
+            JOIN t_guest_hk gh2
+              ON gh2.guest_id = gr2.guest_id
+              AND gh2.is_active = TRUE
+            WHERE gr2.room_id = r.room_id
+              AND gr2.is_active = TRUE
           )
         ) AS with_housekeeping
 
@@ -188,12 +191,9 @@ export class RoomManagementService {
         s.full_name,
         s.full_name_local_language,
         hk.shift,
-        gh.task_date,
-        gh.task_shift,
-        gh.service_type,
-        gh.status,
-        gh.admin_instructions
-
+        gh.remarks,
+        gh.status AS hk_status,
+        io.status AS io_status
       FROM m_rooms r
 
       LEFT JOIN t_guest_room gr
@@ -220,16 +220,17 @@ export class RoomManagementService {
       AND io.is_active = true
       AND io.exit_date IS NULL
 
-      LEFT JOIN t_room_housekeeping gh
-        ON gh.room_id = r.room_id
-      AND gh.is_active = true
-      AND gh.status != 'Cancelled'
+    LEFT JOIN t_guest_hk gh
+      ON gh.guest_id = g.guest_id
+      AND gh.is_active = TRUE
 
-      LEFT JOIN m_housekeeping hk
-        ON hk.hk_id = gh.hk_id AND hk.is_active = true
+    LEFT JOIN m_housekeeping hk
+      ON hk.hk_id = gh.hk_id
+      AND hk.is_active = TRUE
 
-      LEFT JOIN m_staff s
-        ON s.staff_id = hk.staff_id AND s.is_active = true
+    LEFT JOIN m_staff s
+      ON s.staff_id = hk.staff_id
+      AND s.is_active = TRUE
 
       WHERE r.is_active = true
       ${whereSql}
@@ -284,14 +285,9 @@ export class RoomManagementService {
           ? {
               guestHkId: r.guest_hk_id,
               hkId: r.hk_id,
-              hkName: r.hk_name,
-              hkNameLocalLanguage: r.hk_name_local_language,
-              shift: r.shift,
-              taskDate: r.task_date,
-              taskShift: r.task_shift,
-              serviceType: r.service_type,
+              hkName: r.full_name,
+              remarks: r.remarks,
               status: r.status,
-              adminInstructions: r.admin_instructions,
               isActive: true,
             }
           : null,
@@ -416,20 +412,12 @@ export class RoomManagementService {
           const hkConflict = await client.query(
             `
             SELECT 1
-            FROM t_room_housekeeping
+            FROM t_guest_hk
             WHERE hk_id = $1
-              AND task_date = COALESCE($2, CURRENT_DATE)
-              AND task_shift = $3
               AND is_active = TRUE
-              AND room_id <> $4
             FOR UPDATE
             `,
-            [
-              dto.hk_id,
-              dto.task_date ?? null,
-              dto.task_shift,
-              room_id,
-            ]
+            [dto.hk_id]
           );
 
           if (hkConflict.rowCount > 0) {
@@ -585,62 +573,78 @@ export class RoomManagementService {
         }
 
         /* ---------- 3️⃣ HOUSEKEEPING ---------- */
-
         if (dto.hk_id !== undefined) {
-          await client.query(
+
+          // Get active guest for this room
+          const guestRes = await client.query(
             `
-            SELECT guest_hk_id
-            FROM t_room_housekeeping
+            SELECT guest_id
+            FROM t_guest_room
             WHERE room_id = $1
               AND is_active = TRUE
-          FOR UPDATE
-          `,
-            [room_id]
-          );
-          await client.query(
-            `
-            UPDATE t_room_housekeeping
-            SET status = 'Cancelled',
-                is_active = FALSE,
-            WHERE room_id = $1
-              AND is_active = TRUE
+            FOR UPDATE
             `,
             [room_id]
           );
 
+          if (!guestRes.rowCount) {
+            throw new BadRequestException(
+              'Cannot assign housekeeping without active guest'
+            );
+          }
+
+          const guestId = guestRes.rows[0].guest_id;
+
+          // Cancel existing assignment
+          await client.query(
+            `
+            UPDATE t_guest_hk
+            SET status = 'Cancelled',
+                is_active = FALSE,
+                updated_at = NOW(),
+                updated_by = $2,
+                updated_ip = $3
+            WHERE guest_id = $1
+              AND is_active = TRUE
+            `,
+            [guestId, user, ip]
+          );
+
+          // Assign new housekeeping
           if (dto.hk_id !== null) {
+
             const hkIdRes = await client.query(`
-              SELECT 'RHK' || LPAD(nextval('room_housekeeping_seq')::text, 3, '0') AS id;
+              SELECT 'GHK' || LPAD(nextval('guest_housekeeping_seq')::text, 3, '0') AS id;
             `);
 
             await client.query(
               `
-              INSERT INTO t_room_housekeeping (
+              INSERT INTO t_guest_hk (
                 guest_hk_id,
+                guest_id,
                 hk_id,
-                room_id,
-                task_date,
-                task_shift,
-                service_type,
-                admin_instructions,
                 status,
-                is_active
-              ) VALUES (
+                remarks,
+                is_active,
+                inserted_at,
+                inserted_by,
+                inserted_ip
+              )
+              VALUES (
                 $1,$2,$3,
-                COALESCE($4, CURRENT_DATE),
-                $5,$6,$7,
-                'Scheduled',
-                TRUE
+                'Assigned',
+                $4,
+                TRUE,
+                NOW(),$5,$6
               )
               `,
               [
                 hkIdRes.rows[0].id,
+                guestId,
                 dto.hk_id,
-                room_id,
-                dto.task_date ?? null,
-                dto.task_shift,
-                dto.service_type,
-                dto.admin_instructions ?? null,
+                dto.remarks ?? null,
+                user,
+                ip,
               ]
             );
           }

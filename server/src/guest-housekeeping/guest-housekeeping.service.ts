@@ -15,17 +15,24 @@ export class GuestHousekeepingService {
   }
 
   async findAll(activeOnly = true) {
-  const sql = activeOnly
-    ? `SELECT * FROM t_room_housekeeping WHERE status != 'Cancelled' ORDER BY task_date DESC`
-    : `SELECT * FROM t_room_housekeeping ORDER BY task_date DESC`;
+    const sql = activeOnly
+      ? `SELECT * FROM t_guest_hk WHERE status != 'Cancelled' ORDER BY inserted_at DESC`
+      : `SELECT * FROM t_guest_hk ORDER BY inserted_at DESC`;
 
-  const res = await this.db.query(sql);
-  return res.rows;
+    const res = await this.db.query(sql);
+    return res.rows;
   }
 
   async findOne(id: string) {
-    const sql = `SELECT * FROM t_room_housekeeping WHERE guest_hk_id = $1`;
-    const res = await this.db.query(sql, [id]);
+    const res = await this.db.query(
+      `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1`,
+      [id]
+    );
+
+    if (!res.rowCount) {
+      throw new NotFoundException('Housekeeping task not found');
+    }
+
     return res.rows[0];
   }
 
@@ -43,60 +50,71 @@ export class GuestHousekeepingService {
           `,
           [dto.room_id]
         );
-        
         if (!guestRes.rowCount) {
-          throw new BadRequestException('No active guest found for this room');
+          throw new BadRequestException('No active guest assigned to this room');
         }
         const guestId = guestRes.rows[0].guest_id;
 
-        if (dto.task_date) {
-          const now = new Date();
-          const taskDate = new Date(dto.task_date);
+    // 2️⃣ Ensure guest has active stay
+    const stayRes = await client.query(
+      `
+      SELECT entry_date, exit_date
+      FROM t_guest_inout
+      WHERE guest_id = $1
+        AND is_active = TRUE
+      `,
+      [guestId]
+    );
 
-          if (
-            taskDate.toDateString() === now.toDateString()
-          ) {
-            const hour = now.getHours();
+    if (!stayRes.rowCount) {
+      throw new BadRequestException(
+        'Guest does not have an active stay'
+      );
+    }
 
-            if (dto.task_shift === 'Morning' && hour >= 11) {
-              throw new BadRequestException(
-                'Morning shift cannot be assigned this late'
-              );
-            }
-          }
-        }
-        // await this.db.query(`LOCK TABLE t_room_housekeeping IN EXCLUSIVE MODE`);
+    // 3️⃣ Prevent duplicate housekeeping assignment
+    const existingHk = await client.query(
+      `
+      SELECT 1
+      FROM t_guest_hk
+      WHERE guest_id = $1
+        AND is_active = TRUE
+      `,
+      [guestId]
+    );
+
+    if (existingHk.rowCount) {
+      throw new BadRequestException(
+        'Housekeeping already assigned to this guest'
+      );
+    }
         const id = await this.generateId(client);
         // const nowISO = new Date().toISOString();
         const sql = `
-          INSERT INTO t_room_housekeeping (
+          INSERT INTO t_guest_hk (
             guest_hk_id,
+            guest_id,
             hk_id,
-            room_id,
-            guest_id,           -- ✅ ADD THIS
-            task_date,
-            task_shift,
-            admin_instructions,
-            is_active,            -- ✅ ADD THIS
+            status,
+            remarks,
+            is_active,
             inserted_at,
             inserted_by,
             inserted_ip
-          ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,True,NOW(),$8,$9
           )
+          VALUES ($1,$2,$3,'Assigned',$4,TRUE,NOW(),$5,$6)
           RETURNING *;
         `;
+
         const params = [
           id,
+          guestId,
           dto.hk_id,
-          dto.room_id,
-          guestId,                 // ✅ ADD
-          dto.task_date,
-          dto.task_shift,
-          dto.admin_instructions ?? null,
+          dto.remarks ?? null,
           user,
           ip
         ];
+
         const res = await client.query(sql, params);
         return res.rows[0];
       } catch (error) {
@@ -109,7 +127,7 @@ export class GuestHousekeepingService {
     return this.db.transaction(async (client) => {
       try {
       const existingRes = await client.query(
-        `SELECT * FROM t_room_housekeeping WHERE guest_hk_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 FOR UPDATE`,
         [id]
       );
 
@@ -118,35 +136,24 @@ export class GuestHousekeepingService {
       }
 
       const existing = existingRes.rows[0];
-      // if (!existing) throw new NotFoundException(`Housekeeping task '${id}' not found`);
-
-      // const now = new Date().toISOString();
-
       const sql = `
-        UPDATE t_room_housekeeping SET
+        UPDATE t_guest_hk SET
           hk_id = $1,
-          room_id = $2,
-          task_date = $3,
-          task_shift = $4,
-          admin_instructions = $5,
-          status = $6,
+          status = $2,
+          remarks= $3,
           updated_at = NOW(),
-          updated_by = $7,
-          updated_ip = $8
-        WHERE guest_hk_id = $9
+          updated_by = $4,
+          updated_ip = $5
+        WHERE guest_hk_id = $6
         RETURNING *;
       `;
-
       const params = [
         dto.hk_id ?? existing.hk_id,
-        dto.room_id ?? existing.room_id,
-        dto.task_date ?? existing.task_date,
-        dto.task_shift ?? existing.task_shift,
-        dto.admin_instructions ?? existing.admin_instructions,
         dto.status ?? existing.status,
+        dto.remarks ?? existing.remarks,
         user,
         ip,
-        id,
+        id
       ];
 
       const res = await client.query(sql, params);
@@ -161,32 +168,23 @@ export class GuestHousekeepingService {
     return this.db.transaction(async (client) => {
       try {
       // 1️⃣ Fetch housekeeping task
-      const check = await client.query(
-        `
-        SELECT guest_id, is_active
-        FROM t_room_housekeeping
-        WHERE guest_hk_id = $1
-        FOR UPDATE
-        `,
-        [id]
-      );
-
+    const check = await client.query(
+      `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 FOR UPDATE`,
+      [id]
+    );
       if (!check.rowCount) {
         throw new NotFoundException('Housekeeping task not found');
       }
+      // const hk = check.rows[0];
 
-      const hk = check.rows[0];
-
-      // 2️⃣ BLOCK if assigned to guest
-      if (hk.is_active && hk.guest_id) {
-        throw new BadRequestException(
-          'Cannot delete housekeeping: it is assigned to an active guest'
-        );
-      }
-
-      // 3️⃣ Safe to cancel
+      // // 2️⃣ BLOCK if assigned to guest
+      // if (hk.is_active && hk.guest_id) {
+      //   throw new BadRequestException(
+      //     'Cannot delete housekeeping: it is assigned to an active guest'
+      //   );
+      // }
       const sql = `
-        UPDATE t_room_housekeeping
+        UPDATE t_guest_hk
         SET
           status = 'Cancelled',
           is_active = FALSE,
