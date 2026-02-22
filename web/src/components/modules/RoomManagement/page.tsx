@@ -142,7 +142,6 @@ export function RoomManagement() {
   // Room boy create/edit form (HousekeepingCreateDto)
   const [roomBoyForm, setRoomBoyForm] = useState<HousekeepingCreateDto>({
     hk_name: "",
-    hk_name_local_language: "",
     hk_contact: "",
     hk_alternate_contact: "",
     address: "",
@@ -315,8 +314,6 @@ export function RoomManagement() {
     }
   }
 
-
-
   /* ================= HELPERS for Edit Room ================= */
   function openEditRoom(room: RoomRow) {
     setEditRoom(room);
@@ -367,7 +364,6 @@ export function RoomManagement() {
         hk_id: editRoom.housekeeping?.hkId ?? null,
         task_date: editRoom.housekeeping?.taskDate ?? undefined,
         task_shift: editRoom.housekeeping?.taskShift ?? undefined,
-        service_type: "Room Cleaning",
       };
 
       await updateFullRoom(editRoom.roomId, payload);
@@ -389,15 +385,7 @@ export function RoomManagement() {
     }
   }
 
-
   /* ================= FILTER ================= */
-  // const filteredRooms = rooms.filter((room) =>
-  //   room.roomNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //   (room.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //   (room.residenceType || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //   (room.guest?.guestName || "").toLowerCase().includes(searchQuery.toLowerCase())
-  // );
-
   async function submitAssignGuest() {
     if (!assignGuestRoom || selectedGuestId === null) return;
 
@@ -555,8 +543,8 @@ export function RoomManagement() {
   /* ================= ROOM BOY CRUD ================= */
   const handleAddRoomBoy = async () => {
     try {
-      const saved = await createHousekeeping(roomBoyForm);
-      setRoomBoys((prev) => [...prev, saved]);
+      await createHousekeeping(roomBoyForm);
+      await loadRoomBoys();
       setShowAddRoomBoy(false);
       resetRoomBoyForm();
     } catch (err) {
@@ -569,22 +557,16 @@ export function RoomManagement() {
 
     const payload: HousekeepingUpdateDto = {
       hk_name: roomBoyForm.hk_name,
-      hk_name_local_language: roomBoyForm.hk_name_local_language,
       hk_contact: roomBoyForm.hk_contact,
       hk_alternate_contact: roomBoyForm.hk_alternate_contact,
       address: roomBoyForm.address,
       shift: roomBoyForm.shift,
     };
 
-    const updated = await updateHousekeeping(selectedRoomBoy.hk_id, payload);
-
-    setRoomBoys((prev) =>
-      prev.map((rb) =>
-        rb.hk_id === selectedRoomBoy.hk_id ? updated : rb
-      )
-    );
-
+    await updateHousekeeping(selectedRoomBoy.hk_id, payload);
+    await loadRoomBoys();
     setShowEditRoomBoy(false);
+    resetRoomBoyForm();
   };
 
   // const handleDeleteRoomBoy = async () => {
@@ -627,7 +609,6 @@ export function RoomManagement() {
   const resetRoomBoyForm = () => {
     setRoomBoyForm({
       hk_name: "",
-      hk_name_local_language: "",
       hk_contact: "",
       hk_alternate_contact: "",
       address: "",
@@ -639,7 +620,6 @@ export function RoomManagement() {
     setSelectedRoomBoy(rb);
     setRoomBoyForm({
       hk_name: rb.hk_name,
-      hk_name_local_language: rb.hk_name_local_language || "",
       hk_contact: rb.hk_contact,
       hk_alternate_contact: rb.hk_alternate_contact || "",
       address: rb.address || "",
@@ -820,8 +800,6 @@ export function RoomManagement() {
     {
       header: "Local Name",
       accessor: "hk_name_local_language",
-      // sortable: true,
-      // sortKey: "hk_name_local_language",
     },
     {
       header: "Contact",

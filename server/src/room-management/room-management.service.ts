@@ -8,7 +8,7 @@ const SORT_MAP: Record<string, string> = {
   room_name: 'r.room_name',
   status: 'r.status',
   guest_name: 'g.guest_name',
-  hk_name: 'hk.hk_name',
+  hk_name: 's.full_name',
 };
 
 @Injectable()
@@ -41,7 +41,8 @@ export class RoomManagementService {
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
     const offset = (page - 1) * limit;
-
+    if (entryDateFrom === '') entryDateFrom = undefined;
+    if (entryDateTo === '') entryDateTo = undefined;
     /* ================= WHERE + PARAMS ================= */
 
     const whereParts: string[] = [];
@@ -66,11 +67,6 @@ export class RoomManagementService {
       idx++;
     }
 
-    const whereSql =
-      whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
-
-    /* ---------------- ENTRY / EXIT DATE FILTER ---------------- */
-
     if (entryDateFrom) {
       whereParts.push(`
         (
@@ -93,8 +89,9 @@ export class RoomManagementService {
       idx++;
     }
 
-    /* ================= COUNT ================= */
+    const whereSql = whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
 
+    /* ================= COUNT ================= */
     const countSql = `
       SELECT COUNT(*)::int AS count
       FROM m_rooms r
@@ -102,38 +99,16 @@ export class RoomManagementService {
         ON gr.room_id = r.room_id AND gr.is_active = true
       LEFT JOIN m_guest g
         ON g.guest_id = gr.guest_id
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+        AND io.room_id = r.room_id
+        AND io.is_active = true
+        AND io.exit_date IS NULL
       WHERE r.is_active = true
       ${whereSql}
     `;
 
     /* ================= STATS (filtered) ================= */
-
-    // const statsSql = `
-    //   SELECT
-    //     COUNT(DISTINCT r.room_id) AS total,
-
-    //     COUNT(DISTINCT r.room_id)
-    //       FILTER (WHERE r.status = 'Available') AS available,
-
-    //     COUNT(DISTINCT r.room_id)
-    //       FILTER (WHERE r.status = 'Occupied') AS occupied,
-
-    //     COUNT(DISTINCT r.room_id)
-    //       FILTER (WHERE gr.guest_id IS NOT NULL) AS with_guest,
-
-    //     COUNT(DISTINCT r.room_id)
-    //       FILTER (WHERE gh.guest_hk_id IS NOT NULL) AS with_housekeeping
-
-    //   FROM m_rooms r
-    //   LEFT JOIN t_guest_room gr
-    //     ON gr.room_id = r.room_id AND gr.is_active = true
-    //   LEFT JOIN m_guest g
-    //     ON g.guest_id = gr.guest_id
-    //   LEFT JOIN t_room_housekeeping gh
-    //     ON gh.room_id = r.room_id AND gh.is_active = true
-    //   WHERE r.is_active = true
-    //   ${whereSql}
-    // `;
     const statsSql = `
       SELECT
         COUNT(*) AS total,
@@ -149,42 +124,34 @@ export class RoomManagementService {
         COUNT(*) FILTER (
           WHERE EXISTS (
             SELECT 1
-            FROM t_guest_room gr
-            WHERE gr.room_id = r.room_id
-            AND gr.is_active = true
+            FROM t_guest_room gr2
+            WHERE gr2.room_id = r.room_id
+            AND gr2.is_active = true
           )
         ) AS with_guest,
 
         COUNT(*) FILTER (
           WHERE EXISTS (
             SELECT 1
-            FROM t_room_housekeeping gh
-            WHERE gh.room_id = r.room_id
-            AND gh.is_active = true
+            FROM t_room_housekeeping gh2
+            WHERE gh2.room_id = r.room_id
+            AND gh2.is_active = true
           )
         ) AS with_housekeeping
 
       FROM m_rooms r
+      LEFT JOIN t_guest_room gr
+        ON gr.room_id = r.room_id AND gr.is_active = true
+      LEFT JOIN m_guest g
+        ON g.guest_id = gr.guest_id
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = g.guest_id
+        AND io.room_id = r.room_id
+        AND io.is_active = true
+        AND io.exit_date IS NULL
       WHERE r.is_active = true
       ${whereSql}
-
     `;
-    // ${search ? `
-    //   AND (
-    //     r.room_no ILIKE $1
-    //     OR r.room_name ILIKE $1
-    //     OR EXISTS (
-    //         SELECT 1
-    //         FROM t_guest_room gr
-    //         JOIN m_guest g
-    //           ON g.guest_id = gr.guest_id
-    //         WHERE gr.room_id = r.room_id
-    //         AND gr.is_active = true
-    //         AND g.guest_name ILIKE $1
-    //     )
-    //   )
-    // ` : ''}
-    // ${status ? `AND r.status = $${search ? 2 : 1}` : ''}
 
     /* ================= DATA ================= */
     const dataSql = `
@@ -218,8 +185,8 @@ export class RoomManagementService {
 
         gh.guest_hk_id,
         hk.hk_id,
-        hk.hk_name,
-        hk.hk_name_local_language,
+        s.full_name,
+        s.full_name_local_language,
         hk.shift,
         gh.task_date,
         gh.task_shift,
@@ -259,63 +226,16 @@ export class RoomManagementService {
       AND gh.status != 'Cancelled'
 
       LEFT JOIN m_housekeeping hk
-        ON hk.hk_id = gh.hk_id
+        ON hk.hk_id = gh.hk_id AND hk.is_active = true
+
+      LEFT JOIN m_staff s
+        ON s.staff_id = hk.staff_id AND s.is_active = true
 
       WHERE r.is_active = true
       ${whereSql}
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1}
     `;
-
-    // const dataSql = `
-    //   SELECT
-    //     r.room_id,
-    //     r.room_no,
-    //     r.room_name,
-    //     r.building_name,
-    //     r.residence_type,
-    //     r.room_category,
-    //     r.room_capacity,
-    //     r.status,
-
-    //     g.guest_id,
-    //     g.guest_name,
-    //     g.guest_name_local_language,
-    //     gr.guest_room_id,
-    //     gr.check_in_date,
-    //     gr.check_out_date,
-    //     gr.action_type,
-    //     gr.action_description,
-    //     gr.remarks,
-
-    //     gh.guest_hk_id,
-    //     hk.hk_id,
-    //     hk.hk_name,
-    //     hk.hk_name_local_language,
-    //     hk.shift,
-    //     gh.task_date,
-    //     gh.task_shift,
-    //     gh.service_type,
-    //     gh.status,
-    //     gh.admin_instructions
-
-    //   FROM m_rooms r
-    //   LEFT JOIN t_guest_room gr
-    //     ON gr.room_id = r.room_id AND gr.is_active = true
-    //   LEFT JOIN m_guest g
-    //     ON g.guest_id = gr.guest_id
-    //   LEFT JOIN t_room_housekeeping gh
-    //     ON gh.room_id = r.room_id
-    //   AND gh.is_active = true
-    //   AND gh.status != 'Cancelled'
-    //   LEFT JOIN m_housekeeping hk
-    //     ON hk.hk_id = gh.hk_id
-
-    //   WHERE r.is_active = true
-    //   ${whereSql}
-    //   ORDER BY ${sortColumn} ${order}
-    //   LIMIT $${idx} OFFSET $${idx + 1}
-    // `;
 
     const dataParams = [...params, limit, offset];
 
@@ -387,50 +307,6 @@ export class RoomManagementService {
         withHousekeeping: Number(statsRow.with_housekeeping),
       },
     };
-
-    // return {
-    //   data: rows.map((r) => ({
-    //     roomId: r.room_id,
-    //     roomNo: r.room_no,
-    //     roomName: r.room_name,
-    //     buildingName: r.building_name,
-    //     residenceType: r.residence_type,
-    //     roomType: r.room_type,
-    //     roomCategory: r.room_category,
-    //     roomCapacity: r.room_capacity,
-    //     status: r.status,
-
-    //     guest: r.guest_id
-    //       ? {
-    //         guestId: r.guest_id,
-    //         guestName: r.guest_name,
-    //         guestRoomId: r.guest_room_id,
-    //         checkInDate: r.check_in_date,
-    //         checkOutDate: r.check_out_date,
-    //       }
-    //       : null,
-
-    //     housekeeping: r.guest_hk_id
-    //       ? {
-    //         guestHkId: r.guest_hk_id,
-    //         hkId: r.hk_id,
-    //         hkName: r.hk_name,
-    //         taskDate: r.task_date,
-    //         taskShift: r.task_shift,
-    //         isActive: true,
-    //       }
-    //       : null,
-    //   })),
-
-    //   totalCount: count,
-    //   stats: {
-    //     total: Number(statsRow.total),
-    //     available: Number(statsRow.available),
-    //     occupied: Number(statsRow.occupied),
-    //     withGuest: Number(statsRow.with_guest),
-    //     withHousekeeping: Number(statsRow.with_housekeeping),
-    //   },
-    // };
   }
 
   /* ================= FULL UPDATE ================= */
@@ -443,15 +319,6 @@ export class RoomManagementService {
   ) {
     return this.db.transaction(async (client) => {
       try {
-        // await client.query(
-        //   `
-        //   SELECT 1
-        //   FROM m_rooms
-        //   WHERE room_id = $1
-        //   FOR UPDATE
-        //   `,
-        //   [room_id]
-        // );
 
         const roomRes = await client.query(
           `SELECT * FROM m_rooms WHERE room_id = $1 AND is_active = TRUE FOR UPDATE`,
@@ -463,19 +330,6 @@ export class RoomManagementService {
         }
 
         const room = roomRes.rows[0];
-        // if (!room.is_active) {
-        //   throw new BadRequestException('Inactive room cannot be modified');
-        // }
-        // const activeGuestRes = await client.query(
-        //   `
-        //   SELECT COUNT(*)::int AS count
-        //   FROM t_guest_room
-        //   WHERE room_id = $1
-        //     AND is_active = TRUE
-        //   FOR UPDATE
-        //   `,
-        //   [room_id]
-        // );
         const activeGuestRes = await client.query(
           `
         SELECT guest_room_id

@@ -24,7 +24,6 @@ export interface Housekeeping {
 
 export interface HousekeepingCreateDto {
   hk_name: string;
-  hk_name_local_language?: string;
 
   hk_contact: string;
   hk_alternate_contact?: string;
@@ -36,7 +35,6 @@ export interface HousekeepingCreateDto {
 
 export interface HousekeepingUpdateDto {
   hk_name?: string;
-  hk_name_local_language?: string;
 
   hk_contact?: string;
   hk_alternate_contact?: string;

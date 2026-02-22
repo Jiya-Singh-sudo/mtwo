@@ -7,23 +7,6 @@ import { UpdateGuestHousekeepingDto } from "./dto/update-guest-housekeeping.dto"
 export class GuestHousekeepingService {
   constructor(private readonly db: DatabaseService) {}
 
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT guest_hk_id FROM t_room_housekeeping ORDER BY guest_hk_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) return "RHK001";
-
-  //   const last = res.rows[0].guest_hk_id.replace("RHK", "");
-  //   const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
-
-  //   return `RHK${next}`;
-  // }
-  // private async generateId(): Promise<string> {
-  //   const res = await this.db.query(`
-  //     SELECT 'GHK' || LPAD(nextval('guest_housekeeping_seq')::text, 3, '0') AS id
-  //   `);
-  //   return res.rows[0].id;
-  // }
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GHK' || LPAD(nextval('guest_housekeeping_seq')::text, 3, '0') AS id
@@ -93,15 +76,13 @@ export class GuestHousekeepingService {
             guest_id,           -- ✅ ADD THIS
             task_date,
             task_shift,
-            service_type,
             admin_instructions,
-            status,
             is_active,            -- ✅ ADD THIS
             inserted_at,
             inserted_by,
-            inserted_ip,
+            inserted_ip
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,'Scheduled',True,NOW(),$9,$10
+            $1,$2,$3,$4,$5,$6,$7,True,NOW(),$8,$9
           )
           RETURNING *;
         `;
@@ -112,7 +93,6 @@ export class GuestHousekeepingService {
           guestId,                 // ✅ ADD
           dto.task_date,
           dto.task_shift,
-          dto.service_type,
           dto.admin_instructions ?? null,
           user,
           ip
@@ -148,13 +128,12 @@ export class GuestHousekeepingService {
           room_id = $2,
           task_date = $3,
           task_shift = $4,
-          service_type = $5,
-          admin_instructions = $6,
-          status = $7,
+          admin_instructions = $5,
+          status = $6,
           updated_at = NOW(),
-          updates_by = $8,
-          updates_ip = $9
-        WHERE guest_hk_id = $10
+          updated_by = $7,
+          updated_ip = $8
+        WHERE guest_hk_id = $9
         RETURNING *;
       `;
 
@@ -163,7 +142,6 @@ export class GuestHousekeepingService {
         dto.room_id ?? existing.room_id,
         dto.task_date ?? existing.task_date,
         dto.task_shift ?? existing.task_shift,
-        dto.service_type ?? existing.service_type,
         dto.admin_instructions ?? existing.admin_instructions,
         dto.status ?? existing.status,
         user,
@@ -213,8 +191,8 @@ export class GuestHousekeepingService {
           status = 'Cancelled',
           is_active = FALSE,
           updated_at = NOW(),
-          updates_by = $2,
-          updates_ip = $3
+          updated_by = $2,
+          updated_ip = $3
         WHERE guest_hk_id = $1
         RETURNING *;
       `;

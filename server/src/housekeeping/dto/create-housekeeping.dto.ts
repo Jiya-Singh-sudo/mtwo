@@ -8,21 +8,18 @@ export class CreateHousekeepingDto {
   @MaxLength(50, { message: 'Housekeeping name is too long' })
   hk_name: string;
 
-  // @IsOptional()
-  // @IsString()
-  // hk_name_local_language?: string;
 
   @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'Contact number must be a valid 10-digit mobile number',
-  })
+  // @Matches(/^[6-9]\d{10}$/, {
+  //   message: 'Contact number must be a valid 10-digit mobile number',
+  // })
   hk_contact: string; // 10-digit mobile
 
   @IsOptional()
   @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'Alternate contact must be a valid 10-digit mobile number',
-  })
+  // @Matches(/^[6-9]\d{9}$/, {
+  //   message: 'Alternate contact must be a valid 10-digit mobile number',
+  // })
   hk_alternate_contact?: string;
 
   @IsOptional()

@@ -57,6 +57,5 @@ export type EditRoomFullPayload = {
   hk_id?: string | null;
   task_date?: string; // YYYY-MM-DD
   task_shift?: "Morning" | "Evening" | "Night" | "Full-Day";
-  service_type?: string;
   admin_instructions?: string;
 };

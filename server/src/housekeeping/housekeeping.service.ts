@@ -6,21 +6,18 @@ import { transliterateToDevanagari } from '../../common/utlis/transliteration.ut
 
 @Injectable()
 export class HousekeepingService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT hk_id FROM m_housekeeping ORDER BY hk_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) return "HK001";
-
-  //   const last = res.rows[0].hk_id.replace("HK", "");
-  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
-  //   return "HK" + next;
-  // }
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'HK' || LPAD(nextval('housekeeping_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
+
+  private async generateStaffId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
     `);
     return res.rows[0].id;
   }
@@ -39,33 +36,49 @@ export class HousekeepingService {
     sortOrder: 'asc' | 'desc';
   }) {
     const SORT_MAP: Record<string, string> = {
-      hk_name: 'hk_name',
-      shift: 'shift',
-      hk_contact: 'hk_contact',
+      hk_name: 's.full_name',
+      shift: 'hk.shift',
+      hk_contact: 's.primary_mobile',
     };
 
-    const sortColumn = SORT_MAP[sortBy] ?? 'hk_name';
+    const sortColumn = SORT_MAP[sortBy] ?? 's.full_name';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
     const offset = (page - 1) * limit;
+
+    const selectCols = `
+      hk.hk_id,
+      s.full_name AS hk_name,
+      s.full_name_local_language,
+      s.primary_mobile AS hk_contact,
+      s.alternate_mobile AS hk_alternate_contact,
+      s.address,
+      hk.shift,
+      hk.is_active
+    `;
+
+    const fromJoin = `
+      FROM m_housekeeping hk
+      JOIN m_staff s ON s.staff_id = hk.staff_id
+    `;
 
     if (search) {
       const countSql = `
         SELECT COUNT(*)::int AS count
-        FROM m_housekeeping
-        WHERE is_active = true
+        ${fromJoin}
+        WHERE hk.is_active = true AND s.is_active = true
           AND (
-            hk_name ILIKE $1
-            OR hk_contact ILIKE $1
+            s.full_name ILIKE $1
+            OR s.primary_mobile ILIKE $1
           )
       `;
 
       const dataSql = `
-        SELECT *
-        FROM m_housekeeping
-        WHERE is_active = true
+        SELECT ${selectCols}
+        ${fromJoin}
+        WHERE hk.is_active = true AND s.is_active = true
           AND (
-            hk_name ILIKE $1
-            OR hk_contact ILIKE $1
+            s.full_name ILIKE $1
+            OR s.primary_mobile ILIKE $1
           )
         ORDER BY ${sortColumn} ${order}
         LIMIT $2::int OFFSET $3::int
@@ -87,14 +100,14 @@ export class HousekeepingService {
     // no search
     const countSql = `
       SELECT COUNT(*)::int AS count
-      FROM m_housekeeping
-      WHERE is_active = true
+      ${fromJoin}
+      WHERE hk.is_active = true AND s.is_active = true
     `;
 
     const dataSql = `
-      SELECT *
-      FROM m_housekeeping
-      WHERE is_active = true
+      SELECT ${selectCols}
+      ${fromJoin}
+      WHERE hk.is_active = true AND s.is_active = true
       ORDER BY ${sortColumn} ${order}
       LIMIT $1::int OFFSET $2::int
     `;
@@ -106,13 +119,31 @@ export class HousekeepingService {
   }
 
   async findOneByName(name: string) {
-    const sql = `SELECT * FROM m_housekeeping WHERE hk_name = $1`;
+    const sql = `
+      SELECT hk.*, s.*
+      FROM m_housekeeping hk
+      JOIN m_staff s ON s.staff_id = hk.staff_id
+      WHERE s.full_name = $1 AND hk.is_active = true AND s.is_active = true
+    `;
     const res = await this.db.query(sql, [name]);
     return res.rows[0];
   }
+
   async findOneById(hkId: string) {
     const res = await this.db.query(
-      `SELECT * FROM m_housekeeping WHERE hk_id = $1`,
+      `SELECT
+        hk.hk_id,
+        hk.shift,
+        hk.is_active,
+        s.staff_id,
+        s.full_name,
+        s.full_name_local_language,
+        s.primary_mobile,
+        s.alternate_mobile,
+        s.address
+      FROM m_housekeeping hk
+      JOIN m_staff s ON s.staff_id = hk.staff_id
+      WHERE hk.hk_id = $1 AND hk.is_active = true AND s.is_active = true`,
       [hkId]
     );
     return res.rows[0];
@@ -124,9 +155,10 @@ export class HousekeepingService {
       const existingByName = await client.query(
         `
         SELECT 1
-        FROM m_housekeeping
-        WHERE LOWER(hk_name) = LOWER($1)
-          AND is_active = TRUE
+        FROM m_housekeeping hk
+        JOIN m_staff s ON s.staff_id = hk.staff_id
+        WHERE LOWER(s.full_name) = LOWER($1)
+          AND hk.is_active = TRUE
         LIMIT 1
         `,
         [dto.hk_name.trim()]
@@ -142,9 +174,10 @@ export class HousekeepingService {
       const existingByContact = await client.query(
         `
         SELECT 1
-        FROM m_housekeeping
-        WHERE hk_contact = $1
-          AND is_active = TRUE
+        FROM m_housekeeping hk
+        JOIN m_staff s ON s.staff_id = hk.staff_id
+        WHERE s.primary_mobile = $1
+          AND hk.is_active = TRUE AND s.is_active = true
         LIMIT 1
         `,
         [dto.hk_contact]
@@ -155,6 +188,7 @@ export class HousekeepingService {
           `Contact number '${dto.hk_contact}' is already assigned to another staff`
         );
       }
+
       if (
         dto.hk_alternate_contact &&
         dto.hk_contact === dto.hk_alternate_contact
@@ -163,48 +197,86 @@ export class HousekeepingService {
           'Primary contact and alternate contact cannot be the same'
         );
       }
-      const hk_id = await this.generateId(client);
-      const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
 
-      // const now = new Date().toISOString();
+      const staffId = await this.generateStaffId(client);
+      const hkId = await this.generateId(client);
+      const local = transliterateToDevanagari(dto.hk_name);
 
-      const sql = `
-        INSERT INTO m_housekeeping (
-          hk_id, hk_name, hk_name_local_language,
-          hk_contact, hk_alternate_contact,
-          address, shift,
+      // 1️⃣ Insert into m_staff
+      await client.query(`
+        INSERT INTO m_staff (
+          staff_id,
+          full_name,
+          full_name_local_language,
+          primary_mobile,
+          alternate_mobile,
+          address,
+          designation,
           is_active,
-          inserted_at, inserted_by, inserted_ip,
-          updated_at, updated_by, updated_ip
+          inserted_at,
+          inserted_by,
+          inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW(),$8,$9,NULL,NULL,NULL)
-        RETURNING *;
-      `;
-
-      const params = [
-        hk_id,
+        VALUES ($1,$2,$3,$4,$5,$6,'Housekeeping',true,NOW(),$7,$8)
+      `, [
+        staffId,
         dto.hk_name,
-        hk_name_local_language,
+        local,
         dto.hk_contact,
         dto.hk_alternate_contact ?? null,
         dto.address ?? null,
-        dto.shift,
         user,
-        ip,
-      ];
+        ip
+      ]);
 
-      const res = await client.query(sql, params);
-      return res.rows[0];
+    await client.query(`
+      INSERT INTO m_housekeeping (
+        hk_id,
+        staff_id,
+        shift,
+        is_active,
+        inserted_at,
+        inserted_by,
+        inserted_ip
+      )
+      VALUES ($1,$2,$3,true,NOW(),$4,$5)
+    `, [
+      hkId,
+      staffId,
+      dto.shift,
+      user,
+      ip
+    ]);
+
+    // 🔥 Return full joined structure
+    const fullRes = await client.query(`
+      SELECT
+        hk.hk_id,
+        s.full_name AS hk_name,
+        s.full_name_local_language,
+        s.primary_mobile AS hk_contact,
+        s.alternate_mobile AS hk_alternate_contact,
+        s.address,
+        hk.shift,
+        hk.is_active
+      FROM m_housekeeping hk
+      JOIN m_staff s ON s.staff_id = hk.staff_id
+      WHERE hk.hk_id = $1
+    `, [hkId]);
+
+    return fullRes.rows[0];
     });
   }
+
   async update(hkId: string, dto: UpdateHousekeepingDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
         `
-        SELECT *
-        FROM m_housekeeping
-        WHERE hk_id = $1
+        SELECT hk.*, s.*
+        FROM m_housekeeping hk
+        JOIN m_staff s ON s.staff_id = hk.staff_id
+        WHERE hk.hk_id = $1
         FOR UPDATE
         `,
         [hkId]
@@ -217,14 +289,15 @@ export class HousekeepingService {
       const existing = existingRes.rows[0];
 
       // 🔹 Name conflict check
-      if (dto.hk_name && dto.hk_name !== existing.hk_name) {
+      if (dto.hk_name && dto.hk_name !== existing.full_name) {
         const nameConflict = await client.query(
           `
           SELECT 1
-          FROM m_housekeeping
-          WHERE LOWER(hk_name) = LOWER($1)
-            AND hk_id <> $2
-            AND is_active = TRUE
+          FROM m_housekeeping hk
+          JOIN m_staff s ON s.staff_id = hk.staff_id
+          WHERE LOWER(s.full_name) = LOWER($1)
+            AND hk.hk_id <> $2
+            AND hk.is_active = TRUE
           LIMIT 1
           `,
           [dto.hk_name.trim(), hkId]
@@ -261,8 +334,8 @@ export class HousekeepingService {
         );
       }
 
-      const primaryContact = dto.hk_contact ?? existing.hk_contact;
-      const alternateContact = dto.hk_alternate_contact ?? existing.hk_alternate_contact;
+      const primaryContact = dto.hk_contact ?? existing.primary_mobile;
+      const alternateContact = dto.hk_alternate_contact ?? existing.alternate_mobile;
 
       if (alternateContact && primaryContact === alternateContact) {
         throw new BadRequestException(
@@ -270,14 +343,16 @@ export class HousekeepingService {
         );
       }
 
-      if (dto.hk_contact && dto.hk_contact !== existing.hk_contact) {
+      if (dto.hk_contact && dto.hk_contact !== existing.primary_mobile) {
         const contactConflict = await client.query(
           `
           SELECT 1
-          FROM m_housekeeping
-          WHERE hk_contact = $1
-            AND hk_id <> $2
-            AND is_active = TRUE
+          FROM m_housekeeping hk
+          JOIN m_staff s ON s.staff_id = hk.staff_id
+          WHERE s.primary_mobile = $1
+            AND hk.hk_id <> $2
+            AND hk.is_active = TRUE
+            AND s.is_active = true
           LIMIT 1
           `,
           [dto.hk_contact, hkId]
@@ -296,31 +371,48 @@ export class HousekeepingService {
         throw new BadRequestException('Invalid shift value');
       }
 
-      const cleanedName = dto.hk_name?.trim() ?? existing.hk_name;
+      const cleanedName = dto.hk_name?.trim() ?? existing.full_name;
       const hk_name_local_language = transliterateToDevanagari(cleanedName);
 
+      // 1️⃣ Update m_staff
+      await client.query(
+        `
+        UPDATE m_staff SET
+          full_name = $1,
+          full_name_local_language = $2,
+          primary_mobile = $3,
+          alternate_mobile = $4,
+          address = $5,
+          updated_at = NOW(),
+          updated_by = $6,
+          updated_ip = $7
+        WHERE staff_id = $8
+        `,
+        [
+          cleanedName,
+          hk_name_local_language,
+          dto.hk_contact ?? existing.primary_mobile,
+          dto.hk_alternate_contact ?? existing.alternate_mobile,
+          dto.address ?? existing.address,
+          user,
+          ip,
+          existing.staff_id,
+        ]
+      );
+
+      // 2️⃣ Update m_housekeeping
       const res = await client.query(
         `
         UPDATE m_housekeeping SET
-          hk_name = $1,
-          hk_name_local_language = $2,
-          hk_contact = $3,
-          hk_alternate_contact = $4,
-          address = $5,
-          shift = $6,
-          is_active = $7,
+          shift = $1,
+          is_active = $2,
           updated_at = NOW(),
-          updated_by = $8,
-          updated_ip = $9
-        WHERE hk_id = $10
+          updated_by = $3,
+          updated_ip = $4
+        WHERE hk_id = $5
         RETURNING *;
         `,
         [
-          dto.hk_name ?? existing.hk_name,
-          hk_name_local_language,
-          dto.hk_contact ?? existing.hk_contact,
-          dto.hk_alternate_contact ?? existing.hk_alternate_contact,
-          dto.address ?? existing.address,
           dto.shift ?? existing.shift,
           dto.is_active ?? existing.is_active,
           user,
@@ -329,17 +421,34 @@ export class HousekeepingService {
         ]
       );
 
-      return res.rows[0];
+      const fullRes = await client.query(`
+        SELECT
+          hk.hk_id,
+          s.full_name AS hk_name,
+          s.full_name_local_language,
+          s.primary_mobile AS hk_contact,
+          s.alternate_mobile AS hk_alternate_contact,
+          s.address,
+          hk.shift,
+          hk.is_active
+        FROM m_housekeeping hk
+        JOIN m_staff s ON s.staff_id = hk.staff_id
+        WHERE hk.hk_id = $1
+      `, [hkId]);
+
+      return fullRes.rows[0];
     });
   }
+
   async softDelete(hkId: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
         `
-        SELECT *
-        FROM m_housekeeping
-        WHERE hk_id = $1
+        SELECT hk.*, s.staff_id
+        FROM m_housekeeping hk
+        JOIN m_staff s ON s.staff_id = hk.staff_id
+        WHERE hk.hk_id = $1
         FOR UPDATE
         `,
         [hkId]
@@ -348,6 +457,8 @@ export class HousekeepingService {
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Housekeeping '${hkId}' not found`);
       }
+
+      const existing = existingRes.rows[0];
 
       const assigned = await client.query(
         `
@@ -366,6 +477,7 @@ export class HousekeepingService {
         );
       }
 
+      // 1️⃣ Deactivate m_housekeeping
       const res = await client.query(
         `
         UPDATE m_housekeeping
@@ -379,235 +491,20 @@ export class HousekeepingService {
         [user, ip, hkId]
       );
 
+      // 2️⃣ Deactivate m_staff
+      await client.query(
+        `
+        UPDATE m_staff
+        SET is_active = false,
+            updated_at = NOW(),
+            updated_by = $1,
+            updated_ip = $2
+        WHERE staff_id = $3
+        `,
+        [user, ip, existing.staff_id]
+      );
+
       return res.rows[0];
     });
   }
-
-  // async update(hkId: string, dto: UpdateHousekeepingDto, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-  //     const existingRes = await client.query(
-  //       `
-  //       SELECT *
-  //       FROM m_housekeeping
-  //       WHERE hk_id = $1
-  //       FOR UPDATE
-  //       `,
-  //       [hkId]
-  //     );
-
-  //     if (!existingRes.rowCount) {
-  //       throw new NotFoundException(`Housekeeping '${dto.hk_name}' not found`);
-  //     }
-
-  //     const existing = existingRes.rows[0];
-  //     // 1️⃣ Prevent renaming to an existing active staff
-  //     if (dto.hk_name && dto.hk_name !== existing.hk_name) {
-  //       const nameConflict = await this.db.query(
-  //         `
-  //         SELECT 1
-  //         FROM m_housekeeping
-  //         WHERE LOWER(hk_name) = LOWER($1)
-  //           AND hk_id <> $2
-  //           AND is_active = TRUE
-  //         LIMIT 1
-  //         `,
-  //         [dto.hk_name.trim(), existing.hk_id]
-  //       );
-
-  //       if (nameConflict.rowCount > 0) {
-  //         throw new BadRequestException(
-  //           `Housekeeping staff name '${dto.hk_name}' already exists`
-  //         );
-  //       }
-  //     }
-
-  //     // 2️⃣ Check if staff is currently assigned to any room
-  //     const activeAssignment = await this.db.query(
-  //       `
-  //       SELECT 1
-  //       FROM t_room_housekeeping
-  //       WHERE hk_id = $1
-  //         AND is_active = TRUE
-  //       LIMIT 1
-  //       `,
-  //       [existing.hk_id]
-  //     );
-  //     // 3️⃣ Block deactivation if assigned
-  //     if (dto.is_active === false && activeAssignment.rowCount > 0) {
-  //       throw new BadRequestException(
-  //         'Cannot deactivate housekeeping staff while assigned to a room'
-  //       );
-  //     }
-
-  //     // 4️⃣ Block shift change if assigned
-  //     if (dto.shift && dto.shift !== existing.shift && activeAssignment.rowCount > 0) {
-  //       throw new BadRequestException(
-  //         'Cannot change shift while staff is assigned to a room'
-  //       );
-  //     }
-  //     const primaryContact = dto.hk_contact ?? existing.hk_contact;
-  //     const alternateContact = dto.hk_alternate_contact ?? existing.hk_alternate_contact;
-
-  //     if (alternateContact && primaryContact === alternateContact) {
-  //       throw new BadRequestException(
-  //         'Primary contact and alternate contact cannot be the same'
-  //       );
-  //     }
-  //     if (dto.hk_contact && dto.hk_contact !== existing.hk_contact) {
-  //       const contactConflict = await this.db.query(
-  //         `
-  //         SELECT 1
-  //         FROM m_housekeeping
-  //         WHERE hk_contact = $1
-  //           AND hk_id <> $2
-  //           AND is_active = TRUE
-  //         LIMIT 1
-  //         `,
-  //         [dto.hk_contact, existing.hk_id]
-  //       );
-
-  //       if (contactConflict.rowCount > 0) {
-  //         throw new BadRequestException(
-  //           `Contact number '${dto.hk_contact}' is already assigned to another staff`
-  //         );
-  //       }
-  //     }
-  //     const VALID_SHIFTS = ['Morning', 'Evening', 'Night', 'Full-Day'];
-
-  //     if (dto.shift && !VALID_SHIFTS.includes(dto.shift)) {
-  //       throw new BadRequestException('Invalid shift value');
-  //     }
-  //     const hk_name_local_language = transliterateToDevanagari(dto.hk_name);
-
-  //     const now = new Date().toISOString();
-
-  //     const sql = `
-  //       UPDATE m_housekeeping SET
-  //         hk_name = $1,
-  //         hk_name_local_language = $2,
-  //         hk_contact = $3,
-  //         hk_alternate_contact = $4,
-  //         address = $5,
-  //         shift = $6,
-  //         is_active = $7,
-  //         updated_at = $8,
-  //         updated_by = $9,
-  //         updated_ip = $10
-  //       WHERE hk_id = $11
-  //       RETURNING *;
-  //     `;
-
-  //     const params = [
-  //       dto.hk_name ?? existing.hk_name,
-  //       hk_name_local_language,
-  //       dto.hk_contact ?? existing.hk_contact,
-  //       dto.hk_alternate_contact ?? existing.hk_alternate_contact,
-  //       dto.address ?? existing.address,
-  //       dto.shift ?? existing.shift,
-  //       dto.is_active ?? existing.is_active,
-  //       now,
-  //       user,
-  //       ip,
-  //       existing.hk_id,
-  //     ];
-
-  //     const res = await this.db.query(sql, params);
-  //     return res.rows[0];
-  //   });
-  // }
-
-  // async softDelete(hkId: string, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-
-  //     const existingRes = await client.query(
-  //       `
-  //       SELECT *
-  //       FROM m_housekeeping
-  //       WHERE hk_id = $1
-  //       FOR UPDATE
-  //       `,
-  //       [hkId]
-  //     );
-
-  //     if (!existingRes.rowCount) {
-  //       throw new BadRequestException(`Room boy not found`);
-  //     }
-
-  //     const existing = existingRes.rows[0];
-
-  //     const assigned = await client.query(
-  //       `
-  //       SELECT 1
-  //       FROM t_room_housekeeping
-  //       WHERE hk_id = $1
-  //         AND is_active = TRUE
-  //       FOR UPDATE
-  //       `,
-  //       [existing.hk_id]
-  //     );
-
-  //     if (assigned.rowCount > 0) {
-  //       throw new BadRequestException(
-  //         `Cannot delete staff '${name}' because assigned to a room`
-  //       );
-  //     }
-
-  //     const now = new Date().toISOString();
-
-  //     const res = await client.query(
-  //       `
-  //       UPDATE m_housekeeping
-  //       SET is_active = false,
-  //           updated_at = $1,
-  //           updated_by = $2,
-  //           updated_ip = $3
-  //       WHERE hk_id = $4
-  //       RETURNING *;
-  //       `,
-  //       [now, user, ip, existing.hk_id]
-  //     );
-
-  //     return res.rows[0];
-  //   });
-  // }
-
-  // async softDelete(name: string, user: string, ip: string) {
-  //   const existing = await this.findOneByName(name);
-  //   if (!existing) {
-  //     throw new BadRequestException(`Room boy '${name}' not found`);
-  //   }
-
-  //   // 🔴 BLOCK DELETE IF ASSIGNED
-  //   const assigned = await this.db.query(
-  //     `
-  //     SELECT 1
-  //     FROM t_room_housekeeping
-  //     WHERE hk_id = $1
-  //       AND is_active = TRUE
-  //     LIMIT 1
-  //     `,
-  //     [existing.hk_id]
-  //   );
-
-  //   if (assigned.rowCount > 0) {
-  //     throw new BadRequestException(
-  //       `Cannot delete housekeeping staff '${name}' because they are currently assigned to a room`
-  //     );
-  //   }
-  //   // ✅ SAFE TO DELETE
-  //   const now = new Date().toISOString();
-
-  //   const sql = `
-  //     UPDATE m_housekeeping
-  //     SET is_active = false,
-  //         updated_at = $1,
-  //         updated_by = $2,
-  //         updated_ip = $3
-  //     WHERE hk_id = $4
-  //     RETURNING *;
-  //   `;
-
-  //   const res = await this.db.query(sql, [now, user, ip, existing.hk_id]);
-  //   return res.rows[0];
-  // }
 }

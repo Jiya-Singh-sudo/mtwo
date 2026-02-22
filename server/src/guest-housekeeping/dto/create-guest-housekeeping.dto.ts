@@ -1,8 +1,8 @@
 import { IsString, IsOptional, IsIn } from 'class-validator';
 
 export class CreateGuestHousekeepingDto {
-  @IsString()
-  guest_id: string;
+  // @IsString()
+  // guest_id: string;
 
   @IsString()
   hk_id: string;        // Staff ID
@@ -15,9 +15,6 @@ export class CreateGuestHousekeepingDto {
 
   @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'])
   task_shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
-
-  @IsString()
-  service_type: string;
 
   @IsOptional()
   @IsString()
