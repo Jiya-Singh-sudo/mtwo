@@ -119,9 +119,8 @@ export class GuestLiasoningOfficerService {
         glo.is_active,
         glo.inserted_at,
 
-        o.officer_name,
-        o.mobile,
-        o.designation AS officer_designation,
+        s.full_name,
+        s.primary_mobile,
 
         md.designation_name AS guest_designation,
         gd.department AS guest_department
@@ -130,6 +129,10 @@ export class GuestLiasoningOfficerService {
 
       JOIN m_liasoning_officer o
         ON o.officer_id = glo.officer_id
+        AND is_Active = TRUE
+      LEFT JOIN m_staff s
+        ON s.staff_id = o.staff_id
+        AND is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = glo.guest_id
@@ -143,30 +146,6 @@ export class GuestLiasoningOfficerService {
       WHERE glo.guest_id = $1
       ORDER BY glo.from_date DESC
     `;
-
-    // const sql = `
-    //   SELECT
-    //     glo.glo_id,
-    //     glo.guest_id,
-    //     glo.officer_id,
-    //     glo.from_date,
-    //     glo.to_date,
-    //     glo.duty_location,
-    //     glo.is_active,
-    //     glo.inserted_at,
-
-    //     o.officer_name,
-    //     o.mobile,
-    //     o.designation
-
-    //   FROM t_guest_liasoning_officer glo
-    //   JOIN m_liasoning_officer o
-    //     ON o.officer_id = glo.officer_id
-
-    //   WHERE glo.guest_id = $1
-    //   ORDER BY glo.from_date DESC
-    // `;
-
     const res = await this.db.query(sql, [guestId]);
     return res.rows;
   }

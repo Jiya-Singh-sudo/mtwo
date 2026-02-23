@@ -208,19 +208,19 @@ export class GuestMedicalContactService {
         gmc.is_active,
         gmc.inserted_at,
 
-        s.service_provider_name,
-        s.service_type,
-        s.mobile,
+        st.full_name,
+        s.primary_mobile,
         s.alternate_mobile,
         s.email,
-
-        md.designation_name AS guest_designation,
-        gd.department AS guest_department
 
       FROM t_guest_medical_contact gmc
 
       JOIN m_medical_emergency_service s
         ON s.service_id = gmc.service_id
+        AND is_active = TRUE
+      LEFT JOIN m_staff st
+        ON s.satff_id = s.staff_id
+        AND is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = gmc.guest_id
@@ -234,27 +234,6 @@ export class GuestMedicalContactService {
       WHERE gmc.guest_id = $1
       ORDER BY gmc.inserted_at DESC
     `;
-
-    // const sql = `
-    //   SELECT
-    //     gmc.medical_contact_id,
-    //     gmc.guest_id,
-    //     gmc.service_id,
-    //     gmc.is_active,
-    //     gmc.inserted_at,
-
-    //     s.service_provider_name,
-    //     s.service_type,
-    //     s.mobile,
-    //     s.alternate_mobile,
-    //     s.email
-
-    //   FROM t_guest_medical_contact gmc
-    //   JOIN m_medical_emergency_service s
-    //     ON s.service_id = gmc.service_id
-    //   WHERE gmc.guest_id = $1
-    //   ORDER BY gmc.inserted_at DESC
-    // `;
 
     const res = await this.db.query(sql, [guestId]);
 
