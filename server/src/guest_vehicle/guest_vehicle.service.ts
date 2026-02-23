@@ -251,7 +251,7 @@ export class GuestVehicleService {
         UPDATE t_guest_vehicle
         SET
           is_active = FALSE,
-          released_at = NOW(),
+          released_at = GREATEST(NOW(), assigned_at),
           updated_at = NOW(),
           updated_by = $2,
           updated_ip = $3
@@ -355,7 +355,7 @@ export class GuestVehicleService {
           UPDATE t_guest_vehicle
           SET
             is_active = FALSE,
-            released_at = NOW(),
+            released_at = GREATEST(NOW(), assigned_at),
             updated_at = NOW(),
             updated_by = $2,
             updated_ip = $3
@@ -449,19 +449,17 @@ export class GuestVehicleService {
       `,
       [guestId]
     );
-
     if (!res.rows.length) return;
-
     const { entry_ts, exit_ts } = res.rows[0];
 
-    if (
-      assignedAt < entry_ts ||
-      (releasedAt && releasedAt > exit_ts)
-    ) {
-      throw new BadRequestException(
-        'Vehicle assignment is outside guest check-in / check-out period'
-      );
-    }
+    // if (
+    //   assignedAt < entry_ts ||
+    //   (releasedAt && releasedAt > exit_ts)
+    // ) {
+    //   throw new BadRequestException(
+    //     'Vehicle assignment is outside guest check-in / check-out period'
+    //   );
+    // }
     const assignedAtDate = new Date(assignedAt);
     const releasedAtDate = releasedAt ? new Date(releasedAt) : null;
 

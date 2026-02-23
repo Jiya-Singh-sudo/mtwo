@@ -16,19 +16,11 @@ export class GuestNetworkService {
     return res.rows[0].id;
   }
 
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT guest_network_id FROM t_guest_network ORDER BY guest_network_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) return "GN001";
-  //   const last = res.rows[0].guest_network_id.replace("GN", "");
-  //   const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
-  //   return `GN${next}`;
-  // }
-  async getGuestNetworkTable(query: GuestNetworkTableQueryDto) {
+  async getGuestNetworkTable(query: GuestNetworkTableQueryDto & { entryDateFrom?: string, entryDateTo?: string }) {
     const page = query.page;
     const limit = query.limit;
     const offset = (page - 1) * limit;
-
+    const { entryDateFrom, entryDateTo } = query;
     /* ---------- SORT WHITELIST ---------- */
     const SORT_MAP: Record<string, string> = {
       entry_date: 'io.entry_date',
@@ -36,11 +28,28 @@ export class GuestNetworkService {
       network_status: "COALESCE(gn.network_status, '')",
     };
 
-    const sortColumn =
-      SORT_MAP[query.sortBy ?? 'entry_date'] ?? 'io.entry_date';
-
+    const sortColumn = SORT_MAP[query.sortBy ?? 'entry_date'] ?? 'io.entry_date';
     const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    if (!Number.isInteger(query.page) || query.page <= 0) {
+      throw new ConflictException('Page must be a positive integer');
+    }
 
+    if (!Number.isInteger(query.limit) || query.limit <= 0) {
+      throw new ConflictException('Limit must be a positive integer');
+    }
+
+    if (query.limit > 100) {
+      throw new ConflictException('Limit cannot exceed 100');
+    }
+    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
+      throw new ConflictException('Invalid sort order');
+    }
+    if (query.sortBy && !Object.keys(SORT_MAP).includes(query.sortBy)) {
+      throw new ConflictException('Invalid sort column');
+    }
+    if (query.search && query.search.length > 100) {
+      throw new ConflictException('Search text too long');
+    }
     const where: string[] = [
       'io.is_active = TRUE',
       'g.is_active = TRUE',
@@ -62,13 +71,13 @@ export class GuestNetworkService {
     )
     `,
     ];
-    /* ---------- DEFAULT ±15 DAY ENTRY WINDOW ---------- */
-    where.push(`
-      io.entry_date BETWEEN
-        (CURRENT_DATE - INTERVAL '15 days')
-        AND
-        (CURRENT_DATE + INTERVAL '15 days')
-    `);
+    // /* ---------- DEFAULT ±15 DAY ENTRY WINDOW ---------- */
+    // where.push(`
+    //   io.entry_date BETWEEN
+    //     (CURRENT_DATE - INTERVAL '15 days')
+    //     AND
+    //     (CURRENT_DATE + INTERVAL '15 days')
+    // `);
 
     const params: any[] = [];
     let idx = 1;
@@ -85,8 +94,41 @@ export class GuestNetworkService {
       idx++;
     }
 
-    const whereClause = `WHERE ${where.join(' AND ')}`;
+    /* ---------- ENTRY DATE RANGE ---------- */
+    let fromDate = entryDateFrom;
+    let toDate = entryDateTo;
 
+    /* If no date filters provided → apply default window */
+    if (!fromDate && !toDate) {
+      where.push(`
+        io.entry_date BETWEEN
+          (CURRENT_DATE - INTERVAL '15 days')
+          AND
+          (CURRENT_DATE + INTERVAL '15 days')
+      `);
+    } else {
+      if (fromDate) {
+        if (isNaN(Date.parse(fromDate))) {
+          throw new ConflictException('Invalid entryDateFrom');
+        }
+
+        where.push(`io.entry_date >= $${idx}`);
+        params.push(fromDate);
+        idx++;
+      }
+
+      if (toDate) {
+        if (isNaN(Date.parse(toDate))) {
+          throw new ConflictException('Invalid entryDateTo');
+        }
+
+        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        params.push(toDate);
+        idx++;
+      }
+    }
+    /* ---------- BUILD WHERE CLAUSE AFTER ALL FILTERS ---------- */
+    const whereClause = `WHERE ${where.join(' AND ')}`;
     /* ---------- COUNT ---------- */
     const countSql = `
       SELECT COUNT(DISTINCT g.guest_id)::int AS count
@@ -362,16 +404,24 @@ export class GuestNetworkService {
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new ConflictException('Invalid activeOnly flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM t_guest_network WHERE is_active = $1 ORDER BY start_date DESC, start_time DESC`
       : `SELECT * FROM t_guest_network ORDER BY start_date DESC, start_time DESC`;
     const res = await this.db.query(sql, activeOnly ? [true] : []);
     return res.rows;
   }
-
   async findOne(id: string) {
+    if (!/^GN\d+$/.test(id)) {
+      throw new ConflictException('Invalid Guest Network ID format');
+    }
     const sql = `SELECT * FROM t_guest_network WHERE guest_network_id = $1`;
     const res = await this.db.query(sql, [id]);
+    if (!res.rowCount) {
+      throw new NotFoundException(`Guest Network '${id}' not found`);
+    }
     return res.rows[0];
   }
   async getActiveProviders() {
@@ -391,7 +441,13 @@ export class GuestNetworkService {
   }
   async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new ConflictException('Invalid guest ID format');
+      }
 
+      if (!/^N\d+$/.test(dto.provider_id)) {
+        throw new ConflictException('Invalid provider ID format');
+      }
       // Validate provider exists & active
       const provider = await client.query(
         `SELECT 1 FROM m_wifi_provider
@@ -430,7 +486,32 @@ export class GuestNetworkService {
 
       if (existing.rowCount > 0) {
         throw new ConflictException('Guest already has an active network for this room');
-}
+      }
+      const allowedStatus = [
+        'Requested',
+        'Connected',
+        'Disconnected',
+        'Issue-Reported',
+        'Resolved',
+        'Cancelled'
+      ];
+
+      if (dto.network_status && !allowedStatus.includes(dto.network_status)) {
+        throw new ConflictException('Invalid network status');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
+      const activeNetwork = await client.query(`
+        SELECT 1 FROM t_guest_network
+        WHERE guest_id = $1
+        AND is_active = TRUE
+        FOR UPDATE
+      `, [dto.guest_id]);
+
+      if (activeNetwork.rowCount > 0) {
+        throw new ConflictException('Guest already has an active network');
+      }
       const id = await this.generateId(client);
 
       const sql = `
@@ -465,51 +546,13 @@ export class GuestNetworkService {
       return res.rows[0];
     });
   }
-  // async create(dto: CreateGuestNetworkDto, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-  //     const id = await this.generateId(client);
-  //     const sql = `
-  //     INSERT INTO t_guest_network (
-  //       guest_network_id, guest_id, provider_id, room_id,
-  //       network_zone_from, network_zone_to,
-  //       start_status, end_status, network_status,
-  //       description, remarks,
-  //       is_active,
-  //       inserted_at, inserted_by, inserted_ip
-  //     ) VALUES (
-  //       $1,$2,$3,$4,
-  //       $5,$6,
-  //       $7,$8,$9,
-  //       $10,$11,
-  //       true, NOW(), $12, $13
-  //     ) RETURNING *;
-  //   `;
-
-  //   const params = [
-  //     id,
-  //     dto.guest_id,
-  //     dto.provider_id,
-  //     dto.room_id ?? null,
-  //     dto.network_zone_from ?? null,
-  //     dto.network_zone_to ?? null,
-  //     dto.start_status ?? "Waiting",
-  //     dto.end_status ?? "Waiting",
-  //     dto.network_status ?? "Requested",
-  //     dto.description ?? null,
-  //     dto.remarks ?? null,
-  //     user,
-  //     ip,
-  //   ];
-
-  //   const res = await client.query(sql, params);
-  //   return res.rows[0];
-  //   });
-  // }
   async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GN\d+$/.test(id)) {
+        throw new ConflictException('Invalid Guest Network ID format');
+      }
       const existing = await client.query(
-        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 AND is_active = true FOR UPDATE`,
         [id]
       );
 
@@ -528,8 +571,36 @@ export class GuestNetworkService {
           throw new NotFoundException('Network provider not found or inactive');
         }
       }
-      const old = existing.rows[0];
+      if (dto.network_status) {
+        const allowedStatus = [
+          'Requested',
+          'Connected',
+          'Disconnected',
+          'Issue-Reported',
+          'Resolved',
+          'Cancelled'
+        ];
 
+        if (!allowedStatus.includes(dto.network_status)) {
+          throw new ConflictException('Invalid network status');
+        }
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
+      const old = existing.rows[0];
+      if (dto.is_active === true && old.is_active === false) {
+        const duplicate = await client.query(`
+          SELECT 1 FROM t_guest_network
+          WHERE guest_id = $1
+          AND room_id = $2
+          AND is_active = TRUE
+        `, [old.guest_id, old.room_id]);
+
+        if (duplicate.rowCount > 0) {
+          throw new ConflictException('Another active network already exists');
+        }
+      }
       const sql = `
         UPDATE t_guest_network SET
           provider_id = $1,
@@ -559,119 +630,6 @@ export class GuestNetworkService {
       return res.rows[0];
     });
   }
-  // async update(id: string, dto: UpdateGuestNetworkDto, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-  //     const existing = await client.query(
-  //       `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
-  //       [id]
-  //     );
-  //     if (!existing.rowCount) throw new NotFoundException(`Guest Network entry '${id}' not found`);
-  //     const old = existing.rows[0];
-
-  //     const sql = `
-  //       UPDATE t_guest_network SET
-  //         provider_id = $1,
-  //         room_id = $2,
-  //         network_zone_from = $3,
-  //         network_zone_to = $4,
-  //         start_status = $5,
-  //         end_status = $6,
-  //         network_status = $7,
-  //         description = $8,
-  //         remarks = $9,
-  //         is_active = $10,
-  //         updated_at = NOW(),
-  //         updated_by = $11,
-  //         updated_ip = $12
-  //       WHERE guest_network_id = $13
-  //       RETURNING *;
-  //     `;
-
-  //     const params = [
-  //       dto.provider_id ?? old.provider_id,
-  //       dto.room_id ?? old.room_id,
-  //       dto.network_zone_from ?? old.network_zone_from,
-  //       dto.network_zone_to ?? old.network_zone_to,
-  //       dto.network_status ?? old.network_status,
-  //       dto.description ?? old.description,
-  //       dto.remarks ?? old.remarks,
-  //       dto.is_active ?? old.is_active,
-  //       user,
-  //       ip,
-  //       id,
-  //     ];
-
-  //     const res = await client.query(sql, params);
-  //     return res.rows[0];
-  //   });
-  // }
-
-  // async changeStatus(
-  //   id: string,
-  //   dto: ChangeGuestNetworkStatusDto,
-  //   user: string,
-  //   ip: string
-  // ) {
-  //   const existing = await this.findOne(id);
-  //   if (!existing) throw new Error('Not found');
-
-  //   const now = new Date().toISOString();
-
-  //   // 1. Close previous record
-  //   await this.db.query(
-  //     `
-  //     UPDATE t_guest_network
-  //     SET
-  //       is_active = false,
-  //       end_date = $1,
-  //       end_time = $2,
-  //       updated_at = $3,
-  //       updated_by = $4,
-  //       updated_ip = $5
-  //     WHERE guest_network_id = $6
-  //     `,
-  //     [dto.end_date, dto.end_time, now, user, ip, id]
-  //   );
-
-  //   // 2. Insert new record (new fact)
-  //   const newId = await this.generateId();
-
-  //   const res = await this.db.query(
-  //     `
-  //     INSERT INTO t_guest_network (
-  //       guest_network_id,
-  //       guest_id,
-  //       provider_id,
-  //       room_id,
-  //       start_date,
-  //       start_time,
-  //       network_status,
-  //       start_status,
-  //       is_active,
-  //       inserted_at,
-  //       inserted_by,
-  //       inserted_ip
-  //     )
-  //     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11)
-  //     RETURNING *;
-  //     `,
-  //     [
-  //       newId,
-  //       existing.guest_id,
-  //       existing.provider_id,
-  //       existing.room_id,
-  //       dto.start_date,
-  //       dto.start_time,
-  //       dto.network_status,
-  //       dto.start_status,
-  //       now,
-  //       user,
-  //       ip,
-  //     ]
-  //   );
-
-  //   return res.rows[0];
-  // }
   async closeAndCreateNext(
     id: string,
     dto: CloseGuestNetworkDto,
@@ -679,13 +637,39 @@ export class GuestNetworkService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GN\d+$/.test(id)) {
+        throw new ConflictException('Invalid Guest Network ID format');
+      }
       const existing = await client.query(
-        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 AND is_active = true FOR UPDATE`,
         [id]
       );
       if (!existing.rowCount) throw new NotFoundException(`Guest Network '${id}' not found`);
+      if (!dto.end_date || isNaN(Date.parse(dto.end_date))) {
+        throw new ConflictException('Invalid end date');
+      }
 
+      if (dto.end_time && !/^\d{2}:\d{2}$/.test(dto.end_time)) {
+        throw new ConflictException('Invalid end time format');
+      }
+      const allowedStatus = [
+        'Requested',
+        'Connected',
+        'Disconnected',
+        'Issue-Reported',
+        'Resolved',
+        'Cancelled'
+      ];
+
+      if (!allowedStatus.includes(dto.network_status)) {
+        throw new ConflictException('Invalid network status');
+      }
+      if (!existing.rows[0].is_active) {
+        throw new ConflictException('Network already closed');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
       // 1. CLOSE OLD RECORD (NO DATA LOSS)
       await client.query(
         `
@@ -761,15 +745,102 @@ export class GuestNetworkService {
       return res.rows[0];
     });
   }
+  async closeNetwork(
+    id: string,
+    dto: CloseGuestNetworkDto,
+    user: string,
+    ip: string
+  ) {
+    return this.db.transaction(async (client) => {
 
+      if (!/^GN\d+$/.test(id)) {
+        throw new ConflictException('Invalid Guest Network ID format');
+      }
+
+      const existingRes = await client.query(
+        `SELECT * FROM t_guest_network WHERE guest_network_id = $1 AND is_active = true FOR UPDATE`,
+        [id]
+      );
+
+      if (!existingRes.rowCount) {
+        throw new NotFoundException(`Guest Network '${id}' not found`);
+      }
+
+      const existing = existingRes.rows[0];
+
+      if (!existing.is_active) {
+        throw new ConflictException('Network already closed');
+      }
+
+      if (!dto.end_date || isNaN(Date.parse(dto.end_date))) {
+        throw new ConflictException('Invalid end date');
+      }
+
+      if (dto.end_time && !/^\d{2}:\d{2}$/.test(dto.end_time)) {
+        throw new ConflictException('Invalid end time format');
+      }
+
+      const allowedStatus = [
+        'Requested',
+        'Connected',
+        'Disconnected',
+        'Issue-Reported',
+        'Resolved',
+        'Cancelled'
+      ];
+
+      if (!allowedStatus.includes(dto.network_status)) {
+        throw new ConflictException('Invalid network status');
+      }
+
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
+
+      const res = await client.query(
+        `
+        UPDATE t_guest_network
+        SET
+          is_active = false,
+          end_date = $1,
+          end_time = $2,
+          end_status = $3,
+          network_status = $4,
+          remarks = $5,
+          updated_at = NOW(),
+          updated_by = $6,
+          updated_ip = $7
+        WHERE guest_network_id = $8
+        RETURNING *;
+        `,
+        [
+          dto.end_date,
+          dto.end_time,
+          dto.end_status,
+          dto.network_status,
+          dto.remarks ?? existing.remarks,
+          user,
+          ip,
+          id,
+        ]
+      );
+
+      return res.rows[0];
+    });
+  }
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GN\d+$/.test(id)) {
+        throw new ConflictException('Invalid Guest Network ID format');
+      }
       const existing = await client.query(
-        `SELECT 1 FROM t_guest_network WHERE guest_network_id = $1 FOR UPDATE`,
+        `SELECT is_active FROM t_guest_network WHERE guest_network_id = $1 AND is_active = true FOR UPDATE`,
         [id]
       );
       if (!existing.rowCount) throw new NotFoundException(`Guest Network '${id}' not found`);
-
+      if (!existing.rows[0].is_active) {
+        throw new ConflictException('Network already inactive');
+      }
       const sql = `
       UPDATE t_guest_network SET
         is_active = false,

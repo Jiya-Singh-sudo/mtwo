@@ -9,24 +9,54 @@ export class DriverDutyService {
   private getWeekday(date: string): number {
     return new Date(date + 'T00:00:00').getDay();
   }
-
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'DD' || LPAD(nextval('driver_duty_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
   }
-
   private isPastDate(date: string): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const dutyDate = new Date(date + 'T00:00:00');
     return dutyDate < today;
   }
 
   async create(dto: CreateDriverDutyDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(dto.driver_id)) {
+        throw new BadRequestException('Invalid driver ID format');
+      }
+      if (!dto.duty_date || isNaN(Date.parse(dto.duty_date))) {
+        throw new BadRequestException('Invalid duty date format');
+      }
+      if (this.isPastDate(dto.duty_date)) {
+        throw new BadRequestException('Cannot create duty for past date');
+      }
+      const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+      if (!allowedShifts.includes(dto.shift)) {
+        throw new BadRequestException('Invalid shift');
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (dto.duty_in_time && !timeRegex.test(dto.duty_in_time)) {
+        throw new BadRequestException('Invalid duty in time format');
+      }
+      if (dto.duty_out_time && !timeRegex.test(dto.duty_out_time)) {
+        throw new BadRequestException('Invalid duty out time format');
+      }
+      if (dto.duty_in_time && dto.duty_out_time) {
+        if (dto.duty_out_time <= dto.duty_in_time) {
+          throw new BadRequestException('Duty out time must be after duty in time');
+        }
+      }
+      if (dto.is_week_off) {
+        if (dto.shift) {
+          throw new BadRequestException('Week off should not have shift');
+        }
+      }
+      if (dto.repeat_weekly && !dto.is_week_off) {
+        throw new BadRequestException('Repeat weekly only allowed for week off');
+      }
       try {
         const driverCheck = await client.query(
           `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true FOR UPDATE`,
@@ -122,6 +152,28 @@ export class DriverDutyService {
 
   async update(dutyId: string, dto: UpdateDriverDutyDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^DD\d+$/.test(dutyId)) {
+        throw new BadRequestException('Invalid duty ID format');
+      }
+      if (dto.duty_date && isNaN(Date.parse(dto.duty_date))) {
+        throw new BadRequestException('Invalid duty date format');
+      }
+      if (dto.shift) {
+        const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+        if (!allowedShifts.includes(dto.shift)) {
+          throw new BadRequestException('Invalid shift');
+        }
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (dto.duty_in_time && !timeRegex.test(dto.duty_in_time)) {
+        throw new BadRequestException('Invalid duty in time');
+      }
+      if (dto.duty_out_time && !timeRegex.test(dto.duty_out_time)) {
+        throw new BadRequestException('Invalid duty out time');
+      }
+      if (dto.repeat_weekly && !dto.is_week_off) {
+        throw new BadRequestException('Repeat weekly only allowed for week off');
+      }
       const existingRes = await client.query(
         `SELECT * FROM t_driver_duty WHERE duty_id = $1 FOR UPDATE`,
         [dutyId]
@@ -132,7 +184,11 @@ export class DriverDutyService {
       }
       const existing = existingRes.rows[0];
       const finalDate = dto.duty_date ?? existing.duty_date;
-
+      const inTime = dto.duty_in_time ?? existing.duty_in_time;
+      const outTime = dto.duty_out_time ?? existing.duty_out_time;
+      if (inTime && outTime && outTime <= inTime) {
+        throw new BadRequestException('Duty out time must be after duty in time');
+      }
       if (this.isPastDate(finalDate)) {
         throw new BadRequestException('Past duties cannot be modified');
       }
@@ -144,8 +200,6 @@ export class DriverDutyService {
       if (!driverCheck.rows.length) {
         throw new BadRequestException('Driver is inactive or does not exist');
       }
-      const inTime = dto.duty_in_time ?? existing.duty_in_time;
-      const outTime = dto.duty_out_time ?? existing.duty_out_time;
       const shift = dto.shift ?? existing.shift;
       const isWeekOff = dto.is_week_off ?? existing.is_week_off;
       if (isWeekOff && (inTime || outTime)) {
@@ -207,6 +261,9 @@ export class DriverDutyService {
 
   async findOne(dutyId: string) {
     return this.db.transaction(async (client) => {
+      if (!/^DD\d+$/.test(dutyId)) {
+        throw new BadRequestException('Invalid duty ID format');
+      }
       const res = await client.query(
         `SELECT * FROM t_driver_duty WHERE duty_id = $1`,
         [dutyId],
@@ -222,6 +279,16 @@ export class DriverDutyService {
 
   async findByDateRange(from: string, to: string) {
     return this.db.transaction(async (client) => {
+      if (isNaN(Date.parse(from)) || isNaN(Date.parse(to))) {
+        throw new BadRequestException('Invalid date range');
+      }
+      const diffDays =
+        (new Date(to).getTime() - new Date(from).getTime()) /
+        (1000 * 60 * 60 * 24);
+
+      if (diffDays > 90) {
+        throw new BadRequestException('Date range too large');
+      }
       const sql = `
         SELECT
           drv.driver_id,
@@ -275,6 +342,15 @@ export class DriverDutyService {
   }
   async findByDriver(driverId: string, from: string, to: string) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(driverId)) {
+        throw new BadRequestException('Invalid driver ID format');
+      }
+      if (isNaN(Date.parse(from)) || isNaN(Date.parse(to))) {
+        throw new BadRequestException('Invalid date range');
+      }
+      if (new Date(from) > new Date(to)) {
+        throw new BadRequestException('Invalid date range');
+      }
       const res = await client.query(
         `
         SELECT *
@@ -292,6 +368,12 @@ export class DriverDutyService {
 
   async findDutyForDriverOnDate(driverId: string, date: string) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(driverId)) {
+        throw new BadRequestException('Invalid driver ID format');
+      }
+      if (isNaN(Date.parse(date))) {
+        throw new BadRequestException('Invalid date format');
+      }
       const res = await client.query(
         `
         SELECT *

@@ -14,6 +14,9 @@ export class GuestButlerService {
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid activeOnly flag');
+    }
     const sql = `
       SELECT
         gb.guest_butler_id,
@@ -40,6 +43,9 @@ export class GuestButlerService {
   }
 
   async findOne(id: string) {
+    if (!/^GB\d+$/.test(id)) {
+      throw new BadRequestException('Invalid Guest-Butler ID format');
+    }
     const sql = `
       SELECT
         gb.*,
@@ -53,6 +59,9 @@ export class GuestButlerService {
       WHERE gb.guest_butler_id = $1
     `;
     const res = await this.db.query(sql, [id]);
+    if (!res.rowCount) {
+      throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
+    }
     return res.rows[0];
   }
 
@@ -71,7 +80,52 @@ export class GuestButlerService {
       if (!guestCheck.rowCount) {
         throw new NotFoundException("Guest not found or inactive");
       }
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new BadRequestException('Invalid guest ID format');
+      }
+      if (!/^B\d+$/.test(dto.butler_id)) {
+        throw new BadRequestException('Invalid butler ID format');
+      }
+      if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
+        throw new BadRequestException('Invalid room ID format');
+      }
+      if (dto.specialRequest && dto.specialRequest.length > 255) {
+        throw new BadRequestException('Special request cannot exceed 255 characters');
+      }
+      const stayCheck = await client.query(`
+        SELECT 1 FROM t_guest_inout
+        WHERE guest_id = $1
+          AND is_active = TRUE
+          AND status = 'Entered'
+          AND exit_date IS NULL
+        LIMIT 1
+      `, [dto.guest_id]);
 
+      if (!stayCheck.rowCount) {
+        throw new BadRequestException('Guest is not currently active inside');
+      }
+      const duplicatePair = await client.query(`
+        SELECT 1 FROM t_guest_butler
+        WHERE guest_id = $1
+          AND butler_id = $2
+          AND is_active = TRUE
+      `, [dto.guest_id, dto.butler_id]);
+
+      if (duplicatePair.rowCount > 0) {
+        throw new BadRequestException('This butler is already assigned to this guest');
+      }
+      if (dto.room_id) {
+        const roomCheck = await client.query(`
+          SELECT 1 FROM t_guest_room
+          WHERE guest_id = $1
+            AND room_id = $2
+            AND is_active = TRUE
+        `, [dto.guest_id, dto.room_id]);
+
+        if (!roomCheck.rowCount) {
+          throw new BadRequestException('Room does not belong to this guest');
+        }
+      }
       // 🔒 Validate butler exists AND staff active
       const butlerCheck = await client.query(
         `
@@ -266,6 +320,12 @@ export class GuestButlerService {
   // }
   async update(id: string, dto: UpdateGuestButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GB\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest-Butler ID format');
+      }
+      if (dto.specialRequest && dto.specialRequest.length > 255) {
+        throw new BadRequestException('Special request cannot exceed 255 characters');
+      }
       const existingRes = await client.query(
         `SELECT *
         FROM t_guest_butler
@@ -274,13 +334,10 @@ export class GuestButlerService {
         FOR UPDATE`,
         [id]
       );
-
       const existing = existingRes.rows[0];
-
       if (!existing) {
         throw new NotFoundException(`Guest-Butler assignment '${id}' not found`);
       }
-
       const sql = `
         UPDATE t_guest_butler
         SET
@@ -306,7 +363,9 @@ export class GuestButlerService {
 
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GB\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest-Butler ID format');
+      }
       const existingRes = await client.query(
         `SELECT *
           FROM t_guest_butler
@@ -318,6 +377,16 @@ export class GuestButlerService {
 
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Assignment '${id}' not found`);
+      }
+      const hasRequests = await client.query(`
+        SELECT 1 FROM t_guest_butler
+        WHERE guest_butler_id = $1
+          AND special_request IS NOT NULL
+          AND TRIM(special_request) <> ''
+      `, [id]);
+
+      if (hasRequests.rowCount > 0) {
+        throw new BadRequestException('Cannot remove butler with pending special requests');
       }
       const sql = `
         UPDATE t_guest_butler SET 

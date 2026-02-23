@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
@@ -27,7 +27,17 @@ export class ButlersService {
       sortOrder = "asc",
       status,
     } = query;
+    if (!Number.isInteger(Number(page)) || Number(page) <= 0) {
+      throw new ConflictException('Page must be a positive integer');
+    }
 
+    if (!Number.isInteger(Number(limit)) || Number(limit) <= 0) {
+      throw new ConflictException('Limit must be a positive integer');
+    }
+
+    if (Number(limit) > 100) {
+      throw new ConflictException('Limit cannot exceed 100');
+    }
     const offset = (page - 1) * limit;
 
     const SORT_MAP: Record<string, string> = {
@@ -43,7 +53,18 @@ export class ButlersService {
 
     const where: string[] = [];
     const params: any[] = [];
-
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new ConflictException('Invalid sort order');
+    }
+    if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
+      throw new ConflictException('Invalid sort column');
+    } 
+    if (status && !['Active', 'Inactive'].includes(status)) {
+      throw new ConflictException('Invalid status filter');
+    }
+    if (search && search.length > 100) {
+      throw new ConflictException('Search text too long');
+    }
     if (search) {
       params.push(`%${search}%`);
       where.push(
@@ -115,6 +136,9 @@ export class ButlersService {
 
   async findAll(activeOnly = true) {
     return this.db.transaction(async (client) => {
+      if (typeof activeOnly !== 'boolean') {
+        throw new ConflictException('Invalid activeOnly flag');
+      }
       const sql = activeOnly
         ? `SELECT 
             b.butler_id,
@@ -151,8 +175,11 @@ export class ButlersService {
 
   async findOneById(id: string) {
     return this.db.transaction(async (client) => {
+      if (!/^B\d+$/.test(id)) {
+        throw new ConflictException('Invalid Butler ID format');
+      }
       const sql = `
-                  SELECT 
+            SELECT 
               b.butler_id,
               b.shift,
               b.remarks,
@@ -168,6 +195,9 @@ export class ButlersService {
             WHERE b.butler_id = $1
             `;
       const result = await client.query(sql, [id]);
+      if (!result.rowCount) {
+        throw new NotFoundException(`Butler '${id}' not found`);
+      }
       return result.rows[0];
     });
   }
@@ -177,7 +207,47 @@ export class ButlersService {
       const butlerId = await this.generateButlerId(client);
       const staffId = await this.generateStaffId(client);
       const butler_name_local_language = transliterateToDevanagari(dto.butler_name);
+      if (!dto.butler_name || !dto.butler_name.trim()) {
+        throw new ConflictException('Butler name is required');
+      }
+      if (dto.butler_name.length > 100) {
+        throw new ConflictException('Butler name cannot exceed 100 characters');
+      }
+      if (dto.butler_mobile && !/^\d{10}$/.test(dto.butler_mobile)) {
+        throw new ConflictException('Invalid primary mobile number');
+      }
+      if (dto.butler_alternate_mobile && !/^\d{10}$/.test(dto.butler_alternate_mobile)) {
+        throw new ConflictException('Invalid alternate mobile number');
+      }
+      if (
+        dto.butler_mobile &&
+        dto.butler_alternate_mobile &&
+        dto.butler_mobile === dto.butler_alternate_mobile
+      ) {
+        throw new ConflictException('Primary and alternate mobile cannot be same');
+      }
+      if (dto.butler_mobile) {
+        const mobileExists = await client.query(`
+          SELECT 1 FROM m_staff
+          WHERE primary_mobile = $1
+            AND is_active = TRUE
+          LIMIT 1
+        `, [dto.butler_mobile]);
 
+        if (mobileExists.rowCount > 0) {
+          throw new ConflictException('Mobile already exists');
+        }
+      }
+      if (dto.address && dto.address.length > 255) {
+        throw new ConflictException('Address cannot exceed 255 characters');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
+      const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+      if (!allowedShifts.includes(dto.shift)) {
+        throw new ConflictException('Invalid shift');
+      }
       // 1️⃣ Insert into m_staff
       await client.query(`
         INSERT INTO m_staff (
@@ -234,6 +304,9 @@ export class ButlersService {
 
   async update(id: string, dto: UpdateButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^B\d+$/.test(id)) {
+        throw new ConflictException('Invalid Butler ID format');
+      }
       const existingRes = await client.query(`
         SELECT b.*, s.*
         FROM m_butler b
@@ -252,7 +325,60 @@ export class ButlersService {
       const updatedLocal = dto.butler_name
         ? transliterateToDevanagari(dto.butler_name)
         : existing.full_name_local_language;
-      
+      if (dto.butler_name) {
+        if (!dto.butler_name.trim()) {
+          throw new ConflictException('Butler name cannot be empty');
+        }
+        if (dto.butler_name.length > 100) {
+          throw new ConflictException('Butler name cannot exceed 100 characters');
+        }
+      }
+      if (dto.butler_mobile && !/^\d{10}$/.test(dto.butler_mobile)) {
+        throw new ConflictException('Invalid primary mobile number');
+      }
+      if (dto.butler_alternate_mobile && !/^\d{10}$/.test(dto.butler_alternate_mobile)) {
+        throw new ConflictException('Invalid alternate mobile number');
+      }
+      if (
+        dto.butler_mobile &&
+        dto.butler_alternate_mobile &&
+        dto.butler_mobile === dto.butler_alternate_mobile
+      ) {
+        throw new ConflictException('Primary and alternate mobile cannot be same');
+      }
+      if (dto.butler_mobile) {
+        const duplicate = await client.query(`
+          SELECT 1 FROM m_staff
+          WHERE primary_mobile = $1
+            AND staff_id <> $2
+            AND is_active = TRUE
+          LIMIT 1
+        `, [dto.butler_mobile, existing.staff_id]);
+
+        if (duplicate.rowCount > 0) {
+          throw new ConflictException('Mobile already exists');
+        }
+      }
+      if (dto.shift) {
+        const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+        if (!allowedShifts.includes(dto.shift)) {
+          throw new ConflictException('Invalid shift');
+        }
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new ConflictException('Remarks cannot exceed 255 characters');
+      }
+      if (dto.is_active === true && existing.is_active === false) {
+        const duplicate = await client.query(`
+          SELECT 1 FROM m_butler
+          WHERE staff_id = $1
+            AND is_active = TRUE
+        `, [existing.staff_id]);
+
+        if (duplicate.rowCount > 0) {
+          throw new ConflictException('Butler already active');
+        }
+      }
       // 1️⃣ Update m_staff
       await client.query(`
         UPDATE m_staff SET
@@ -302,18 +428,21 @@ export class ButlersService {
 
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^B\d+$/.test(id)) {
+        throw new ConflictException('Invalid Butler ID format');
+      }
       const existingRes = await client.query(`
-        SELECT b.staff_id
+        SELECT b.staff_id, b.is_active
         FROM m_butler b
-        WHERE b.butler_id = $1
+        WHERE b.butler_id = $1 AND b.is_active = true
         FOR UPDATE
       `, [id]);
-
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Butler '${id}' not found`);
       }
-
+      if (!existingRes.rows[0].is_active) {
+        throw new ConflictException('Butler already inactive');
+      }
       const { staff_id } = existingRes.rows[0];
 
       await client.query(`

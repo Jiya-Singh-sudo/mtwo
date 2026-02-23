@@ -6,10 +6,9 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import {
   formatISTDate,
   formatISTDateTime,
-
+  combineDateAndTime,
   toISODateOnly,
   toISOLocalDateTime,
-  combineDateAndTime,
   splitDateTime
 } from "../../../utils/dateTime";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -194,43 +193,9 @@ function GuestTransportManagement() {
     setConfirmModal((prev) => ({ ...prev, isOpen: false }));
   }
 
-
   /* =======================
      LOAD GUEST TRANSPORT
      ======================= */
-  // async function loadGuests() {
-  //   setLoading(true);
-  //   try {
-  //     // 1. Pass the required pagination parameters (e.g., page 1, limit 100)
-  //     // 2. Destructure 'data' from the response
-  //     const response = await getActiveGuests({ page: 1, limit: 100 });
-  //     const guestList = response.data || [];
-
-  //     const rows = await Promise.all(
-  //       guestList.map(async (g: ActiveGuestRow) => {
-  //         let vehicle = null;
-  //         try {
-  //           vehicle = await getVehicleByGuest(String(g.guest_id));
-  //         } catch (err) {
-  //           console.warn("Vehicle fetch failed for guest", g.guest_id);
-  //         }
-
-  //         return {
-  //           guest: g,
-  //           driver: await getActiveDriverByGuest(String(g.guest_id)),
-  //           vehicle
-  //         };
-  //       })
-  //     );
-
-  //     setRows(rows);
-  //   } catch (error) {
-  //     console.error("Failed to load guests:", error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
-
   useEffect(() => {
     async function load() {
       GuestTable.setLoading(true);
@@ -256,8 +221,8 @@ function GuestTransportManagement() {
             guest_name_local_language: row.guest_name_local_language,
             guest_mobile: row.guest_mobile,
             room_id: row.room_id,
-            entry_date: row.entry_date,
-            exit_date: row.exit_date,
+            entry_date: combineDateAndTime(row.entry_date, row.entry_time),
+            exit_date: combineDateAndTime(row.exit_date, row.exit_time),
             inout_status: row.inout_status,
             requires_driver: row.requires_driver,
           },
@@ -272,7 +237,6 @@ function GuestTransportManagement() {
               drop_location: row.drop_location,
               trip_date: row.trip_date,
               start_time: row.start_time,
-              end_time: row.end_time,
               drop_date: row.drop_date,
               drop_time: row.drop_time,
               trip_status: row.trip_status,
@@ -355,68 +319,6 @@ function GuestTransportManagement() {
      DRIVER ACTIONS
      ======================= */
 
-  // async function openAssignDriver(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
-  //   if (isGuestLocked(inout_status)) return;
-
-  //   const list = await getAssignableDrivers();
-  //   // const min = addDays(entry_date, -1);
-  //   // const max = addDays(exit_date, 1);
-  //   const min = entry_date;
-  //   const max = exit_date;
-
-  //   setAssignWindow({
-  //     minDate: toISODateOnly(min),
-  //     maxDate: toISODateOnly(max),
-  //     minDateTime: toISOLocalDateTime(min),
-  //     maxDateTime: toISOLocalDateTime(max),
-  //   });
-  //   setDrivers(list);
-  //   setDriverForm({
-  //     guest_id: String(guest_id),
-  //     driver_id: "",
-  //     pickup_location: "",
-  //     drop_location: "",
-  //     trip_date: "",
-  //     start_time: "",
-  //     end_time: "",
-  //     drop_date: "",
-  //     drop_time: "",
-  //     trip_status: "Scheduled"
-  //   });
-  //   setFormErrors({});
-  //   setDriverModalOpen(true);
-  // }
-
-  // async function submitAssignDriver() {
-  //   if (driverForm.end_time && driverForm.end_time < driverForm.start_time) {
-  //     alert("End time cannot be earlier than start time");
-  //     return;
-  //   }
-
-  //   if (!driverForm.driver_id) {
-  //     alert("Please select a driver first!");
-  //     return;
-  //   }
-
-  //   if (!driverForm.trip_date || !driverForm.start_time) {
-  //     alert("Trip date and start time are required");
-  //     return;
-  //   }
-
-  //   await assignDriverToGuest({
-  //     guest_id: driverForm.guest_id,
-  //     driver_id: driverForm.driver_id,
-  //     pickup_location: driverForm.pickup_location || undefined,
-  //     drop_location: driverForm.drop_location || undefined,
-  //     trip_date: driverForm.trip_date,
-  //     start_time: driverForm.start_time,
-  //     end_time: driverForm.end_time || undefined,
-  //     trip_status: driverForm.trip_status,
-  //   });
-  //   setFormErrors({});
-  //   setDriverModalOpen(false);
-  //   GuestTable.setPage(1);
-  // }
   async function openAssignDriver(
     guest_id: string,
     entry_date: string,
@@ -424,9 +326,14 @@ function GuestTransportManagement() {
     inout_status?: string | null
   ) {
     if (isGuestLocked(inout_status)) return;
-
+    if (!entry_date || isNaN(new Date(entry_date).getTime())) {
+      console.error("Invalid entry date:", entry_date);
+      return;
+    }
     const min = entry_date;
-    const max = exit_date;
+    const max = exit_date && !isNaN(new Date(exit_date).getTime())
+      ? exit_date
+      : entry_date; // fallback
 
     setAssignWindow({
       minDate: toISODateOnly(min),
@@ -606,64 +513,6 @@ function GuestTransportManagement() {
     setVehicleModalOpen(false);
     GuestTable.setPage(1);
   }
-
-
-  // async function submitAssignVehicle() {
-  //   const assigned_at = combineDateAndTime(
-  //     vehicleForm.assigned_date,
-  //     vehicleForm.assigned_time
-  //   );
-
-  //   const released_at = combineDateAndTime(
-  //     vehicleForm.released_date,
-  //     vehicleForm.released_time
-  //   );
-
-  //   if (!assigned_at) {
-  //     alert("Assigned date and time are required");
-  //     return;
-  //   }
-
-  //   await assignVehicleToGuest({
-  //     guest_id: vehicleForm.guest_id,
-  //     vehicle_no: vehicleForm.vehicle_no,
-  //     location: vehicleForm.location,
-  //     assigned_at,
-  //     released_at,
-  //   });
-  //   setFormErrors({});
-  //   setVehicleModalOpen(false);
-  //   GuestTable.setPage(1);
-  // }
-
-  // async function submitAssignVehicle() {
-  //   const assigned_at = combineDateAndTime(
-  //     vehicleForm.assigned_date,
-  //     vehicleForm.assigned_time
-  //   );
-
-  //   const released_at = combineDateAndTime(
-  //     vehicleForm.released_date,
-  //     vehicleForm.released_time
-  //   );
-
-  //   await assignVehicleToGuest({
-  //     guest_id: vehicleForm.guest_id,
-  //     vehicle_no: vehicleForm.vehicle_no,
-  //     location: vehicleForm.location,
-  //     assigned_at,
-  //     released_at,
-  //   });
-
-  //   setVehicleModalOpen(false);
-  //   GuestTable.setPage(1);
-  // }
-
-  // async function submitAssignVehicle() {
-  //   await assignVehicleToGuest(vehicleForm);
-  //   setVehicleModalOpen(false);
-  //   GuestTable.setPage(1);
-  // }
 
   /* =======================
      EDIT DRIVER ACTIONS
@@ -892,8 +741,8 @@ function GuestTransportManagement() {
                     } else {
                       openAssignDriver(
                         String(guest.guest_id),
-                        guest.entry_date,
-                        guest.exit_date,
+                        guest.entry_date ?? "",
+                        guest.exit_date ?? "",
                         guest.inout_status
                       );
                     }
@@ -958,8 +807,8 @@ function GuestTransportManagement() {
                     } else {
                       openAssignVehicle(
                         String(guest.guest_id),
-                        guest.entry_date,
-                        guest.exit_date,
+                        guest.entry_date ?? "",
+                        guest.exit_date ?? "",
                         guest.inout_status
                       );
                     }

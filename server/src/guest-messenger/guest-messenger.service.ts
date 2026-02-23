@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
 import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
@@ -33,9 +33,6 @@ export class GuestMessengerService {
 
   async getGuestNetworkTable(params: GuestNetworkTableQueryDto) {
     const { page, limit, search, sortBy, sortOrder } = params;
-
-    const offset = (page - 1) * limit;
-
     /* ---------------- SORT MAP ---------------- */
     const SORT_MAP: Record<string, string> = {
       guest_name: 'g.guest_name',
@@ -49,7 +46,24 @@ export class GuestMessengerService {
       SORT_MAP.requested_at;
 
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    if (!Number.isInteger(page) || page <= 0) {
+      throw new BadRequestException('Page must be a positive integer');
+    }
 
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new BadRequestException('Limit must be a positive integer');
+    }
+
+    if (limit > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
+    }
+    if (search && search.length > 100) {
+      throw new BadRequestException('Search text too long');
+    }
+    const offset = (page - 1) * limit;
     /* ---------------- WHERE ---------------- */
     const where: string[] = [
       'g.is_active = TRUE',
@@ -106,6 +120,8 @@ export class GuestMessengerService {
         g.guest_name,
 
         io.room_id,
+        r.room_no,
+        r.room_name,
         io.entry_date,
         io.entry_time,
         io.exit_date,
@@ -134,6 +150,10 @@ export class GuestMessengerService {
         ON io.guest_id = g.guest_id
       AND io.is_active = TRUE
       AND io.exit_date IS NULL   -- current stay only
+
+      LEFT JOIN m_room r
+        ON r.room_id = io.room_id
+      AND r.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = g.guest_id
@@ -165,53 +185,6 @@ export class GuestMessengerService {
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
-
-    // const dataSql = `
-    //   SELECT DISTINCT
-    //     g.guest_id,
-    //     g.guest_name,
-
-    //     io.room_id,
-
-    //     -- Network
-    //     gn.guest_network_id,
-    //     gn.status AS network_status,
-    //     n.network_id,
-    //     n.network_name,
-
-    //     -- Messenger
-    //     gm.guest_messenger_id,
-    //     gm.status AS messenger_status,
-    //     m.messenger_id,
-    //     m.messenger_name,
-
-    //     COALESCE(gn.requested_at, gm.requested_at) AS requested_at
-
-    //   FROM m_guest g
-
-    //   LEFT JOIN t_guest_inout io
-    //     ON io.guest_id = g.guest_id
-    //    AND io.is_active = TRUE
-
-    //   LEFT JOIN t_guest_network gn
-    //     ON gn.guest_id = g.guest_id
-    //    AND gn.is_active = TRUE
-
-    //   LEFT JOIN m_network n
-    //     ON n.network_id = gn.network_id
-
-    //   LEFT JOIN t_guest_messenger gm
-    //     ON gm.guest_id = g.guest_id
-    //    AND gm.is_active = TRUE
-
-    //   LEFT JOIN m_messenger m
-    //     ON m.messenger_id = gm.messenger_id
-
-    //   ${whereSql}
-    //   ORDER BY ${sortColumn} ${order}
-    //   LIMIT $${idx} OFFSET $${idx + 1};
-    // `;
-
     const countRes = await this.db.query(countSql, sqlParams);
 
     sqlParams.push(limit, offset);
@@ -224,17 +197,29 @@ export class GuestMessengerService {
   }
 
   async findOne(id: string) {
+    if (!/^GM\d+$/.test(id)) {
+      throw new BadRequestException('Invalid assignment ID format');
+    }
     const res = await this.db.query(
       `SELECT * FROM t_guest_messenger WHERE guest_messenger_id = $1`,
       [id],
     );
+    if (!res.rowCount) {
+      throw new NotFoundException('Assignment not found');
+    }
     return res.rows[0];
   }
 
   /* ---------- CREATE ---------- */
   async create(dto: CreateGuestMessengerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new BadRequestException('Invalid guest ID format');
+      }
 
+      if (!/^M\d+$/.test(dto.messenger_id)) {
+        throw new BadRequestException('Invalid messenger ID format');
+      }
       // 🔒 Validate guest
       const guest = await client.query(
         `SELECT 1 FROM m_guest WHERE guest_id = $1 AND is_active = TRUE FOR UPDATE`,
@@ -244,7 +229,46 @@ export class GuestMessengerService {
       if (!guest.rowCount) {
         throw new NotFoundException('Guest not found');
       }
+      if (!dto.assignment_date) {
+        throw new BadRequestException('Assignment date is required');
+      }
 
+      if (isNaN(Date.parse(dto.assignment_date))) {
+        throw new BadRequestException('Invalid assignment date format');
+      }
+      const stay = await client.query(`
+        SELECT entry_date, exit_date
+        FROM t_guest_inout
+        WHERE guest_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+      `, [dto.guest_id]);
+
+      if (!stay.rowCount) {
+        throw new ConflictException('Guest does not have an active stay');
+      }
+      const entry = new Date(stay.rows[0].entry_date);
+      const exit = stay.rows[0].exit_date ? new Date(stay.rows[0].exit_date) : null;
+      const assignment = new Date(dto.assignment_date);
+      if (assignment < entry) {
+        throw new ConflictException('Assignment date cannot be before guest entry');
+      }
+      if (exit && assignment > exit) {
+        throw new ConflictException('Assignment date cannot be after guest exit');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new BadRequestException('Remarks cannot exceed 255 characters');
+      }
+      const existingActive = await client.query(`
+        SELECT 1 FROM t_guest_messenger
+        WHERE guest_id = $1
+          AND is_active = TRUE
+        FOR UPDATE
+      `, [dto.guest_id]);
+
+      if (existingActive.rowCount > 0) {
+        throw new ConflictException('Guest already has an active messenger');
+      }
       // 🔒 Validate messenger
       const messenger = await client.query(
         `SELECT 1
@@ -261,25 +285,7 @@ export class GuestMessengerService {
       if (!messenger.rowCount) {
         throw new NotFoundException('Messenger not found');
       }
-
-      // 🔒 Prevent duplicate active assignment
-      const duplicate = await client.query(
-        `
-        SELECT 1 FROM t_guest_messenger
-        WHERE guest_id = $1
-          AND messenger_id = $2
-          AND is_active = TRUE
-        FOR UPDATE
-        `,
-        [dto.guest_id, dto.messenger_id]
-      );
-
-      if (duplicate.rowCount > 0) {
-        throw new ConflictException('Messenger already assigned to guest');
-      }
       const id = await this.generateId(client);
-      // const now = new Date().toISOString();
-
       const sql = `
         INSERT INTO t_guest_messenger (
           guest_messenger_id,
@@ -354,15 +360,24 @@ export class GuestMessengerService {
     remarks?: string
   ) {
     return this.db.transaction(async (client) => {
+      if (!/^GM\d+$/.test(id)) {
+        throw new BadRequestException('Invalid assignment ID format');
+      }
       const existing = await client.query(
-        `SELECT 1 FROM t_guest_messenger 
-        WHERE guest_messenger_id = $1 
+        `SELECT is_active FROM t_guest_messenger 
+        WHERE guest_messenger_id = $1 AND is_active = true
         FOR UPDATE`,
         [id]
       );
 
       if (!existing.rowCount) {
         throw new NotFoundException('Assignment not found');
+      }
+      if (!existing.rows[0].is_active) {
+        throw new ConflictException('Assignment already inactive');
+      }
+      if (remarks && remarks.length > 255) {
+        throw new BadRequestException('Remarks cannot exceed 255 characters');
       }
       const res = await client.query(
         `
@@ -385,16 +400,20 @@ export class GuestMessengerService {
   /* ---------- SOFT DELETE ---------- */
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GM\d+$/.test(id)) {
+        throw new BadRequestException('Invalid assignment ID format');
+      }
       const existing = await client.query(
-        `SELECT 1 FROM t_guest_messenger 
-        WHERE guest_messenger_id = $1 
+        `SELECT is_active FROM t_guest_messenger 
+        WHERE guest_messenger_id = $1 AND is_active = true
         FOR UPDATE`,
         [id]
       );
-
       if (!existing.rowCount) {
         throw new NotFoundException('Assignment not found');
+      }
+      if (!existing.rows[0].is_active) {
+        throw new ConflictException('Assignment already inactive');
       }
       const res = await client.query(
         `
@@ -415,18 +434,41 @@ export class GuestMessengerService {
 
   /* ---------- DATA TABLE ---------- */
   async getGuestMessengerTable(query: GuestMessengerTableQueryDto) {
-    const offset = (query.page - 1) * query.limit;
-
     const SORT_MAP: Record<string, string> = {
       assignment_date: 'gm.assignment_date',
       guest_name: 'g.guest_name',
       messenger_name: 's.full_name',
     };
+    if (!Number.isInteger(query.page) || query.page <= 0) {
+      throw new BadRequestException('Page must be a positive integer');
+    }
 
-    const sortColumn =
-      SORT_MAP[query.sortBy ?? 'assignment_date'] ?? 'gm.assignment_date';
+    if (!Number.isInteger(query.limit) || query.limit <= 0) {
+      throw new BadRequestException('Limit must be a positive integer');
+    }
+
+    if (query.limit > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
+    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
+    }
+    const allowedStatus = ['active', 'inactive'];
+
+    if (query.status && !allowedStatus.includes(query.status)) {
+      throw new BadRequestException('Invalid status filter');
+    }
+    if (query.search && query.search.length > 100) {
+      throw new BadRequestException('Search text too long');
+    }
+    const offset = (query.page - 1) * query.limit;
+    const sortColumn = SORT_MAP[query.sortBy ?? 'assignment_date'] ?? 'gm.assignment_date';
     const sortOrder = query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const allowedSorts = Object.keys(SORT_MAP);
 
+    if (query.sortBy && !allowedSorts.includes(query.sortBy)) {
+      throw new BadRequestException('Invalid sort column');
+    }
     const where: string[] = [];
     const params: any[] = [];
 

@@ -96,7 +96,6 @@ export class GuestsService {
       if (payload.inout?.entry_date && isAfter(payload.inout.entry_date, today)) {
         status = 'Scheduled';
       }
-
       // pastedGraphic_2.png Auto Exited
       if (payload.inout?.exit_date && isBefore(payload.inout.exit_date, today)) {
         status = 'Exited';
@@ -108,6 +107,26 @@ export class GuestsService {
             'Address cannot exceed 255 characters'
           );
         }
+        if (!g.guest_name?.trim()) {
+          throw new BadRequestException('Guest name is required');
+        }
+
+        if (g.guest_name.length > 100) {
+          throw new BadRequestException('Guest name cannot exceed 100 characters');
+        }
+
+        if (g.guest_mobile && !/^[0-9]{10}$/.test(g.guest_mobile)) {
+          throw new BadRequestException('Invalid guest mobile number');
+        }
+
+        if (g.guest_alternate_mobile && !/^[0-9]{10}$/.test(g.guest_alternate_mobile)) {
+          throw new BadRequestException('Invalid alternate mobile number');
+        }
+
+        if (g.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email)) {
+          throw new BadRequestException('Invalid email format');
+        }
+
         // 1. Generate ID (seconds timestamp to fit integer)
         const guest_id = await this.generateGuestId(client);
         // Transliteration (NON-BLOCKING & SAFE)
@@ -146,7 +165,16 @@ export class GuestsService {
             'Either designation must be selected or new designation name must be provided'
           );
         }
+        if (payload.designation.designation_id) {
+          const designationCheck = await client.query(
+            `SELECT 1 FROM m_guest_designation WHERE designation_id = $1 AND is_active = TRUE`,
+            [payload.designation.designation_id]
+          );
 
+          if (!designationCheck.rowCount) {
+            throw new BadRequestException('Invalid designation selected');
+          }
+        }
         let finalDesignationId: string;
 
         if (payload.designation.designation_id) {
@@ -239,12 +267,14 @@ export class GuestsService {
         if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
           throw new BadRequestException("Entry date and time are required");
         }
+
         // BEFORE inserting into t_guest_inout
         const existing = await client.query(`
           SELECT 1
           FROM t_guest_inout
           WHERE guest_id = $1
             AND is_active = TRUE
+          FOR UPDATE
         `, [guest_id]);
 
         if (existing.rowCount > 0) {
@@ -264,7 +294,24 @@ export class GuestsService {
         if (roomsRequired <= 0) {
           throw new BadRequestException('Rooms required must be at least 1');
         }
+        if (!/^\d{2}:\d{2}$/.test(entry_time)) {
+          throw new BadRequestException('Invalid entry time format');
+        }
 
+        if (payload.inout?.exit_time && !/^\d{2}:\d{2}$/.test(payload.inout.exit_time)) {
+          throw new BadRequestException('Invalid exit time format');
+        }
+        if (payload.inout?.exit_date && !payload.inout?.entry_date) {
+          throw new BadRequestException('Entry date required if exit date provided');
+        }
+        const entryTs = new Date(`${entry_date} ${entry_time}`);
+        const exitTs = payload.inout?.exit_date
+          ? new Date(`${payload.inout.exit_date} ${payload.inout.exit_time || '00:00'}`)
+          : null;
+
+        if (exitTs && exitTs <= entryTs) {
+          throw new BadRequestException('Exit datetime must be after entry datetime');
+        }
         const insertIoSql = `
           INSERT INTO t_guest_inout
             (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, rooms_required, requires_driver, companions, is_active, inserted_at, inserted_by, inserted_ip)
@@ -302,7 +349,6 @@ export class GuestsService {
       }
     });
   }
-
   // Generic update
   async update(guestId: string, dto: UpdateGuestDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
@@ -327,7 +373,7 @@ export class GuestsService {
           );
         }
       }
-      
+
       const allowed = new Set([
         'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
         'guest_address', 'email'
@@ -342,6 +388,33 @@ export class GuestsService {
             'Address cannot exceed 255 characters'
           );
         }
+        if (k === 'guest_name') {
+          if (!v || typeof v !== 'string' || !v.trim()) {
+            throw new BadRequestException('Guest name is required');
+          }
+          if (v.length > 100) {
+            throw new BadRequestException('Guest name cannot exceed 100 characters');
+          }
+        }
+
+        if (k === 'guest_mobile' && v) {
+          if (!/^[0-9]{10}$/.test(String(v))) {
+            throw new BadRequestException('Invalid guest mobile number');
+          }
+        }
+
+        if (k === 'guest_alternate_mobile' && v) {
+          if (!/^[0-9]{10}$/.test(String(v))) {
+            throw new BadRequestException('Invalid alternate mobile number');
+          }
+        }
+
+        if (k === 'email' && v) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
+            throw new BadRequestException('Invalid email format');
+          }
+        }
+
         fields.push(`${k} = $${idx}`);
         vals.push(v);
         idx++;
@@ -374,12 +447,16 @@ export class GuestsService {
   async findOne(guestId: string) {
     const sql = `SELECT * FROM m_guest WHERE guest_id = $1 LIMIT 1`;
     const r = await this.db.query(sql, [guestId]);
+    if (!r.rowCount) {
+      throw new BadRequestException('Guest not found');
+    }
     return r.rows[0];
   }
 
   async softDeleteGuest(guestId: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
+        
         // 1. Deactivate guest
         const sql = `
           UPDATE m_guest
@@ -391,6 +468,9 @@ export class GuestsService {
           RETURNING *;
         `;
         const r = await client.query(sql, [guestId, user, ip]);
+        if (!r.rowCount) {
+          throw new BadRequestException('Guest not found');
+        }
         const activeInouts = await client.query(`
           SELECT inout_id
           FROM t_guest_inout
@@ -437,7 +517,13 @@ export class GuestsService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
+    if (page <= 0 || limit <= 0) {
+      throw new BadRequestException('Page and limit must be greater than 0');
+    }
 
+    if (limit > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
     const values: any[] = [];
     let idx = 1;
 
@@ -466,7 +552,16 @@ export class GuestsService {
         idx++;
       }
     }
+    if (entryDateFrom && isNaN(Date.parse(entryDateFrom))) {
+      throw new BadRequestException('Invalid entryDateFrom');
+    }
 
+    if (entryDateTo && isNaN(Date.parse(entryDateTo))) {
+      throw new BadRequestException('Invalid entryDateTo');
+    }
+    if (entryDateFrom && entryDateTo && entryDateFrom > entryDateTo) {
+      throw new BadRequestException('entryDateFrom must be before entryDateTo');
+    }
     /* ---------------- SORTING ---------------- */
     const allowedSorts: Record<string, string> = {
       guest_name: 'g.guest_name',
@@ -583,6 +678,11 @@ export class GuestsService {
       RETURNING *;
     `;
     const r = await this.db.query(sql, [inoutId, user, ip]);
+
+    if (!r.rowCount) {
+      throw new BadRequestException('InOut record not found');
+    }
+
     return r.rows[0];
   }
 
@@ -617,7 +717,19 @@ export class GuestsService {
         throw new BadRequestException('InOut record not found');
       }
       const existingInout = lockRes.rows[0];
+      const entryDate = payload.entry_date ?? existingInout.entry_date;
+      const entryTime = payload.entry_time ?? existingInout.entry_time;
+      const exitDate = payload.exit_date ?? existingInout.exit_date;
+      const exitTime = payload.exit_time ?? existingInout.exit_time;
 
+      if (exitDate) {
+        const entryTs = new Date(`${entryDate} ${entryTime || '00:00'}`);
+        const exitTs = new Date(`${exitDate} ${exitTime || '23:59'}`);
+
+        if (exitTs <= entryTs) {
+          throw new BadRequestException('Exit datetime must be after entry datetime');
+        }
+      }
       const currentRoomsRes = await client.query(`
         SELECT r.room_capacity
         FROM t_guest_room gr
@@ -631,7 +743,24 @@ export class GuestsService {
         (sum, r) => sum + Number(r.room_capacity),
         0
       );
+      if (payload.status) {
+        const currentStatus = existingInout.status;
 
+        const allowedTransitions: Record<string, string[]> = {
+          Scheduled: ['Entered', 'Cancelled'],
+          Entered: ['Inside', 'Exited'],
+          Inside: ['Exited'],
+        };
+
+        if (
+          allowedTransitions[currentStatus] &&
+          !allowedTransitions[currentStatus].includes(payload.status)
+        ) {
+          throw new BadRequestException(
+            `Invalid status transition from ${currentStatus} to ${payload.status}`
+          );
+        }
+      }
       const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
       const newCompanions = payload.companions ?? existingInout.companions ?? 0;
       const totalPeople = 1 + newCompanions;
@@ -642,7 +771,20 @@ export class GuestsService {
           `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
         );
       }
+      if (payload.rooms_required !== undefined && payload.rooms_required <= 0) {
+        throw new BadRequestException('Rooms required must be at least 1');
+      }
 
+      if (payload.companions !== undefined && payload.companions < 0) {
+        throw new BadRequestException('Companions cannot be negative');
+      }
+      if (payload.entry_time && !/^\d{2}:\d{2}$/.test(payload.entry_time)) {
+        throw new BadRequestException('Invalid entry time format');
+      }
+
+      if (payload.exit_time && !/^\d{2}:\d{2}$/.test(payload.exit_time)) {
+        throw new BadRequestException('Invalid exit time format');
+      }
       // 🚨 Rule 2: if allocation is already complete, capacity must still satisfy people
       if (
         currentRoomCount === newRoomsRequired &&
@@ -751,9 +893,14 @@ export class GuestsService {
       SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
       WHERE guest_id = $1 AND is_active = TRUE
     `;
-    await this.db.query(sql, [guestId, user, ip]);
+    const result = await this.db.query(sql, [guestId, user, ip]);
+
+    if (!result.rowCount) {
+      throw new BadRequestException('No active inouts found for guest');
+    }
   }
   async findCheckedInWithoutVehicle() {
+
   const sql = `
   SELECT
     g.guest_id,
@@ -810,6 +957,9 @@ export class GuestsService {
   `;
 
     const res = await this.db.query(sql);
+    if (!res.rowCount) {
+      return [];
+    }
     return res.rows;
   }
   private async cascadeGuestExit(
@@ -823,11 +973,10 @@ export class GuestsService {
       `SELECT guest_id FROM t_guest_inout WHERE inout_id = $1 FOR UPDATE`,
       [inoutId]
     );
-
-    if (!inoutRes.rowCount) return;
-
+    if (!inoutRes.rowCount) {
+      throw new BadRequestException('Invalid inout record');
+    }
     const guestId = inoutRes.rows[0].guest_id;
-
       const guestRooms = await trx.query(
         `
         SELECT guest_room_id, room_id
@@ -998,6 +1147,14 @@ export class GuestsService {
     `, [guestId, user, ip]);
   }
   async getTransportConflictsForGuest(guestId: string) {
+    const guestCheck = await this.db.query(
+      `SELECT 1 FROM m_guest WHERE guest_id = $1 AND is_active = TRUE`,
+      [guestId]
+    );
+
+    if (!guestCheck.rowCount) {
+      throw new BadRequestException('Guest not found or inactive');
+    }
     const driverSql = `
     SELECT
       gd.guest_driver_id,
@@ -1057,6 +1214,9 @@ export class GuestsService {
       // const guestIds = new Set<string>();
 
       for (const row of expired.rows) {
+        if (!row.inout_id) {
+          continue;
+        }
         await client.query(
           `
           UPDATE t_guest_inout
@@ -1090,6 +1250,17 @@ export class GuestsService {
     client: any,
     excludeGuestId?: string
   ) {
+    if (!from || !to) {
+      throw new BadRequestException('From and To dates are required');
+    }
+
+    if (isNaN(Date.parse(from)) || isNaN(Date.parse(to))) {
+      throw new BadRequestException('Invalid date format');
+    }
+
+    if (from > to) {
+      throw new BadRequestException('From date must be before To date');
+    }
     const res = await client.query(
       `
       SELECT 1
@@ -1099,7 +1270,7 @@ export class GuestsService {
         AND is_active = TRUE
         AND daterange(
               check_in_date,
-              COALESCE(check_out_date, check_in_date),
+              COALESCE(check_out_date, CURRENT_DATE),
               '[]'
             )
             && daterange($2::date, $3::date, '[]')

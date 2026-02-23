@@ -53,7 +53,7 @@ export class CreateGuestFoodDto {
     'High Tea',
     'Dinner',
   ])
-  meal_type?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
+  meal_type: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
 
   @IsOptional()
   @IsString()

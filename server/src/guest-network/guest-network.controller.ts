@@ -39,21 +39,34 @@ export class GuestNetworkController {
     return this.service.update(id, dto, user, ip);
   }
 
+  // @Post(':id/close')
+  // closeAndCreateNext(
+  //   @Param('id') id: string,
+  //   @Body() dto: CloseGuestNetworkDto,
+  //   @Req() req: any
+  // ) {
+  //   const { user, ip } = getRequestContext(req);
+  //   return this.service.closeAndCreateNext(
+  //     id,
+  //     dto,
+  //     user,
+  //     ip
+  //   );
+  // }
   @Post(':id/close')
-  closeAndCreateNext(
+  closeNetwork(
     @Param('id') id: string,
     @Body() dto: CloseGuestNetworkDto,
     @Req() req: any
   ) {
     const { user, ip } = getRequestContext(req);
-    return this.service.closeAndCreateNext(
+    return this.service.closeNetwork(
       id,
       dto,
       user,
       ip
     );
   }
-
   @Delete(":id")
   softDelete(@Param("id") id: string, @Req() req: any) {
     const { user, ip } = getRequestContext(req);

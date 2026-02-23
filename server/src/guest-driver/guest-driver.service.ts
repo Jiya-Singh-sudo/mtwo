@@ -19,19 +19,6 @@ export class GuestDriverService {
     return res.rows[0].id;
   }
 
-  // private async generateId(retries = 3): Promise<string> {
-  //   const sql = `SELECT guest_driver_id FROM t_guest_driver ORDER BY guest_driver_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) return "GD001";
-
-  //   const last = res.rows[0].guest_driver_id.replace("GD", "");
-  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
-
-  //   return "GD" + next;
-  // }
-
-
   /**
    * Insert helper with retry logic to handle race conditions on ID generation.
    * If a unique constraint violation occurs, it regenerates the ID and retries.

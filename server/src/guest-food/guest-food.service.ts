@@ -13,17 +13,6 @@ export class GuestFoodService {
     "High Tea": { start: "16:30", end: "18:00" },
     Dinner: { start: "19:00", end: "22:00" }
   };
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT guest_food_id FROM t_guest_food ORDER BY guest_food_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) return "GF001";
-
-  //   const last = res.rows[0].guest_food_id.replace("GF", "");
-  //   const next = (parseInt(last) + 1).toString().padStart(3, "0");
-
-  //   return "GF" + next;
-  // }
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GF' || LPAD(nextval('guest_food_id_seq')::text, 3, '0') AS id
@@ -122,6 +111,9 @@ export class GuestFoodService {
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid activeOnly flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM t_guest_food WHERE is_active = $1 ORDER BY plan_date DESC, meal_type`
       : `SELECT * FROM t_guest_food ORDER BY plan_date DESC, meal_type`;
@@ -131,13 +123,30 @@ export class GuestFoodService {
   }
 
   async findOne(id: string) {
+    if (!/^GF\d+$/.test(id)) {
+      throw new BadRequestException('Invalid Guest Food ID format');
+    }
     const sql = `SELECT * FROM t_guest_food WHERE guest_food_id = $1`;
     const res = await this.db.query(sql, [id]);
+    if (!res.rowCount) {
+      throw new NotFoundException(`Guest Food "${id}" not found`);
+    }
     return res.rows[0];
   }
 
   async create(dto: CreateGuestFoodDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+if (!/^G\d+$/.test(dto.guest_id)) {
+  throw new BadRequestException('Invalid guest ID format');
+}
+
+if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
+  throw new BadRequestException('Invalid room ID format');
+}
+
+if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
+  throw new BadRequestException('Invalid butler ID format');
+}
       const planDate = new Date().toISOString().split("T")[0];
       const id = await this.generateId(client);
       let foodId = dto.food_id;
@@ -174,6 +183,50 @@ export class GuestFoodService {
 
         if (!butlerCheck.rowCount) {
           throw new NotFoundException("Butler not found or inactive");
+        }
+        const allowedMeals = ['Breakfast', 'Lunch', 'High Tea', 'Dinner'];
+
+        if (!allowedMeals.includes(dto.meal_type)) {
+          throw new BadRequestException('Invalid meal type');
+        }
+        const allowedStages = ['PLANNED', 'ORDERED', 'DELIVERED', 'CANCELLED'];
+        if (dto.food_stage && !allowedStages.includes(dto.food_stage)) {
+          throw new BadRequestException('Invalid food stage');
+        }
+        const allowedDeliveryStatus = ['Pending', 'Out for Delivery', 'Delivered', 'Failed'];
+        if (dto.delivery_status && !allowedDeliveryStatus.includes(dto.delivery_status)) {
+          throw new BadRequestException('Invalid delivery status');
+        }
+        if (!Number.isInteger(dto.quantity) || dto.quantity <= 0) {
+          throw new BadRequestException('Quantity must be a positive integer');
+        }
+        if (dto.quantity > 20) {
+          throw new BadRequestException('Quantity too large');
+        }
+        if (dto.plan_date && isNaN(Date.parse(dto.plan_date))) {
+          throw new BadRequestException('Invalid plan date format');
+        }
+        if (dto.plan_date && dto.plan_date < new Date().toISOString().split("T")[0]) {
+          throw new BadRequestException('Plan date cannot be in the past');
+        }
+        if (dto.remarks && dto.remarks.length > 255) {
+          throw new BadRequestException('Remarks cannot exceed 255 characters');
+        }
+        const duplicate = await client.query(`
+          SELECT 1 FROM t_guest_food
+          WHERE guest_id = $1
+            AND meal_type = $2
+            AND food_id = $3
+            AND plan_date = $4
+            AND is_active = TRUE
+        `, [
+          dto.guest_id,
+          dto.meal_type,
+          foodId,
+          dto.plan_date ?? planDate
+        ]);
+        if (duplicate.rowCount > 0) {
+          throw new BadRequestException('Food already planned for this guest and meal');
         }
         try {
           const insertFood = await client.query(
@@ -297,7 +350,20 @@ export class GuestFoodService {
         [user, ip, planDate]
       );
       let insertCount = 0;
+      const allowedMeals = ['breakfast', 'lunch', 'highTea', 'dinner'];
 
+      for (const meal of Object.keys(meals)) {
+        if (!allowedMeals.includes(meal)) {
+          throw new BadRequestException('Invalid meal type in plan');
+        }
+      }
+      for (const items of Object.values(meals)) {
+        for (const foodId of items) {
+          if (!/^\d+$/.test(foodId)) {
+            throw new BadRequestException('Invalid food ID format');
+          }
+        }
+      }
       for (const [mealType, items] of Object.entries(meals)) {
 
         let dbMealType = "";
@@ -391,18 +457,36 @@ export class GuestFoodService {
 
   async update(id: string, dto: UpdateGuestFoodDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GF\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Food ID format');
+      }
       const existingRes = await client.query(
         `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
         [id]
       );
-
+      if (dto.meal_type) {
+        const allowedMeals = ['Breakfast', 'Lunch', 'High Tea', 'Dinner'];
+        if (!allowedMeals.includes(dto.meal_type)) {
+          throw new BadRequestException('Invalid meal type');
+        }
+      }
       const existing = existingRes.rows[0];
       if (!existing) throw new NotFoundException(`Guest Food "${id}" not found`);
       if (existing.food_stage === 'DELIVERED' && dto.food_stage === 'PLANNED') {
         throw new BadRequestException('Cannot revert delivered food back to planned');
       }
-
+      if (existing.food_stage === 'CANCELLED' && dto.food_stage === 'DELIVERED') {
+        throw new BadRequestException('Cannot deliver cancelled food');
+      }
+      if (dto.delivery_status) {
+        const allowedDeliveryStatus = ['Pending', 'Out for Delivery', 'Delivered', 'Failed'];
+        if (!allowedDeliveryStatus.includes(dto.delivery_status)) {
+          throw new BadRequestException('Invalid delivery status');
+        }
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new BadRequestException('Remarks cannot exceed 255 characters');
+      }
       const sql = `
         UPDATE t_guest_food SET
           room_id = $1,
@@ -440,18 +524,20 @@ export class GuestFoodService {
   }
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GF\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Food ID format');
+      }
       const existingRes = await client.query(
         `SELECT * FROM t_guest_food WHERE guest_food_id = $1 FOR UPDATE`,
         [id]
       );
-
       const existing = existingRes.rows[0];
-
       if (!existing) {
         throw new NotFoundException(`Guest Food "${id}" not found`);
       }
-
+      if (!existing.is_active) {
+        throw new BadRequestException('Guest food already inactive');
+      }
       const res = await client.query(
         `
         UPDATE t_guest_food SET
@@ -602,7 +688,33 @@ export class GuestFoodService {
       entryDateFrom,
       entryDateTo
     } = params;
-
+    if (!Number.isInteger(page) || page <= 0) {
+      throw new BadRequestException('Page must be positive integer');
+    }
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new BadRequestException('Limit must be positive integer');
+    }
+    if (limit > 100) {
+      throw new BadRequestException('Limit too large');
+    }
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
+    }
+    if (search && search.length > 100) {
+      throw new BadRequestException('Search text too long');
+    }
+    if (mealType && !['Breakfast', 'Lunch', 'High Tea', 'Dinner'].includes(mealType)) {
+      throw new BadRequestException('Invalid meal type filter');
+    }
+    if (foodStatus && !['SERVED', 'NOT_SERVED'].includes(foodStatus)) {
+      throw new BadRequestException('Invalid food status filter');
+    }
+    if (entryDateFrom && isNaN(Date.parse(entryDateFrom))) {
+      throw new BadRequestException('Invalid entryDateFrom');
+    }
+    if (entryDateTo && isNaN(Date.parse(entryDateTo))) {
+      throw new BadRequestException('Invalid entryDateTo');
+    }
     const offset = (page - 1) * limit;
 
     /* ---------- SORT MAP ---------- */
@@ -790,8 +902,12 @@ export class GuestFoodService {
     user: string,
     ip: string
   ) {
+    
     const planDate = new Date().toISOString().split("T")[0];
     const { guest_id, room_id, entry_date, entry_time, exit_date, exit_time } = guest;
+    if (!guest_id) {
+      throw new BadRequestException('Invalid guest data');
+    }
     const planRes = await client.query(
       `
       SELECT meal_type, food_id

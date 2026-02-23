@@ -22,29 +22,18 @@ export class MessengerService {
     `);
     return res.rows[0].id;
   }
-  // private async generateMessengerId(): Promise<string> {
-  //   const sql = `
-  //     SELECT messenger_id
-  //     FROM m_messenger
-  //     WHERE messenger_id ~ '^M[0-9]+$'
-  //     ORDER BY CAST(SUBSTRING(messenger_id, 2) AS INT) DESC
-  //     LIMIT 1;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) return 'M001';
-
-  //   const lastId = res.rows[0].messenger_id;
-  //   const next = parseInt(lastId.substring(1), 10) + 1;
-  //   return `M${next.toString().padStart(3, '0')}`;
-  // }
-
   /* ---------- FIND BY ID ---------- */
   async findOneById(id: string) {
     const res = await this.db.query(
       `SELECT * FROM m_messenger WHERE messenger_id = $1`,
       [id],
     );
+    if (!res.rowCount) {
+      throw new NotFoundException(`Messenger '${id}' not found`);
+    }
+    if (!/^M\d+$/.test(id)) {
+      throw new BadRequestException('Invalid messenger ID format');
+    }
     return res.rows[0];
   }
 
@@ -56,13 +45,40 @@ export class MessengerService {
       const primaryMobile = dto.primary_mobile?.trim();
       const secondaryMobile = dto.secondary_mobile?.trim() || null;
       const email = dto.email?.trim() || null;
-
       if (!name) {
         throw new BadRequestException('Messenger name is required');
       }
-
+      if (name.length > 100) {
+        throw new BadRequestException('Messenger name cannot exceed 100 characters');
+      }
       if (!/^\d{10}$/.test(primaryMobile)) {
         throw new BadRequestException('Primary mobile must be 10 digits');
+      }
+      if (secondaryMobile) {
+        const secondaryExists = await client.query(`
+          SELECT 1 FROM m_staff
+          WHERE primary_mobile = $1
+            AND is_active = true
+          LIMIT 1
+        `, [secondaryMobile]);
+
+        if (secondaryExists.rowCount > 0) {
+          throw new BadRequestException(
+            `Mobile '${secondaryMobile}' already exists`
+          );
+        }
+      }
+      if (secondaryMobile && !/^\d{10}$/.test(secondaryMobile)) {
+        throw new BadRequestException('Secondary mobile must be 10 digits');
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+      if (dto.designation && dto.designation.length > 100) {
+        throw new BadRequestException('Designation cannot exceed 100 characters');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new BadRequestException('Remarks cannot exceed 255 characters');
       }
       const messenger_id = await this.generateMessengerId(client);
       const staff_id = await this.generateStaffId(client);
@@ -74,25 +90,25 @@ export class MessengerService {
         LIMIT 1
       `, [primaryMobile]);
 
-            if (mobileExists.rowCount > 0) {
-              throw new BadRequestException(
-                `Mobile '${primaryMobile}' already exists`
-              );
-            }
-            if (email) {
-              const emailExists = await client.query(`
-                SELECT 1 FROM m_staff
-                WHERE email = $1
-                  AND is_active = true
-                LIMIT 1
-              `, [email]);
+      if (mobileExists.rowCount > 0) {
+        throw new BadRequestException(
+          `Mobile '${primaryMobile}' already exists`
+        );
+      }
+      if (email) {
+        const emailExists = await client.query(`
+          SELECT 1 FROM m_staff
+          WHERE email = $1
+          AND is_active = true
+          LIMIT 1
+        `, [email]);
 
-              if (emailExists.rowCount > 0) {
-                throw new BadRequestException(
-                  `Email '${email}' already exists`
-                );
-              }
-            }
+        if (emailExists.rowCount > 0) {
+          throw new BadRequestException(
+            `Email '${email}' already exists`
+          );
+        }
+      }
       // 1️⃣ Create staff record
       await client.query(`
         INSERT INTO m_staff (
@@ -153,11 +169,52 @@ export class MessengerService {
       const primaryMobile = dto.primary_mobile?.trim();
       const secondaryMobile = dto.secondary_mobile?.trim() || null;
       const email = dto.email?.trim() || null;
+      if (dto.messenger_name) {
+        if (!name) {
+          throw new BadRequestException('Messenger name cannot be empty');
+        }
+        if (name.length > 100) {
+          throw new BadRequestException('Messenger name cannot exceed 100 characters');
+        }
+      }
+      if (primaryMobile && !/^\d{10}$/.test(primaryMobile)) {
+        throw new BadRequestException('Primary mobile must be 10 digits');
+      }
+      if (secondaryMobile && !/^\d{10}$/.test(secondaryMobile)) {
+        throw new BadRequestException('Secondary mobile must be 10 digits');
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+      if (primaryMobile && secondaryMobile && primaryMobile === secondaryMobile) {
+        throw new BadRequestException('Primary and secondary mobile cannot be the same');
+      }
+      if (dto.remarks && dto.remarks.length > 255) {
+        throw new BadRequestException('Remarks cannot exceed 255 characters');
+      }
+      if (!/^M\d+$/.test(id)) {
+        throw new BadRequestException('Invalid messenger ID format');
+      }
+      if (dto.is_active === false) {
+        const assigned = await client.query(`
+          SELECT 1
+          FROM t_guest_messenger
+          WHERE messenger_id = $1
+            AND is_active = TRUE
+          LIMIT 1
+        `, [id]);
+
+        if (assigned.rowCount > 0) {
+          throw new BadRequestException(
+            'Cannot deactivate messenger while assigned'
+          );
+        }
+      }
       const existingRes = await client.query(`
         SELECT m.*, s.*
         FROM m_messenger m
         INNER JOIN m_staff s ON s.staff_id = m.staff_id
-        WHERE m.messenger_id = $1
+        WHERE m.messenger_id = $1 AND m.is_active = true AND s.is_active = true
         FOR UPDATE
       `, [id]);
 
@@ -261,14 +318,16 @@ export class MessengerService {
         SELECT m.messenger_id, m.staff_id, s.full_name
         FROM m_messenger m
         INNER JOIN m_staff s ON s.staff_id = m.staff_id
-        WHERE m.messenger_id = $1
+        WHERE m.messenger_id = $1 AND m.is_active = true AND s.is_active = true
         FOR UPDATE
       `, [id]);
 
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Messenger '${id}' not found`);
       }
-
+      if (!existingRes.rows[0].is_active) {
+        throw new BadRequestException('Messenger already inactive');
+      }
       const { staff_id, full_name } = existingRes.rows[0];
 
       // Block if assigned
@@ -285,7 +344,7 @@ export class MessengerService {
           `Cannot delete messenger '${full_name}' because it is assigned`
         );
       }
-      if (!id.startsWith('M')) {
+      if (!/^M\d+$/.test(id)) {
         throw new BadRequestException('Invalid messenger ID format');
       }
       // Deactivate messenger
@@ -325,12 +384,22 @@ export class MessengerService {
       designation: 'designation',
       inserted_at: 'inserted_at',
     };
+    if (page <= 0 || limit <= 0) {
+      throw new BadRequestException('Page and limit must be greater than 0');
+    }
 
-    const sortColumn =
-      SORT_MAP[query.sortBy ?? 'messenger_name'] ?? 'messenger_name';
-
+    if (limit > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
+    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
+    }
+    const sortColumn = SORT_MAP[query.sortBy ?? 'messenger_name'] ?? 'messenger_name';
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
-
+    const allowedStatuses = ['active', 'inactive', 'assigned', 'unassigned'];
+    if (query.status && !allowedStatuses.includes(query.status)) {
+      throw new BadRequestException('Invalid status filter');
+    }
     /* ---------- FILTERS ---------- */
     const where: string[] = [];
     const params: any[] = [];

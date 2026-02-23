@@ -8,25 +8,6 @@ import { sha256 } from '../../common/utlis/hash.util';
 @Injectable()
 export class NetworksService {
   constructor(private readonly db: DatabaseService) { }
-  // private async generateProviderId(): Promise<string> {
-  //   const sql = `
-  //     SELECT provider_id
-  //     FROM m_wifi_provider
-  //     WHERE provider_id ~ '^N[0-9]+$'
-  //     ORDER BY CAST(SUBSTRING(provider_id, 2) AS INT) DESC
-  //     LIMIT 1;
-  //   `;
-
-  //   const res = await this.db.query(sql);
-
-  //   if (res.rows.length === 0) {
-  //     return 'N001';
-  //   }
-
-  //   const lastId = res.rows[0].provider_id;
-  //   const nextNum = parseInt(lastId.substring(1), 10) + 1;
-  //   return `N${nextNum.toString().padStart(3, '0')}`;
-  // }
   private async generateProviderId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'N' || LPAD(nextval('wifi_provider_seq')::text, 3, '0') AS id
@@ -46,52 +27,70 @@ export class NetworksService {
       bandwidth_mbps: 'bandwidth_mbps',
       inserted_at: 'inserted_at',
     };
-
     const sortColumn =
       SORT_MAP[query.sortBy ?? 'provider_name'] ?? 'provider_name';
-
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
-
-    /* ---------- FILTERS ---------- */
-    // const where: string[] = [];
-    // const params: any[] = [];
-
-    // // status → is_active
-    // if (query.status === 'active') {
-    //   where.push('is_active = true');
-    // } else if (query.status === 'inactive') {
-    //   where.push('is_active = false');
-    // }
-
-    // // search → provider_name
-    // if (query.search) {
-    //   params.push(`%${query.search}%`);
-    //   where.push(`provider_name ILIKE $${params.length}`);
-    // }
-
-    // const whereClause =
-    //   where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
     /* ---------- FILTERS ---------- */
     const where: string[] = [];
     const params: any[] = [];
 
-    // status → is_active
+    /* ---------- STATUS FILTER ---------- */
+    const allowedStatus = ['active', 'inactive', 'all'];
+
+    if (query.status && !allowedStatus.includes(query.status)) {
+      throw new BadRequestException('Invalid status filter');
+    }
+
     if (query.status === 'active') {
       where.push('is_active = true');
     } else if (query.status === 'inactive') {
       where.push('is_active = false');
     }
+    // if "all" → do nothing
 
-    // network type filter (NEW)
-    if (['WiFi','Broadband','Hotspot','Leased-Line'].includes(query.networkType as any)) {
+    /* ---------- NETWORK TYPE FILTER ---------- */
+    if (query.networkType) {
+      const allowedTypes = ['WiFi','Broadband','Hotspot','Leased-Line'];
+
+      if (!allowedTypes.includes(query.networkType)) {
+        throw new BadRequestException('Invalid network type filter');
+      }
+
       params.push(query.networkType);
       where.push(`network_type = $${params.length}`);
     }
-    if (query.networkType && !['WiFi','Broadband','Hotspot','Leased-Line'].includes(query.networkType)) {
-      throw new BadRequestException('Invalid network type filter');
+
+    /* ---------- SEARCH FILTER ---------- */
+    if (query.search) {
+      if (query.search.length > 100) {
+        throw new BadRequestException('Search text too long');
+      }
+
+      params.push(`%${query.search}%`);
+      const index = params.length;
+
+      where.push(`
+        (
+          provider_name ILIKE $${index}
+          OR network_type::text ILIKE $${index}
+          OR CAST(bandwidth_mbps AS TEXT) ILIKE $${index}
+        )
+      `);
     }
+
+    /* ---------- BUILD WHERE CLAUSE (IMPORTANT: AFTER filters) ---------- */
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    if (!Number.isInteger(query.page) || query.page <= 0) {
+      throw new BadRequestException('Page must be a positive integer');
+    }
+
+    if (!Number.isInteger(query.limit) || query.limit <= 0) {
+      throw new BadRequestException('Limit must be a positive integer');
+    }
+
     if (query.limit > 100) {
-      throw new BadRequestException('Limit too large');
+      throw new BadRequestException('Limit cannot exceed 100');
     }
     // search → provider_name, network_type, bandwidth
     if (query.search) {
@@ -106,10 +105,6 @@ export class NetworksService {
         )
       `);
     }
-
-    const whereClause =
-      where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-
     /* ---------- DATA QUERY ---------- */
     const dataSql = `
       SELECT
@@ -137,17 +132,6 @@ export class NetworksService {
       FROM m_wifi_provider
       ${whereClause};
     `;
-
-    // const statsSql = `
-    //   SELECT
-    //     COUNT(*)::int AS total,
-    //     COUNT(CASE WHEN network_type = 'WiFi' THEN 1 END)::int AS wifi,
-    //     COUNT(CASE WHEN network_type = 'Broadband' THEN 1 END)::int AS broadband,
-    //     COUNT(CASE WHEN network_type = 'Hotspot' THEN 1 END)::int AS hotspot,
-    //     COUNT(CASE WHEN network_type = 'Leased-Line' THEN 1 END)::int AS leased_line
-    //   FROM m_wifi_provider
-    //   WHERE is_active = TRUE;
-    // `;
     const statsSql = `
       SELECT
         COUNT(*)::int AS total,
@@ -186,12 +170,21 @@ export class NetworksService {
   }
 
   async findOneById(id: string) {
+    if (!/^N\d+$/.test(id)) {
+      throw new BadRequestException('Invalid provider ID format');
+    }
     const sql = `SELECT * FROM m_wifi_provider WHERE provider_id = $1`;
     const res = await this.db.query(sql, [id]);
+    if (!res.rowCount) {
+      throw new NotFoundException(`Provider '${id}' not found`);
+    }
     return res.rows[0];
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid activeOnly flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM m_wifi_provider WHERE is_active = $1 ORDER BY provider_name`
       : `SELECT * FROM m_wifi_provider ORDER BY provider_name`;
@@ -200,32 +193,28 @@ export class NetworksService {
     return res.rows;
   }
 
-  // async findOneByName(name: string) {
-  //   const sql = `SELECT * FROM m_wifi_provider WHERE provider_name = $1`;
-  //   const res = await this.db.query(sql, [name]);
-  //   return res.rows[0];
-  // }
-
   async create(dto: CreateNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      // const now = new Date()
-      //   .toLocaleString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' })
-      //   .replace(',', '');
-
       const providerId = await this.generateProviderId(client);
-      const hashedPassword = dto.password
-        ? sha256(dto.password)
-        : null;
+      const hashedPassword = dto.password ? sha256(dto.password) : null;
       // Normalize input
       const providerName = dto.provider_name?.trim();
       const username = dto.username?.trim() || null;
       const staticIp = dto.static_ip?.trim() || null;
       const address = dto.address?.trim() || null;
+      if (providerName.length > 100) {
+        throw new BadRequestException('Provider name cannot exceed 100 characters');
+      }
 
       if (!providerName) {
         throw new BadRequestException('Provider name is required');
       }
-
+      if (username && username.length > 100) {
+        throw new BadRequestException('Username cannot exceed 100 characters');
+      }
+      if (address && address.length > 255) {
+        throw new BadRequestException('Address cannot exceed 255 characters');
+      }
       if (!['WiFi','Broadband','Hotspot','Leased-Line'].includes(dto.network_type)) {
         throw new BadRequestException('Invalid network type');
       }
@@ -241,6 +230,41 @@ export class NetworksService {
 
         if (!ipRegex.test(staticIp)) {
           throw new BadRequestException('Invalid static IP format');
+        }
+      }
+      if (username && !dto.password) {
+        throw new BadRequestException('Password required when username is provided');
+      }
+      if (username) {
+        const userExists = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE LOWER(username) = LOWER($1)
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [username]
+        );
+
+        if (userExists.rowCount > 0) {
+          throw new BadRequestException('Username already exists');
+        }
+      }
+      if (staticIp) {
+        const ipExists = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE static_ip = $1
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [staticIp]
+        );
+
+        if (ipExists.rowCount > 0) {
+          throw new BadRequestException('Static IP already exists');
         }
       }
       if (dto.password) {
@@ -305,16 +329,17 @@ export class NetworksService {
 
   async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^N\d+$/.test(id)) {
+        throw new BadRequestException('Invalid provider ID format');
+      }
       const existingRes = await client.query(
-        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 FOR UPDATE`,
+        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 AND is_active = true FOR UPDATE`,
         [id],
       );
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Provider '${id}' not found`);
       }
-      if (!id.startsWith('N')) {
-        throw new BadRequestException('Invalid provider ID format');
-      }
+
       const providerName = dto.provider_name?.trim();
       const staticIp = dto.static_ip?.trim();
       if (dto.network_type) {
@@ -340,7 +365,72 @@ export class NetworksService {
           throw new BadRequestException('Password must be at least 6 characters');
         }
       }
+      if (providerName && providerName.length > 100) {
+        throw new BadRequestException('Provider name cannot exceed 100 characters');
+      }
+      // if (dto.provider_name_local_language && dto.provider_name_local_language.length > 100) {
+      //   throw new BadRequestException('Local language name cannot exceed 100 characters');
+      // }
+      if (dto.username && dto.username.length > 100) {
+        throw new BadRequestException('Username cannot exceed 100 characters');
+      }
+      if (dto.username) {
+        const duplicateUser = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE LOWER(username) = LOWER($1)
+            AND provider_id <> $2
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [dto.username, id]
+        );
+
+        if (duplicateUser.rowCount > 0) {
+          throw new BadRequestException('Username already exists');
+        }
+      }
+      if (staticIp) {
+        const ipExists = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE static_ip = $1
+            AND provider_id <> $2
+            AND is_active = TRUE
+          LIMIT 1
+          `,
+          [staticIp, id]
+        );
+
+        if (ipExists.rowCount > 0) {
+          throw new BadRequestException('Static IP already exists');
+        }
+      }
+      if (dto.address && dto.address.length > 255) {
+        throw new BadRequestException('Address cannot exceed 255 characters');
+      }
+      if (dto.username && dto.password === null) {
+        throw new BadRequestException('Password cannot be removed while username exists');
+      }
       const existing = existingRes.rows[0];
+      if (dto.is_active === true && existing.is_active === false) {
+        const nameConflict = await client.query(
+          `
+          SELECT 1
+          FROM m_wifi_provider
+          WHERE LOWER(provider_name) = LOWER($1)
+            AND provider_id <> $2
+            AND is_active = TRUE
+          `,
+          [existing.provider_name, id]
+        );
+
+        if (nameConflict.rowCount > 0) {
+          throw new BadRequestException('Cannot reactivate due to duplicate provider name');
+        }
+      }
       if (dto.is_active === false && existing.is_active === true) {
         const assigned = await client.query(`
           SELECT 1
@@ -438,12 +528,13 @@ export class NetworksService {
 
   async softDelete(id: string, user: string, ip: string) {
    return this.db.transaction(async (client) => {
-
+      if (!/^N\d+$/.test(id)) {
+        throw new BadRequestException('Invalid provider ID format');
+      }
       const existingRes = await client.query(
-        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 FOR UPDATE`,
+        `SELECT * FROM m_wifi_provider WHERE provider_id = $1 AND is_active = true FOR UPDATE`,
         [id],
       );
-
       if (!existingRes.rowCount) {
         throw new BadRequestException(`Provider '${id}' not found`);
       }
@@ -458,7 +549,6 @@ export class NetworksService {
         `,
         [id]
       );
-
       if (assigned.rowCount > 0) {
         throw new BadRequestException(
           `Cannot delete network provider '${existingRes.rows[0].provider_name}' because it is currently assigned to a guest`

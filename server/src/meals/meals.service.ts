@@ -6,18 +6,11 @@ import { UpdateMealDto } from './dto/update-meals.dto';
 @Injectable()
 export class MealsService {
   constructor(private readonly db: DatabaseService) {}
-  // private async generateFoodId(): Promise<string> {
-  //   const res = await this.db.query(
-  //     `SELECT food_id FROM m_food_items ORDER BY food_id DESC LIMIT 1`
-  //   );
-
-  //   if (res.rows.length === 0) return "F001";
-
-  //   const last = res.rows[0].food_id.replace("F", "");
-  //   return `F${(Number(last) + 1).toString().padStart(3, "0")}`;
-  // }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid activeOnly flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM m_food_items WHERE is_active = $1 ORDER BY food_name`
       : `SELECT * FROM m_food_items ORDER BY food_name`;
@@ -27,19 +20,56 @@ export class MealsService {
   }
 
   async findOneByName(name: string) {
+    if (!name || !name.trim()) {
+      throw new BadRequestException('Food name is required');
+    }
+
+    if (name.length > 100) {
+      throw new BadRequestException('Food name too long');
+    }
     const sql = `SELECT * FROM m_food_items WHERE food_name = $1`;
     const result = await this.db.query(sql, [name]);
+    if (!result.rowCount) {
+      throw new NotFoundException(`Meal '${name}' not found`);
+    }
     return result.rows[0];
   }
 
   async findOneById(id: number) {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new BadRequestException('Invalid food ID');
+    }
     const sql = `SELECT * FROM m_food_items WHERE food_id = $1`;
     const result = await this.db.query(sql, [id]);
+    if (!result.rowCount) {
+      throw new NotFoundException(`Meal with ID ${id} not found`);
+    }
     return result.rows[0];
   }
   async create(dto: CreateMealDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
+if (!dto.food_name || !dto.food_name.trim()) {
+  throw new BadRequestException('Food name is required');
+}
+
+if (dto.food_name.length > 100) {
+  throw new BadRequestException('Food name cannot exceed 100 characters');
+}
+if (dto.food_desc && dto.food_desc.length > 255) {
+  throw new BadRequestException('Food description too long');
+}
+const allowedTypes = ['Veg', 'Non-Veg', 'Vegan', 'Dessert', 'Beverage'];
+if (!allowedTypes.includes(dto.food_type)) {
+  throw new BadRequestException('Invalid food type');
+}
+const duplicate = await client.query(`
+  SELECT 1 FROM m_food_items
+  WHERE LOWER(food_name) = LOWER($1)
+`, [dto.food_name.trim()]);
+if (duplicate.rowCount > 0) {
+  throw new BadRequestException('Meal already exists');
+}
         const result = await client.query(
           `
           INSERT INTO m_food_items (
@@ -76,6 +106,27 @@ export class MealsService {
 
   async update(name: string, dto: UpdateMealDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!name || !name.trim()) {
+        throw new BadRequestException('Meal name is required');
+      }
+      if (dto.food_name) {
+        if (!dto.food_name.trim()) {
+          throw new BadRequestException('Food name cannot be empty');
+        }
+        if (dto.food_name.length > 100) {
+          throw new BadRequestException('Food name too long');
+        }
+      }
+      if (dto.food_type) {
+        const allowedTypes = ['Veg', 'Non-Veg', 'Vegan', 'Dessert', 'Beverage'];
+
+        if (!allowedTypes.includes(dto.food_type)) {
+          throw new BadRequestException('Invalid food type');
+        }
+      }
+      if (dto.food_desc && dto.food_desc.length > 255) {
+        throw new BadRequestException('Food description too long');
+      }
 
       const existingRes = await client.query(
         `SELECT * FROM m_food_items WHERE food_name = $1 FOR UPDATE`,
@@ -85,11 +136,17 @@ export class MealsService {
         throw new NotFoundException(`Meal '${name}' not found`);
       }
       const existing = existingRes.rows[0];
+      if (dto.food_name && dto.food_name !== existing.food_name) {
+        const duplicate = await client.query(`
+          SELECT 1 FROM m_food_items
+          WHERE LOWER(food_name) = LOWER($1)
+            AND food_id <> $2
+        `, [dto.food_name, existing.food_id]);
 
-      // const now = new Date()
-      //   .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-      //   .replace(',', '');
-
+        if (duplicate.rowCount > 0) {
+          throw new BadRequestException('Meal name already exists');
+        }
+      }
       const sql = `
         UPDATE m_food_items SET
           food_name = $1,
@@ -120,6 +177,9 @@ export class MealsService {
 
   async softDelete(name: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!name || !name.trim()) {
+        throw new BadRequestException('Meal name required');
+      }
       const existingRes = await client.query(
         `SELECT food_id FROM m_food_items WHERE food_name = $1 FOR UPDATE`,
         [name]
@@ -129,6 +189,22 @@ export class MealsService {
         throw new NotFoundException(`Meal '${name}' not found`);
       }
       const foodId = existingRes.rows[0].food_id;
+      const activeCheck = await client.query(`
+        SELECT is_active FROM m_food_items WHERE food_id = $1
+      `, [foodId]);
+      if (!activeCheck.rows[0].is_active) {
+        throw new BadRequestException('Meal already inactive');
+      }
+      const inUse = await client.query(`
+        SELECT 1 FROM t_guest_food
+        WHERE food_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+      `, [foodId]);
+
+      if (inUse.rowCount > 0) {
+        throw new BadRequestException('Cannot delete meal currently assigned to guests');
+      }
       const sql = `
         UPDATE m_food_items SET
           is_active = false,
@@ -169,8 +245,8 @@ export class MealsService {
 
         gb.guest_butler_id,
         gb.butler_id,
-        b.butler_name,
-        b.butler_name_local_language,
+        s.full_name AS butler_name,
+        s.full_name_local_language AS butler_name_local_language,
         gb.specialrequest,
 
         gf.guest_food_id,
@@ -202,7 +278,9 @@ export class MealsService {
       AND gb.is_active = TRUE
 
       LEFT JOIN m_butler b
-        ON b.butler_id = gb.butler_id
+        ON b.butler_id = gb.butler_id AND b.is_active = TRUE
+      LEFT JOIN m_staff s
+        ON s.staff_id = gb.butler_id AND s.is_active = TRUE
 
       LEFT JOIN t_guest_food gf
         ON gf.guest_id = g.guest_id

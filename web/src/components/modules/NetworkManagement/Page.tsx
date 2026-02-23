@@ -7,7 +7,7 @@ import "./NetworkManagement.css";
 import { StatCard } from "@/components/ui/StatCard";
 import { getNetworkTable, softDeleteNetwork, updateNetwork, createNetwork } from "@/api/network.api";
 import { getMessengerTable, softDeleteMessenger, createMessenger, updateMessenger } from "@/api/messenger.api";
-import { getGuestNetworkTable, updateGuestNetwork, createGuestNetwork, getActiveProviders } from "@/api/guestNetwork.api";
+import { getGuestNetworkTable, createGuestNetwork, getActiveProviders, closeGuestNetwork } from "@/api/guestNetwork.api";
 import { unassignGuestMessenger, createGuestMessenger } from "@/api/guestMessenger.api";
 import { NetworkProvider } from "@/types/network";
 import { Messenger } from "@/types/messenger";
@@ -190,6 +190,7 @@ export default function NetworkManagement() {
     function applyNetworkStatus(status: "all" | "active" | "inactive") {
         networkTable.setPage(1);
         networkTable.setStatus(status);
+        networkTable.setNetworkType?.(undefined);
     }
     function applyNetworkType(type?: NetworkProvider["network_type"]) {
         networkTable.setPage(1);

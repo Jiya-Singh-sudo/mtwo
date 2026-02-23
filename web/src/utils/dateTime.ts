@@ -1,4 +1,11 @@
 // src/utils/dateTime.ts
+export function combineDateAndTime(date?: string, time?: string) {
+  if (!date || !time) return undefined;
+
+  const safeTime = time.length === 5 ? `${time}:00` : time;
+
+  return `${date}T${safeTime}`;
+}
 export function BformatDate(date?: string) {
   if (!date) return "N/A";
   return new Date(date).toLocaleDateString("en-GB", {
@@ -164,13 +171,7 @@ export function isDateWithinRange(
 ): boolean {
   return date >= min && date <= max;
 }
-export function combineDateAndTime(
-  date?: string,
-  time?: string
-): string | undefined {
-  if (!date || !time) return undefined;
-  return `${date}T${time}:00`;
-}
+
 export function splitDateTime(value?: string) {
   if (!value) return { date: "", time: "" };
 
