@@ -18,12 +18,20 @@ export class GuestsController {
     @Query('limit') limit = '10',
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('sortBy') sortBy?: string,
+    // @Query('sortOrder') sortOrder?: string,
+    @Query('entryDateFrom') entryDateFrom?: string,
+    @Query('entryDateTo') entryDateTo?: string,
   ) {
     return this.service.findActiveGuestsWithInOut({
       page: Number(page),
       limit: Number(limit),
       search,
       status,
+      sortBy,
+      // sortOrder,
+      entryDateFrom,
+      entryDateTo,
     });
   }
 

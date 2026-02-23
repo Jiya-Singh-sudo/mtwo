@@ -28,9 +28,9 @@ export class GuestNetworkTableQueryDto extends BaseTableQueryDto {
 
   @IsOptional()
   @IsString()
-  startDateFrom?: string;
+  entryDateFrom?: string;
 
   @IsOptional()
   @IsString()
-  startDateTo?: string;
+  entryDateTo?: string;
 }

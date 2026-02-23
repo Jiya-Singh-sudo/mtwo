@@ -64,10 +64,13 @@ export class GuestTransportService {
           )
           OR EXISTS (
             SELECT 1
-            FROM t_guest_vehicle gv2
-            WHERE gv2.guest_id = g.guest_id
-              AND gv2.is_active = TRUE
-              AND gv2.vehicle_no ILIKE $${idx}
+            FROM t_guest_driver gd2
+            JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
+            JOIN m_staff s2 ON s2.staff_id = d2.staff_id
+            WHERE gd2.guest_id = g.guest_id
+              AND gd2.is_active = TRUE
+              AND s2.is_active = TRUE
+              AND s2.full_name ILIKE $${idx}
           )
         )
       `);

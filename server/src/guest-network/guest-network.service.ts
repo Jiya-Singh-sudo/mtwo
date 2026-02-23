@@ -20,7 +20,7 @@ export class GuestNetworkService {
     const page = query.page;
     const limit = query.limit;
     const offset = (page - 1) * limit;
-    const { entryDateFrom, entryDateTo } = query;
+    // const { entryDateFrom, entryDateTo } = query;
     /* ---------- SORT WHITELIST ---------- */
     const SORT_MAP: Record<string, string> = {
       entry_date: 'io.entry_date',
@@ -95,37 +95,41 @@ export class GuestNetworkService {
     }
 
     /* ---------- ENTRY DATE RANGE ---------- */
-    let fromDate = entryDateFrom;
-    let toDate = entryDateTo;
+    const fromDate = query.entryDateFrom;
+    const toDate = query.entryDateTo;
+    if (fromDate && isNaN(Date.parse(fromDate))) {
+      throw new ConflictException('Invalid entryDateFrom');
+    }
 
+    if (toDate && isNaN(Date.parse(toDate))) {
+      throw new ConflictException('Invalid entryDateTo');
+    }
+
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new ConflictException('entryDateFrom must be before entryDateTo');
+    }
     /* If no date filters provided → apply default window */
     if (!fromDate && !toDate) {
+      // Default ±15 day window
       where.push(`
         io.entry_date BETWEEN
           (CURRENT_DATE - INTERVAL '15 days')
           AND
-          (CURRENT_DATE + INTERVAL '15 days')
+      (CURRENT_DATE + INTERVAL '15 days')
       `);
     } else {
       if (fromDate) {
-        if (isNaN(Date.parse(fromDate))) {
-          throw new ConflictException('Invalid entryDateFrom');
-        }
-
         where.push(`io.entry_date >= $${idx}`);
         params.push(fromDate);
         idx++;
       }
 
-      if (toDate) {
-        if (isNaN(Date.parse(toDate))) {
-          throw new ConflictException('Invalid entryDateTo');
-        }
-
-        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
-        params.push(toDate);
-        idx++;
-      }
+  if (toDate) {
+    // inclusive end-of-day logic
+    where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+    params.push(toDate);
+    idx++;
+  }
     }
     /* ---------- BUILD WHERE CLAUSE AFTER ALL FILTERS ---------- */
     const whereClause = `WHERE ${where.join(' AND ')}`;

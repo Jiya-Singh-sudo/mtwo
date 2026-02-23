@@ -66,29 +66,20 @@ export class RoomManagementService {
       params.push(status);
       idx++;
     }
+let dateJoinSql = '';
+const dateParams: any[] = [];
 
-    if (entryDateFrom) {
-      whereParts.push(`
-        (
-          io.entry_date IS NOT NULL
-          AND io.entry_date >= $${idx}
-        )
-      `);
-      params.push(entryDateFrom);
-      idx++;
-    }
+if (entryDateFrom) {
+  dateJoinSql += ` AND io.entry_date >= $${idx}`;
+  dateParams.push(entryDateFrom);
+  idx++;
+}
 
-    if (entryDateTo) {
-      whereParts.push(`
-        (
-          io.entry_date IS NOT NULL
-          AND io.entry_date <= $${idx}
-        )
-      `);
-      params.push(entryDateTo);
-      idx++;
-    }
-
+if (entryDateTo) {
+  dateJoinSql += ` AND io.entry_date < ($${idx}::date + INTERVAL '1 day')`;
+  dateParams.push(entryDateTo);
+  idx++;
+}
     const whereSql = whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
 
     /* ================= COUNT ================= */
@@ -103,7 +94,7 @@ export class RoomManagementService {
         ON io.guest_id = g.guest_id
         AND io.room_id = r.room_id
         AND io.is_active = true
-        AND io.exit_date IS NULL
+        ${dateJoinSql}
       WHERE r.is_active = true
       ${whereSql}
     `;
@@ -151,7 +142,7 @@ export class RoomManagementService {
         ON io.guest_id = g.guest_id
         AND io.room_id = r.room_id
         AND io.is_active = true
-        AND io.exit_date IS NULL
+        ${dateJoinSql}
       WHERE r.is_active = true
       ${whereSql}
     `;
@@ -199,7 +190,6 @@ export class RoomManagementService {
       LEFT JOIN t_guest_room gr
         ON gr.room_id = r.room_id
       AND gr.is_active = true
-      AND gr.check_out_date IS NULL
 
       LEFT JOIN m_guest g
         ON g.guest_id = gr.guest_id
@@ -218,7 +208,7 @@ export class RoomManagementService {
         ON io.guest_id = g.guest_id
       AND io.room_id = r.room_id
       AND io.is_active = true
-      AND io.exit_date IS NULL
+      ${dateJoinSql}
 
     LEFT JOIN t_guest_hk gh
       ON gh.guest_id = g.guest_id
@@ -237,13 +227,14 @@ export class RoomManagementService {
       ORDER BY ${sortColumn} ${order}
       LIMIT $${idx} OFFSET $${idx + 1}
     `;
-
-    const dataParams = [...params, limit, offset];
-
+    const finalParams = [...params, ...dateParams];
+    const dataParams = [...finalParams, limit, offset];
+    // if (entryDateFrom) dataParams.push(entryDateFrom);
+    // if (entryDateTo) dataParams.push(entryDateTo);
     /* ================= EXEC ================= */
 
-    const [{ count }] = (await this.db.query(countSql, params)).rows;
-    const statsRow = (await this.db.query(statsSql, params)).rows[0];
+    const [{ count }] = (await this.db.query(countSql, finalParams)).rows;
+    const statsRow = (await this.db.query(statsSql, finalParams)).rows[0];
     const { rows } = await this.db.query(dataSql, dataParams);
 
     /* ================= MAP ================= */
@@ -738,7 +729,7 @@ export class RoomManagementService {
       WHERE io.is_active = TRUE
         AND gr.guest_room_id IS NULL
 
-        AND io.entry_date IS NOT NULL
+        AND io.entry_date IS NULL
         AND (
           io.exit_date IS NULL
           OR io.exit_date >= CURRENT_DATE

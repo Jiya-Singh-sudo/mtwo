@@ -14,7 +14,9 @@ export class RoomManagementController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy = 'room_no',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
-    @Query('status') status?: 'Available' | 'Occupied'
+    @Query('status') status?: 'Available' | 'Occupied',
+    @Query('entryDateFrom') entryDateFrom?: string,
+    @Query('entryDateTo') entryDateTo?: string,
   ) {
     return this.service.getOverview({
       page: Number(page),
@@ -23,6 +25,8 @@ export class RoomManagementController {
       sortBy,
       sortOrder,
       status,
+      entryDateFrom,
+      entryDateTo,
     });
   }
 
