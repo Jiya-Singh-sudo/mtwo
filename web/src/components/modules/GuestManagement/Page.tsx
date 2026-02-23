@@ -4,8 +4,6 @@ import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, fetchGuestS
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
 import { updateGuestInOut } from "@/api/guestInOut.api";
 import { guestManagementSchema } from "@/validation/guestManagement.validation";
-// import { designationSchema } from "@/validation/designation.validation";
-// import { guestInOutSchema } from "@/validation/guestInOut.validation";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { ZodError } from "zod";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -21,7 +19,7 @@ import { validateSingleField } from "@/utils/validateSingleField";
 import { zodToFormErrors } from "@/utils/formErrors";
 import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
 import { FieldError } from "@/components/ui/FieldError";
-
+import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 
 type DesignationOption = {
   designation_id: string;
@@ -137,10 +135,18 @@ export function GuestManagement() {
     setLimit,
     setSort,
     setStatus,
+    batchUpdate,
   } = useTableQuery({
     sortBy: "entry_date",
     sortOrder: "desc",
   });
+  // const guestTable = useTableQuery({
+  //   prefix: "guest",
+  //   page: 1,
+  //   limit: 10,
+  //   sortBy: "created_at",
+  //   sortOrder: "desc",
+  // });
   const [guestForm, setGuestForm] = useState<GuestForm>(initialGuestForm);
   const [editGuestForm, setEditGuestForm] = useState<GuestForm>(initialGuestForm);
   const [editGdId, setEditGdId] = useState<string>('');
@@ -455,11 +461,6 @@ export function GuestManagement() {
     }
   }
 
-  // function openView(g: ActiveGuestRow) {
-  //   setSelectedGuest(g);
-  //   setShowView(true);
-
-  // }
   function openView(g: ActiveGuestRow) {
     console.log("VIEW ROW:", g);
     setSelectedGuest(g);
@@ -583,25 +584,6 @@ export function GuestManagement() {
       await loadGuests();
       await refreshStatusCounts();
     } catch (err) {
-      // if (err instanceof ZodError) {
-      //   console.log("EDIT VALIDATION ERRORS:", err.issues);
-
-      //   const errors: Record<string, string> = {};
-      //   err.issues.forEach(issue => {
-      //     const field = issue.path.join(".");
-      //     errors[field] = issue.message;
-      //   });
-      //   setFormErrors(errors);
-      //   requestAnimationFrame(() => {
-      //     const firstErrorField = Object.keys(errors)[0];
-      //     const el = document.querySelector(
-      //       `[name="${firstErrorField}"]`
-      //     ) as HTMLElement | null;
-
-      //     el?.focus();
-      //   });
-      //   return;
-      // }
       if (err instanceof ZodError) {
         setFormErrors(zodToFormErrors(err));
         return;
@@ -612,23 +594,6 @@ export function GuestManagement() {
     }
   }
 
-  // async function handleDelete() {
-  //   if (!selectedGuest) return;
-  //   try {
-  //     // 1) soft delete guest_inout if exists
-  //     if (selectedGuest.inout_id) {
-  //       await softDeleteGuestInOut(selectedGuest.inout_id);
-  //     }
-  //     // 2) soft delete guest row
-  //     await softDeleteGuest(selectedGuest.guest_id);
-  //     setShowDeleteConfirm(false);
-  //     await loadGuests();
-  //     await refreshStatusCounts();
-  //   } catch (err) {
-  //     console.error('delete failed', err);
-  //     alert('Failed to delete entry');
-  //   }
-  // }
   async function handleDelete() {
     if (!selectedGuest) return;
 
@@ -656,47 +621,6 @@ export function GuestManagement() {
     setDesignationMode("existing");
   }
 
-  // function validateSingleField(
-  //   field: keyof GuestForm,
-  //   value: any
-  // ) {
-  //   try {
-  //     guestManagementSchema
-  //       .pick({ [field]: true } as any)
-  //       .parse({ [field]: value });
-
-  //     setFormErrors(prev => {
-  //       const next = { ...prev };
-  //       delete next[field];
-  //       return next;
-  //     });
-  //   } catch (err) {
-  //     if (err instanceof ZodError) {
-  //       setFormErrors(prev => ({
-  //         ...prev,
-  //         [field]: err.issues[0]?.message,
-  //       }));
-  //     }
-  //   }
-  // }
-  // async function confirmCancelVisit() {
-  //   if (!cancelGuest?.inout_id) return;
-
-  //   try {
-  //     await updateGuestInOut(cancelGuest.inout_id, {
-  //       status: "Cancelled",
-  //     });
-
-  //     setShowCancelConfirm(false);
-  //     setCancelGuest(null);
-
-  //     await loadGuests();
-  //     await refreshStatusCounts();
-  //   } catch (err) {
-  //     console.error("Cancel visit failed", err);
-  //     alert("Failed to cancel visit");
-  //   }
-  // }
   async function confirmCancelVisit() {
     if (!cancelGuest?.inout_id) return;
 
@@ -713,9 +637,6 @@ export function GuestManagement() {
       alert("Failed to cancel visit");
     }
   }
-
-
-
 
   /* =====================================================================
   
@@ -749,32 +670,38 @@ export function GuestManagement() {
         ))}
       </div>
 
-      {/* SEARCH + ADD GUEST (SAME AS ROOM / ROOM BOY) */}
-      <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            maxLength={300}
-            type="text"
-            placeholder="Search by name, department or ID..."
-            className="pl-10 pr-3 py-2 w-full border rounded-sm"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-        </div>
+      {/* SEARCH + ADD GUEST */}
+      <div className="bg-white border rounded-sm p-4">
+        <div className="flex flex-wrap items-end gap-3">
 
-        {/* Add Guest Button */}
-        <button
-          className="bg-[#00247D] text-white btn-icon-text hover:bg-blue-900"
-          onClick={() => {
-            setGuestForm(initialGuestForm);
-            setModalMode("add");
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          Add New Guest
-        </button>
+          {/* FILTERS TAKE REMAINING SPACE */}
+          <div className="flex-1 w-full">
+            <GuestTableFilters
+              searchInput={searchInput}
+              setSearchInput={setSearchInput}
+              query={query}
+              batchUpdate={batchUpdate}
+              defaultSortBy="entry_date"
+              variant="toolbar"
+            />
+          </div>
+
+          {/* BUTTON = FIXED WIDTH */}
+          <div className="shrink-0">
+            <label className="text-xs mb-1 block invisible">Add</label>
+            <button
+              className="h-10 px-4 bg-[#00247D] text-white rounded-sm flex items-center gap-2 hover:bg-blue-900 whitespace-nowrap"
+              onClick={() => {
+                setGuestForm(initialGuestForm);
+                setModalMode("add");
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Add New Guest
+            </button>
+          </div>
+
+        </div>
       </div>
 
       {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Car, UserCheck, Trash2, X, UserMinus, MinusCircle } from "lucide-react";
 import "./GuestTransportManagement.css";
 import { Input } from "@/components/ui/input";
+import { FilterField } from "@/components/ui/FilterField";
+import { addOneMonth } from "@/utils/addOneMonth";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import {
   formatISTDate,
@@ -923,91 +925,84 @@ function GuestTransportManagement() {
 
         {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> */}
         <div className="transportFilters nicCard">
-          <div className="filterSearch">
+          <FilterField label="Search" className="flex-1">
             <Input
               placeholder="Search guest name / mobile / ID…"
               value={GuestTable.searchInput}
               onChange={(e: any) => GuestTable.setSearchInput(e.target.value)}
-              className="w-full"
+              className="h-10 w-full"
               maxLength={50}
             />
-          </div>
+          </FilterField>
 
-          <div className="filterGroup">
-            <div>
-              <label>Status</label>
-              <select
-                className="nicInput"
-                value={GuestTable.query.status}
+          <div className="flex items-end gap-3 shrink-0">
+            <FilterField label="From" className="w-[150px]">
+              <input
+                type="date"
+                min={assignWindow?.minDate}
+                max={assignWindow?.maxDate}
+                className="nicInput h-10"
+                value={GuestTable.query.entryDateFrom}
                 onChange={(e) => {
-                  GuestTable.setStatus(e.target.value);
-                  GuestTable.setPage(1);
+                  const from = e.target.value;
+                  const to = addOneMonth(from);
+                  GuestTable.batchUpdate(prev => ({
+                    ...prev,
+                    page: 1,
+                    entryDateFrom: from,
+                    entryDateTo: to,
+                  }));
+                }}
+              />
+            </FilterField>
+
+            <FilterField label="To" className="w-[150px]">
+              <input
+                type="date"
+                min={GuestTable.query.entryDateFrom || assignWindow?.minDate}
+                max={addOneMonth(GuestTable.query.entryDateFrom || "")}
+                className="nicInput h-10"
+                value={GuestTable.query.entryDateTo}
+                onChange={(e) => GuestTable.batchUpdate(prev => ({
+                  ...prev,
+                  page: 1,
+                  entryDateTo: e.target.value,
+                }))}
+              />
+            </FilterField>
+
+            <FilterField>
+              <button
+                className="h-10 px-4 secondaryBtn"
+                onClick={() => {
+                  GuestTable.batchUpdate(() => ({
+                    page: 1,
+                    limit: GuestTable.query.limit,
+                    sortBy: "entry_date",
+                    sortOrder: "desc",
+                    status: "All",
+                    entryDateFrom: "",
+                    entryDateTo: "",
+                  }));
                   setAssignmentFilter("ALL");
                 }}
               >
-                <option value="All">All</option>
-                <option value="Entered">Entered</option>
-                <option value="Inside">Inside</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Exited">Exited</option>
+                Reset
+              </button>
+            </FilterField>
+
+            <FilterField label="Assignment" className="min-w-[160px]">
+              <select
+                className="nicInput h-10"
+                value={assignmentFilter}
+                onChange={(e) => setAssignmentFilter(e.target.value as any)}
+              >
+                <option value="ALL">All</option>
+                <option value="DRIVER_ASSIGNED">Driver Assigned</option>
+                <option value="VEHICLE_ASSIGNED">Vehicle Assigned</option>
+                <option value="UNASSIGNED">Unassigned</option>
               </select>
-            </div>
-
-            <div>
-              <label>From</label>
-              <input
-                type="date"
-                min={assignWindow?.minDate}
-                max={assignWindow?.maxDate}
-                className="nicInput"
-                value={GuestTable.query.entryDateFrom}
-                onChange={(e) => GuestTable.setEntryDateFrom(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label>To</label>
-              <input
-                type="date"
-                min={assignWindow?.minDate}
-                max={assignWindow?.maxDate}
-                className="nicInput"
-                value={GuestTable.query.entryDateTo}
-                onChange={(e) => GuestTable.setEntryDateTo(e.target.value)}
-              />
-            </div>
-
-            <button
-              className="secondaryBtn w-full"
-              onClick={() => {
-                GuestTable.batchUpdate(() => ({
-                  page: 1,
-                  limit: GuestTable.query.limit,
-                  sortBy: "entry_date",
-                  sortOrder: "desc",
-                  status: "All",
-                  entryDateFrom: "",
-                  entryDateTo: "",
-                }));
-                setAssignmentFilter("ALL");
-              }}
-            >
-              Reset
-            </button>
-          </div>
-
-          <div className="filterAssignment">
-            <label>Assignment</label>
-            <select
-              className="nicInput"
-              value={assignmentFilter}
-              onChange={(e) => setAssignmentFilter(e.target.value as any)}
-            >
-              <option value="ALL">All</option>
-              <option value="DRIVER_ASSIGNED">Driver Assigned</option>
-              <option value="VEHICLE_ASSIGNED">Vehicle Assigned</option>
-              <option value="UNASSIGNED">Unassigned</option>
-            </select>
+            </FilterField>
           </div>
         </div>
 

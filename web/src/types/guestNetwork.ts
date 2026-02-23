@@ -133,6 +133,8 @@ export interface GuestNetworkTableQuery {
   sortOrder?: 'asc' | 'desc';
   status?: 'Requested' | 'Entered' | 'CheckedIn' | 'Closed' | 'All';
 
+  entryDateFrom?: string;
+  entryDateTo?: string;
 }
 
 // export type GuestNetworkTableQuery = {

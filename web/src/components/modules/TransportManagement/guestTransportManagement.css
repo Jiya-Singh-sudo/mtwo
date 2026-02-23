@@ -252,6 +252,7 @@
   gap: 12px;
   margin-bottom: 20px;
 }
+
 /* ===============================
    STAT CARD SIZE FIX
 ================================ */
@@ -263,8 +264,10 @@
   flex-direction: column;
   justify-content: center;
 }
+
 .guest-transport .statValue {
-  font-size: 22px;   /* was 28px */
+  font-size: 22px;
+  /* was 28px */
   font-weight: 700;
   line-height: 1.1;
 }
@@ -273,6 +276,7 @@
   font-size: 13px;
   line-height: 1.2;
 }
+
 .guest-transport .statCard.active {
   outline: 2px solid #00247D;
   outline-offset: -2px;
@@ -804,9 +808,8 @@
 
 .filterSearch {
   flex: 1;
-  /* 🔥 THIS makes search stretch */
   min-width: 200px;
-  max-width: 320px;
+  max-width: none;
 }
 
 .filterSearch input {
@@ -880,21 +883,19 @@
 /* ================= FILTER BAR LAYOUT (GRID FIX) ================= */
 
 .guest-transport .transportFilters {
-  display: grid !important;
-  grid-template-columns: 1.5fr auto auto auto auto auto;
+  display: flex;
+  align-items: flex-end;
   gap: 12px;
-  align-items: end;
   width: 100%;
   padding: 12px;
 }
 
-/* SEARCH - Increase ONLY the search bar width */
+/* SEARCH — grows to fill remaining space */
 .guest-transport .filterSearch {
-  flex: 1.5;
-  /* 🔑 makes search take extra leftover space */
-  min-width: 420px;
-  /* safety minimum */
-  width: 100%;
+  flex: 1;
+  min-width: 200px;
+  max-width: none;
+  width: auto;
 }
 
 .guest-transport .filterSearch>div {
@@ -1010,6 +1011,7 @@
   margin-left: 4px;
   font-weight: 600;
 }
+
 .transportWarning {
   margin-top: 6px;
   padding: 6px 8px;

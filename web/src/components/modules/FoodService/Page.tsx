@@ -2,7 +2,6 @@
 import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X } from "lucide-react";
 import "./FoodService.css";
 import { getFoodDashboard, updateGuestFood, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable } from "@/api/guestFood.api";
-import { Input } from "@/components/ui/input";
 import { FoodDashboard, GuestFoodTableRow } from "../../../types/guestFood";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, updateGuestButler } from "@/api/guestButler.api";
@@ -16,6 +15,7 @@ import { butlerManagementSchema } from "@/validation/butler.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
 import { getActiveMeals, createMeal } from "@/api/meals.api";
 import { useError } from "@/context/ErrorContext";
+import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 
 /* ---------------- TYPES ---------------- */
 type ButlerMode = "add" | "view" | "edit";
@@ -346,8 +346,8 @@ export function FoodService() {
     }
   }, [butlerTable.query, activeTab]);
   useEffect(() => {
-  loadButlers();
-}, [butlerTable.query]);
+    loadButlers();
+  }, [butlerTable.query]);
 
   useEffect(() => {
     loadFoodData();
@@ -806,78 +806,23 @@ export function FoodService() {
       {activeTab === "food" && (
         <div className="bg-white border rounded-sm p-6">
           {/* HEADER: Search + Plan Menu */}
-          {/* HEADER: Search + Plan Menu */}
-          <div className="transportFilters nicCard">
-
-            {/* 🔍 SEARCH */}
-            <div className="filterSearch">
-              <Input
-                placeholder="Search guest / room..."
-                value={foodTable.searchInput}
-                onChange={(e: any) => foodTable.setSearchInput(e.target.value)}
-                className="w-full"
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 w-full">
+              <GuestTableFilters
+                searchInput={foodTable.searchInput}
+                setSearchInput={foodTable.setSearchInput}
+                query={foodTable.query}
+                batchUpdate={foodTable.batchUpdate}
+                defaultSortBy="entry_date"
+                variant="toolbar"
               />
             </div>
 
-            {/* 📅 DATE GROUP */}
-            <div className="filterGroup">
-              <div>
-                <label>From</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={foodTable.query.entryDateFrom || ""}
-                  onChange={(e) =>
-                    foodTable.batchUpdate(prev => ({
-                      ...prev,
-                      page: 1,
-                      entryDateFrom: e.target.value,
-                      sortBy: "entry_date",
-                      sortOrder: "asc",
-                    }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label>To</label>
-                <input
-                  type="date"
-                  className="nicInput"
-                  value={foodTable.query.entryDateTo || ""}
-                  onChange={(e) =>
-                    foodTable.batchUpdate(prev => ({
-                      ...prev,
-                      page: 1,
-                      entryDateTo: e.target.value,
-                      sortBy: "entry_date",
-                      sortOrder: "asc",
-                    }))
-                  }
-                />
-              </div>
-
-              <button
-                className="secondaryBtn"
-                onClick={() =>
-                  foodTable.batchUpdate(prev => ({
-                    ...prev,
-                    page: 1,
-                    entryDateFrom: "",
-                    entryDateTo: "",
-                    sortBy: "entry_date",
-                    sortOrder: "desc",
-                  }))
-                }
-              >
-                Reset
-              </button>
-            </div>
-
             {/* ➕ PLAN MENU */}
-            <div className="filterAction">
+            <div className="shrink-0">
+              <label className="text-xs mb-1 block invisible">Plan</label>
               <button
-                className="nicPrimaryBtn"
+                className="h-10 px-4 nicPrimaryBtn whitespace-nowrap flex items-center"
                 onClick={() => {
                   setMenuMode("create");
                   setActiveGuestForEdit(null);
@@ -888,7 +833,6 @@ export function FoodService() {
                 <Plus size={16} /> Plan Menu
               </button>
             </div>
-
           </div>
 
 

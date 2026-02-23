@@ -4,6 +4,7 @@ import { Button } from "../../ui/button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import "./RoomManagement.css";
 import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
+import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { StatCard } from "@/components/ui/StatCard";
 import { ZodError } from "zod";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping, getRoomBoyOptions } from "../../../api/housekeeping.api";
@@ -20,7 +21,6 @@ import { useTableQuery } from "@/hooks/useTableQuery";
 import { housekeepingCreateEditSchema, roomBoyAssignmentSchema, roomCreateEditSchema } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
 import { formatDate, normalizeDateOnly, formatDateDDMMYYYY, formatDateOnlyDDMMYYYY } from "@/utils/dateTime";
-
 /* ================= BACKEND-MATCHING TYPES ================= */
 
 /* Matches DB / API response (snake_case, flat structure) */
@@ -50,6 +50,12 @@ export function RoomManagement() {
     sortBy: 'room_no',
     sortOrder: 'asc',
   });
+  const {
+    query,
+    searchInput,
+    setSearchInput,
+    batchUpdate,
+  } = roomTable;
   const hkTable = useTableQuery({
     sortBy: 'hk_name',
     sortOrder: 'asc',
@@ -942,25 +948,34 @@ export function RoomManagement() {
       {activeTab === "rooms" && (
         <>
           {/* SEARCH + ADD ROOM */}
-          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                className="pl-10 pr-3 py-2 w-full border rounded-sm"
-                placeholder="Search room, guest, residence..."
-                value={roomTable.query.search ?? ""}
-                onChange={(e) => roomTable.setSearchInput(e.target.value)}
-                maxLength={50}
-              />
-            </div>
+          <div className="bg-white border rounded-sm p-4">
+            <div className="flex flex-wrap items-end gap-3">
 
-            <Button
-              className="bg-[#00247D] text-white btn-icon-text"
-              onClick={resetAddRoomState}
-            >
-              <Plus className="w-4 h-4" />
-              Add Room
-            </Button>
+              {/* 🔍 SEARCH + 📅 DATE FILTERS */}
+              <div className="flex-1 w-full">
+                <GuestTableFilters
+                  searchInput={searchInput}
+                  setSearchInput={setSearchInput}
+                  query={query}
+                  batchUpdate={batchUpdate}
+                  defaultSortBy="room_no"
+                  variant="toolbar"
+                />
+              </div>
+
+              {/* ➕ ADD ROOM */}
+              <div className="shrink-0">
+                <label className="text-xs mb-1 block invisible">Add</label>
+                <Button
+                  className="h-10 px-4 bg-[#00247D] text-white btn-icon-text whitespace-nowrap flex items-center"
+                  onClick={resetAddRoomState}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Room
+                </Button>
+              </div>
+
+            </div>
           </div>
 
           {/* ROOMS TABLE */}
@@ -1170,10 +1185,10 @@ export function RoomManagement() {
                     )
                   }
                 /> */}
-                {/* {formErrors.assignment_start_date && (
+              {/* {formErrors.assignment_start_date && (
                   <p className="errorText">{formErrors.assignment_start_date}</p>
                 )} */}
-                {/* {formErrors.assignment_start_date && (
+              {/* {formErrors.assignment_start_date && (
                   <div className="fieldError">
                     <XCircle size={14} />
                     <span>{formErrors.assignment_start_date}</span>
