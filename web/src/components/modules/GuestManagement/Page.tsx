@@ -687,19 +687,16 @@ export function GuestManagement() {
           </div>
 
           {/* BUTTON = FIXED WIDTH */}
-          <div className="shrink-0">
-            <label className="text-xs mb-1 block invisible">Add</label>
-            <button
-              className="h-10 px-4 bg-[#00247D] text-white rounded-sm flex items-center gap-2 hover:bg-blue-900 whitespace-nowrap"
-              onClick={() => {
-                setGuestForm(initialGuestForm);
-                setModalMode("add");
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Add New Guest
-            </button>
-          </div>
+          <button
+            className="h-10 px-4 bg-[#00247D] text-white rounded-sm flex items-center gap-2 hover:bg-blue-900 whitespace-nowrap shrink-0"
+            onClick={() => {
+              setGuestForm(initialGuestForm);
+              setModalMode("add");
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            Add New Guest
+          </button>
 
         </div>
       </div>

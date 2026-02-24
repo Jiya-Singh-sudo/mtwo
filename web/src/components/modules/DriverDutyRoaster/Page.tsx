@@ -161,7 +161,7 @@ export default function DriverDutyRoasterPage() {
                 duty ?? {
                   driver_id: row.driver_id,
                   duty_date: date,
-                  shift: "morning", 
+                  shift: "full-day", 
                   duty_in_time: null,
                   duty_out_time: null,
                   is_week_off: false,
@@ -194,19 +194,7 @@ export default function DriverDutyRoasterPage() {
   function toLocalDateKey(value: string): string {
     return value.slice(0, 10);
   }
-  // function toLocalDateKey(value: string): string {
-  //   const date = new Date(value);
-  //   const yyyy = date.getFullYear();
-  //   const mm = String(date.getMonth() + 1).padStart(2, "0");
-  //   const dd = String(date.getDate()).padStart(2, "0");
-  //   return `${yyyy}-${mm}-${dd}`;
-  // }
 
-  // function shiftWeek(weekStart: string, days: number) {
-  //   const [y, m, d] = weekStart.split("-").map(Number);
-  //   const date = new Date(Date.UTC(y, m - 1, d + days));
-  //   return date.toISOString().slice(0, 10);
-  // }
   function shiftWeek(weekStart: string, days: number) {
     const [y, m, d] = weekStart.split("-").map(Number);
 
@@ -226,10 +214,10 @@ export default function DriverDutyRoasterPage() {
   const handleSave = async () => {
     if (!editForm) return;
 
-    if (!editForm.driver_id || !editForm.duty_date || !editForm.shift) {
-      alert("Driver, date and shift are required");
-      return;
-    }
+    // if (!editForm.driver_id || !editForm.duty_date || !editForm.shift) {
+    //   alert("Driver, date and shift are required");
+    //   return;
+    // }
 
     try {
       setSaving(true);
@@ -389,12 +377,13 @@ export default function DriverDutyRoasterPage() {
               <label>
                 Shift
                 <select
-                  value={editForm.shift ?? ""}
+                  value={editForm.shift ?? "full-day"}
                   onChange={(e) =>
                     setEditForm({ ...editForm, shift: e.target.value as any })
                   }
                   onBlur={() => validateSingleField(driverDutyEditSchema, "shift", editForm.shift, setFormErrors)}
                 >
+                  <option value="full-day">Full Day</option>
                   <option value="morning">Morning</option>
                   <option value="afternoon">Afternoon</option>
                   <option value="night">Night</option>

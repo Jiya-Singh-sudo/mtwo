@@ -4,6 +4,7 @@ import { DashboardOverview } from '../../../types/dashboard';
 import { useEffect, useState } from 'react';
 import { RecentActivity } from '../../RecentActivity';
 import { useAuth } from '@/context/AuthContext';
+import { QuickActions } from '@/components/QuickActions';
 
 export function DashboardStats() {
   const { hasPermission } = useAuth();
@@ -176,6 +177,8 @@ export function DashboardStats() {
           );
         })}
       </div>
+
+      <QuickActions/>
 
       {/* ================= RECENT ACTIVITY ================= */}
       {hasPermission('audit.view') && <RecentActivity />}

@@ -1,4 +1,4 @@
-export type DriverShift = 'morning' | 'afternoon' | 'night';
+export type DriverShift = 'morning' | 'afternoon' | 'night' | 'full-day';
 
 export interface DriverDuty {
   duty_id: string;
@@ -10,12 +10,12 @@ export interface DriverDuty {
 
   shift: DriverShift; 
 
-  duty_in_time: string | null; // HH:mm:ss
-  duty_out_time: string | null;
+  duty_in_time?: string | null; // HH:mm:ss
+  duty_out_time?: string | null;
 
-  is_week_off: boolean;
-  repeat_weekly: boolean;
-  is_active: boolean;
+  is_week_off?: boolean;
+  repeat_weekly?: boolean;
+  is_active?: boolean;
 
   created_at?: string;
   updated_at?: string;

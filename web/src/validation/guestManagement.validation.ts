@@ -106,6 +106,14 @@ export const guestManagementSchema = z
       .max(100, "Purpose too long")
       .regex(safeTextRegex, "Invalid characters in purpose")
       .optional(),
+      number_of_rooms: z
+  .coerce
+  
+  .number()
+  .min(0, "Cannot be negative")
+  .default(0),
+  
+
   })
 
   /* ======================================================
@@ -166,6 +174,7 @@ export const guestManagementSchema = z
         message: "Exit time is required when exit date is set",
         code: z.ZodIssueCode.custom,
       });
+      
     }
     if (entry_date === new Date().toISOString().slice(0, 10)) {
       const now = new Date();
