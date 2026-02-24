@@ -37,7 +37,7 @@ export class RoomReportEngine {
       SELECT DISTINCT ON (gr.guest_id, gr.room_id, gr.check_in_date)
         g.guest_name,
         r.room_no,
-        hk.hk_name AS housekeeper,
+        s.full_name AS housekeeper,
         gr.check_in_date,
         gr.check_out_date,
         gr.remarks
@@ -53,6 +53,8 @@ export class RoomReportEngine {
 
       LEFT JOIN m_housekeeping hk
         ON hk.hk_id = gh.hk_id
+      LEFT JOIN m_staff s
+        ON s.staff_id = gh.staff_id
 
       WHERE gr.check_in_date <= $2
         AND (gr.check_out_date IS NULL OR gr.check_out_date >= $1)

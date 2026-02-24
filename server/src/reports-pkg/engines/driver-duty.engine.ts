@@ -39,8 +39,8 @@ export class DriverDutyReportEngine {
         td.is_week_off,
 
         -- Driver
-        d.driver_name,
-        d.driver_contact,
+        s.full_name AS driver_name,
+        s.primary_mobile AS driver_contact,
         d.driver_license,
         d.license_expiry_date
 
@@ -49,6 +49,9 @@ export class DriverDutyReportEngine {
       JOIN m_driver d
         ON d.driver_id = td.driver_id
        AND d.is_active = true
+      LEFT JOIN m_staff s
+        ON s.staff_id = td.staff_id
+       AND s.is_active = true
 
       WHERE td.is_active = true
         AND td.duty_date BETWEEN $1 AND $2

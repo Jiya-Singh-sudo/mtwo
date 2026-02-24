@@ -24,19 +24,19 @@ export class DriverDutyService {
 
   async create(dto: CreateDriverDutyDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      if (!/^D\d+$/.test(dto.driver_id)) {
-        throw new BadRequestException('Invalid driver ID format');
-      }
+      // if (!/^DD\d+$/.test(dto.driver_id)) {
+      //   throw new BadRequestException('Invalid driver ID format');
+      // }
       if (!dto.duty_date || isNaN(Date.parse(dto.duty_date))) {
         throw new BadRequestException('Invalid duty date format');
       }
       if (this.isPastDate(dto.duty_date)) {
         throw new BadRequestException('Cannot create duty for past date');
       }
-      const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
-      if (!allowedShifts.includes(dto.shift)) {
-        throw new BadRequestException('Invalid shift');
-      }
+      // const allowedShifts = ['morning', 'afternoon', 'night', 'full-day'];
+      // if (!allowedShifts.includes(dto.shift)) {
+      //   throw new BadRequestException('Invalid shift');
+      // }
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (dto.duty_in_time && !timeRegex.test(dto.duty_in_time)) {
         throw new BadRequestException('Invalid duty in time format');
@@ -49,11 +49,11 @@ export class DriverDutyService {
           throw new BadRequestException('Duty out time must be after duty in time');
         }
       }
-      if (dto.is_week_off) {
-        if (dto.shift) {
-          throw new BadRequestException('Week off should not have shift');
-        }
-      }
+      // if (dto.is_week_off) {
+      //   if (dto.shift) {
+      //     throw new BadRequestException('Week off should not have shift');
+      //   }
+      // }
       if (dto.repeat_weekly && !dto.is_week_off) {
         throw new BadRequestException('Repeat weekly only allowed for week off');
       }
@@ -158,12 +158,12 @@ export class DriverDutyService {
       if (dto.duty_date && isNaN(Date.parse(dto.duty_date))) {
         throw new BadRequestException('Invalid duty date format');
       }
-      if (dto.shift) {
-        const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
-        if (!allowedShifts.includes(dto.shift)) {
-          throw new BadRequestException('Invalid shift');
-        }
-      }
+      // if (dto.shift) {
+      //   const allowedShifts = ['morning', 'evening', 'night', 'full-day'];
+      //   if (!allowedShifts.includes(dto.shift)) {
+      //     throw new BadRequestException('Invalid shift');
+      //   }
+      // }
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (dto.duty_in_time && !timeRegex.test(dto.duty_in_time)) {
         throw new BadRequestException('Invalid duty in time');
@@ -342,9 +342,9 @@ export class DriverDutyService {
   }
   async findByDriver(driverId: string, from: string, to: string) {
     return this.db.transaction(async (client) => {
-      if (!/^D\d+$/.test(driverId)) {
-        throw new BadRequestException('Invalid driver ID format');
-      }
+      // if (!/^DD\d+$/.test(driverId)) {
+      //   throw new BadRequestException('Invalid driver ID format');
+      // }
       if (isNaN(Date.parse(from)) || isNaN(Date.parse(to))) {
         throw new BadRequestException('Invalid date range');
       }
@@ -368,9 +368,9 @@ export class DriverDutyService {
 
   async findDutyForDriverOnDate(driverId: string, date: string) {
     return this.db.transaction(async (client) => {
-      if (!/^D\d+$/.test(driverId)) {
-        throw new BadRequestException('Invalid driver ID format');
-      }
+      // if (!/^DD\d+$/.test(driverId)) {
+      //   throw new BadRequestException('Invalid driver ID format');
+      // }
       if (isNaN(Date.parse(date))) {
         throw new BadRequestException('Invalid date format');
       }

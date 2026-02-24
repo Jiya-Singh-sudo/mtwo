@@ -35,10 +35,7 @@ export class NetworkReportEngine {
         tgn.guest_network_id,
 
         -- Lifecycle
-        tgn.start_date,
-        tgn.start_time,
-        tgn.end_date,
-        tgn.end_time,
+
         tgn.network_status,
 
         -- Zones
@@ -57,11 +54,10 @@ export class NetworkReportEngine {
         wp.bandwidth_mbps,
 
         -- Messenger (contextual)
-        ms.messenger_name,
-        ms.designation,
+        s.full_name,
+        s.designation,
 
         -- Notes
-        tgn.description,
         tgn.remarks
 
       FROM t_guest_network tgn
@@ -81,6 +77,8 @@ export class NetworkReportEngine {
       LEFT JOIN m_messenger ms
         ON ms.messenger_id = tgm.messenger_id
        AND ms.is_active = true
+      LEFT JOIN m_staff s
+        ON s.staff_id = tgm.staff_id
 
       WHERE tgn.is_active = true
         AND tgn.start_date BETWEEN $1 AND $2

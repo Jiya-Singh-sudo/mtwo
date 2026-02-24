@@ -40,12 +40,12 @@ export class GuestReportEngine {
 
         gd.designation_name           AS designation,
         r.room_no,
-        hk.hk_name                    AS housekeeper,
+        shk.full_name                 AS housekeeper,
         fi.food_name                  AS food_remarks,
         v.vehicle_no,
-        d.driver_name,
+        sdv.full_name                 AS driver_name,
         gi.purpose                    AS visit_purpose,
-        ms.messenger_name             AS messenger,
+        sms.full_name                 AS messenger,
 
         wp.provider_name              AS wifi_provider,
         wp.network_type,
@@ -80,6 +80,8 @@ export class GuestReportEngine {
 
       LEFT JOIN m_housekeeping hk
         ON hk.hk_id = ghk.hk_id
+      LEFT JOIN m_staff shk
+        ON shk.staff_id = hk.staff_id
 
       /* ================= FOOD ================= */
       LEFT JOIN t_guest_food gf
@@ -104,6 +106,8 @@ export class GuestReportEngine {
 
       LEFT JOIN m_driver d
         ON d.driver_id = gdv.driver_id
+      LEFT JOIN m_staff sdv
+        ON sdv.staff_id = d.staff_id
 
       /* ================= IN-OUT ================= */
       LEFT JOIN t_guest_inout gi
@@ -117,6 +121,8 @@ export class GuestReportEngine {
 
       LEFT JOIN m_messenger ms
         ON ms.messenger_id = gm.messenger_id
+      LEFT JOIN m_staff sms
+        ON sms.staff_id = ms.staff_id
 
       /* ================= NETWORK ================= */
       LEFT JOIN t_guest_network gn

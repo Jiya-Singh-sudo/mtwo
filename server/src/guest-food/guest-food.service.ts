@@ -140,9 +140,9 @@ if (!/^G\d+$/.test(dto.guest_id)) {
   throw new BadRequestException('Invalid guest ID format');
 }
 
-if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
-  throw new BadRequestException('Invalid room ID format');
-}
+// if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
+//   throw new BadRequestException('Invalid room ID format');
+// }
 
 if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
   throw new BadRequestException('Invalid butler ID format');
@@ -197,12 +197,12 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         if (dto.delivery_status && !allowedDeliveryStatus.includes(dto.delivery_status)) {
           throw new BadRequestException('Invalid delivery status');
         }
-        if (!Number.isInteger(dto.quantity) || dto.quantity <= 0) {
-          throw new BadRequestException('Quantity must be a positive integer');
-        }
-        if (dto.quantity > 20) {
-          throw new BadRequestException('Quantity too large');
-        }
+        // if (!Number.isInteger(dto.quantity) || dto.quantity <= 0) {
+        //   throw new BadRequestException('Quantity must be a positive integer');
+        // }
+        // if (dto.quantity > 20) {
+        //   throw new BadRequestException('Quantity too large');
+        // }
         if (dto.plan_date && isNaN(Date.parse(dto.plan_date))) {
           throw new BadRequestException('Invalid plan date format');
         }
@@ -271,18 +271,10 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
           room_id,
 
           food_id,
-          quantity,
 
           meal_type,
           plan_date,
           food_stage,
-
-          delivery_status,
-
-          order_datetime,
-          delivered_datetime,
-
-          remarks,
           is_active,
 
           inserted_at,
@@ -292,11 +284,8 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         VALUES (
           $1, $2, $3,
           $4, $5,
-          $6, $7, $8,
-          $9,
-          $10, $11,
-          $12, true,
-          NOW(), $13, $14
+          $6, $7, true,
+          NOW(), $8, $9
         )
         RETURNING *;
       `;
@@ -307,18 +296,10 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         dto.room_id ?? null,
 
         foodId,
-        dto.quantity,
 
         dto.meal_type,
         dto.plan_date ?? new Date().toISOString().split("T")[0],
         dto.food_stage ?? "PLANNED",
-
-        dto.delivery_status ?? null,
-
-        dto.order_datetime ?? null,
-        dto.delivered_datetime ?? null,
-
-        dto.remarks ?? null,
 
         user,
         ip
@@ -357,13 +338,13 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
           throw new BadRequestException('Invalid meal type in plan');
         }
       }
-      for (const items of Object.values(meals)) {
-        for (const foodId of items) {
-          if (!/^\d+$/.test(foodId)) {
-            throw new BadRequestException('Invalid food ID format');
-          }
-        }
-      }
+      // for (const items of Object.values(meals)) {
+      //   for (const foodId of items) {
+      //     if (!/^\d+$/.test(foodId)) {
+      //       throw new BadRequestException('Invalid food ID format');
+      //     }
+      //   }
+      // }
       for (const [mealType, items] of Object.entries(meals)) {
 
         let dbMealType = "";
@@ -582,10 +563,6 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         mi.food_name,
         mi.food_type,
         mi.food_desc,
-        gf.delivery_status,
-        gf.quantity,
-        gf.order_datetime,
-        gf.delivered_datetime,
         gf.meal_type,
         gf.plan_date,
         gf.food_stage,
