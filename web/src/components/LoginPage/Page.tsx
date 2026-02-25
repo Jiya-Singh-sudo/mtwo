@@ -3,6 +3,7 @@ import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield 
 import './LoginPage.css';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
@@ -25,26 +26,27 @@ export function LoginPage() {
     const { isAuthenticated, login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [captchaInput, setCaptchaInput] = useState('');
+    // const [captchaInput, setCaptchaInput] = useState('');
+    const { executeRecaptcha } = useGoogleReCaptcha();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [errors, setErrors] = useState<{
         username?: string;
         password?: string;
-        captcha?: string;
+        // captcha?: string;
         general?: string;
     }>({});
     const [touched, setTouched] = useState<{
         username: boolean;
         password: boolean;
-        captcha: boolean;
+        // captcha: boolean;
     }>({
         username: false,
         password: false,
-        captcha: false,
+        // captcha: false,
     });
-    const [captchaCode, setCaptchaCode] = useState('');
+    // const [captchaCode, setCaptchaCode] = useState('');
     const navigate = useNavigate();
 
     // Auto-play carousel
@@ -78,9 +80,9 @@ export function LoginPage() {
         for (let i = 0; i < 6; i++) {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        setCaptchaCode(code);
-        setCaptchaInput('');
-        setErrors(prev => ({ ...prev, captcha: undefined }));
+        // setCaptchaCode(code);
+        // setCaptchaInput('');
+        // setErrors(prev => ({ ...prev, captcha: undefined }));
     };
 
     useEffect(() => {
@@ -120,18 +122,18 @@ export function LoginPage() {
         return undefined;
     };
 
-    const validateCaptcha = (value: string) => {
-        if (!value.trim()) {
-            return 'CAPTCHA is required';
-        }
-        if (value.toUpperCase() !== captchaCode) {
-            return 'CAPTCHA does not match';
-        }
-        return undefined;
-    };
+    // const validateCaptcha = (value: string) => {
+    //     if (!value.trim()) {
+    //         return 'CAPTCHA is required';
+    //     }
+    //     if (value.toUpperCase() !== captchaCode) {
+    //         return 'CAPTCHA does not match';
+    //     }
+    //     return undefined;
+    // };
 
     // Handle field blur
-    const handleBlur = (field: 'username' | 'password' | 'captcha') => {
+    const handleBlur = (field: 'username' | 'password') => {
         setTouched(prev => ({ ...prev, [field]: true }));
 
         let error: string | undefined;
@@ -139,9 +141,10 @@ export function LoginPage() {
             error = validateUsername(username);
         } else if (field === 'password') {
             error = validatePassword(password);
-        } else if (field === 'captcha') {
-            error = validateCaptcha(captchaInput);
         }
+        // } else if (field === 'captcha') {
+        //     error = validateCaptcha(captchaInput);
+        // }
 
         setErrors(prev => ({ ...prev, [field]: error }));
     };
@@ -161,22 +164,22 @@ export function LoginPage() {
         }
     };
 
-    const handleCaptchaChange = (value: string) => {
-        setCaptchaInput(value);
-        if (touched.captcha) {
-            setErrors(prev => ({ ...prev, captcha: validateCaptcha(value) }));
-        }
-    };
+    // const handleCaptchaChange = (value: string) => {
+    //     setCaptchaInput(value);
+    //     if (touched.captcha) {
+    //         setErrors(prev => ({ ...prev, captcha: validateCaptcha(value) }));
+    //     }
+    // };
 
     // Check if form is valid
     const isFormValid = () => {
         return (
             !validateUsername(username) &&
             !validatePassword(password) &&
-            !validateCaptcha(captchaInput) &&
+            // !validateCaptcha(captchaInput) &&
             username.trim() !== '' &&
-            password !== '' &&
-            captchaInput.trim() !== ''
+            password !== ''
+            // captchaInput.trim() !== ''
         );
     };
 
@@ -184,23 +187,30 @@ export function LoginPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        setTouched({ username: true, password: true, captcha: true });
+        setTouched({ username: true, password: true });
 
         const usernameError = validateUsername(username);
         const passwordError = validatePassword(password);
-        const captchaError = validateCaptcha(captchaInput);
+        // const captchaError = validateCaptcha(captchaInput);
 
         setErrors({
             username: usernameError,
             password: passwordError,
-            captcha: captchaError,
+            // captcha: captchaError,
         });
 
-        if (usernameError || passwordError || captchaError) return;
+        if (usernameError || passwordError) return;
+
+        if (!executeRecaptcha) {
+            setErrors({ general: "reCAPTCHA not ready" });
+            return;
+        }
+
+        const token = await executeRecaptcha('login_action');
 
         try {
             setIsLoading(true);
-            login(username, password);
+            await login(username, password, token);
 
             // ✅ Redirect to dashboard
             navigate('/dashboard', { replace: true });
@@ -402,7 +412,7 @@ export function LoginPage() {
 
 
                                 {/* CAPTCHA Section */}
-                                <div>
+                                {/* <div>
                                     <label htmlFor="captcha" className="block text-sm text-gray-700 mb-2">
                                         CAPTCHA Verification <span className="text-red-500">*</span>
                                     </label>
@@ -446,7 +456,7 @@ export function LoginPage() {
                                             {errors.captcha}
                                         </p>
                                     )}
-                                </div>
+                                </div> */}
 
                                 {/* Login Button */}
                                 <button
@@ -495,4 +505,11 @@ export function LoginPage() {
         </div>
     );
 }
-export default LoginPage;
+export default function LoginPageWrapper() {
+    return (
+        <GoogleReCaptchaProvider reCaptchaKey="6Ld-lncsAAAAAOc1KQ3PBx7R4mILJ8bIrJ4qxErt">
+            <LoginPage />
+        </GoogleReCaptchaProvider>
+    );
+}
+// export default LoginPage;

@@ -17,22 +17,13 @@ export const guestFoodSchema = z.object({
 
   room_id: z.string().optional(),
 
-  quantity: z
-    .number()
-    .int("Quantity must be a whole number")
-    .positive("Quantity must be greater than zero")
-    .default(1),
-
-  request_type: z
-    .enum(["Room-Service", "Dine-In", "Buffet", "Takeaway", "Other"])
-    .optional(),
+  // request_type: z
+  //   .enum(["Room-Service", "Dine-In", "Buffet", "Takeaway", "Other"])
+  //   .optional(),
 
   delivery_status: z
     .enum(["Requested", "Preparing", "Ready", "Delivered", "Cancelled"])
     .optional(),
-
-  order_datetime: z.string().optional(),
-  delivered_datetime: z.string().optional(),
 
   remarks: z
     .string()

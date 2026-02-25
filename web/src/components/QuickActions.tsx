@@ -12,16 +12,17 @@ import {
   Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 type ModuleType =
   | 'guest-management'
   | 'room-management'
   | 'vehicle-management'
-  | 'guest-transport-management'
+  | 'transport-management'
   | 'driver-management'
   | 'food-service'
   | 'network-management'
-  | 'duty-roster'
+  | 'driver-duty-roster'
   | 'info-package'
   | 'notifications'
   | 'reports'
@@ -30,84 +31,96 @@ type ModuleType =
 
 export function QuickActions() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const actions = [
     {
       title: 'Add New Guest',
       titleHi: 'नया अतिथि जोड़ें',
       icon: UserPlus,
       color: 'bg-[#00247D] hover:bg-blue-900',
-      module: 'guest-management' as ModuleType
+      module: 'guest-management' as ModuleType,
+      permission: 'guest.view'
     },
     {
       title: 'Allocate Room',
       titleHi: 'कक्ष आवंटित करें',
       icon: BedDouble,
       color: 'bg-green-600 hover:bg-green-700',
-      module: 'room-management' as ModuleType
+      module: 'room-management' as ModuleType,
+      permission: 'room.view'
     },
     {
       title: 'Assign Vehicle',
       titleHi: 'वाहन आवंटित करें',
       icon: CarFront,
       color: 'bg-purple-600 hover:bg-purple-700',
-      module: 'vehicle-management' as ModuleType
+      module: 'vehicle-management' as ModuleType,
+      permission: 'vehicle.view'
     },
     {
       title: 'Manage Drivers',
       titleHi: 'चालक प्रबंधित करें',
       icon: UserCog,
       color: 'bg-indigo-600 hover:bg-indigo-700',
-      module: 'driver-management' as ModuleType
+      module: 'transport-management' as ModuleType,
+      permission: 'transport.view'
     },
     {
       title: 'Food Service',
       titleHi: 'खाद्य सेवा',
       icon: UtensilsCrossed,
       color: 'bg-pink-600 hover:bg-pink-700',
-      module: 'food-service' as ModuleType
+      module: 'food-service' as ModuleType,
+      permission: 'food.view'
     },
     {
       title: 'Network Management',
       titleHi: 'नेटवर्क प्रबंधन',
       icon: Building2,
       color: 'bg-gradient-to-r from-[#F5A623] to-[#E09612] hover:from-[#E09612] hover:to-[#D48810] text-[#00247D]',
-      module: 'network-management' as ModuleType
+      module: 'network-management' as ModuleType,
+      permission: 'network.view'
     },
     {
-      title: 'Create Duty Roster',
-      titleHi: 'ड्यूटी रोस्टर बनाएं',
+      title: 'Driver Duty Roster',
+      titleHi: 'ड्राइवर ड्यूटी रोस्टर',
       icon: Calendar,
       color: 'bg-gradient-to-r from-[#F5A623] to-[#E09612] hover:from-[#E09612] hover:to-[#D48810] text-[#00247D]',
-      module: 'duty-roster' as ModuleType
+      module: 'driver-duty-roster' as ModuleType,
+      permission: 'driver_duty.view'
     },
     {
       title: 'Generate Info Package',
       titleHi: 'सूचना पैकेज बनाएं',
       icon: FileText,
       color: 'bg-teal-600 hover:bg-teal-700',
-      module: 'info-package' as ModuleType
+      module: 'info-package' as ModuleType,
+      permission: 'info.view'
     },
     {
       title: 'Send Notification',
       titleHi: 'सूचना भेजें',
       icon: Bell,
       color: 'bg-red-600 hover:bg-red-700',
-      module: 'notifications' as ModuleType
+      module: 'notifications' as ModuleType,
+      permission: 'notification.view'
     },
     {
       title: 'Generate Report',
       titleHi: 'रिपोर्ट बनाएं',
       icon: Download,
       color: 'bg-orange-600 hover:bg-orange-700',
-      module: 'reports' as ModuleType
+      module: 'reports' as ModuleType,
+      permission: 'report.view'
     },
-    {
-      title: 'System Settings',
-      titleHi: 'सिस्टम सेटिंग्स',
-      icon: Settings,
-      color: 'bg-gray-600 hover:bg-gray-700',
-      module: 'settings' as ModuleType
-    },
+    // {
+    //   title: 'System Settings',
+    //   titleHi: 'सिस्टम सेटिंग्स',
+    //   icon: Settings,
+    //   color: 'bg-gray-600 hover:bg-gray-700',
+    //   module: 'settings' as ModuleType,
+    //   permission: 'settings.view'
+    // },
   ];
 
 
@@ -119,7 +132,9 @@ export function QuickActions() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-        {actions.map((action) => {
+      {actions
+        .filter(action => hasPermission(action.permission))
+        .map((action) => {
           const Icon = action.icon;
           return (
             <button

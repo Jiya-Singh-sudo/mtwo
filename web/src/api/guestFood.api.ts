@@ -22,7 +22,6 @@ export const createGuestFood = async (
     guest_id: string;
     room_id?: string;
     food_id: string;
-    quantity: number;
     meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
     plan_date: string;
     food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
@@ -31,8 +30,6 @@ export const createGuestFood = async (
   const res = await apiClient.post("/guest-food", payload);
   return res.data;
 };
-
-
 
 export const updateGuestFood = async (
   guestFoodId: string,

@@ -7,10 +7,7 @@ export type NetworkProvider = {
   provider_name: string;
   provider_name_local_language?: string;
   network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
-  bandwidth_mbps?: number;
   username?: string;
-  static_ip?: string;
-  address?: string;
   is_active: boolean;
   inserted_at: string;
   updated_at?: string;
@@ -24,11 +21,8 @@ export type CreateNetworkPayload = {
   provider_name: string;
   provider_name_local_language?: string;
   network_type: NetworkProvider['network_type'];
-  bandwidth_mbps?: number;
   username?: string;
   password?: string;
-  static_ip?: string;
-  address?: string;
 };
 
 export type UpdateNetworkPayload = Partial<CreateNetworkPayload> & {
@@ -60,9 +54,9 @@ export type NetworkTableResponse = {
     total: number;
     active: number;
     inactive: number;
-    wifi: number;
-    broadband: number;
-    hotspot: number;
-    leasedLine: number;
+    // wifi: number;
+    // broadband: number;
+    // hotspot: number;
+    // leasedLine: number;
   };
 };

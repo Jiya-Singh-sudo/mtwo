@@ -11,7 +11,7 @@ type UserPayload = {
 type AuthContextType = {
   user: UserPayload | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, recaptchaToken: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
 };
@@ -28,8 +28,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const res = await api.post('/auth/login', { username, password });
+  const login = async (username: string, password: string, recaptchaToken: string) => {
+    const res = await api.post('/auth/login', { username, password, recaptchaToken });
 
     const { accessToken, payload } = res.data;
 

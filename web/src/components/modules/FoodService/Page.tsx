@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X } from "lucide-react";
 import "./FoodService.css";
-import { getFoodDashboard, updateGuestFood, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable } from "@/api/guestFood.api";
+import { getFoodDashboard, updateGuestFood, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
 import { FoodDashboard, GuestFoodTableRow } from "../../../types/guestFood";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, updateGuestButler } from "@/api/guestButler.api";
@@ -114,7 +114,7 @@ export function FoodService() {
     limit: 6,
     sortBy: "butler_name",
     sortOrder: "asc",
-    status: "Active",
+    status: "all",
   });
 
   const { showError } = useError();
@@ -211,6 +211,28 @@ export function FoodService() {
   }
 
   /* ---------------- LOADERS ---------------- */
+  // async function openEditFood(row: GuestFoodTableRow) {
+  //   setMenuMode("edit");
+
+  //   setActiveGuestForEdit({
+  //     guest_id: row.guest_id,
+  //     guest_name: row.guest_name,
+  //     room_id: row.room_id ?? null,
+  //   } as any);
+
+  //   // 🔥 LOAD TODAY'S MASTER PLAN (NOT GUEST ASSIGNMENTS)
+  //   const data = await getTodayMealPlanOverview();
+
+  //   setDailyPlan({
+  //     breakfast: data.Breakfast ?? [],
+  //     lunch: data.Lunch ?? [],
+  //     highTea: data["High Tea"] ?? [],
+  //     dinner: data.Dinner ?? [],
+  //   });
+
+  //   setSelectedMeal("breakfast");
+  //   setMenuModalOpen(true);
+  // }
   async function openEditFood(row: GuestFoodTableRow) {
     setMenuMode("edit");
 
@@ -220,58 +242,41 @@ export function FoodService() {
       room_id: row.room_id ?? null,
     } as any);
 
-    // 🔥 LOAD TODAY'S MASTER PLAN (NOT GUEST ASSIGNMENTS)
-    const data = await getTodayMealPlanOverview();
+    // 🔥 LOAD GUEST-SPECIFIC FOOD (NOT MASTER PLAN)
+    const res = await getTodayGuestOrders();
 
-    setDailyPlan({
-      breakfast: data.Breakfast ?? [],
-      lunch: data.Lunch ?? [],
-      highTea: data["High Tea"] ?? [],
-      dinner: data.Dinner ?? [],
+    const guestRows = res.filter(
+      (r: any) => r.guest_id === row.guest_id
+    );
+
+    const mappedPlan: DailyMealPlan = {
+      breakfast: [],
+      lunch: [],
+      highTea: [],
+      dinner: [],
+    };
+
+    guestRows.forEach((item: any) => {
+      const meal = normalizeMealType(item.meal_type);
+      if (!meal) return;
+
+      const key = (
+        meal === "High Tea"
+          ? "highTea"
+          : meal.toLowerCase()
+      ) as keyof DailyMealPlan;
+
+      if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
+        mappedPlan[key].push(item.food_id);
+      }
     });
+
+    setDailyPlan(mappedPlan);
 
     setSelectedMeal("breakfast");
     setMenuModalOpen(true);
   }
-  // function openEditFood(row: GuestFoodTableRow) {
-  //   setMenuMode("edit");
 
-  //   setActiveGuestForEdit({
-  //     guest_id: row.guest_id,
-  //     guest_name: row.guest_name,
-  //     room_id: row.room_id,
-  //   } as any);
-
-  //   // 🔥 LOAD EXISTING GUEST FOOD
-  //   const existing = foodRows.filter(r => r.guest_id === row.guest_id);
-
-  //   const mappedPlan: DailyMealPlan = {
-  //     breakfast: [],
-  //     lunch: [],
-  //     highTea: [],
-  //     dinner: [],
-  //   };
-
-  //   existing.forEach(item => {
-  //     const meal = normalizeMealType(item.meal_type);
-  //     if (!meal) return;
-  //     const key = (
-  //       meal === "High Tea"
-  //         ? "highTea"
-  //         : meal.toLowerCase()
-  //     ) as keyof DailyMealPlan;
-
-  //     // Avoid duplicates in the UI list if multiple rows exist for same item (though shouldn't happen often)
-  //     if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
-  //       mappedPlan[key].push(item.food_id);
-  //     }
-  //   });
-
-  //   setDailyPlan(mappedPlan);
-
-  //   setSelectedMeal("breakfast");
-  //   setMenuModalOpen(true);
-  // }
   async function loadFoodData() {
     try {
       const dashboard = await getFoodDashboard();
@@ -535,7 +540,35 @@ export function FoodService() {
       showError("Failed to save butler");
     }
   }
+  async function reloadGuestModalData(guestId: string) {
+    const res = await getTodayGuestOrders();
 
+    const guestRows = res.filter((r: any) => r.guest_id === guestId);
+
+    const mappedPlan: DailyMealPlan = {
+      breakfast: [],
+      lunch: [],
+      highTea: [],
+      dinner: [],
+    };
+
+    guestRows.forEach((item: any) => {
+      const meal = normalizeMealType(item.meal_type);
+      if (!meal) return;
+
+      const key = (
+        meal === "High Tea"
+          ? "highTea"
+          : meal.toLowerCase()
+      ) as keyof DailyMealPlan;
+
+      if (item.food_id && !mappedPlan[key].includes(item.food_id)) {
+        mappedPlan[key].push(item.food_id);
+      }
+    });
+
+    setDailyPlan(mappedPlan);
+  }
   /* ---------------- ACTION HANDLERS ---------------- */
 
   function openAssignButlerModal(row: GuestFoodTableRow) {
@@ -547,35 +580,7 @@ export function FoodService() {
 
     setButlerAssignModalOpen(true);
   }
-  // const guestFoodPlan = async () => {
-  //   const mealLabel =
-  //     mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
 
-  //   for (const foodId of dailyPlan[selectedMeal]) {
-
-  //     const already = existing.find(
-  //       e => e.food_id === foodId && e.meal_type === mealLabel
-  //     );
-
-  //     if (already?.guest_food_id) {
-  //       await updateGuestFood(already.guest_food_id, {
-  //         meal_type: mealLabel,
-  //         plan_date: new Date().toISOString().split("T")[0],
-  //         food_stage: "PLANNED",
-  //       });
-  //     } else {
-  //       await createGuestFood({
-  //         guest_id: activeGuestForEdit.guest_id,
-  //         room_id: activeGuestForEdit.room_id ?? undefined,
-  //         food_id: foodId,   // ✅ REQUIRED
-  //         quantity: 1,
-  //         meal_type: mealLabel,
-  //         plan_date: new Date().toISOString().split("T")[0],
-  //         food_stage: "PLANNED",
-  //       });
-  //     }
-  //   }
-  // }
   /* ---------------- TABLE COLUMNS ---------------- */
 
   const foodColumns: Column<GuestFoodTableRow>[] = [
@@ -680,7 +685,7 @@ export function FoodService() {
       sortKey: "is_active",
       render: (b) => (
         <span className={`statusPill ${b.is_active ? "active" : "inactive"}`}>
-          {b.is_active ? "Active" : "Inactive"}
+          {b.is_active ? "active" : "inactive"}
         </span>
       ),
     },
@@ -941,7 +946,7 @@ export function FoodService() {
                   <p>
                     <strong>Status:</strong>{" "}
                     <span className={`statusPill ${activeButler.is_active ? "active" : "inactive"}`}>
-                      {activeButler.is_active ? "Active" : "Inactive"}
+                      {activeButler.is_active ? "active" : "inactive"}
                     </span>
                   </p>
                 </div>
@@ -1367,6 +1372,10 @@ export function FoodService() {
                       r => r.guest_id === activeGuestForEdit.guest_id
                     );
 
+                    // const mealLabel =
+                    //   mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+                    if (!activeGuestForEdit) return;
+
                     const mealLabel =
                       mealLabels[selectedMeal] as "Breakfast" | "Lunch" | "High Tea" | "Dinner";
 
@@ -1375,22 +1384,41 @@ export function FoodService() {
                         e => e.food_id === foodId && e.meal_type === mealLabel
                       );
 
-                      if (already?.guest_food_id) {
-                        await updateGuestFood(already.guest_food_id, {
-                          food_stage: "PLANNED",
-                        });
-                      } else {
+                      if (!already?.guest_food_id) {
                         await createGuestFood({
                           guest_id: activeGuestForEdit.guest_id,
                           room_id: activeGuestForEdit.room_id ?? undefined,
                           food_id: foodId,
-                          quantity: 1,
                           meal_type: mealLabel,
                           plan_date: new Date().toISOString().split("T")[0],
                           food_stage: "PLANNED",
                         });
                       }
                     }
+
+                    // 🔥 IMPORTANT PART
+                    await reloadGuestModalData(activeGuestForEdit.guest_id);
+                    // for (const foodId of dailyPlan[selectedMeal]) {
+                    //   const already = existing.find(
+                    //     e => e.food_id === foodId && e.meal_type === mealLabel
+                    //   );
+
+                    //   if (already?.guest_food_id) {
+                    //     await updateGuestFood(already.guest_food_id, {
+                    //       food_stage: "PLANNED",
+                    //     });
+                    //   } else {
+                    //     await createGuestFood({
+                    //       guest_id: activeGuestForEdit.guest_id,
+                    //       room_id: activeGuestForEdit.room_id ?? undefined,
+                    //       food_id: foodId,
+                    //       quantity: 1,
+                    //       meal_type: mealLabel,
+                    //       plan_date: new Date().toISOString().split("T")[0],
+                    //       food_stage: "PLANNED",
+                    //     });
+                    //   }
+                    // }
 
                     await loadGuests();
                     setMenuModalOpen(false);
