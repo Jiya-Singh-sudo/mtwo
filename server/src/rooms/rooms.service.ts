@@ -3,10 +3,10 @@ import { DatabaseService } from '../database/database.service';
 import { CreateRoomDto } from './dto/create-rooms.dto';
 import { UpdateRoomDto } from './dto/update-rooms.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class RoomsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
 
   private async getActiveGuestCount(room_id: string): Promise<number> {
     const result = await this.db.query(
@@ -21,40 +21,18 @@ export class RoomsService {
 
     return result.rows[0]?.count ?? 0;
   }
-  // private async generateRoomId(client: any): Promise<string> {
-  //   const result = await client.query(`
-  //     SELECT room_id
-  //     FROM m_rooms
-  //     WHERE room_id ~ '^R[_]?[0-9]+$'
-  //     ORDER BY
-  //       CAST(REGEXP_REPLACE(room_id, '[^0-9]', '', 'g') AS INTEGER) DESC
-  //     LIMIT 1
-  //   `);
 
-  //   if (result.rows.length === 0) {
-  //     return 'R_001';
-  //   }
-
-  //   const lastId = result.rows[0].room_id;
-
-  //   // Extract ONLY digits, safely
-  //   const numericPart = lastId.replace(/\D/g, '');
-  //   const num = Number(numericPart);
-
-  //   if (!Number.isFinite(num)) {
-  //     throw new BadRequestException(`Corrupt room_id detected: ${lastId}`);
-  //   }
-
-  //   return `R_${String(num + 1).padStart(3, '0')}`;
-  // }
   private async generateRoomId(client: any): Promise<string> {
     const res = await client.query(`
-      SELECT 'R_' || LPAD(nextval('room_seq')::text, 3, '0') AS id
+      SELECT 'R' || LPAD(nextval('room_seq')::text, 3, '0') AS id
     `);
     return res.rows[0].id;
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid active flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM m_rooms WHERE is_active = $1 ORDER BY room_no`
       : `SELECT * FROM m_rooms ORDER BY room_no`;
@@ -64,12 +42,22 @@ export class RoomsService {
   }
 
   async findOneByRoomNo(room_no: string) {
+    if (!room_no || !room_no.trim()) {
+      throw new BadRequestException('Room number is required');
+    }
+    const normalizedRoomNo = room_no.trim().toUpperCase();
+    if (!/^[A-Z0-9\-]+$/.test(normalizedRoomNo)) {
+      throw new BadRequestException('Invalid room number format');
+    }
     const sql = `SELECT * FROM m_rooms WHERE room_no = $1`;
-    const result = await this.db.query(sql, [room_no]);
+    const result = await this.db.query(sql, [normalizedRoomNo]);
     return result.rows[0];
   }
 
   async findOneById(room_id: string) {
+    if (!/^R\d+$/.test(room_id)) {
+      throw new BadRequestException('Invalid room ID format');
+    }
     const sql = `SELECT * FROM m_rooms WHERE room_id = $1`;
     const result = await this.db.query(sql, [room_id]);
     return result.rows[0];
@@ -77,21 +65,53 @@ export class RoomsService {
 
   async create(dto: CreateRoomDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      try {
-        await client.query(`
-          SELECT 1
-          FROM m_rooms
-          WHERE room_no = $1
-          FOR UPDATE
-        `, [dto.room_no]);
+      if (!dto.room_no || !dto.room_no.trim()) {
+        throw new BadRequestException('Room number is required');
+      }
+      const normalizedRoomNo = dto.room_no.trim().toUpperCase();
+      if (!/^[A-Z0-9\-]+$/.test(normalizedRoomNo)) {
+        throw new BadRequestException('Invalid room number format');
+      }
+      if (dto.room_name && dto.room_name.length > 100) {
+        throw new BadRequestException('Room name is too long');
+      }
+      if (dto.building_name && dto.building_name.length > 100) {
+        throw new BadRequestException('Building name is too long');
+      }
+      const allowedResidenceTypes = ['Hostel', 'GuestHouse', 'Hotel'];
 
+      if (dto.residence_type && !allowedResidenceTypes.includes(dto.residence_type)) {
+        throw new BadRequestException('Invalid residence type');
+      }
+      const allowedRoomTypes = ['Single', 'Double', 'Suite', 'Dorm'];
+      if (dto.room_type && !allowedRoomTypes.includes(dto.room_type)) {
+        throw new BadRequestException('Invalid room type');
+      }
+      if (dto.room_capacity !== undefined) {
+        if (!Number.isInteger(dto.room_capacity)) {
+          throw new BadRequestException('Invalid room capacity');
+        }
+
+        if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+          throw new BadRequestException('Room capacity is out of range');
+        }
+      }
+      if (dto.room_category && dto.room_category.length > 100) {
+        throw new BadRequestException('Room category is too long');
+      }
+      const allowedStatus = ['Available', 'Maintenance', 'Reserved', 'Occupied'];
+
+      if (!dto.status || !allowedStatus.includes(dto.status)) {
+        throw new BadRequestException('Invalid room status');
+      }
+      try {
         const existing = await client.query(
           `
           SELECT 1
           FROM m_rooms
           WHERE room_no = $1
             AND is_active = TRUE
-          LIMIT 1
+          FOR UPDATE
           `,
           [dto.room_no]
         );
@@ -102,11 +122,7 @@ export class RoomsService {
           );
         }
 
-        // const now = new Date()
-        //   .toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false })
-        //   .replace(',', '');
         const roomId = await this.generateRoomId(client);
-        
         const sql = `
           INSERT INTO m_rooms (
             room_id,
@@ -141,8 +157,16 @@ export class RoomsService {
         ];
 
         const result = await client.query(sql, params);
+        await this.activityLog.log({
+          message: 'New room created',
+          module: 'ROOM',
+          action: 'CREATE',
+          referenceId: roomId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return result.rows[0];
-        } catch (err) {
+      } catch (err) {
         throw err;
       }
     });
@@ -150,9 +174,11 @@ export class RoomsService {
 
   async update(room_id: string, dto: UpdateRoomDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^R\d+$/.test(room_id)) {
+        throw new BadRequestException('Invalid room ID format');
+      }
       const existingRes = await client.query(
-        `SELECT * FROM m_rooms WHERE room_id = $1 FOR UPDATE`,
+        `SELECT * FROM m_rooms WHERE room_id = $1 AND is_active = TRUE FOR UPDATE`,
         [room_id]
       );
 
@@ -195,6 +221,30 @@ export class RoomsService {
           );
         }
       }
+      if (dto.room_capacity !== undefined) {
+        if (!Number.isInteger(dto.room_capacity)) {
+          throw new BadRequestException('INVALID_ROOM_CAPACITY');
+        }
+
+        if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+          throw new BadRequestException('ROOM_CAPACITY_OUT_OF_RANGE');
+        }
+      }
+      if (dto.status) {
+        const allowedStatus = ['Available', 'Maintenance', 'Reserved', 'Occupied'];
+
+        if (!allowedStatus.includes(dto.status)) {
+          throw new BadRequestException('INVALID_ROOM_STATUS');
+        }
+      }
+      if (dto.room_name && dto.room_name.length > 100) {
+        throw new BadRequestException('ROOM_NAME_TOO_LONG');
+      }
+
+      if (dto.building_name && dto.building_name.length > 100) {
+        throw new BadRequestException('BUILDING_NAME_TOO_LONG');
+      }
+
       if (activeGuestCount > 0) {
         // 1️⃣ Room identity must remain stable
         if (nextRoomNo !== existing.room_no) {
@@ -258,6 +308,14 @@ export class RoomsService {
       ];
 
       const result = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Room details updated',
+        module: 'ROOM',
+        action: 'UPDATE',
+        referenceId: room_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }
@@ -265,7 +323,7 @@ export class RoomsService {
   async softDelete(room_no: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const existingRes = await client.query(
-        `SELECT * FROM m_rooms WHERE room_no = $1 FOR UPDATE`,
+        `SELECT * FROM m_rooms WHERE room_no = $1 AND is_active = TRUE FOR UPDATE`,
         [room_no]
       );
 
@@ -322,7 +380,14 @@ export class RoomsService {
 
       const params = [user, ip, room.room_id];
       const result = await client.query(sql, params);
-
+      await this.activityLog.log({
+        message: 'Room deleted',
+        module: 'ROOM',
+        action: 'DELETE',
+        referenceId: room.room_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }

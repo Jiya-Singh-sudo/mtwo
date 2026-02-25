@@ -6,7 +6,7 @@ import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dto/login.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-
+import axios from 'axios';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -171,18 +171,48 @@ export class AuthService {
     const result = await this.db.query(sql, [userId]);
     return result.rows.map(r => r.permission_name);
   }
+  private async verifyRecaptcha(token: string) {
+    const secret = process.env.RECAPTCHA_SECRET_KEY;
 
+    if (!secret) {
+      throw new Error('RECAPTCHA_SECRET_KEY not configured');
+    }
+
+    const response = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      null,
+      {
+        params: {
+          secret,
+          response: token,
+        },
+      },
+    );
+
+    return response.data;
+  }
   // --------------------- LOGIN ---------------------
   async login(dto: LoginDto, ip: string) {
     return this.db.transaction(async (client) => {
+      // 🔐 Step 1 — Verify reCAPTCHA FIRST
+      const recaptchaResult = await this.verifyRecaptcha(dto.recaptchaToken);
+
+      if (!recaptchaResult.success) {
+        throw new UnauthorizedException('reCAPTCHA validation failed');
+      }
+
+      // score exists only in v3
+      if (recaptchaResult.score < 0.5) {
+        throw new UnauthorizedException('Suspicious activity detected');
+      }
       const hashedPassword = this.sha256Hex(dto.password);
 
-      const result = await this.db.query(
+      const result = await client.query(
         `SELECT * FROM m_user WHERE username = $1 AND is_active = true FOR UPDATE`,
         [dto.username]
       );
 
-      if (!result.rows.length) {
+      if (!result.rows.length) {  
         await this.activityLog.log({
           message: `Invalid login attempt for username ${dto.username}`,
           module: 'AUTH',

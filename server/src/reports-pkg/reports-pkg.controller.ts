@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Body, Res, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Res, HttpException, HttpStatus, Req } from '@nestjs/common';
 import express from 'express';
 import { ReportsPkgService } from './reports-pkg.service';
 import { ReportPreviewDto } from './dto/report-preview.dto';
@@ -6,6 +6,7 @@ import { ReportGenerateDto } from './dto/report-generate.dto';
 import { normalizeRangeType } from './utils/range-normalizer.util';
 import type { Response } from 'express';
 import { ReportCode } from './registry/report.registry';
+import { getRequestContext } from 'common/utlis/request-context.util';
 
 @Controller('reports-pkg')
 export class ReportsPkgController {
@@ -43,7 +44,8 @@ export class ReportsPkgController {
       startDate?: string;
       endDate?: string;
     },
-    @Res() res: express.Response
+    @Res() res: express.Response,
+    @Req() req: express.Request
   ) {
     try {
       console.log('[Guest Excel RAW BODY]', body);
@@ -54,9 +56,9 @@ export class ReportsPkgController {
       };
 
       console.log('[Guest Excel NORMALIZED BODY]', normalizedBody);
-
+      const { user, ip } = getRequestContext(req);
       const result =
-        await this.service.generateGuestSummaryExcel(normalizedBody);
+        await this.service.generateGuestSummaryExcel({...normalizedBody, user, ip});
 
       if (!result?.filePath) {
         throw new HttpException(
@@ -64,7 +66,6 @@ export class ReportsPkgController {
           HttpStatus.INTERNAL_SERVER_ERROR
         );
       }
-
       return res.download(result.filePath);
     } catch (error) {
       console.error('Guest Summary Excel Error:', error.message);

@@ -68,11 +68,7 @@ export async function exportFoodServiceExcel(payload: {
       r.food_name ?? '',
       r.food_type ?? '',
       r.meal_type ?? '',
-      r.quantity ?? '',
       r.food_stage ?? '',
-      r.order_datetime ?? '',
-      r.delivered_datetime ?? '',
-      r.delivery_status ?? '',
       r.remarks ?? '',
     ]);
   });

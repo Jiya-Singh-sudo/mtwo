@@ -7,11 +7,11 @@ import { sendWhatsappDocument } from '../../common/utlis/whatsapp.util';
 import { logInfoPackageAudit } from '../../common/utlis/info-package-audit.util';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { formatDateTime } from '../../common/utlis/date-utlis';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class InfoPackageService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
 
   async searchGuests(query: InfoPackageSearchDto) {
     const page = Number(query.page || 1);
@@ -268,8 +268,15 @@ export class InfoPackageService {
         actionType: 'PDF_GENERATED',
         performedBy: 'system',
       });
+      await this.activityLog.log({
+        message: 'Guest Info Package generated successfully',
+        module: 'INFO_PACKAGE',
+        action: 'GENERATE',
+        referenceId: guestId,
+        performedBy: 'system',
+        ipAddress: 'system',
+      }, client);
     });
-
     return {
       fileName: `Guest_Info_${guestId.replace(/[^a-zA-Z0-9_-]/g, '')}.pdf`,
       buffer: pdfBuffer,
@@ -309,6 +316,14 @@ export class InfoPackageService {
         performedBy: context?.performedBy || 'system',
         ipAddress: context?.ipAddress,
       });
+      await this.activityLog.log({
+        message: 'Guest Info Package sent successfully on Whatsapp',
+        module: 'INFO_PACKAGE',
+        action: 'SEND',
+        referenceId: guestId,
+        performedBy: context?.performedBy || 'system',
+        ipAddress: context?.ipAddress,
+      }, client);
     });
 
     return {

@@ -3,10 +3,10 @@ import { DatabaseService } from "../database/database.service";
 import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
 import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestFoodService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
   private readonly MEAL_WINDOWS: Record<string, { start: string; end: string }> = {
     Breakfast: { start: "07:00", end: "10:00" },
     Lunch: { start: "12:30", end: "15:00" },
@@ -136,17 +136,15 @@ export class GuestFoodService {
 
   async create(dto: CreateGuestFoodDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-if (!/^G\d+$/.test(dto.guest_id)) {
-  throw new BadRequestException('Invalid guest ID format');
-}
-
-// if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
-//   throw new BadRequestException('Invalid room ID format');
-// }
-
-if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
-  throw new BadRequestException('Invalid butler ID format');
-}
+    if (!/^G\d+$/.test(dto.guest_id)) {
+      throw new BadRequestException('Invalid guest ID format');
+    }
+    // if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
+    //   throw new BadRequestException('Invalid room ID format');
+    // }
+    // if (dto.butler_id && !/^B_\d+$/.test(dto.butler_id)) {
+    //   throw new BadRequestException('Invalid butler ID format');
+    // }
       const planDate = new Date().toISOString().split("T")[0];
       const id = await this.generateId(client);
       let foodId = dto.food_id;
@@ -306,6 +304,14 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Meal assigned to guest',
+        module: 'GUEST FOOD',
+        action: 'CREATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -425,10 +431,19 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
           user,
           ip
         );
+
       }
-      console.log("Inserted rows:", insertCount);
-      console.log("Propagated rows:", insertCount);
-      console.log("Guests found:", guests.rowCount);
+      // console.log("Inserted rows:", insertCount);
+      // console.log("Propagated rows:", insertCount);
+      // console.log("Guests found:", guests.rowCount);
+        await this.activityLog.log({
+          message: 'Daily meal plan created',
+          module: 'DAILY MEAL PLAN',
+          action: 'CREATE',
+          referenceId: planDate,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return {
         success: true,
         inserted: insertCount
@@ -500,6 +515,14 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
       ];
 
       const res = await this.db.query(sql, params);
+        await this.activityLog.log({
+          message: 'Daily meal plan updated',
+          module: 'DAILY MEAL PLAN',
+          action: 'UPDATE',
+          referenceId: dto.meal_type,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return res.rows[0];
     });
   }
@@ -531,7 +554,14 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         `,
         [user, ip, id]
       );
-
+        await this.activityLog.log({
+          message: 'Daily meal plan deleted',
+          module: 'DAILY MEAL PLAN',
+          action: 'DELETE',
+          referenceId: id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return res.rows[0];
     });
   }
@@ -553,13 +583,14 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
         gi.companions,
 
         gr.room_id,
-        gr.room_no,
+        r.room_no,
 
         md.designation_name,
         md.designation_name_local_language,
         gd.department,
 
         gf.guest_food_id,
+        gf.food_id,
         mi.food_name,
         mi.food_type,
         mi.food_desc,
@@ -569,10 +600,9 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
 
         gb.guest_butler_id,
         b.butler_id,
-        b.butler_name,
-        b.butler_name_local_language,
-        b.butler_mobile,
-        b.shift,
+        sb.full_name AS butler_name,
+        sb.full_name_local_language AS butler_name_local_language,
+        sb.primary_mobile AS butler_mobile,
         gb.special_request
 
       FROM t_guest_inout gi
@@ -584,6 +614,9 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
       AND gr.is_active = TRUE
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
+      AND r.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = g.guest_id
@@ -609,13 +642,18 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
 
       LEFT JOIN m_butler b
         ON b.butler_id = gb.butler_id
+      AND b.is_active = TRUE
+
+      LEFT JOIN m_staff sb
+        ON sb.staff_id = b.staff_id
+      AND sb.is_active = TRUE
 
       WHERE gi.is_active = TRUE
         AND gi.guest_inout = TRUE
         AND gi.status = 'Entered'
         AND gi.entry_date <= CURRENT_DATE
         AND (gi.exit_date IS NULL OR gi.exit_date >= CURRENT_DATE)
-      ORDER BY g.guest_name, gf.order_datetime NULLS LAST;
+      ORDER BY g.guest_name, gf.inserted_at DESC;
     `;
     const res = await this.db.query(sql);
     return res.rows;
@@ -1016,6 +1054,14 @@ if (dto.butler_id && !/^B\d+$/.test(dto.butler_id)) {
       `,
       [user, ip, guest_id, planDate]
     );
+        await this.activityLog.log({
+          message: 'Daily meal plan created',
+          module: 'DAILY MEAL PLAN',
+          action: 'CREATE',
+          referenceId: planDate,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
     return { affected };
   }
 }

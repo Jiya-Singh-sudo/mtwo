@@ -2,10 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestHousekeepingDto } from "./dto/create-guest-housekeeping.dto";
 import { UpdateGuestHousekeepingDto } from "./dto/update-guest-housekeeping.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestHousekeepingService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
 
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
@@ -24,22 +24,44 @@ export class GuestHousekeepingService {
   }
 
   async findOne(id: string) {
+    if (!/^GHK\d+$/.test(id)) {
+      throw new BadRequestException('Invalid Guest Housekeeping ID');
+    }
     const res = await this.db.query(
       `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1`,
       [id]
     );
-
     if (!res.rowCount) {
       throw new NotFoundException('Housekeeping task not found');
     }
-
     return res.rows[0];
   }
 
   async create(dto: CreateGuestHousekeepingDto, user: string, ip: string) {
     // 1️⃣ Find active guest for this room
     return this.db.transaction(async (client) => {
+      if (!/^R\d+$/.test(dto.room_id)) {
+        throw new BadRequestException('Invalid Room ID');
+      }
+      if (!/^HK\d+$/.test(dto.hk_id)) {
+        throw new BadRequestException('Invalid Housekeeping ID');
+      }
+      if (dto.remarks && dto.remarks.length > 500) {
+        throw new BadRequestException('Remarks too long');
+      }
       try {
+        const hkCheck = await client.query(`
+          SELECT 1
+          FROM m_housekeeping hk
+          JOIN m_staff s ON s.staff_id = hk.staff_id
+          WHERE hk.hk_id = $1
+            AND hk.is_active = TRUE
+            AND s.is_active = TRUE
+        `, [dto.hk_id]);
+
+        if (!hkCheck.rowCount) {
+          throw new BadRequestException('Housekeeping not active');
+        }
         const guestRes = await client.query(
           `
           SELECT guest_id
@@ -54,40 +76,71 @@ export class GuestHousekeepingService {
           throw new BadRequestException('No active guest assigned to this room');
         }
         const guestId = guestRes.rows[0].guest_id;
+        const hkConflict = await client.query(`
+          SELECT 1
+          FROM t_guest_hk
+          WHERE hk_id = $1
+            AND is_active = TRUE
+          FOR UPDATE
+        `, [dto.hk_id]);
 
-    // 2️⃣ Ensure guest has active stay
-    const stayRes = await client.query(
-      `
-      SELECT entry_date, exit_date
-      FROM t_guest_inout
-      WHERE guest_id = $1
-        AND is_active = TRUE
-      `,
-      [guestId]
-    );
+        if (hkConflict.rowCount > 0) {
+          throw new BadRequestException(
+            'Housekeeping staff already assigned to another guest'
+          );
+        }
+        // 2️⃣ Ensure guest has active stay
+        const stayRes = await client.query(
+          `
+          SELECT entry_date, exit_date
+          FROM t_guest_inout
+          WHERE guest_id = $1
+            AND is_active = TRUE
+          `,
+          [guestId]
+        );
+        if (!stayRes.rowCount) {
+          throw new BadRequestException(
+            'Guest does not have an active stay'
+          );
+        }
+          const { entry_date, exit_date } = stayRes.rows[0];
+          const today = new Date();
+          if (entry_date && new Date(entry_date) > today) {
+            throw new BadRequestException('Guest has not checked in yet');
+          }
 
-    if (!stayRes.rowCount) {
-      throw new BadRequestException(
-        'Guest does not have an active stay'
-      );
-    }
+          if (exit_date && new Date(exit_date) < today) {
+            throw new BadRequestException('Guest has already checked out');
+          }
+        // 3️⃣ Prevent duplicate housekeeping assignment
+        const existingHk = await client.query(
+          `
+          SELECT 1
+          FROM t_guest_hk
+          WHERE guest_id = $1
+            AND is_active = TRUE
+          `,
+          [guestId]
+        );
 
-    // 3️⃣ Prevent duplicate housekeeping assignment
-    const existingHk = await client.query(
-      `
-      SELECT 1
-      FROM t_guest_hk
-      WHERE guest_id = $1
-        AND is_active = TRUE
-      `,
-      [guestId]
-    );
+        if (existingHk.rowCount) {
+          throw new BadRequestException(
+            'Housekeeping already assigned to this guest'
+          );
+        }
+        const roomStatus = await client.query(`
+          SELECT status
+          FROM m_rooms
+          WHERE room_id = $1
+          AND is_active = TRUE
+        `, [dto.room_id]);
 
-    if (existingHk.rowCount) {
-      throw new BadRequestException(
-        'Housekeeping already assigned to this guest'
-      );
-    }
+        if (roomStatus.rows[0]?.status !== 'Occupied') {
+          throw new BadRequestException(
+            'Cannot assign housekeeping to non-occupied room'
+          );
+        }
         const id = await this.generateId(client);
         // const nowISO = new Date().toISOString();
         const sql = `
@@ -114,8 +167,15 @@ export class GuestHousekeepingService {
           user,
           ip
         ];
-
         const res = await client.query(sql, params);
+        await this.activityLog.log({
+          message: 'Room Boy assigned to guest',
+          module: 'GUEST HOUSEKEEPING',
+          action: 'CREATE',
+          referenceId: id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return res.rows[0];
       } catch (error) {
         throw error;
@@ -125,17 +185,42 @@ export class GuestHousekeepingService {
 
   async update(id: string, dto: UpdateGuestHousekeepingDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GHK\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Housekeeping ID');
+      }
+      if (dto.hk_id && !/^HK\d+$/.test(dto.hk_id)) {
+        throw new BadRequestException('Invalid Housekeeping ID');
+      }
+      if (dto.remarks && dto.remarks.length > 500) {
+        throw new BadRequestException('Remarks too long');
+      }
       try {
       const existingRes = await client.query(
-        `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 and is_active = TRUE FOR UPDATE`,
         [id]
       );
-
       if (!existingRes.rowCount) {
         throw new NotFoundException(`Housekeeping task '${id}' not found`);
       }
-
       const existing = existingRes.rows[0];
+      if (!existing.is_active) {
+        throw new BadRequestException('Cannot modify cancelled task');
+      }
+      if (dto.hk_id && dto.hk_id !== existing.hk_id) {
+        const hkConflict = await client.query(`
+          SELECT 1
+          FROM t_guest_hk
+          WHERE hk_id = $1
+            AND is_active = TRUE
+            AND guest_hk_id <> $2
+        `, [dto.hk_id, id]);
+
+        if (hkConflict.rowCount > 0) {
+          throw new BadRequestException(
+            'Housekeeping staff already assigned'
+          );
+        }
+      }
       const sql = `
         UPDATE t_guest_hk SET
           hk_id = $1,
@@ -157,6 +242,14 @@ export class GuestHousekeepingService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+          message: 'Room Boy assignment to guest updated',
+          module: 'GUEST HOUSEKEEPING',
+          action: 'UPDATE',
+          referenceId: id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return res.rows[0];
       } catch (error) {
         throw error;
@@ -166,23 +259,21 @@ export class GuestHousekeepingService {
 
   async cancel(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GHK\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Housekeeping ID');
+      }
       try {
       // 1️⃣ Fetch housekeeping task
     const check = await client.query(
-      `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 FOR UPDATE`,
+      `SELECT * FROM t_guest_hk WHERE guest_hk_id = $1 AND is_active = TRUE FOR UPDATE`,
       [id]
     );
       if (!check.rowCount) {
         throw new NotFoundException('Housekeeping task not found');
       }
-      // const hk = check.rows[0];
-
-      // // 2️⃣ BLOCK if assigned to guest
-      // if (hk.is_active && hk.guest_id) {
-      //   throw new BadRequestException(
-      //     'Cannot delete housekeeping: it is assigned to an active guest'
-      //   );
-      // }
+      if (!check.rows[0].is_active) {
+        throw new BadRequestException('TASK_ALREADY_CANCELLED');
+      }
       const sql = `
         UPDATE t_guest_hk
         SET
@@ -196,6 +287,14 @@ export class GuestHousekeepingService {
       `;
 
       const res = await client.query(sql, [id, user, ip]);
+        await this.activityLog.log({
+          message: 'Room Boy assignment unassigned from guest',
+          module: 'GUEST HOUSEKEEPING',
+          action: 'CANCEL',
+          referenceId: id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return res.rows[0];
       } catch (error) {
         throw error;

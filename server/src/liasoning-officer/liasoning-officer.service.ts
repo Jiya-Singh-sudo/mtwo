@@ -2,10 +2,10 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateLiasoningOfficerDto, UpdateLiasoningOfficerDto } from './dto/liasoning-officer.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class LiasoningOfficerService {
-    constructor(private readonly db: DatabaseService) { }
+    constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
     private async generateId(client: any): Promise<string> {
         const res = await client.query(`
         SELECT 'LO' || LPAD(nextval('liasoning_officer_seq')::text, 3, '0') AS id
@@ -69,7 +69,14 @@ export class LiasoningOfficerService {
             userId,
             ip
             ]);
-
+        await this.activityLog.log({
+          message: 'New Liasoning Officer created successfully',
+          module: 'LIASONING_OFFICER',
+          action: 'CREATE',
+          referenceId: officerId,
+          performedBy: userId,
+          ipAddress: ip,
+        }, trx);
         return { 
             message: 'Officer created successfully',
             officerId 
@@ -199,6 +206,14 @@ export class LiasoningOfficerService {
             ip,
             id
             ]);
+        await this.activityLog.log({
+          message: 'Liasoning Officer details updated successfully',
+          module: 'LIASONING_OFFICER',
+          action: 'UPDATE',
+          referenceId: id,
+          performedBy: userId,
+          ipAddress: ip,
+        }, trx);
             return result.rows[0];
         });
     }
@@ -238,38 +253,17 @@ export class LiasoningOfficerService {
             updated_ip = $2
         WHERE staff_id = $3
         `, [userId, ip, staff_id]);
-
-        return { message: 'Officer deactivated successfully' };
+        await this.activityLog.log({
+          message: 'Liasoning Officer deleted successfully',
+          module: 'LIASONING_OFFICER',
+          action: 'DELETE',
+          referenceId: id,
+          performedBy: userId,
+          ipAddress: ip,
+        }, trx);
+        return { message: 'Officer deleted successfully' };
     });
     }
-    // async softDelete(id: string, userId: string, ip: string) {
-    // return this.db.transaction(async (trx) => {
-
-    //     const existing = await trx.query(
-    //     `SELECT officer_id FROM m_liasoning_officer WHERE officer_id = $1 FOR UPDATE`,
-    //     [id]
-    //     );
-
-    //     if (!existing.rowCount) {
-    //     throw new NotFoundException('Officer not found');
-    //     }
-
-    //     await trx.query(
-    //     `
-    //     UPDATE m_liasoning_officer
-    //     SET is_active = false,
-    //         updated_at = NOW(),
-    //         updated_by = $2,
-    //         updated_ip = $3
-    //     WHERE officer_id = $1
-    //     RETURNING *
-    //     `,
-    //     [id, userId, ip]
-    //     );
-
-    //     return { message: 'Officer deactivated successfully' };
-    // });
-    // }
 
     async findAllWithFilters(params: {
     page: number;

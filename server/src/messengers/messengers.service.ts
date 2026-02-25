@@ -4,10 +4,10 @@ import { CreateMessengerDto } from './dto/create-messenger.dto';
 import { UpdateMessengerDto } from './dto/update-messenger.dto';
 import { MessengerTableQueryDto } from './dto/messenger-table-query.dto';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 @Injectable()
 export class MessengerService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
 
   /* ---------- ID GENERATION ---------- */
   private async generateMessengerId(client: any): Promise<string> {
@@ -157,7 +157,14 @@ export class MessengerService {
         user,
         ip
       ]);
-
+      await this.activityLog.log({
+        message: 'New Messenger created successfully',
+        module: 'MESSENGER',
+        action: 'CREATE',
+        referenceId: messenger_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -305,7 +312,14 @@ export class MessengerService {
         ip,
         id
       ]);
-
+      await this.activityLog.log({
+        message: 'Messenger details updated successfully',
+        module: 'MESSENGER',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -366,8 +380,15 @@ export class MessengerService {
             updated_ip = $2
         WHERE staff_id = $3
       `, [user, ip, staff_id]);
-
-      return { message: 'Messenger deactivated successfully' };
+      await this.activityLog.log({
+        message: 'Messenger deleted successfully',
+        module: 'MESSENGER',
+        action: 'DELETE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+      return { message: 'Messenger deleted successfully' };
     });
   }
 
@@ -396,7 +417,7 @@ export class MessengerService {
     }
     const sortColumn = SORT_MAP[query.sortBy ?? 'messenger_name'] ?? 'messenger_name';
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
-    const allowedStatuses = ['active', 'inactive', 'assigned', 'unassigned'];
+    const allowedStatuses = ['all', 'active', 'inactive'];
     if (query.status && !allowedStatuses.includes(query.status)) {
       throw new BadRequestException('Invalid status filter');
     }
@@ -406,36 +427,36 @@ export class MessengerService {
 
     // status filters
     if (query.status === 'active') {
-      where.push('m.is_active = true');
+      where.push('m.is_active = true AND s.is_active = true');
     }
 
     if (query.status === 'inactive') {
-      where.push('m.is_active = false');
+      where.push('m.is_active = false AND s.is_active = false');
     }
 
-    if (query.status === 'assigned') {
-      where.push(`
-        m.is_active = true
-        AND EXISTS (
-          SELECT 1
-          FROM t_guest_messenger tgm
-          WHERE tgm.messenger_id = m.messenger_id
-            AND tgm.is_active = true
-        )
-      `);
-    }
+//     if (query.status === 'assigned') {
+//       where.push(`
+//         m.is_active = true
+//         AND EXISTS (
+//           SELECT 1
+//           FROM t_guest_messenger tgm
+//           WHERE tgm.messenger_id = m.messenger_id
+//             AND tgm.is_active = true
+//         )
+//       `);
+//     }
 
-if (query.status === 'unassigned') {
-  where.push(`
-    m.is_active = true
-    AND NOT EXISTS (
-      SELECT 1
-      FROM t_guest_messenger tgm
-      WHERE tgm.messenger_id = m.messenger_id
-        AND tgm.is_active = true
-    )
-  `);
-}
+// if (query.status === 'unassigned') {
+//   where.push(`
+//     m.is_active = true
+//     AND NOT EXISTS (
+//       SELECT 1
+//       FROM t_guest_messenger tgm
+//       WHERE tgm.messenger_id = m.messenger_id
+//         AND tgm.is_active = true
+//     )
+//   `);
+// }
 
     // search (name, mobile, email)
     if (query.search) {
@@ -479,26 +500,33 @@ if (query.status === 'unassigned') {
     `;
     const statsSql = `
       SELECT
-        COUNT(*) FILTER (WHERE is_active = true) AS active,
-        COUNT(*) FILTER (WHERE is_active = false) AS inactive,
-        COUNT(*) FILTER (
-          WHERE is_active = true
-            AND EXISTS (
-              SELECT 1 FROM t_guest_messenger tgm
-              WHERE tgm.messenger_id = m.messenger_id
-                AND tgm.is_active = true
-            )
-        ) AS assigned,
-        COUNT(*) FILTER (
-          WHERE is_active = true
-            AND NOT EXISTS (
-              SELECT 1 FROM t_guest_messenger tgm
-              WHERE tgm.messenger_id = m.messenger_id
-                AND tgm.is_active = true
-            )
-        ) AS unassigned
-      FROM m_messenger m;
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE is_active = true)::int AS active,
+        COUNT(*) FILTER (WHERE is_active = false)::int AS inactive
+      FROM m_messenger;
     `;
+    // const statsSql = `
+    //   SELECT
+    //     COUNT(*) FILTER (WHERE is_active = true) AS active,
+    //     COUNT(*) FILTER (WHERE is_active = false) AS inactive,
+    //     COUNT(*) FILTER (
+    //       WHERE is_active = true
+    //         AND EXISTS (
+    //           SELECT 1 FROM t_guest_messenger tgm
+    //           WHERE tgm.messenger_id = m.messenger_id
+    //             AND tgm.is_active = true
+    //         )
+    //     ) AS assigned,
+    //     COUNT(*) FILTER (
+    //       WHERE is_active = true
+    //         AND NOT EXISTS (
+    //           SELECT 1 FROM t_guest_messenger tgm
+    //           WHERE tgm.messenger_id = m.messenger_id
+    //             AND tgm.is_active = true
+    //         )
+    //     ) AS unassigned
+    //   FROM m_messenger m;
+    // `;
 
     const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
     const countRes = await this.db.query(countSql, params);

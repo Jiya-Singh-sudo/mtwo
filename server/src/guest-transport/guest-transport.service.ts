@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { GuestTransportTableQueryDto } from './dto/guest-transport-table.dto';
 
@@ -22,9 +22,21 @@ export class GuestTransportService {
       entryDateFrom,
       entryDateTo,
     } = params;
+    if (!Number.isInteger(page) || page <= 0) {
+      throw new BadRequestException('INVALID_PAGE');
+    }
 
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new BadRequestException('INVALID_LIMIT');
+    }
+
+    if (limit > 100) {
+      throw new BadRequestException('LIMIT_TOO_LARGE');
+    }
     const offset = (page - 1) * limit;
-
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new BadRequestException('INVALID_SORT_ORDER');
+    }
     /* ---------------- SORT MAP ---------------- */
     const SORT_MAP: Record<string, string> = {
       entry_date: 'base.entry_date',
@@ -33,12 +45,20 @@ export class GuestTransportService {
       vehicle_no: 'base.vehicle_no',
       trip_status: 'base.trip_status',
     };
-
-    const sortColumn =
-      SORT_MAP[sortBy ?? 'entry_date'] ?? SORT_MAP.entry_date;
-
+    if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
+      throw new BadRequestException('INVALID_SORT_FIELD');
+    }
+    // const sortColumn =
+    //   SORT_MAP[sortBy ?? 'entry_date'] ?? SORT_MAP.entry_date;
+    const sortColumn = sortBy
+      ? SORT_MAP[sortBy as keyof typeof SORT_MAP]
+      : SORT_MAP.entry_date;
     const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    const allowedStatus = ['Scheduled', 'Entered', 'Inside', 'Exited', 'Cancelled', 'All'];
 
+    if (status && !allowedStatus.includes(status)) {
+      throw new BadRequestException('INVALID_STATUS');
+    }
     /* ---------------- WHERE ---------------- */
     const where: string[] = [
       'io.is_active = TRUE',
@@ -50,38 +70,67 @@ export class GuestTransportService {
 
     /* ---------------- SEARCH ---------------- */
     if (search) {
-      where.push(`
-        (
-          g.guest_name ILIKE $${idx}
-          OR g.guest_mobile ILIKE $${idx}
-          OR EXISTS (
-            SELECT 1
-            FROM t_guest_driver gd2
-            JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
-            WHERE gd2.guest_id = g.guest_id
-              AND gd2.is_active = TRUE
-              AND d2.driver_name ILIKE $${idx}
-          )
-          OR EXISTS (
-            SELECT 1
-            FROM t_guest_driver gd2
-            JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
-            JOIN m_staff s2 ON s2.staff_id = d2.staff_id
-            WHERE gd2.guest_id = g.guest_id
-              AND gd2.is_active = TRUE
-              AND s2.is_active = TRUE
-              AND s2.full_name ILIKE $${idx}
-          )
+      const normalized = search.trim();
+
+      if (!normalized) {
+        throw new BadRequestException('INVALID_SEARCH');
+      }
+
+      if (normalized.length > 100) {
+        throw new BadRequestException('SEARCH_TOO_LONG');
+      }
+
+      where.push(`(
+        g.guest_name ILIKE $${idx}
+        OR g.guest_mobile ILIKE $${idx}
+        OR EXISTS (
+          SELECT 1
+          FROM t_guest_driver gd2
+          JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
+          WHERE gd2.guest_id = g.guest_id
+            AND gd2.is_active = TRUE
+            AND d2.driver_name ILIKE $${idx}
         )
-      `);
-      sqlParams.push(`%${search}%`);
+        OR EXISTS (
+          SELECT 1
+          FROM t_guest_driver gd2
+          JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
+          JOIN m_staff s2 ON s2.staff_id = d2.staff_id
+          WHERE gd2.guest_id = g.guest_id
+            AND gd2.is_active = TRUE
+            AND s2.is_active = TRUE
+            AND s2.full_name ILIKE $${idx}
+        )
+      )`);
+
+      sqlParams.push(`%${normalized}%`);
       idx++;
     }
 
     /* ---------------- ENTRY DATE RANGE ---------------- */
-    let fromDate = entryDateFrom;
-    let toDate = entryDateTo;
+    let fromDate = entryDateFrom?.trim();
+    let toDate = entryDateTo?.trim();
+    if (entryDateFrom && isNaN(Date.parse(entryDateFrom))) {
+      throw new BadRequestException('INVALID_ENTRY_DATE_FROM');
+    }
 
+    if (entryDateTo && isNaN(Date.parse(entryDateTo))) {
+      throw new BadRequestException('INVALID_ENTRY_DATE_TO');
+    }
+    if (entryDateFrom && entryDateTo) {
+      if (new Date(entryDateFrom) > new Date(entryDateTo)) {
+        throw new BadRequestException('INVALID_DATE_RANGE');
+      }
+    }
+    if (entryDateFrom && entryDateTo) {
+      const diff =
+        (new Date(entryDateTo).getTime() - new Date(entryDateFrom).getTime()) /
+        (1000 * 60 * 60 * 24);
+
+      if (diff > 90) {
+        throw new BadRequestException('DATE_RANGE_TOO_LARGE');
+      }
+    }
     /* If no date filters provided → apply default window */
     if (!fromDate && !toDate) {
       where.push(`
@@ -288,6 +337,20 @@ export class GuestTransportService {
     });
   }
   async findTransportConflictsForGuest(guestId: string, newEntry: Date, newExit: Date, client?: any) {
+    if (!/^G\d+$/.test(guestId)) {
+      throw new BadRequestException('INVALID_GUEST_ID');
+    }
+    if (!(newEntry instanceof Date) || isNaN(newEntry.getTime())) {
+      throw new BadRequestException('INVALID_NEW_ENTRY_DATE');
+    }
+
+    if (!(newExit instanceof Date) || isNaN(newExit.getTime())) {
+      throw new BadRequestException('INVALID_NEW_EXIT_DATE');
+    }
+    if (newExit <= newEntry) {
+      throw new BadRequestException('INVALID_ENTRY_EXIT_RANGE');
+    }
+
     const res = await client.query(
       `
       SELECT

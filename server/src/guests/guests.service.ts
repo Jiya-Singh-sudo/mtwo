@@ -5,12 +5,15 @@ import { UpdateGuestDto } from './dto/update-guests.dto';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 import { GuestTransportService } from 'src/guest-transport/guest-transport.service';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { GuestFoodService } from 'src/guest-food/guest-food.service';
 @Injectable()
 export class GuestsService {
   constructor(
     private readonly db: DatabaseService,
-    private readonly guestTransportService: GuestTransportService
+    private readonly guestTransportService: GuestTransportService,
+    private readonly activityLog: ActivityLogService,
+    private readonly guestFoodService: GuestFoodService,
   ) { }
   private async generateDesignationId(client: any): Promise<string> {
     const res = await client.query(`
@@ -336,6 +339,51 @@ export class GuestsService {
           user,
           ip
         ]);
+      const insertedRow = ioRes.rows[0];
+      const today = todayISO();
+      if (
+        insertedRow.status === 'Entered' &&
+        insertedRow.entry_date?.toISOString().split('T')[0] === today
+      ) {
+        await this.guestFoodService.propagateTodayPlanToGuest(
+          client,
+          insertedRow,
+          user || 'system',
+          ip || '0.0.0.0'
+        );
+      }
+      await this.activityLog.log({
+        message: 'New Guest added',
+        module: 'GUESTS',
+        action: 'CREATE',
+        referenceId: guestRow.guest_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+      await this.activityLog.log({
+        message: 'Designation added for guest',
+        module: 'GUEST DESIGNATION',
+        action: 'CREATE',
+        referenceId: gd_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+      // await this.activityLog.log({
+      //   message: 'New Designation added',
+      //   module: 'DESIGNATION',
+      //   action: 'CREATE',
+      //   referenceId: gd_id,
+      //   performedBy: user,
+      //   ipAddress: ip,
+      // }, client);
+      await this.activityLog.log({
+        message: 'Guest stay details added',
+        module: 'GUEST INOUT',
+        action: 'CREATE',
+        referenceId: inout_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return {
           guest: guestRow,
           inout: ioRes.rows[0],
@@ -373,7 +421,6 @@ export class GuestsService {
           );
         }
       }
-
       const allowed = new Set([
         'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
         'guest_address', 'email'
@@ -436,6 +483,15 @@ export class GuestsService {
       `;
       vals.push(guestId);
       const r = await client.query(sql, vals);
+      await this.activityLog.log({
+        message: 'Guest details updated',
+        module: 'GUESTS',
+        action: 'UPDATE',
+        referenceId: guestId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+
       return r.rows[0];
       } catch (err) {
         console.error('Guest update failed:', err);
@@ -493,6 +549,14 @@ export class GuestsService {
           await this.cascadeGuestExit(row.inout_id, client, user, ip);
         }
         // 2. Cascade exit
+      await this.activityLog.log({
+        message: 'Guest deleted',
+        module: 'GUESTS',
+        action: 'DELETE',
+        referenceId: guestId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return r.rows[0];
       } catch (err) {
         console.error('Guest delete failed:', err);
@@ -671,19 +735,28 @@ export class GuestsService {
   }
 
   async softDeleteInOut(inoutId: string, user: string, ip: string) {
-    const sql = `
-      UPDATE t_guest_inout
-      SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
-      WHERE inout_id = $1
-      RETURNING *;
-    `;
-    const r = await this.db.query(sql, [inoutId, user, ip]);
+    return this.db.transaction(async (client) => {
+      const sql = `
+        UPDATE t_guest_inout
+        SET is_active = FALSE, updated_at = NOW(), updated_by = $2, updated_ip = $3
+        WHERE inout_id = $1
+        RETURNING *;
+      `;
+      const r = await client.query(sql, [inoutId, user, ip]);
+        await this.activityLog.log({
+          message: 'Guest stay cancelled',
+          module: 'GUEST INOUT',
+          action: 'CANCEL',
+          referenceId: inoutId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+      if (!r.rowCount) {
+        throw new BadRequestException('InOut record not found');
+      }
 
-    if (!r.rowCount) {
-      throw new BadRequestException('InOut record not found');
-    }
-
-    return r.rows[0];
+      return r.rows[0];
+    });
   }
 
   async updateGuestInOut(
@@ -838,6 +911,14 @@ export class GuestsService {
 
       values.push(inoutId);
       const res = await client.query(sql, values);
+      await this.activityLog.log({
+        message: 'Guest stay details updated',
+        module: 'GUEST INOUT',
+        action: 'UPDATE',
+        referenceId: inoutId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       const updated = res.rows[0]; 
       if (!updated){
         throw new BadRequestException('InOut record not found');
@@ -1145,6 +1226,15 @@ export class GuestsService {
           updated_ip = $3
       WHERE guest_id = $1 AND is_active = TRUE
     `, [guestId, user, ip]);
+
+    await this.activityLog.log({
+      message: 'Rooms, drivers, vehicles, messangers, liaisoning officers, medical contacts, butlers, and networks have been deleted for the exited guest inouts',
+      module: 'GUEST INOUT',
+      action: 'EXIT',
+      referenceId: guestId,
+      performedBy: user,
+      ipAddress: ip,
+    }, trx);
   }
   async getTransportConflictsForGuest(guestId: string) {
     const guestCheck = await this.db.query(
@@ -1236,6 +1326,14 @@ export class GuestsService {
 
       for (const row of expired.rows) {
         await this.cascadeGuestExit(row.inout_id, client, user, ip);
+        await this.activityLog.log({
+          message: 'Rooms, drivers, vehicles, messangers, liaisoning officers, medical contacts, butlers, and networks have been deleted for the exited guest inouts',
+          module: 'GUEST INOUT',
+          action: 'EXIT',
+          referenceId: row.inout_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       }
         return { updated: expired.rowCount };
       } catch (err) {

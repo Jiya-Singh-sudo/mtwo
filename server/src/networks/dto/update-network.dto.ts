@@ -25,11 +25,11 @@ export class UpdateNetworkDto {
   @IsIn(['WiFi', 'Broadband', 'Hotspot', 'Leased-Line'])
   network_type?: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  bandwidth_mbps?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // @Min(1)
+  // bandwidth_mbps?: number;
 
   @IsOptional()
   @IsString()
@@ -40,13 +40,13 @@ export class UpdateNetworkDto {
   @MinLength(6)
   password?: string;
 
-  @IsOptional()
-  @IsIP(4)
-  static_ip?: string;
+  // @IsOptional()
+  // @IsIP(4)
+  // static_ip?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 
   @IsOptional()
   @IsBoolean()

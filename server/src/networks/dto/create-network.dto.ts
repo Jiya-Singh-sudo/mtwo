@@ -28,11 +28,11 @@ export class CreateNetworkDto {
   @IsIn(['WiFi', 'Broadband', 'Hotspot', 'Leased-Line'])
   network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  bandwidth_mbps?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // @Min(1)
+  // bandwidth_mbps?: number;
 
   @IsOptional()
   @IsString()
@@ -43,11 +43,11 @@ export class CreateNetworkDto {
   @MinLength(6)
   password?: string; // SHA256 hex (validated elsewhere)
 
-  @IsOptional()
-  @IsIP(4)
-  static_ip?: string;
+  // @IsOptional()
+  // @IsIP(4)
+  // static_ip?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 }

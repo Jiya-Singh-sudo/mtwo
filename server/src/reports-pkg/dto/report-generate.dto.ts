@@ -21,4 +21,6 @@ export class ReportGenerateDto {
     @IsOptional()
     @IsString()
     toDate?: string;
+
+    
 }

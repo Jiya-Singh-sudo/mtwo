@@ -2,10 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestButlerDto } from "./dto/create-guest-butler.dto";
 import { UpdateGuestButlerDto } from "./dto/update-guest-butler.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestButlerService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GB' || LPAD(nextval('guest_butler_seq')::text, 3, '0') AS id
@@ -83,12 +83,12 @@ export class GuestButlerService {
       if (!/^G\d+$/.test(dto.guest_id)) {
         throw new BadRequestException('Invalid guest ID format');
       }
-      if (!/^B\d+$/.test(dto.butler_id)) {
-        throw new BadRequestException('Invalid butler ID format');
-      }
-      if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
-        throw new BadRequestException('Invalid room ID format');
-      }
+      // if (!/^B\d+$/.test(dto.butler_id)) {
+      //   throw new BadRequestException('Invalid butler ID format');
+      // }
+      // if (dto.room_id && !/^R\d+$/.test(dto.room_id)) {
+      //   throw new BadRequestException('Invalid room ID format');
+      // }
       if (dto.specialRequest && dto.specialRequest.length > 255) {
         throw new BadRequestException('Special request cannot exceed 255 characters');
       }
@@ -97,7 +97,6 @@ export class GuestButlerService {
         WHERE guest_id = $1
           AND is_active = TRUE
           AND status = 'Entered'
-          AND exit_date IS NULL
         LIMIT 1
       `, [dto.guest_id]);
 
@@ -181,9 +180,7 @@ export class GuestButlerService {
           "Butler already assigned to 3 active guests"
         );
       }
-
       const id = await this.generateId(client);
-
       const sql = `
         INSERT INTO t_guest_butler (
           guest_butler_id,
@@ -209,8 +206,15 @@ export class GuestButlerService {
         user,
         ip,
       ];
-
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Butler assigned to guest',
+        module: 'GUEST-BUTLER',
+        action: 'CREATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -357,6 +361,14 @@ export class GuestButlerService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Butler assignment updated',
+        module: 'GUEST-BUTLER',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -398,6 +410,14 @@ export class GuestButlerService {
         RETURNING *;
       `;
       const res = await client.query(sql, [user, ip, id]);
+      await this.activityLog.log({
+        message: 'Butler assignment deleted',
+        module: 'GUEST-BUTLER',
+        action: 'DELETE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }

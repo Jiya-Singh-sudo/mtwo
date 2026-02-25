@@ -17,11 +17,11 @@ export class UpdateGuestFoodDto {
   @IsString()
   food_id?: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  quantity?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // @Min(1)
+  // quantity?: number;
   
   @IsOptional()
   @IsIn([
@@ -59,13 +59,13 @@ export class UpdateGuestFoodDto {
     | 'Delivered'
     | 'Cancelled';
 
-  @IsOptional()
-  @IsString()
-  order_datetime?: string;
+  // @IsOptional()
+  // @IsString()
+  // order_datetime?: string;
 
-  @IsOptional()
-  @IsString()
-  delivered_datetime?: string;
+  // @IsOptional()
+  // @IsString()
+  // delivered_datetime?: string;
 
   @IsOptional()
   @IsString()

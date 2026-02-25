@@ -4,9 +4,8 @@ export class CreateGuestRoomDto {
   @IsString()
   guest_id: string;
 
-  @IsOptional()
   @IsString()
-  room_id?: string;
+  room_id: string;
 
   @IsOptional()
   @IsString()

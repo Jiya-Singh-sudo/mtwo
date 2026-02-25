@@ -32,10 +32,10 @@ export class CreateGuestFoodDto {
   @IsIn(['Veg', 'Non-Veg', 'Jain', 'Vegan', 'Egg'])
   food_type?: 'Veg' | 'Non-Veg' | 'Jain' | 'Vegan' | 'Egg';
 
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  quantity: number;
+  // @Type(() => Number)
+  // @IsInt()
+  // @Min(1)
+  // quantity: number;
   
   @IsOptional()
   @IsIn([
@@ -89,13 +89,13 @@ export class CreateGuestFoodDto {
     | 'Delivered'
     | 'Cancelled';
 
-  @IsOptional()
-  @IsString()
-  order_datetime?: string;
+  // @IsOptional()
+  // @IsString()
+  // order_datetime?: string;
 
-  @IsOptional()
-  @IsString()
-  delivered_datetime?: string;
+  // @IsOptional()
+  // @IsString()
+  // delivered_datetime?: string;
 
   @IsOptional()
   @IsString()

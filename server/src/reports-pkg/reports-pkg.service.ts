@@ -27,11 +27,11 @@ import { resolveNetworkReportCode } from './resolvers/network-report.resolver';
 import { DriverDutyReportEngine } from './engines/driver-duty.engine';
 import { exportDriverDutyExcel } from './exporters/driver-duty.excel.exporter';
 import { resolveDriverDutyReportCode } from './resolvers/driver-duty-report.resolver';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class ReportsPkgService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
 
   /* ================= METRICS ================= */
 
@@ -192,7 +192,7 @@ export class ReportsPkgService {
 
   /* ================= GENERATE ================= */
 
-  async generateReport(dto: ReportGenerateDto) {
+  async generateReport(dto: ReportGenerateDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const data = await this.previewReport(dto);
       if (!Array.isArray(data) || data.length === 0) {
@@ -223,12 +223,19 @@ export class ReportsPkgService {
       await client.query(
         `
         INSERT INTO t_generated_reports
-        (report_id, report_name, report_type, format, file_path, generated_at)
-        VALUES ($1,$2,$3,$4,$5,NOW())
+        (report_id, report_name, report_type, format, file_path,is_active, inserted_at, inserted_by, inserted_ip)
+        VALUES ($1,$2,$3,$4,$5,true,NOW(),$6,$7)
       `,
-        [uuid(), dto.reportCode, dto.reportCode, dto.format, filePath],
+        [uuid(), dto.reportCode, dto.reportCode, dto.format, filePath, user, ip],
       );
-
+      await this.activityLog.log({
+        message: 'New report generated successfully',
+        module: 'REPORTS',
+        action: 'CREATE',
+        referenceId: dto.reportCode,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return { filePath };
     });
   }
@@ -311,6 +318,8 @@ export class ReportsPkgService {
     rangeType: string;
     startDate?: string;
     endDate?: string;
+    user: string;
+    ip: string;
   }) {
     const result = await this.fetchGuestSummaryDataForExcel(input);
 

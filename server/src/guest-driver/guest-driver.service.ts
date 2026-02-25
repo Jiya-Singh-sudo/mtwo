@@ -4,11 +4,12 @@ import { UpdateGuestDriverDto } from "./dto/update-guest-driver.dto";
 import { AssignGuestDriverDto } from "./dto/assign-guest-driver.dto";
 // import { NotificationsService } from '../notifications/notifications.service';
 import { CreateGuestDriverDto } from "./dto/create-guest-driver.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestDriverService {
   constructor(
     private readonly db: DatabaseService,
+    private readonly activityLog: ActivityLogService,
     // private readonly notifications: NotificationsService,
   ) { }
 
@@ -59,12 +60,12 @@ export class GuestDriverService {
     const res = await client.query(sql, [guestId]);
 
     if (!res.rows.length) {
-      throw new BadRequestException("GUEST_STATUS_NOT_FOUND");    }
+      throw new BadRequestException("Guest status not found!");    }
 
     const status = res.rows[0].status;
 
     if (["Exited", "Cancelled"].includes(status)) {
-      throw new BadRequestException("GUEST_NOT_ASSIGNABLE");    }
+      throw new BadRequestException("Guest not assignable!");    }
   }
 
   // ---------- ASSIGN DRIVER ----------
@@ -74,11 +75,80 @@ export class GuestDriverService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
-        await client.query(
-          `SELECT 1 FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
-          [dto.driver_id]
-        );
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new BadRequestException("Invalid guest ID!");
+      }
+      if (!/^D\d+$/.test(dto.driver_id)) {
+        throw new BadRequestException("Invalid driver ID!");
+      }
+      if (!dto.trip_date || isNaN(Date.parse(dto.trip_date))) {
+        throw new BadRequestException("Invalid trip date!");
+      }
+      if (dto.drop_date && isNaN(Date.parse(dto.drop_date))) {
+        throw new BadRequestException("Invalid drop date!");
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!dto.start_time || !timeRegex.test(dto.start_time)) {
+        throw new BadRequestException("Invalid start time!");
+      }
+      if (dto.drop_time && !timeRegex.test(dto.drop_time)) {
+        throw new BadRequestException("Invalid drop time!");
+      }
+      if (dto.drop_date && dto.drop_time) {
+        const start = new Date(`${dto.trip_date}T${dto.start_time}`);
+        const end = new Date(`${dto.drop_date}T${dto.drop_time}`);
 
+        if (end <= start) {
+          throw new BadRequestException("Invalid trip duration!");
+        }
+      }
+      if (dto.pickup_location && dto.pickup_location.length > 255) {
+        throw new BadRequestException("Pickup location too long!");
+      }
+      if (dto.drop_location && dto.drop_location.length > 255) {
+        throw new BadRequestException("Drop location too long!");
+      }
+      const now = new Date();
+      const start = new Date(`${dto.trip_date}T${dto.start_time}`);
+      if (start < now) {
+        throw new BadRequestException("Cannot create past trip!");
+      }
+      const driverCheck = await client.query(
+        `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = TRUE FOR UPDATE`,
+        [dto.driver_id]
+      );
+      if (!driverCheck.rowCount) {
+        throw new BadRequestException("Driver not found!");
+      }
+      const existingTrip = await client.query(
+        `
+        SELECT 1
+        FROM t_guest_driver
+        WHERE driver_id = $1
+          AND is_active = TRUE
+          AND trip_date = $2
+          AND (
+            (start_time <= $3 AND (drop_time IS NULL OR drop_time > $3))
+            OR (drop_time IS NOT NULL AND drop_time > $3 AND start_time < $3)
+          )
+        FOR UPDATE
+        `,
+        [dto.driver_id, dto.trip_date, dto.start_time]
+      );
+      if (existingTrip.rowCount) {
+        throw new BadRequestException("Driver may already have an active trip!");
+      }
+      const activeTrip = await client.query(`
+        SELECT 1
+        FROM t_guest_driver
+        WHERE guest_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+      `, [dto.guest_id]);
+
+      if (activeTrip.rowCount > 0) {
+        throw new BadRequestException("Guest may already has an active trip!");
+      }
         await client.query(
           `
           SELECT 1
@@ -130,6 +200,14 @@ export class GuestDriverService {
           user,
           ip
         );
+        await this.activityLog.log({
+          message: 'Driver Assigned to the guest',
+          module: 'GUEST-DRIVER',
+          action: 'CREATE',
+          referenceId: trip.trip_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return trip;
     });
   }
@@ -142,6 +220,64 @@ export class GuestDriverService {
     ip: string
   ) {
     // return this.db.transaction(async (client) => {
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new BadRequestException("Invalid guest ID!");
+      }
+      if (!/^D\d+$/.test(dto.driver_id)) {
+        throw new BadRequestException("Invalid driver ID!");
+      }
+      if (!dto.trip_date || isNaN(Date.parse(dto.trip_date))) {
+        throw new BadRequestException("Invalid trip date!");
+      }
+      if (dto.drop_date && isNaN(Date.parse(dto.drop_date))) {
+        throw new BadRequestException("Invalid drop date!");
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!dto.start_time || !timeRegex.test(dto.start_time)) {
+        throw new BadRequestException("Invalid start time!");
+      }
+      if (dto.drop_time && !timeRegex.test(dto.drop_time)) {
+        throw new BadRequestException("Invalid drop time!");
+      }
+      if (dto.drop_date && dto.drop_time) {
+        const start = new Date(`${dto.trip_date}T${dto.start_time}`);
+        const end = new Date(`${dto.drop_date}T${dto.drop_time}`);
+
+        if (end <= start) {
+          throw new BadRequestException("Invalid trip duration!");
+        }
+      }
+      if (dto.pickup_location && dto.pickup_location.length > 255) {
+        throw new BadRequestException("Pickup location is too long!");
+      }
+      if (dto.drop_location && dto.drop_location.length > 255) {
+        throw new BadRequestException("Drop location is too long!");
+      }
+      const driverCheck = await client.query(
+        `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = TRUE FOR UPDATE`,
+        [dto.driver_id]
+      );
+      if (!driverCheck.rowCount) {
+        throw new BadRequestException("Driver may not exist!");
+      }
+      const existingTrip = await client.query(
+        `
+        SELECT 1
+        FROM t_guest_driver
+        WHERE driver_id = $1
+          AND is_active = TRUE
+          AND trip_date = $2
+          AND (
+            (start_time <= $3 AND (drop_time IS NULL OR drop_time > $3))
+            OR (drop_time IS NOT NULL AND drop_time > $3 AND start_time < $3)
+          )
+        FOR UPDATE
+        `,
+        [dto.driver_id, dto.trip_date, dto.start_time]
+      );
+      if (existingTrip.rowCount) {
+        throw new BadRequestException("Driver may be assigned to another guest!");
+      }
       const id = await this.generateId(client);
 
       const sql = `
@@ -185,6 +321,14 @@ export class GuestDriverService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Driver Assigned to the guest',
+        module: 'GUEST-DRIVER',
+        action: 'CREATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     // });
   }
@@ -194,7 +338,64 @@ export class GuestDriverService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
+      if (!/^G\d+$/.test(dto.guest_id)) {
+        throw new BadRequestException("Invalid guest ID!");
+      }
+      if (!/^D\d+$/.test(dto.driver_id)) {
+        throw new BadRequestException("Invalid driver ID!");
+      }
+      if (!dto.trip_date || isNaN(Date.parse(dto.trip_date))) {
+        throw new BadRequestException("Invalid trip date!");
+      }
+      if (dto.drop_date && isNaN(Date.parse(dto.drop_date))) {
+        throw new BadRequestException("Invalid drop date!");
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!dto.start_time || !timeRegex.test(dto.start_time)) {
+        throw new BadRequestException("Invalid start time!");
+      }
+      if (dto.drop_time && !timeRegex.test(dto.drop_time)) {
+        throw new BadRequestException("Invalid drop time!");
+      }
+      if (dto.drop_date && dto.drop_time) {
+        const start = new Date(`${dto.trip_date}T${dto.start_time}`);
+        const end = new Date(`${dto.drop_date}T${dto.drop_time}`);
 
+        if (end <= start) {
+          throw new BadRequestException("Invalid trip duration!");
+        }
+      }
+      if (dto.pickup_location && dto.pickup_location.length > 255) {
+        throw new BadRequestException("Pickup location is too long!");
+      }
+      if (dto.drop_location && dto.drop_location.length > 255) {
+        throw new BadRequestException("Drop location is too long!");
+      }
+      const driverCheck = await client.query(
+        `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = TRUE FOR UPDATE`,
+        [dto.driver_id]
+      );
+      if (!driverCheck.rowCount) {
+        throw new BadRequestException("Driver may not exist!");
+      }
+      const existingTrip = await client.query(
+        `
+        SELECT 1
+        FROM t_guest_driver
+        WHERE driver_id = $1
+          AND is_active = TRUE
+          AND trip_date = $2
+          AND (
+            (start_time <= $3 AND (drop_time IS NULL OR drop_time > $3))
+            OR (drop_time IS NOT NULL AND drop_time > $3 AND start_time < $3)
+          )
+        FOR UPDATE
+        `,
+        [dto.driver_id, dto.trip_date, dto.start_time]
+      );
+      if (existingTrip.rowCount) {
+        throw new BadRequestException("Driver is already assigned to a guest");
+      }
       await this.assertGuestIsAssignable(client, dto.guest_id);
 
       await this.assertDriverNotOnWeekOff(
@@ -220,12 +421,22 @@ export class GuestDriverService {
         dto.drop_date,
         dto.drop_time
       );
-
+      await this.activityLog.log({
+        message: 'Driver Assigned to the guest',
+        module: 'GUEST-DRIVER',
+        action: 'CREATE',
+        referenceId: dto.driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return this.createTrip(client, dto, user, ip);
     });
   }
 
   async findActiveByGuest(guestId: string) {
+    if (!/^G\d+$/.test(guestId)) {
+      throw new BadRequestException("Invalid guest id");
+    }
     const sql = `
     SELECT
       gd.guest_driver_id,
@@ -259,6 +470,9 @@ export class GuestDriverService {
   `;
 
     const res = await this.db.query(sql, [guestId]);
+    if (!res.rows.length) {
+      throw new BadRequestException("No trip found");
+    }
     return res.rows[0] || null;
   }
 
@@ -272,8 +486,14 @@ export class GuestDriverService {
   }
 
   async findOne(id: string) {
+    if (!/^GD\d+$/.test(id)) {
+      throw new BadRequestException("Invalid trip id");
+    }
     const sql = `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1`;
     const res = await this.db.query(sql, [id]);
+    if (!res.rows.length) {
+      throw new BadRequestException("Trip not found");
+    }
     return res.rows[0];
   }
 
@@ -319,6 +539,14 @@ export class GuestDriverService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Driver Assigned to the guest',
+        module: 'GUEST-DRIVER',
+        action: 'CREATE',
+        referenceId: dto.driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       // await this.db.query('COMMIT');
       return res.rows[0];
       } catch (err) {
@@ -358,19 +586,29 @@ export class GuestDriverService {
     `;
 
     const res = await client.query(sql, [user, ip]);
+    await this.activityLog.log({
+        message: 'Guest trip expired! Driver unassigned',
+        module: 'GUEST-DRIVER',
+        action: 'UPDATE',
+        referenceId: res.rows[0].guest_driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
     return res.rows;
     });
   }
   async closeTrip(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-
+      if (!/^GD\d+$/.test(id)) {
+        throw new BadRequestException("Invalid trip id");
+      }
       const existing = await client.query(
         `SELECT 1 FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
         [id]
       );
 
       if (!existing.rowCount) {
-        throw new BadRequestException("TRIP_NOT_FOUND");
+        throw new BadRequestException("Trip not found");
       }
 
       const res = await client.query(
@@ -385,81 +623,18 @@ export class GuestDriverService {
         `,
         [user, ip, id]
       );
-
+      await this.activityLog.log({
+        message: 'Guest trip closed! Driver unassigned',
+        module: 'GUEST-DRIVER',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
 
-  // async closeTrip(id: string, user: string, ip: string) {
-  //   return this.db.transaction(async (client) => {
-  //     try {
-  //     const sql = `
-  //       UPDATE t_guest_driver SET 
-  //         is_active = false,
-  //         updated_at = NOW(),
-  //         updated_by = $1,
-  //         updated_ip = $2
-  //       WHERE guest_driver_id = $3
-  //       RETURNING *;
-  //     `;
-
-  //     const res = await client.query(sql, [user, ip, id]);
-  //     return res.rows[0];
-  //     } catch (err) {
-  //       throw err;
-  //     }
-  //   });
-  // }
-  //   async updateTrip(
-  //   guestDriverId: string,
-  //   payload: {
-  //     trip_status?: string;
-  //     start_time?: string;
-  //     end_time?: string;
-  //     pickup_location?: string;
-  //     drop_location?: string;
-  //   },
-  //   user: string,
-  //   ip: string
-  // ) {
-  //   // 🔑 Normalize empty strings → null
-  //   const cleanPayload = {
-  //     trip_status: payload.trip_status ?? null,
-  //     start_time: payload.start_time === "" ? null : payload.start_time,
-  //     end_time: payload.end_time === "" ? null : payload.end_time,
-  //     pickup_location: payload.pickup_location === "" ? null : payload.pickup_location,
-  //     drop_location: payload.drop_location === "" ? null : payload.drop_location,
-  //   };
-
-  //   const sql = `
-  //     UPDATE t_guest_driver
-  //     SET
-  //       trip_status = COALESCE($2, trip_status),
-  //       start_time = COALESCE($3, start_time),
-  //       end_time = COALESCE($4, end_time),
-  //       pickup_location = COALESCE($5, pickup_location),
-  //       drop_location = COALESCE($6, drop_location),
-  //       updated_at = NOW(),
-  //       updated_by = $7,
-  //       updated_ip = $8
-  //     WHERE guest_driver_id = $1
-  //       AND is_active = TRUE
-  //     RETURNING *;
-  //   `;
-
-  //   const res = await this.db.query(sql, [
-  //     guestDriverId,
-  //     cleanPayload.trip_status,
-  //     cleanPayload.start_time,
-  //     cleanPayload.end_time,
-  //     cleanPayload.pickup_location,
-  //     cleanPayload.drop_location,
-  //     user,
-  //     ip,
-  //   ]);
-
-  //   return res.rows[0];
-  // }
   /**
      * Revise a trip: close the old one and insert a new one in a transaction.
      * If the insert fails, the old trip remains active (rollback).
@@ -473,6 +648,15 @@ export class GuestDriverService {
   ) {
     return this.db.transaction(async (client) => {
       try{
+        if (!/^GD\d+$/.test(oldGuestDriverId)) {
+          throw new BadRequestException("Invalid trip id");
+        }
+        if (dto.driver_id && !/^D\d+$/.test(dto.driver_id)) {
+          throw new BadRequestException("Invalid driver id");
+        }
+        if (dto.guest_id && !/^G\d+$/.test(dto.guest_id)) {
+          throw new BadRequestException("Invalid guest id");
+        }
       const oldRes = await client.query(
         `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
         [oldGuestDriverId]
@@ -550,7 +734,14 @@ export class GuestDriverService {
           user,
           ip
         );
-
+      await this.activityLog.log({
+        message: 'Guest trip revised!',
+        module: 'GUEST-DRIVER',
+        action: 'UPDATE',
+        referenceId: oldGuestDriverId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return newTrip;
       } catch (err) {
         throw err;
@@ -566,6 +757,16 @@ export class GuestDriverService {
     dropTime?: string,
     excludeTripId?: string
   ) {
+      if (isNaN(Date.parse(tripDate))) {
+        throw new BadRequestException("Invalid trip date");
+      }
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(startTime)) {
+        throw new BadRequestException("Invalid start time");
+      }
+      if (dropTime && !timeRegex.test(dropTime)) {
+        throw new BadRequestException("Invalid drop time");
+      }
     // return this.db.transaction(async (client) => {
       const sql = `
         SELECT 1
@@ -616,7 +817,7 @@ export class GuestDriverService {
       ]);
 
       if (res.rows.length) {
-        throw new BadRequestException("DRIVER_ALREADY_ASSIGNED");
+        throw new BadRequestException("Driver is already assigned to a guest");
       }
     // });
   }
@@ -630,6 +831,16 @@ export class GuestDriverService {
     dropTime?: string
   ) {
     // return this.db.transaction(async (client) => {
+    if (isNaN(Date.parse(tripDate))) {
+      throw new BadRequestException("Invalid trip date");
+    }
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(startTime)) {
+      throw new BadRequestException("Invalid start time");
+    }
+    if (dropTime && !timeRegex.test(dropTime)) {
+      throw new BadRequestException("Invalid drop time");
+    }
       const res = await client.query(
         `
         SELECT 1
@@ -670,7 +881,7 @@ export class GuestDriverService {
       );
 
       if (!res.rows.length) {
-        throw new BadRequestException("DRIVER_NOT_ON_DUTY");
+        throw new BadRequestException("Driver is not on duty");
       }
     // });
   }
@@ -680,7 +891,9 @@ export class GuestDriverService {
     tripDate: string
   ) {
     // return this.db.transaction(async (client) => {
-
+    if (isNaN(Date.parse(tripDate))) {
+      throw new BadRequestException("Invalid trip date");
+    }
       const res = await client.query(
         `
         SELECT 1
@@ -703,7 +916,7 @@ export class GuestDriverService {
       );
 
       if (res.rows.length) {
-        throw new BadRequestException("DRIVER_WEEK_OFF");
+        throw new BadRequestException("Driver has a week off");
       }
     // });
   }

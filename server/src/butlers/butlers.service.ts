@@ -3,12 +3,13 @@ import { DatabaseService } from '../database/database.service';
 import { CreateButlerDto } from './dto/create-butler.dto';
 import { UpdateButlerDto } from './dto/update-butler.dto';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
 @Injectable()
 export class ButlersService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
   private async generateButlerId(client: any): Promise<string> {
     const sql = `SELECT 'B' || LPAD(nextval('butler_id_seq')::text, 3, '0') AS butler_id`;
-
     const result = await client.query(sql);
     return result.rows[0].butler_id;
   }
@@ -59,7 +60,11 @@ export class ButlersService {
     if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
       throw new ConflictException('Invalid sort column');
     } 
-    if (status && !['Active', 'Inactive'].includes(status)) {
+    const allowedStatuses = ['all', 'active', 'inactive'] as const;
+
+    const normalizedStatus = status ?? 'all';
+
+    if (!allowedStatuses.includes(normalizedStatus)) {
       throw new ConflictException('Invalid status filter');
     }
     if (search && search.length > 100) {
@@ -72,14 +77,12 @@ export class ButlersService {
       );
     }
 
-    if (status === "Active") {
-      params.push(true);
-      where.push(`b.is_active = $${params.length}`);
+    if (normalizedStatus === 'active') {
+      where.push('b.is_active = true');
     }
 
-    if (status === "Inactive") {
-      params.push(false);
-      where.push(`b.is_active = $${params.length}`);
+    if (normalizedStatus === 'inactive') {
+      where.push('b.is_active = false');
     }
 
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -175,9 +178,9 @@ export class ButlersService {
 
   async findOneById(id: string) {
     return this.db.transaction(async (client) => {
-      if (!/^B\d+$/.test(id)) {
-        throw new ConflictException('Invalid Butler ID format');
-      }
+      // if (!/^B\d+$/.test(id)) {
+      //   throw new ConflictException('Invalid Butler ID format');
+      // }
       const sql = `
             SELECT 
               b.butler_id,
@@ -297,16 +300,23 @@ export class ButlersService {
         user,
         ip
       ]);
-
+      await this.activityLog.log({
+        message: 'Butler created',
+        module: 'BUTLER',
+        action: 'CREATE',
+        referenceId: butlerId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
 
   async update(id: string, dto: UpdateButlerDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      if (!/^B\d+$/.test(id)) {
-        throw new ConflictException('Invalid Butler ID format');
-      }
+      // if (!/^B\d+$/.test(id)) {
+      //   throw new ConflictException('Invalid Butler ID format');
+      // }
       const existingRes = await client.query(`
         SELECT b.*, s.*
         FROM m_butler b
@@ -421,16 +431,23 @@ export class ButlersService {
         ip,
         id
       ]);
-
+      await this.activityLog.log({
+        message: 'Butler created',
+        module: 'BUTLER',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
 
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      if (!/^B\d+$/.test(id)) {
-        throw new ConflictException('Invalid Butler ID format');
-      }
+      // if (!/^B\d+$/.test(id)) {
+      //   throw new ConflictException('Invalid Butler ID format');
+      // }
       const existingRes = await client.query(`
         SELECT b.staff_id, b.is_active
         FROM m_butler b
@@ -462,8 +479,15 @@ export class ButlersService {
             updated_ip = $2
         WHERE staff_id = $3
       `, [user, ip, staff_id]);
-
-      return { message: 'Butler deactivated successfully' };
+      await this.activityLog.log({
+        message: 'Butler deleted',
+        module: 'BUTLER',
+        action: 'DELETE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+      return { message: 'Butler deleted successfully' };
     });
   }
 }

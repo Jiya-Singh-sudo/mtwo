@@ -4,10 +4,10 @@ import { CreateDriverDto } from './dto/createDriver.dto';
 import { UpdateDriverDto } from './dto/updateDriver.dto';
 import { translate } from '@vitalets/google-translate-api';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class DriversService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
   private async generateDriverId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'D' || LPAD(nextval('driver_id_seq')::text, 3, '0') AS id
@@ -36,18 +36,38 @@ export class DriversService {
     page: number;
     limit: number;
     search?: string;
-    status?: 'ACTIVE' | 'INACTIVE';
+    status?: 'all' | 'active' | 'inactive';
     sortBy: string;
     sortOrder: 'asc' | 'desc';
   }) {
-    const offset = (query.page - 1) * query.limit;
+      const pageNum = Number(query.page);
+      const limitNum = Number(query.limit);
+
+      if (!Number.isInteger(pageNum) || pageNum <= 0) {
+        throw new BadRequestException('INVALID_PAGE');
+      }
+
+      if (!Number.isInteger(limitNum) || limitNum <= 0) {
+        throw new BadRequestException('INVALID_LIMIT');
+      }
+
+      if (limitNum > 100) {
+        throw new BadRequestException('LIMIT_TOO_LARGE');
+      }
+
+      const offset = (pageNum - 1) * limitNum;
 
     const SORT_MAP: Record<string, string> = {
       driver_name: 's.full_name',
       driver_contact: 's.primary_mobile',
       driver_license: 'd.driver_license',
     };
-
+    if (query.sortBy && !Object.keys(SORT_MAP).includes(query.sortBy)) {
+      throw new BadRequestException('INVALID_SORT_FIELD');
+    }
+    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
+      throw new BadRequestException('INVALID_SORT_ORDER');
+    }
     const sortColumn = SORT_MAP[query.sortBy] ?? 's.full_name';
     const sortOrder = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
 
@@ -56,7 +76,17 @@ export class DriversService {
     const params: any[] = [];
 
     if (query.search) {
-      params.push(`%${query.search}%`);
+      const normalized = query.search.trim();
+
+      if (!normalized) {
+        throw new BadRequestException('INVALID_SEARCH');
+      }
+
+      if (normalized.length > 100) {
+        throw new BadRequestException('SEARCH_TOO_LONG');
+      }
+
+      params.push(`%${normalized}%`);
       where.push(`
         (
           s.full_name ILIKE $${params.length}
@@ -65,12 +95,19 @@ export class DriversService {
         )
       `);
     }
-    if (!query.status || query.status === 'ACTIVE') {
-      where.push('d.is_active = TRUE');
+    const allowedStatuses = ['all', 'active', 'inactive'] as const;
+    const normalizedStatus = query.status ?? 'all';
+
+    if (!allowedStatuses.includes(normalizedStatus)) {
+      throw new BadRequestException('Invalid status filter');
     }
 
-    if (query.status === 'INACTIVE') {
-      where.push('d.is_active = FALSE');
+    if (normalizedStatus === 'active') {
+      where.push('d.is_active = TRUE AND s.is_active = TRUE');
+    }
+
+    if (normalizedStatus === 'inactive') {
+      where.push('d.is_active = FALSE AND s.is_active = FALSE');
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -86,13 +123,14 @@ export class DriversService {
         s.address,
         d.driver_license,
         d.license_expiry_date,
-        d.is_active
+        d.is_active,
+        s.is_active AS staff_is_active
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
       ${whereSql}
       ORDER BY ${sortColumn} ${sortOrder}
-      LIMIT ${query.limit}
-      OFFSET ${offset};
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
     `;
 
     const countSql = `
@@ -103,7 +141,7 @@ export class DriversService {
     `;
 
     const [dataRes, countRes] = await Promise.all([
-      this.db.query(dataSql, params),
+      this.db.query(dataSql, [...params, limitNum, offset]),
       this.db.query(countSql, params),
     ]);
 
@@ -223,6 +261,38 @@ export class DriversService {
       const driverId = await this.generateDriverId(client);
       const staffId = await this.generateStaffId(client);
       const license = dto.driver_license?.trim();
+      if (!dto.driver_name || !dto.driver_name.trim()) {
+        throw new BadRequestException('DRIVER_NAME_REQUIRED');
+      }
+      if (dto.driver_name.length > 100) {
+        throw new BadRequestException('DRIVER_NAME_TOO_LONG');
+      }
+      const mobileRegex = /^[6-9]\d{9}$/;
+      if (dto.driver_contact && !mobileRegex.test(dto.driver_contact)) {
+        throw new BadRequestException('INVALID_DRIVER_CONTACT');
+      }
+      if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
+        throw new BadRequestException('INVALID_ALTERNATE_CONTACT');
+      }
+      if (dto.driver_mail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!emailRegex.test(dto.driver_mail)) {
+          throw new BadRequestException('INVALID_EMAIL');
+        }
+      }
+      if (!license) {
+        throw new BadRequestException('DRIVER_LICENSE_REQUIRED');
+      }
+      if (dto.license_expiry_date) {
+        if (isNaN(Date.parse(dto.license_expiry_date))) {
+          throw new BadRequestException('INVALID_LICENSE_EXPIRY_DATE');
+        }
+
+        if (new Date(dto.license_expiry_date) < new Date()) {
+          throw new BadRequestException('LICENSE_ALREADY_EXPIRED');
+        }
+      }
       if (license) {
         const exists = await client.query(
           `
@@ -291,7 +361,14 @@ export class DriversService {
         user,
         ip
       ]);
-
+      await this.activityLog.log({
+        message: 'Driver created',
+        module: 'DRIVER',
+        action: 'CREATE',
+        referenceId: driverId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -302,8 +379,15 @@ export class DriversService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(payload.driver_id)) {
+        throw new BadRequestException('INVALID_DRIVER_ID');
+      }
+
+      if (!/^GV\d+$/.test(payload.guest_vehicle_id)) {
+        throw new BadRequestException('INVALID_GUEST_VEHICLE_ID');
+      }
       const driverRes = await client.query(
-        `SELECT * FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
+        `SELECT d.*, s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE d.driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE FOR UPDATE`,
         [payload.driver_id]
       );
 
@@ -325,14 +409,24 @@ export class DriversService {
       }
 
       const vehicleRes = await client.query(
-        `SELECT * FROM t_guest_vehicle WHERE guest_vehicle_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_vehicle WHERE guest_vehicle_id = $1 AND is_active = TRUE FOR UPDATE`,
         [payload.guest_vehicle_id]
       );
 
       if (!vehicleRes.rows.length) {
         throw new BadRequestException('Guest vehicle not found');
       }
+      const existingAssignment = await client.query(`
+        SELECT 1
+        FROM t_guest_vehicle
+        WHERE driver_id = $1
+          AND is_active = TRUE
+        LIMIT 1
+      `, [payload.driver_id]);
 
+      if (existingAssignment.rowCount > 0) {
+        throw new BadRequestException('DRIVER_ALREADY_ASSIGNED');
+      }
       const sql = `
       UPDATE t_guest_vehicle
       SET
@@ -351,12 +445,22 @@ export class DriversService {
         user,
         ip
       ]);
-
+      await this.activityLog.log({
+        message: 'Driver assigned to a guest & vehicle',
+        module: 'DRIVER',
+        action: 'ASSIGN',
+        referenceId: payload.driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
 
   async findDriversOnDutyByDate(dutyDate: string) {
+    if (!dutyDate || isNaN(Date.parse(dutyDate))) {
+      throw new BadRequestException('INVALID_DUTY_DATE');
+    }
     const sql = `
       SELECT DISTINCT
         d.driver_id,
@@ -403,12 +507,16 @@ export class DriversService {
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
       WHERE s.full_name = $1
+      
     `;
     const result = await this.db.query(sql, [driver_name]);
     return result.rows[0];
   }
 
   async findOneById(driver_id: string) {
+    if (!/^D\d+$/.test(driver_id)) {
+      throw new BadRequestException('INVALID_DRIVER_ID');
+    }
     const sql = `
       SELECT d.*, s.*
       FROM m_driver d
@@ -421,7 +529,31 @@ export class DriversService {
 
   async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(driver_id)) {
+        throw new BadRequestException('INVALID_DRIVER_ID');
+      }
+      if (dto.driver_name && !dto.driver_name.trim()) {
+        throw new BadRequestException('INVALID_DRIVER_NAME');
+      }
+      if (dto.license_expiry_date) {
+        if (isNaN(Date.parse(dto.license_expiry_date))) {
+          throw new BadRequestException('INVALID_LICENSE_EXPIRY_DATE');
+        }
+      }
+      const mobileRegex = /^[6-9]\d{9}$/;
+      if (dto.driver_contact && !mobileRegex.test(dto.driver_contact)) {
+        throw new BadRequestException('INVALID_DRIVER_CONTACT');
+      }
+      if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
+        throw new BadRequestException('INVALID_ALTERNATE_CONTACT');
+      }
+      if (dto.driver_mail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+        if (!emailRegex.test(dto.driver_mail)) {
+          throw new BadRequestException('INVALID_EMAIL');
+        }
+      }
       const existingRes = await client.query(
         `
         SELECT d.*, s.*
@@ -529,22 +661,32 @@ export class DriversService {
         ip,
         driver_id,
       ]);
-
+      await this.activityLog.log({
+        message: 'Driver updated',
+        module: 'DRIVER',
+        action: 'UPDATE',
+        referenceId: driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return driverRes.rows[0];
     });
   }
 
   async softDelete(driver_id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^D\d+$/.test(driver_id)) {
+        throw new BadRequestException('INVALID_DRIVER_ID');
+      }
       const existingRes = await client.query(
-        `SELECT * FROM m_driver WHERE driver_id = $1 FOR UPDATE`,
+        `SELECT d.*,s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE FOR UPDATE`,
         [driver_id]
       );
 
       const existing = existingRes.rows[0];
 
       if (!existing) {
-        throw new NotFoundException(`Driver '${driver_id}' not found`);
+        throw new NotFoundException(`Driver '${driver_id}' does not exist`);
       }
 
       // 🚫 CHECK: Is driver currently assigned?
@@ -584,6 +726,14 @@ export class DriversService {
       `;
 
       const result = await client.query(sql, [user, ip, driver_id]);
+      await this.activityLog.log({
+        message: 'Driver deleted',
+        module: 'DRIVER',
+        action: 'DELETE',
+        referenceId: driver_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }

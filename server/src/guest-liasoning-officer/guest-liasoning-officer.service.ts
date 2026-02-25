@@ -2,10 +2,10 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestLiasoningOfficerDto, UpdateGuestLiasoningOfficerDto, } from './dto/guest-liasoning-officer.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class GuestLiasoningOfficerService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
   private async generateLiasoningOfficerId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GLO' || LPAD(nextval('guest_liasoning_officer_seq')::text, 3, '0') AS id
@@ -97,7 +97,14 @@ export class GuestLiasoningOfficerService {
           user,
           ip,
         ]);
-
+        await this.activityLog.log({
+          message: 'Liasoning officer assigned to guest',
+          module: 'GUEST LIASONING OFFICER',
+          action: 'ASSIGN',
+          referenceId: glo_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return res.rows[0];
       } catch (err) {
         throw err;
@@ -198,14 +205,19 @@ export class GuestLiasoningOfficerService {
         WHERE glo_id = $${idx}
         RETURNING *;
       `;
-
       values.push(id);
-
       const res = await client.query(sql, values);
-
       if (!res.rowCount) {
         throw new NotFoundException('Assignment not found');
       }
+      await this.activityLog.log({
+        message: 'Liasoning officer updated',
+        module: 'GUEST LIASONING OFFICER',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
 
       return res.rows[0];
     });
@@ -242,7 +254,14 @@ export class GuestLiasoningOfficerService {
       if (!res.rowCount) {
         throw new NotFoundException('Assignment not found');
       }
-
+      await this.activityLog.log({
+        message: 'Liasoning officer unassigned from guest',
+        module: 'GUEST LIASONING OFFICER',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }

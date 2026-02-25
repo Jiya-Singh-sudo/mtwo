@@ -58,12 +58,6 @@ export class RolesService {
 
   async create(dto: CreateRoleDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      // Convert to IST timestamp but WITHOUT the AM/PM glitch
-      // const now = new Date().toLocaleString("en-GB", {
-      //   timeZone: "Asia/Kolkata",
-      //   hour12: false,
-      // }).replace(",", "");
-
       let role_id = this.generateRoleId(dto.role_name);
 
       // Ensure uniqueness

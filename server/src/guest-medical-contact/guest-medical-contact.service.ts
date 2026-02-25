@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestMedicalContactDto, UpdateGuestMedicalContactDto } from './dto/guest-medical-contact.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class GuestMedicalContactService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
   private async generateMedicalContactId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GMC' || LPAD(nextval('guest_medical_contact_seq')::text, 3, '0') AS id
@@ -83,7 +83,14 @@ export class GuestMedicalContactService {
           user,
           ip,
         ]);
-
+        await this.activityLog.log({
+          message: 'Medical contact assigned to guest',
+          module: 'GUEST MEDICAL CONTACT',
+          action: 'ASSIGN',
+          referenceId: medical_contact_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return res.rows[0];
       } catch (err) {
         throw err;
@@ -112,12 +119,9 @@ export class GuestMedicalContactService {
       if (!existingRes.rowCount) {
         throw new NotFoundException('Medical contact not found');
       }
-
       const existing = existingRes.rows[0];
-
       const guestId = dto.guest_id ?? existing.guest_id;
       const serviceId = dto.service_id ?? existing.service_id;
-
       // Validate guest
       const guest = await client.query(
         `SELECT 1 FROM m_guest 
@@ -192,7 +196,14 @@ export class GuestMedicalContactService {
       values.push(id);
 
       const res = await client.query(sql, values);
-
+      await this.activityLog.log({
+        message: 'Medical contact updated',
+        module: 'GUEST MEDICAL CONTACT',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -273,7 +284,14 @@ export class GuestMedicalContactService {
         `,
         [id, user, ip]
       );
-
+      await this.activityLog.log({
+        message: 'Medical contact unassigned from guest',
+        module: 'GUEST MEDICAL CONTACT',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }

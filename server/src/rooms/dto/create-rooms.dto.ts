@@ -37,6 +37,6 @@ export class CreateRoomDto {
   @IsString()
   room_category?: string; // AC / Non-AC / Deluxe
 
-  @IsIn(['Available'])
+  @IsIn(['Available', 'Maintenance', 'Reserved', 'Occupied'])
   status: 'Available';
 }

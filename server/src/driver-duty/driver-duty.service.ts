@@ -2,10 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { DatabaseService } from '../database/database.service';
 import { CreateDriverDutyDto } from '../driver-duty/dto/createDriverDuty.dto';
 import { UpdateDriverDutyDto } from '../driver-duty/dto/updateDriverDuty.dto';
- 
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class DriverDutyService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
   private getWeekday(date: string): number {
     return new Date(date + 'T00:00:00').getDay();
   }
@@ -33,10 +33,6 @@ export class DriverDutyService {
       if (this.isPastDate(dto.duty_date)) {
         throw new BadRequestException('Cannot create duty for past date');
       }
-      // const allowedShifts = ['morning', 'afternoon', 'night', 'full-day'];
-      // if (!allowedShifts.includes(dto.shift)) {
-      //   throw new BadRequestException('Invalid shift');
-      // }
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (dto.duty_in_time && !timeRegex.test(dto.duty_in_time)) {
         throw new BadRequestException('Invalid duty in time format');
@@ -138,6 +134,14 @@ export class DriverDutyService {
             `,
             [dto.driver_id, weekday, user, ip]
           );
+          await this.activityLog.log({
+            message: 'Driver duty created',
+            module: 'DRIVER DUTY',
+            action: 'CREATE',
+            referenceId: newId,
+            performedBy: user,
+            ipAddress: ip,
+          }, client);
         }
         return duty;
       } catch (err: any) {
@@ -254,6 +258,14 @@ export class DriverDutyService {
           [existing.driver_id, weekday, user, ip]
         );
       }
+      await this.activityLog.log({
+        message: 'Driver duty updated',
+        module: 'DRIVER DUTY',
+        action: 'UPDATE',
+        referenceId: dutyId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return duty;
       // return res.rows[0];
     });

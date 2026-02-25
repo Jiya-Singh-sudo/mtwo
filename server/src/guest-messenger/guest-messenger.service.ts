@@ -4,26 +4,11 @@ import { CreateGuestMessengerDto } from './dto/create-guest-messenger.dto';
 import { UnassignGuestMessengerDto } from './dto/unassign-guest-messenger.dto';
 import { GuestMessengerTableQueryDto } from './dto/guest-messenger-table-query.dto';
 import { GuestNetworkTableQueryDto } from './dto/guest-network-table.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class GuestMessengerService {
-    constructor(private readonly db: DatabaseService) {}
-      /* ---------- ID GENERATION ---------- */
-  // private async generateId(): Promise<string> {
-  //   const sql = `
-  //     SELECT guest_messenger_id
-  //     FROM t_guest_messenger
-  //     WHERE guest_messenger_id ~ '^GM[0-9]+$'
-  //     ORDER BY CAST(SUBSTRING(guest_messenger_id, 3) AS INT) DESC
-  //     LIMIT 1;
-  //   `;
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) return 'GM001';
-
-  //   const last = res.rows[0].guest_messenger_id.substring(2);
-  //   const next = parseInt(last, 10) + 1;
-  //   return `GM${next.toString().padStart(3, '0')}`;
-  // }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
+  /* ---------- ID GENERATION ---------- */
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GM' || LPAD(nextval('guest_messenger_seq')::text, 3, '0') AS id
@@ -312,7 +297,14 @@ export class GuestMessengerService {
         user,
         ip,
       ]);
-
+      await this.activityLog.log({
+        message: 'Messenger assigned to guest',
+        module: 'GUEST MESSENGER',
+        action: 'ASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -349,10 +341,16 @@ export class GuestMessengerService {
   //     ip,
   //     id,
   //   ]);
-
+        // await this.activityLog.log({
+        //   message: 'Messenger updated',
+        //   module: 'GUEST MESSENGER',
+        //   action: 'UPDATE',
+        //   referenceId: id,
+        //   performedBy: user,
+        //   ipAddress: ip,
+        // }, client);
   //   return res.rows[0];
   // }
-
   async unassign(
     id: string,
     user: string,
@@ -392,7 +390,14 @@ export class GuestMessengerService {
         `,
         [remarks ?? null, user, ip, id]
       );
-
+      await this.activityLog.log({
+        message: 'Messenger unassigned from guest',
+        module: 'GUEST MESSENGER',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -427,7 +432,14 @@ export class GuestMessengerService {
         `,
         [user, ip, id],
       );
-
+      await this.activityLog.log({
+        message: 'Messenger soft deleted from guest',
+        module: 'GUEST MESSENGER',
+        action: 'DELETE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -484,9 +496,7 @@ export class GuestMessengerService {
         )
       `);
     }
-
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-
     const dataSql = `
       SELECT
         gm.guest_messenger_id,
@@ -512,7 +522,6 @@ export class GuestMessengerService {
       LIMIT $${params.length + 1}
       OFFSET $${params.length + 2};
     `;
-
     const countSql = `
       SELECT COUNT(*)::int AS count
       FROM t_guest_messenger gm
@@ -523,7 +532,6 @@ export class GuestMessengerService {
     `;
     const data = await this.db.query(dataSql, [...params, query.limit, offset]);
     const count = await this.db.query(countSql, params);
-
     return {
       data: data.rows,
       totalCount: count.rows[0].count,

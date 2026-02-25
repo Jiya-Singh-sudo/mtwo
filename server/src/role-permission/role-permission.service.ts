@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 
-
-
 @Injectable()
 export class RolePermissionService {
     constructor(

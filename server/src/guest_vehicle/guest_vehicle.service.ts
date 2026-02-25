@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestVehicleDto } from './dto/create-guest-vehicle.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class GuestVehicleService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
 
   private async generateGuestVehicleId(client: any): Promise<string> {
     const res = await client.query(`
@@ -40,6 +40,9 @@ export class GuestVehicleService {
   }
 
   async findActiveByGuest(guestId: string) {
+    if (!/^G\d+$/.test(guestId)) {
+      throw new BadRequestException('Invalid guest ID format');
+    }
     const sql = `
       SELECT *
       FROM t_guest_vehicle
@@ -49,6 +52,9 @@ export class GuestVehicleService {
       LIMIT 1
     `;
     const res = await this.db.query(sql, [guestId]);
+    if (!res.rows.length) {
+      throw new NotFoundException("No vehicle found for this guest");
+    }
     return res.rows[0] || null;
   }
 
@@ -128,6 +134,9 @@ export class GuestVehicleService {
 
   // READ #3 — Vehicles assigned to a specific guest
   async findVehiclesByGuest(guestId: string) {
+    if (!/^G\d+$/.test(guestId)) {
+      throw new BadRequestException('Invalid guest ID format');
+    }
     const sql = `
       SELECT
         gv.guest_vehicle_id,
@@ -162,12 +171,82 @@ export class GuestVehicleService {
     ip: string
   ) {
   return this.db.transaction(async (client) => {
-      // 🔒 Lock vehicle row
-      await client.query(
-        `SELECT 1 FROM m_vehicle WHERE vehicle_no = $1 FOR UPDATE`,
-        [dto.vehicle_no]
-      );
+    if (!/^G\d+$/.test(dto.guest_id)) {
+      throw new BadRequestException('Invalid guest ID format');
+    }
+    if (!dto.vehicle_no || !/^[A-Z0-9-]+$/.test(dto.vehicle_no)) {
+      throw new BadRequestException('Invalid vehicle number format');
+    }
+    const now = new Date();
 
+    if (new Date(dto.assigned_at) < now) {
+      throw new BadRequestException(
+        'Cannot assign vehicle in the past'
+      );
+    }
+    if (!dto.assigned_at || isNaN(Date.parse(dto.assigned_at))) {
+      throw new BadRequestException('Invalid assigned_at timestamp');
+    }
+    if (dto.released_at && isNaN(Date.parse(dto.released_at))) {
+      throw new BadRequestException('Invalid released_at timestamp');
+    }
+    if (dto.released_at) {
+      const assigned = new Date(dto.assigned_at);
+      const released = new Date(dto.released_at);
+
+      if (released <= assigned) {
+        throw new BadRequestException(
+          'released_at must be after assigned_at'
+        );
+      }
+    }
+    if (dto.location && dto.location.length > 255) {
+      throw new BadRequestException('Location cannot exceed 255 characters');
+    }
+    const vehicleCheck = await client.query(
+      `SELECT 1 FROM m_vehicle WHERE vehicle_no = $1 AND is_active = TRUE FOR UPDATE`,
+      [dto.vehicle_no]
+    );
+    if (!vehicleCheck.rowCount) {
+      throw new NotFoundException('Vehicle not found or inactive');
+    }
+    if (dto.released_at) {
+      const assigned = new Date(dto.assigned_at);
+      const released = new Date(dto.released_at);
+
+      if (released <= assigned) {
+        throw new BadRequestException(
+          'released_at must be after assigned_at'
+        );
+      }
+    }
+    const overlapCheck = await client.query(`
+      SELECT 1
+      FROM t_guest_vehicle
+      WHERE
+        guest_id = $1
+        AND (
+          assigned_at,
+          COALESCE(released_at, 'infinity')
+        )
+        OVERLAPS
+        (
+          $2::timestamp,
+          COALESCE($3::timestamp, 'infinity')
+        )
+      LIMIT 1
+      FOR UPDATE;
+    `, [
+      dto.guest_id,
+      dto.assigned_at,
+      dto.released_at ?? null
+    ]);
+
+    if (overlapCheck.rowCount > 0) {
+      throw new BadRequestException(
+        'Guest already has a vehicle assigned during the selected time'
+      );
+    }
       // 🔒 Lock existing active assignments for vehicle
       await client.query(
         `
@@ -212,7 +291,14 @@ export class GuestVehicleService {
         user,
         ip
       ]);
-
+      await this.activityLog.log({
+        message: 'Vehicle assigned to a guest',
+        module: 'GUEST VEHICLE',
+        action: 'CREATE',
+        referenceId: guestVehicleId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return { guest_vehicle_id: guestVehicleId };
     });
   }
@@ -236,6 +322,14 @@ export class GuestVehicleService {
         `;
 
         const res = await client.query(sql, [user, ip]);
+        await this.activityLog.log({
+          message: 'Vehicle assignment expired',
+          module: 'GUEST VEHICLE',
+          action: 'UPDATE',
+          referenceId: res.rows[0].guest_vehicle_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return res.rows;
     });
   }
@@ -247,6 +341,9 @@ export class GuestVehicleService {
     ip: string,
   ) {
     return this.db.transaction(async (client) => {
+      if (!/^GV\d+$/.test(guestVehicleId)) {
+        throw new BadRequestException('Invalid guest vehicle ID format');
+      }
       const sql = `
         UPDATE t_guest_vehicle
         SET
@@ -263,6 +360,14 @@ export class GuestVehicleService {
       if (!res.rows.length) {
         throw new NotFoundException("Active vehicle assignment not found");
       }
+      await this.activityLog.log({
+        message: 'Vehicle assignment released',
+        module: 'GUEST VEHICLE',
+        action: 'UPDATE',
+        referenceId: guestVehicleId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -299,6 +404,41 @@ export class GuestVehicleService {
     ip: string
   ) {
     return this.db.transaction(async (client) => {
+      if (!/^GV\d+$/.test(oldGuestVehicleId)) {
+        throw new BadRequestException('Invalid guest vehicle ID format');
+      }
+      if (!dto.vehicle_no || !/^[A-Z0-9-]+$/.test(dto.vehicle_no)) {
+        throw new BadRequestException('Invalid vehicle number format');
+      }
+      if (!dto.assigned_at || isNaN(Date.parse(dto.assigned_at))) {
+        throw new BadRequestException('Invalid assigned_at timestamp');
+      }
+      if (dto.released_at && isNaN(Date.parse(dto.released_at))) {
+        throw new BadRequestException('Invalid released_at timestamp');
+      }
+      if (dto.released_at) {
+        const assigned = new Date(dto.assigned_at);
+        const released = new Date(dto.released_at);
+
+        if (released <= assigned) {
+          throw new BadRequestException(
+            'released_at must be after assigned_at'
+          );
+        }
+      }
+      if (dto.location && dto.location.length > 255) {
+        throw new BadRequestException('Location cannot exceed 255 characters');
+      }
+      if (dto.released_at) {
+        const assigned = new Date(dto.assigned_at);
+        const released = new Date(dto.released_at);
+
+        if (released <= assigned) {
+          throw new BadRequestException(
+            'released_at must be after assigned_at'
+          );
+        }
+      }
       const old = await client.query(
         `
         SELECT guest_id, is_active
@@ -385,7 +525,14 @@ export class GuestVehicleService {
           user,
           ip
         ]);
-
+      await this.activityLog.log({
+        message: 'Vehicle assignment updated',
+        module: 'GUEST VEHICLE',
+        action: 'UPDATE',
+        referenceId: guestVehicleId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return { guest_vehicle_id: guestVehicleId };
     });
   }
@@ -396,6 +543,13 @@ export class GuestVehicleService {
     releasedAt?: string,
     excludeGuestVehicleId?: string
   ) {
+    if (isNaN(Date.parse(assignedAt))) {
+      throw new BadRequestException('Invalid assigned_at timestamp');
+    }
+
+    if (releasedAt && isNaN(Date.parse(releasedAt))) {
+      throw new BadRequestException('Invalid released_at timestamp');
+    }
     const sql = `
       SELECT 1
       FROM t_guest_vehicle
@@ -435,6 +589,13 @@ export class GuestVehicleService {
     assignedAt: string,
     releasedAt?: string
   ) {
+    if (isNaN(Date.parse(assignedAt))) {
+      throw new BadRequestException('Invalid assigned_at timestamp');
+    }
+
+    if (releasedAt && isNaN(Date.parse(releasedAt))) {
+      throw new BadRequestException('Invalid released_at timestamp');
+    }
     const res = await client.query(
       `
       SELECT
@@ -449,26 +610,22 @@ export class GuestVehicleService {
       `,
       [guestId]
     );
-    if (!res.rows.length) return;
+    if (!res.rows.length) {
+      throw new NotFoundException('Guest stay not found');
+    }
     const { entry_ts, exit_ts } = res.rows[0];
-
-    // if (
-    //   assignedAt < entry_ts ||
-    //   (releasedAt && releasedAt > exit_ts)
-    // ) {
-    //   throw new BadRequestException(
-    //     'Vehicle assignment is outside guest check-in / check-out period'
-    //   );
-    // }
+    const allowedStart = new Date(entry_ts);
+    allowedStart.setDate(allowedStart.getDate() - 1);
+    const allowedEnd = new Date(exit_ts);
+    allowedEnd.setDate(allowedEnd.getDate() + 1);
     const assignedAtDate = new Date(assignedAt);
     const releasedAtDate = releasedAt ? new Date(releasedAt) : null;
-
     if (
-      assignedAtDate < new Date(entry_ts) ||
-      (releasedAtDate && releasedAtDate > new Date(exit_ts))
+      assignedAtDate < allowedStart ||
+      (releasedAtDate && releasedAtDate > allowedEnd)
     ) {
       throw new BadRequestException(
-        'Vehicle assignment is outside guest check-in / check-out period'
+        'Vehicle assignment must be within 1 day before check-in and 1 day after check-out'
       );
     }
 

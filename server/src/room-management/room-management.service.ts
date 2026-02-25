@@ -3,6 +3,7 @@ import { DatabaseService } from '../database/database.service';
 import { EditRoomFullDto } from './dto/editFullRoom.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { GuestRoomService } from 'src/guest-room/guest-room.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
   room_name: 'r.room_name',
@@ -15,7 +16,8 @@ const SORT_MAP: Record<string, string> = {
 export class RoomManagementService {
   constructor(
     private readonly db: DatabaseService,
-    private readonly guestRoomService: GuestRoomService
+    private readonly guestRoomService: GuestRoomService,
+    private readonly activityLog: ActivityLogService
   ) { }
 
   /* ================= OVERVIEW ================= */
@@ -38,18 +40,43 @@ export class RoomManagementService {
     entryDateFrom?: string;
     entryDateTo?: string;
   }) {
+    if (!Number.isInteger(page) || page <= 0) {
+      throw new BadRequestException('Invalid page');
+    }
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new BadRequestException('Invalid limit');
+    }
+    if (limit > 100) {
+      throw new BadRequestException('Limit too large');
+    }
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
     const offset = (page - 1) * limit;
     if (entryDateFrom === '') entryDateFrom = undefined;
     if (entryDateTo === '') entryDateTo = undefined;
     /* ================= WHERE + PARAMS ================= */
-
+    if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
+      throw new BadRequestException('Invalid sort field');
+    }
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
+    }
+    const allowedStatuses = ['Available', 'Occupied'];
+    if (status && !allowedStatuses.includes(status)) {
+      throw new BadRequestException('Invalid status');
+    }
     const whereParts: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
     if (search) {
+      const normalized = search.trim();
+      if (!normalized) {
+        throw new BadRequestException('Invalid search');
+      }
+      if (normalized.length > 100) {
+        throw new BadRequestException('Search too long');
+      }
       whereParts.push(`
         (
           r.room_no ILIKE $${idx}
@@ -57,7 +84,7 @@ export class RoomManagementService {
           OR g.guest_name ILIKE $${idx}
         )
       `);
-      params.push(`%${search}%`);
+      params.push(`%${normalized}%`);
       idx++;
     }
 
@@ -66,20 +93,32 @@ export class RoomManagementService {
       params.push(status);
       idx++;
     }
-let dateJoinSql = '';
-const dateParams: any[] = [];
+    if (entryDateFrom && isNaN(Date.parse(entryDateFrom))) {
+      throw new BadRequestException('Invalid entry date from');
+    }
 
-if (entryDateFrom) {
-  dateJoinSql += ` AND io.entry_date >= $${idx}`;
-  dateParams.push(entryDateFrom);
-  idx++;
-}
+    if (entryDateTo && isNaN(Date.parse(entryDateTo))) {
+      throw new BadRequestException('Invalid entry date to');
+    }
 
-if (entryDateTo) {
-  dateJoinSql += ` AND io.entry_date < ($${idx}::date + INTERVAL '1 day')`;
-  dateParams.push(entryDateTo);
-  idx++;
-}
+    if (entryDateFrom && entryDateTo &&
+        new Date(entryDateFrom) > new Date(entryDateTo)) {
+      throw new BadRequestException('Invalid date range');
+    }
+    let dateJoinSql = '';
+    const dateParams: any[] = [];
+
+    if (entryDateFrom) {
+      dateJoinSql += ` AND io.entry_date >= $${idx}`;
+      dateParams.push(entryDateFrom);
+      idx++;
+    }
+
+    if (entryDateTo) {
+      dateJoinSql += ` AND io.entry_date < ($${idx}::date + INTERVAL '1 day')`;
+      dateParams.push(entryDateTo);
+      idx++;
+    }
     const whereSql = whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
 
     /* ================= COUNT ================= */
@@ -306,16 +345,66 @@ if (entryDateTo) {
   ) {
     return this.db.transaction(async (client) => {
       try {
+        // if (!/^R\d+$/.test(room_id)) {
+        //   throw new BadRequestException('Invalid room id');
+        // }
+        if (dto.room_no && !/^[A-Z0-9\-]+$/.test(dto.room_no.trim().toUpperCase())) {
+          throw new BadRequestException('Invalid room no format');
+        }
 
+        if (dto.room_name && dto.room_name.length > 100) {
+          throw new BadRequestException('Room name too long');
+        }
+
+        if (dto.building_name && dto.building_name.length > 100) {
+          throw new BadRequestException('Building name too long');
+        }
+
+        if (dto.room_category && dto.room_category.length > 100) {
+          throw new BadRequestException('Room category too long');
+        }
+        if (dto.room_capacity !== undefined) {
+          if (!Number.isInteger(dto.room_capacity)) {
+            throw new BadRequestException('Invalid room capacity');
+          }
+
+          if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+            throw new BadRequestException('Room capacity out of range');
+          }
+        }
+        const allowedRoomStatuses = ['Available', 'Occupied', 'Maintenance', 'Reserved'];
+
+        if (dto.status && !allowedRoomStatuses.includes(dto.status)) {
+          throw new BadRequestException('Invalid room status');
+        }
+        if (dto.guest_id !== undefined && dto.guest_id !== null) {
+          if (!/^G\d+$/.test(dto.guest_id)) {
+            throw new BadRequestException('Invalid guest id');
+          }
+        }
+        const guestCheck = await client.query(`
+          SELECT 1
+          FROM t_guest_inout
+          WHERE guest_id = $1
+            AND is_active = TRUE
+        `, [dto.guest_id]);
+
+        if (!guestCheck.rowCount) {
+          throw new BadRequestException('Guest not active');
+        }
+        if (dto.hk_id && !/^HK\d+$/.test(dto.hk_id)) {
+          throw new BadRequestException('Invalid hk id');
+        }
+        if (dto.task_date && isNaN(Date.parse(dto.task_date))) {
+          throw new BadRequestException('Invalid task date');
+        }
         const roomRes = await client.query(
           `SELECT * FROM m_rooms WHERE room_id = $1 AND is_active = TRUE FOR UPDATE`,
           [room_id]
         );
-
         if (!roomRes.rowCount) {
           throw new NotFoundException(`Room '${room_id}' not found`);
         }
-
         const room = roomRes.rows[0];
         const activeGuestRes = await client.query(
           `
@@ -327,9 +416,7 @@ if (entryDateTo) {
         `,
           [room_id]
         );
-
         const activeGuestCount = activeGuestRes.rowCount;
-        // const activeGuestCount = activeGuestRes.rows[0].count;
         /* ================= VALIDATIONS ================= */
         // 1️⃣ Capacity must always be >= 1
         if (
@@ -341,7 +428,6 @@ if (entryDateTo) {
             'Room capacity must be at least 1'
           );
         }
-
         // 2️⃣ If room has active guest, restrict critical changes
         if (activeGuestCount > 0) {
           if (dto.room_no && dto.room_no !== room.room_no) {
@@ -640,6 +726,30 @@ if (entryDateTo) {
             );
           }
         }
+        await this.activityLog.log({
+          message: 'Room boy assigned to guest updated',
+          module: 'GUEST-HOUSEKEEPING',
+          action: 'UPDATE',
+          referenceId: room_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+        await this.activityLog.log({
+          message: 'Room details updated',
+          module: 'ROOM',
+          action: 'UPDATE',
+          referenceId: room_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+        await this.activityLog.log({
+          message: 'Guest room assignemt updated',
+          module: 'GUEST-ROOM',
+          action: 'UPDATE',
+          referenceId: dto.guest_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return { success: true };
 
       } catch (err) {
@@ -648,56 +758,10 @@ if (entryDateTo) {
       }
     });
   }
-  // async findCheckedInGuestsWithoutRoom() {
-  //   const sql = `
-  //     SELECT
-  //       io.guest_id,
-  //       g.guest_name,
-  //       io.entry_date,
-  //       io.exit_date
-  //     FROM t_guest_inout io
-  //     JOIN m_guest g ON g.guest_id = io.guest_id
-  //     LEFT JOIN t_guest_room gr
-  //       ON gr.guest_id = io.guest_id
-  //     AND gr.is_active = TRUE
-  //     WHERE io.is_active = TRUE
-  //       AND gr.guest_room_id IS NULL
-  //     ORDER BY g.guest_name;
-  //   `;
 
-  //   const res = await client.query(sql);
-  //   return res.rows;
-  // }
   async findCheckedInGuestsWithoutRoom() {
-    // const sql = `
-    //   SELECT DISTINCT ON (io.guest_id)
-    //     io.guest_id,
-    //     g.guest_name,
-    //     io.entry_date,
-    //     io.exit_date
-    //   FROM t_guest_inout io
-    //   JOIN m_guest g
-    //     ON g.guest_id = io.guest_id
-    //   AND g.is_active = TRUE
-
-    //   LEFT JOIN t_guest_room gr
-    //     ON gr.guest_id = io.guest_id
-    //   AND gr.is_active = TRUE
-
-    //   WHERE io.is_active = TRUE
-    //     AND gr.guest_room_id IS NULL
-
-    //     -- ✅ NEW CONSTRAINT
-    //     AND io.entry_date IS NOT NULL
-    //     AND (
-    //       io.exit_date IS NULL
-    //       OR io.exit_date >= CURRENT_DATE
-    //     )
-
-    //   ORDER BY io.guest_id, io.entry_date DESC;
-    // `;
     const sql = `
-      SELECT DISTINCT ON (io.guest_id)
+      SELECT
         io.guest_id,
         g.guest_name,
 
@@ -705,41 +769,57 @@ if (entryDateTo) {
         gd.department,
 
         io.entry_date,
-        io.exit_date
+        io.exit_date,
+        io.rooms_required,
+        io.companions,
+
+        COUNT(gr.guest_room_id) AS allocated_rooms,
+        COALESCE(SUM(r.room_capacity), 0) AS allocated_capacity
 
       FROM t_guest_inout io
 
       JOIN m_guest g
         ON g.guest_id = io.guest_id
-      AND g.is_active = TRUE
+        AND g.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = io.guest_id
-      AND gd.is_current = TRUE
-      AND gd.is_active = TRUE
+        AND gd.is_current = TRUE
+        AND gd.is_active = TRUE
 
       LEFT JOIN m_guest_designation md
         ON md.designation_id = gd.designation_id
-      AND md.is_active = TRUE
+        AND md.is_active = TRUE
 
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = io.guest_id
-      AND gr.is_active = TRUE
+        AND gr.is_active = TRUE
+
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
 
       WHERE io.is_active = TRUE
-        AND gr.guest_room_id IS NULL
+        AND io.exit_date >= CURRENT_DATE
 
-        AND io.entry_date IS NULL
-        AND (
-          io.exit_date IS NULL
-          OR io.exit_date >= CURRENT_DATE
-        )
+      GROUP BY
+        io.guest_id,
+        g.guest_name,
+        md.designation_name,
+        gd.department,
+        io.entry_date,
+        io.exit_date,
+        io.rooms_required,
+        io.companions
 
-      ORDER BY io.guest_id, io.entry_date DESC;
+      HAVING
+        COUNT(gr.guest_room_id) < io.rooms_required
+        OR
+        COALESCE(SUM(r.room_capacity), 0) < (1 + COALESCE(io.companions, 0))
+
+      ORDER BY io.entry_date DESC;
     `;
 
     const res = await this.db.query(sql);
     return res.rows;
   }
-
 }

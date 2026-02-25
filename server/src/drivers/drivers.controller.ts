@@ -17,7 +17,7 @@ export class DriversController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
     @Query('search') search = '',
-    @Query('status') status?: 'ACTIVE' | 'INACTIVE',
+    @Query('status') status?: 'all' | 'active' | 'inactive',
     @Query('sortBy') sortBy = 'driver_name',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
   ) {

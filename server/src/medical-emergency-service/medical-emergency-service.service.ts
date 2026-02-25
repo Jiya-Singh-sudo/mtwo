@@ -1,22 +1,22 @@
-import { Injectable, NotFoundException, ConflictException,} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto,} from './dto/medical-emergency-service.dto';
-
+import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto, } from './dto/medical-emergency-service.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 @Injectable()
 export class MedicalEmergencyServiceService {
-  constructor(private readonly db: DatabaseService) {}
-    private async generateId(client: any): Promise<string> {
-        const res = await client.query(`
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
         SELECT 'MES' || LPAD(nextval('medical_emergency_service_seq')::text, 3, '0') AS id
         `);
-        return res.rows[0].id;
-    }
-    private async generateStaffId(client: any): Promise<string> {
-        const res = await client.query(`
+    return res.rows[0].id;
+  }
+  private async generateStaffId(client: any): Promise<string> {
+    const res = await client.query(`
         SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
         `);
-        return res.rows[0].id;
-    }
+    return res.rows[0].id;
+  }
   /* ================= CREATE ================= */
 
   async create(
@@ -27,15 +27,19 @@ export class MedicalEmergencyServiceService {
     return this.db.transaction(async (client) => {
       try {
         const exists = await client.query(
-          `SELECT 1 FROM m_medical_emergency_service WHERE service_id = $1`,
+          `SELECT mes.*, s.*
+          FROM m_medical_emergency_service mes
+          JOIN m_staff s ON s.staff_id = mes.staff_id
+          WHERE mes.service_id = $1
+          FOR UPDATE`,
           [dto.service_id]
         );
 
         if (exists.rowCount > 0) {
           throw new ConflictException('Service already exists');
         }
-        const staffId = this.generateStaffId(client);
-        const serviceId = this.generateId(client);
+        const staffId = await this.generateStaffId(client);
+        const serviceId = await this.generateId(client);
 
         /* 1️⃣ Insert into m_staff */
         await client.query(`
@@ -84,6 +88,14 @@ export class MedicalEmergencyServiceService {
           user,
           ip
         ]);
+        await this.activityLog.log({
+          message: 'New Medical Emergency Service created successfully',
+          module: 'MEDICAL_EMERGENCY_SERVICE',
+          action: 'CREATE',
+          referenceId: serviceId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return res.rows[0];
       } catch (err: any) {
         if (err.code === '23505') {
@@ -251,14 +263,21 @@ export class MedicalEmergencyServiceService {
         ip,
         id
       ]);
-
+      await this.activityLog.log({
+        message: 'Medical Emergency Service updated successfully',
+        module: 'MEDICAL_EMERGENCY_SERVICE',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
 
   /* ================= SOFT DELETE ================= */
 
-  async softDelete(id: string, user:string, ip: string) {
+  async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(
@@ -292,8 +311,15 @@ export class MedicalEmergencyServiceService {
             updated_ip = $2
         WHERE staff_id = $3
       `, [user, ip, staff_id]);
-
-      return { message: 'Service deactivated successfully' };
+      await this.activityLog.log({
+        message: 'Medical Emergency Service deleted successfully',
+        module: 'MEDICAL_EMERGENCY_SERVICE',
+        action: 'DELETE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
+      return { message: 'Service deleted successfully' };
     });
   }
 }

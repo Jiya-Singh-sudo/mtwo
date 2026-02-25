@@ -5,10 +5,10 @@ import { GuestNetworkTableQueryDto } from "./dto/guest-network-table-query.dto";
 import { CloseGuestNetworkDto } from "./dto/close-guest-network.dto";
 import { UpdateGuestNetworkDto } from "./dto/update-guest-network.dto";
 import { ChangeGuestNetworkStatusDto } from "./dto/changes-guest-network-status.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestNetworkService {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GN' || LPAD(nextval('guest_network_seq')::text, 3, '0') AS id
@@ -547,6 +547,14 @@ export class GuestNetworkService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Network assigned to Guest',
+        module: 'GUEST NETWORK',
+        action: 'ASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -631,6 +639,14 @@ export class GuestNetworkService {
       ];
 
       const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Network details assigned to guest updated',
+        module: 'GUEST NETWORK',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -745,7 +761,14 @@ export class GuestNetworkService {
           ip,
         ]
       );
-
+      await this.activityLog.log({
+        message: 'Network details updated',
+        module: 'GUEST NETWORK',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -828,7 +851,14 @@ export class GuestNetworkService {
           id,
         ]
       );
-
+      await this.activityLog.log({
+        message: 'Network unassigned to guest',
+        module: 'GUEST NETWORK',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }
@@ -855,6 +885,14 @@ export class GuestNetworkService {
       RETURNING *;
       `;
       const res = await client.query(sql, [user, ip, id]);
+      await this.activityLog.log({
+        message: 'Network unassigned to guest',
+        module: 'GUEST NETWORK',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }

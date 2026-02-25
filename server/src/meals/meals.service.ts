@@ -2,10 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DatabaseService } from '../database/database.service';
 import { CreateMealDto } from './dto/create-meals.dto';
 import { UpdateMealDto } from './dto/update-meals.dto';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 @Injectable()
 export class MealsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
 
   async findAll(activeOnly = true) {
     if (typeof activeOnly !== 'boolean') {
@@ -49,27 +49,27 @@ export class MealsService {
   async create(dto: CreateMealDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
-if (!dto.food_name || !dto.food_name.trim()) {
-  throw new BadRequestException('Food name is required');
-}
+        if (!dto.food_name || !dto.food_name.trim()) {
+          throw new BadRequestException('Food name is required');
+        }
 
-if (dto.food_name.length > 100) {
-  throw new BadRequestException('Food name cannot exceed 100 characters');
-}
-if (dto.food_desc && dto.food_desc.length > 255) {
-  throw new BadRequestException('Food description too long');
-}
-const allowedTypes = ['Veg', 'Non-Veg', 'Vegan', 'Dessert', 'Beverage'];
-if (!allowedTypes.includes(dto.food_type)) {
-  throw new BadRequestException('Invalid food type');
-}
-const duplicate = await client.query(`
-  SELECT 1 FROM m_food_items
-  WHERE LOWER(food_name) = LOWER($1)
-`, [dto.food_name.trim()]);
-if (duplicate.rowCount > 0) {
-  throw new BadRequestException('Meal already exists');
-}
+        if (dto.food_name.length > 100) {
+          throw new BadRequestException('Food name cannot exceed 100 characters');
+        }
+        if (dto.food_desc && dto.food_desc.length > 255) {
+          throw new BadRequestException('Food description too long');
+        }
+        const allowedTypes = ['Veg', 'Non-Veg', 'Vegan', 'Dessert', 'Beverage'];
+        if (!allowedTypes.includes(dto.food_type)) {
+          throw new BadRequestException('Invalid food type');
+        }
+        const duplicate = await client.query(`
+          SELECT 1 FROM m_food_items
+          WHERE LOWER(food_name) = LOWER($1)
+        `, [dto.food_name.trim()]);
+        if (duplicate.rowCount > 0) {
+          throw new BadRequestException('Meal already exists');
+        }
         const result = await client.query(
           `
           INSERT INTO m_food_items (
@@ -92,7 +92,14 @@ if (duplicate.rowCount > 0) {
             ip,
           ]
         );
-
+        await this.activityLog.log({
+          message: 'New Meal item created successfully',
+          module: 'MEAL',
+          action: 'CREATE',
+          referenceId: result.rows[0].food_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return result.rows[0];
 
       } catch (err: any) {
@@ -169,8 +176,15 @@ if (duplicate.rowCount > 0) {
         ip,
         existing.food_id,
       ];
-
       const result = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Meal item updated successfully',
+        module: 'MEAL',
+        action: 'UPDATE',
+        referenceId: existing.food_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }
@@ -214,10 +228,16 @@ if (duplicate.rowCount > 0) {
         WHERE food_id = $3
         RETURNING *;
       `;
-
       const params = [user, ip, foodId];
       const result = await client.query(sql, params);
-
+      await this.activityLog.log({
+        message: 'Meal item deleted successfully',
+        module: 'MEAL',
+        action: 'DELETE',
+        referenceId: foodId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }
@@ -250,7 +270,6 @@ if (duplicate.rowCount > 0) {
         gb.specialrequest,
 
         gf.guest_food_id,
-        gf.quantity,
         mi.food_name,
         mi.food_type,
         gf.delivery_status,

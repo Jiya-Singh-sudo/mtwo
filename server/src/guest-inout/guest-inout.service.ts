@@ -4,26 +4,11 @@ import { CreateGuestInOutDto } from './dto/create-guest-inout.dto';
 import { UpdateGuestInoutDto } from './dto/update-guest-inout.dto';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 import { GuestFoodService } from 'src/guest-food/guest-food.service';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class GuestInoutService {
-  constructor(private readonly db: DatabaseService, private readonly guestFoodService: GuestFoodService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService, private readonly guestFoodService: GuestFoodService) {}
 
-  // private async generateInoutId(): Promise<string> {
-  //   const sql = `
-  //     SELECT inout_id
-  //     FROM t_guest_inout
-  //     ORDER BY CAST(SUBSTRING(inout_id, 6) AS INTEGER) DESC
-  //     LIMIT 1;
-  //   `;
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) {
-  //     return 'INOUT001';
-  //   }
-  //   const lastId = res.rows[0].inout_id; // e.g. "INOUT014"
-  //   const nextNum = parseInt(lastId.substring(5), 10) + 1;
-  //   return `INOUT${nextNum.toString().padStart(3, '0')}`;
-  // }
   private async generateInoutId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'INOUT' || LPAD(nextval('guest_inout_seq')::text, 3, '0') AS id
@@ -81,7 +66,14 @@ export class GuestInoutService {
           ip || '0.0.0.0'
         );
       }
-
+        await this.activityLog.log({
+          message: 'Guest stay details added',
+          module: 'GUEST INOUT',
+          action: 'CREATE',
+          referenceId: inoutId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return insertedRow;
     });
   }
@@ -180,6 +172,14 @@ export class GuestInoutService {
 
       vals.push(inoutId);
       const r = await client.query(sql, vals);
+      await this.activityLog.log({
+          message: 'Guest stay details updated',
+          module: 'GUEST INOUT',
+          action: 'UPDATE',
+          referenceId: inoutId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return r.rows[0];
     });
   }
@@ -201,6 +201,14 @@ export class GuestInoutService {
         RETURNING *;
       `;
       const r = await client.query(sql, [inoutId, user, ip]);
+      await this.activityLog.log({
+          message: 'Guest stay cancelled',
+          module: 'GUEST INOUT',
+          action: 'CANCEL',
+          referenceId: inoutId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
       return r.rows[0];
     });
   }

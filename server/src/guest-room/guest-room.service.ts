@@ -2,19 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { DatabaseService } from "../database/database.service";
 import { CreateGuestRoomDto } from "./dto/create-guest-room.dto";
 import { UpdateGuestRoomDto } from "./dto/update-guest-room.dto";
-
+import { ActivityLogService } from "src/activity-log/activity-log.service";
 @Injectable()
 export class GuestRoomService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
 
-  // private async generateId(): Promise<string> {
-  //   const sql = `SELECT guest_room_id FROM t_guest_room ORDER BY guest_room_id DESC LIMIT 1`;
-  //   const res = await this.db.query(sql);
-  //   if (res.rows.length === 0) return "GR001";
-  //   const last = res.rows[0].guest_room_id.replace("GR", "");
-  //   const next = (parseInt(last, 10) + 1).toString().padStart(3, "0");
-  //   return `GR${next}`;
-  // }
   private async generateId(client: any): Promise<string> {
     const res = await client.query(`
       SELECT 'GR' || LPAD(nextval('guest_room_seq')::text, 3, '0') AS id
@@ -108,8 +100,6 @@ export class GuestRoomService {
         WHERE r.is_active = TRUE
         ORDER BY r.room_no;
       `;
-
-
       const res = await client.query(sql);
       return res.rows;
       } catch (err) {
@@ -136,27 +126,16 @@ export class GuestRoomService {
       WHERE io.is_active = TRUE
       ORDER BY g.guest_name;
     `;
-
     const res = await this.db.query(sql);
     return res.rows;
   }
-  // async activeGuestsDropDown(){
-  //   const sql = 
-  //   `SELECT
-  //     io.guest_id,
-  //     g.guest_name
-  //   FROM t_guest_inout io
-  //   JOIN m_guest g ON g.guest_id = io.guest_id
-  //   WHERE io.is_active = TRUE
-  //   ORDER BY g.guest_name;
-  //   `;
-  //   const res = await this.db.query(sql);
-  //   return res.rows;
-  // }
 
   //Guest Management page - vacate
   async vacate(guestRoomId: string, user: string, ip: string, client?: any) {
     const executor = async (trx: any) => {
+      if (!/^GR\d+$/.test(guestRoomId)) {
+        throw new BadRequestException('Invalid Guest Room ID');
+      }
       try {
         // 1️⃣ Fetch active stay
         const res = await trx.query(`
@@ -205,6 +184,14 @@ export class GuestRoomService {
         //   `,
         //   [guestId]
         // );
+        await this.activityLog.log({
+          message: 'Room unassigned to guest',
+          module: 'GUEST ROOM',
+          action: 'UNASSIGN',
+          referenceId: guestRoomId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return { success: true };
 
       } catch (err) {
@@ -218,14 +205,23 @@ export class GuestRoomService {
   }
 
   async findAll(activeOnly = true) {
+    if (typeof activeOnly !== 'boolean') {
+      throw new BadRequestException('Invalid active flag');
+    }
     const sql = activeOnly
       ? `SELECT * FROM t_guest_room WHERE is_active = $1 ORDER BY action_date DESC, action_time DESC`
       : `SELECT * FROM t_guest_room ORDER BY action_date DESC, action_time DESC`;
     const res = await this.db.query(sql, activeOnly ? [true] : []);
+    if(!res.rows.length){
+      throw new NotFoundException('No guest room entries found');
+    }
     return res.rows;
   }
 
   async findOne(id: string) {
+    if (!/^GR\d+$/.test(id)) {
+      throw new BadRequestException('Invalid Guest Room ID');
+    }
     const sql = `SELECT * FROM t_guest_room WHERE guest_room_id = $1`;
     const res = await this.db.query(sql, [id]);
     return res.rows[0];
@@ -235,22 +231,37 @@ export class GuestRoomService {
     const executor = async (trx: any) => {
       // await this.db.query(`LOCK TABLE t_guest_room IN EXCLUSIVE MODE`);
       try {
-        // await this.db.query(
-        //   `
-        //   SELECT room_capacity
-        //   FROM m_rooms
-        //   WHERE room_id = $1
-        //   FOR UPDATE
-        //   `,
-        //   [dto.room_id]
-        // );
-
+        if (!/^G\d+$/.test(dto.guest_id)) {
+          throw new BadRequestException('Invalid Guest ID');
+        }
+        // if (!/^R\d+$/.test(dto.room_id)) {
+        //   throw new BadRequestException('INVALID_ROOM_ID');
+        // }
+        if (!dto.check_in_date || isNaN(Date.parse(dto.check_in_date))) {
+          throw new BadRequestException('Invalid Check-in Date');
+        }
+        if (dto.check_out_date && isNaN(Date.parse(dto.check_out_date))) {
+          throw new BadRequestException('Invalid Check-out Date');
+        }
+        if (dto.check_out_date && 
+            new Date(dto.check_out_date) < new Date(dto.check_in_date)) {
+          throw new BadRequestException('Check-out Date cannot be before Check-in Date');
+        }
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (new Date(dto.check_in_date) < today) {
+          throw new BadRequestException('Check-in Date cannot be in the past');
+        }
+        if (dto.remarks && dto.remarks.length > 500) {
+          throw new BadRequestException('Remarks too long');
+        }
 
         const roomRes = await trx.query(
           `
           SELECT room_capacity, status, is_active
           FROM m_rooms
           WHERE room_id = $1
+          AND is_active = TRUE
           FOR UPDATE
           `,
           [dto.room_id]
@@ -258,15 +269,7 @@ export class GuestRoomService {
         if (!roomRes.rowCount) {
           throw new BadRequestException('Room not found');
         }
-
         const room = roomRes.rows[0];
-        // await trx.query(`
-        //   SELECT 1
-        //   FROM t_guest_room
-        //   WHERE room_id = $1
-        //     AND is_active = TRUE
-        //   FOR UPDATE
-        // `, [dto.room_id]);
         const duplicateCheck = await trx.query(`
           SELECT 1
           FROM t_guest_room
@@ -291,34 +294,7 @@ export class GuestRoomService {
           `,
           [dto.room_id]
         );
-        // 🔒 Lock active inout
-        // const inoutRes = await trx.query(`
-        //   SELECT inout_id, rooms_required
-        //   FROM t_guest_inout
-        //   WHERE guest_id = $1
-        //     AND is_active = TRUE
-        //   FOR UPDATE
-        // `, [dto.guest_id]);
 
-        // if (!inoutRes.rowCount) {
-        //   throw new BadRequestException('Guest has no active visit');
-        // }
-
-        // const { rooms_required } = inoutRes.rows[0];
-
-        // // 🔒 Count already allocated rooms
-        // const roomCountRes = await trx.query(`
-        //   SELECT COUNT(*)::int AS count
-        //   FROM t_guest_room
-        //   WHERE guest_id = $1
-        //     AND is_active = TRUE
-        // `, [dto.guest_id]);
-
-        // if (roomCountRes.rows[0].count >= rooms_required) {
-        //   throw new BadRequestException(
-        //     'Guest has already been allocated required number of rooms'
-        //   );
-        // }
         // 🔒 Lock active inout with companions
         const inoutRes = await trx.query(`
           SELECT inout_id, rooms_required, companions
@@ -336,7 +312,6 @@ export class GuestRoomService {
           rooms_required,
           companions
         } = inoutRes.rows[0];
-
         const totalPeople = 1 + (companions ?? 0);
 
         // 🔒 Fetch already allocated rooms with capacity
@@ -355,18 +330,16 @@ export class GuestRoomService {
           (sum, r) => sum + Number(r.room_capacity),
           0
         );
-
         const newRoomCount = currentRoomCount + 1;
         const newTotalCapacity = currentTotalCapacity + Number(room.room_capacity);
-
         // 🚨 Rule 1: Never exceed rooms_required
         if (newRoomCount > rooms_required) {
           throw new BadRequestException(
             `Guest cannot be allocated more than ${rooms_required} rooms`
           );
         }
-
-        // 🚨 Rule 2: If this completes allocation, capacity must satisfy people
+        // 🚨 Rule 2: If this is the FINAL required room,
+        // total capacity must satisfy total people
         if (
           newRoomCount === rooms_required &&
           newTotalCapacity < totalPeople
@@ -448,8 +421,6 @@ export class GuestRoomService {
             dto.check_out_date ?? dto.check_in_date,
           ]
         );
-
-
         if (overlapCheck.rowCount > 0) {
           throw new BadRequestException(
             'Guest stay overlaps with an existing booking'
@@ -505,7 +476,14 @@ export class GuestRoomService {
           UPDATE m_rooms SET status = 'Occupied'
           WHERE room_id = $1
         `, [dto.room_id]);
-
+      await this.activityLog.log({
+        message: 'Room assigned to guest',
+        module: 'GUEST ROOM',
+        action: 'ASSIGN',
+        referenceId: guestRoomId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return { guest_room_id: guestRoomId };
 
       } catch (err) {
@@ -522,20 +500,38 @@ export class GuestRoomService {
 
   async update(id: string, dto: UpdateGuestRoomDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GR\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Room ID');
+      }
       try {
         const existingRes = await client.query(`
           SELECT *
           FROM t_guest_room
           WHERE guest_room_id = $1
+          AND is_active = TRUE
           FOR UPDATE
         `, [id]);
 
         if (!existingRes.rowCount) {
           throw new NotFoundException(`Guest Room entry '${id}' not found`);
         }
-
         const existing = existingRes.rows[0];
-
+        if (dto.check_in_date && isNaN(Date.parse(dto.check_in_date))) {
+          throw new BadRequestException('Invalid check-in date');
+        }
+        if (dto.check_out_date && isNaN(Date.parse(dto.check_out_date))) {
+          throw new BadRequestException('Invalid check-out date');
+        }
+        if (dto.check_in_date && dto.check_out_date &&
+            new Date(dto.check_out_date) < new Date(dto.check_in_date)) {
+          throw new BadRequestException('Check-out date must be after check-in date');
+        }
+        if (existing.is_active && dto.check_in_date &&
+            dto.check_in_date !== existing.check_in_date) {
+          throw new BadRequestException(
+            'Cannot modify check-in date of active stay'
+          );
+        }
       if (
         dto.room_id &&
         dto.room_id !== existing.room_id &&
@@ -545,7 +541,6 @@ export class GuestRoomService {
           'Active guest cannot be moved to another room'
         );
       }
-
         await client.query(`
           SELECT 1 FROM m_rooms
           WHERE room_id = $1
@@ -609,8 +604,15 @@ export class GuestRoomService {
           ip,
           id,
         ];
-
         const res = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Room assigned to guest updated',
+        module: 'GUEST ROOM',
+        action: 'UPDATE',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
         return res.rows[0];
       } catch (err) {
         throw err;
@@ -620,6 +622,9 @@ export class GuestRoomService {
 
   async softDelete(id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
+      if (!/^GR\d+$/.test(id)) {
+        throw new BadRequestException('Invalid Guest Room ID');
+      }
       const existing = await client.query(
         `SELECT 1 FROM t_guest_room WHERE guest_room_id = $1 FOR UPDATE`,
         [id]
@@ -638,6 +643,14 @@ export class GuestRoomService {
         RETURNING *;
       `;
       const res = await client.query(sql, [user, ip, id]);
+      await this.activityLog.log({
+        message: 'Room unassigned to guest',
+        module: 'GUEST ROOM',
+        action: 'UNASSIGN',
+        referenceId: id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return res.rows[0];
     });
   }

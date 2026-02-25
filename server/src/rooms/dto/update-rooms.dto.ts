@@ -40,8 +40,8 @@ export class UpdateRoomDto {
   room_category?: string;
 
   @IsOptional()
-  @IsIn(['Available', 'Occupied'])
-  status?: 'Available' | 'Occupied';
+  @IsIn(['Available', 'Maintenance', 'Reserved', 'Occupied'])
+  status?: 'Available' | 'Maintenance' | 'Reserved' | 'Occupied';
 
   @IsOptional()
   @IsBoolean()

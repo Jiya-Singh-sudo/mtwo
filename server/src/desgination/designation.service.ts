@@ -2,10 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateDesignationDto } from './dto/create-designation.dto';
 import { UpdateDesignationDto } from './dto/update-designation.dto';
-
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Injectable()
 export class DesignationService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
 
   private async generateDesignationId(client: any): Promise<string> {
     return this.db.transaction(async (client) => {
@@ -76,8 +76,15 @@ export class DesignationService {
         user,
         ip
       ];
-
       const result = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Designation created',
+        module: 'DESIGNATION',
+        action: 'CREATE',
+        referenceId: designation_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }
@@ -112,7 +119,14 @@ export class DesignationService {
         ip,
         existing.designation_id
       ];
-
+      await this.activityLog.log({
+        message: 'Designation updated',
+        module: 'DESIGNATION',
+        action: 'UPDATE',
+        referenceId: existing.designation_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       const result = await client.query(sql, params);
       return result.rows[0];
     });
@@ -141,6 +155,14 @@ export class DesignationService {
       const params = [user, ip, existing.designation_id];
 
       const result = await client.query(sql, params);
+      await this.activityLog.log({
+        message: 'Designation deleted',
+        module: 'DESIGNATION',
+        action: 'DELETE',
+        referenceId: existing.designation_id,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       return result.rows[0];
     });
   }
