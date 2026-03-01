@@ -733,7 +733,6 @@ function GuestTransportManagement() {
                         drop_location: driver.drop_location ?? "",
                         trip_date: driver.trip_date,
                         start_time: driver.start_time,
-                        end_time: driver.end_time ?? "",
                         drop_date: driver.drop_date,
                         drop_time: driver.drop_time,
                         trip_status: driver.trip_status,

@@ -1823,6 +1823,7 @@ export default function NetworkManagement() {
                                         try {
                                             await createGuestNetwork({
                                                 guest_id: editGuest.guest_id,
+                                                room_id: editGuest.room_id ?? undefined,
                                                 provider_id: guestForm.provider_id,
                                                 remarks: guestForm.remarks || undefined,
                                             });

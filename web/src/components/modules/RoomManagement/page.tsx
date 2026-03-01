@@ -273,7 +273,7 @@ export function RoomManagement() {
         }))
       );
     } catch (err) {
-      console.error("Failed to load room boys or shifts", err);
+      // console.error("Failed to load room boys or shifts", err);
     }
   }
 
