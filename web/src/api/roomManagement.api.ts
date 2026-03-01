@@ -13,17 +13,23 @@ type RoomOverviewResponse = {
   };
 };
 
-export async function getRoomManagementOverview(params: {
-  page: number;
-  limit: number;
-  search?: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  status?: "Available" | "Occupied";
-  entryDateFrom?: string;
-  entryDateTo?: string;
-}) : Promise<RoomOverviewResponse> {
-  const res = await api.get("/room-management/overview", { params });
+export async function getRoomManagementOverview(
+  params: {
+    page: number;
+    limit: number;
+    search?: string;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+    status?: "Available" | "Occupied";
+    entryDateFrom?: string;
+    entryDateTo?: string;
+  },
+  options?: { silent?: boolean }
+): Promise<RoomOverviewResponse> {
+  const config: any = { params };
+  if (options?.silent) config.silent = true;
+
+  const res = await api.get("/room-management/overview", config);
   return res.data;
 }
 export async function updateFullRoom(

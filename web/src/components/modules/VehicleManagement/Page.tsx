@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Edit, Trash2, Eye, Plus, Search } from 'lucide-react';
+import { Edit, Trash2, Eye, Plus } from 'lucide-react';
 import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
+import { StatCard } from "@/components/ui/StatCard";
 // import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle, getVehicleStats } from '../../../api/vehicles.api';
@@ -9,6 +10,8 @@ import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { Column, DataTable } from '@/components/ui/DataTable';
+import { PageLayout } from "@/components/layout/PageLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { driverCreateEditSchema as driverSchema, vehicleCreateEditSchema as vehicleSchema } from '@/validation/transportManagement.validation';
 import { validateSingleField } from '@/utils/validateSingleField';
 import { FieldError } from '@/components/ui/FieldError';
@@ -525,109 +528,13 @@ export function VehicleManagement() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h2 className="text-[#00247D]">Vehicle & Driver Management</h2>
-        <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन और चालक प्रबंधन</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[#00247D] text-xl font-semibold">Vehicle & Driver Management</h2>
+          <p className="text-gray-600 text-sm mt-1">Manage vehicles and drivers | वाहन और चालक प्रबंधन</p>
+        </div>
       </div>
-      {/* STATS */}
-      {/* STATS */}
-      {activeTab === "vehicles" && (
-        <div className="statsGrid">
-          {/* TOTAL = ALL */}
-          <div
-            className="statCard blue"
-            onClick={() => {
-              vehicleTable.setStatus(undefined); // 👈 ALL
-              vehicleTable.setPage(1);
-            }}
-          >
-            <Car />
-            <div>
-              <p>Total Vehicles</p>
-              <h3>{vehicleStats.total}</h3>
-            </div>
-          </div>
 
-          {/* ACTIVE */}
-          <div
-            className="statCard green"
-            onClick={() => {
-              vehicleTable.setStatus('ACTIVE');
-              vehicleTable.setPage(1);
-            }}
-          >
-            <CheckCircle />
-            <div>
-              <p>Active Vehicles</p>
-              <h3>{vehicleStats.active}</h3>
-            </div>
-          </div>
-
-          {/* INACTIVE */}
-          <div
-            className="statCard red"
-            onClick={() => {
-              vehicleTable.setStatus('INACTIVE');
-              vehicleTable.setPage(1);
-            }}
-          >
-            <AlertCircle />
-            <div>
-              <p>Inactive Vehicles</p>
-              <h3>{vehicleStats.inactive}</h3>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === "drivers" && (
-        <div className="statsGrid">
-          {/* TOTAL DRIVERS = ALL */}
-          <div
-            className="statCard orange"
-            onClick={() => {
-              driverTable.setStatus(undefined); // ALL
-              driverTable.setPage(1);
-            }}
-          >
-            <Users />
-            <div>
-              <p>Total Drivers</p>
-              <h3>{driverStats.total}</h3>
-            </div>
-          </div>
-
-          {/* ACTIVE DRIVERS */}
-          <div
-            className="statCard green"
-            onClick={() => {
-              driverTable.setStatus('ACTIVE');
-              driverTable.setPage(1);
-            }}
-          >
-            <CheckCircle />
-            <div>
-              <p>Active Drivers</p>
-              <h3>{driverStats.active}</h3>
-            </div>
-          </div>
-
-          {/* INACTIVE DRIVERS */}
-          <div
-            className="statCard red"
-            onClick={() => {
-              driverTable.setStatus('INACTIVE');
-              driverTable.setPage(1);
-            }}
-          >
-            <AlertCircle />
-            <div>
-              <p>Inactive Drivers</p>
-              <h3>{driverStats.inactive}</h3>
-            </div>
-          </div>
-        </div>
-      )}
       {/* TABS */}
       <div className="nicTabs">
         <button
@@ -654,98 +561,191 @@ export function VehicleManagement() {
 
       {/* VEHICLES TAB */}
       {activeTab === "vehicles" && (
-        <>
-          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                className="pl-10 pr-3 py-2 w-full border rounded-sm"
-                placeholder="Search vehicle no or name…"
-                maxLength={50}
-                value={vehicleTable.searchInput}
-                onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
-
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="flex-1 min-w-[250px] max-w-md">
+                  <input
+                    className="px-3 py-2 w-full border rounded-sm nicInput"
+                    placeholder="Search vehicle no or name…"
+                    maxLength={50}
+                    value={vehicleTable.searchInput}
+                    onChange={(e) => vehicleTable.setSearchInput(e.target.value)}
+                  />
+                </div>
+              }
+              right={
+                <Button
+                  className="bg-[#00247D] text-white btn-icon-text h-10 px-4 flex items-center"
+                  onClick={() => setShowAddVehicle(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Vehicle
+                </Button>
+              }
+            />
+          }
+          stats={
+            <>
+              {/* TOTAL = ALL */}
+              <StatCard
+                title="Total Vehicles"
+                value={vehicleStats.total}
+                icon={Car}
+                variant="blue"
+                active={vehicleTable.query.status === undefined}
+                onClick={() => {
+                  vehicleTable.setStatus(undefined);
+                  vehicleTable.setPage(1);
+                }}
               />
-            </div>
 
-            <Button
-              className="bg-[#00247D] text-white btn-icon-text"
-              onClick={() => setShowAddVehicle(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Add Vehicle
-            </Button>
-          </div>
+              {/* ACTIVE */}
+              <StatCard
+                title="Active Vehicles"
+                value={vehicleStats.active}
+                icon={CheckCircle}
+                variant="green"
+                active={vehicleTable.query.status === "ACTIVE"}
+                onClick={() => {
+                  vehicleTable.setStatus('ACTIVE');
+                  vehicleTable.setPage(1);
+                }}
+              />
+
+              {/* INACTIVE */}
+              <StatCard
+                title="Inactive Vehicles"
+                value={vehicleStats.inactive}
+                icon={AlertCircle}
+                variant="red"
+                active={vehicleTable.query.status === "INACTIVE"}
+                onClick={() => {
+                  vehicleTable.setStatus('INACTIVE');
+                  vehicleTable.setPage(1);
+                }}
+              />
+            </>
+          }
+        >
           {/* Vehicle List Table */}
-          <DataTable
-            data={vehicles}
-            columns={vehicleColumns}
-            keyField="vehicle_no"
-
-            page={vehicleTable.query.page}
-            limit={vehicleTable.query.limit}
-            totalCount={vehicleTable.total}
-
-            sortBy={vehicleTable.query.sortBy}
-            sortOrder={vehicleTable.query.sortOrder}
-            loading={vehicleTable.loading}
-
-            onPageChange={vehicleTable.setPage}
-            onLimitChange={vehicleTable.setLimit}
-            onSortChange={vehicleTable.setSort}
-          />
-
-        </>
+          <div className="bg-white border rounded-sm overflow-hidden">
+            <DataTable
+              data={vehicles}
+              columns={vehicleColumns}
+              keyField="vehicle_no"
+              page={vehicleTable.query.page}
+              limit={vehicleTable.query.limit}
+              totalCount={vehicleTable.total}
+              sortBy={vehicleTable.query.sortBy}
+              sortOrder={vehicleTable.query.sortOrder}
+              loading={vehicleTable.loading}
+              onPageChange={vehicleTable.setPage}
+              onLimitChange={vehicleTable.setLimit}
+              onSortChange={vehicleTable.setSort}
+            />
+          </div>
+        </PageLayout>
       )}
 
       {/* DRIVERS TAB */}
       {activeTab === "drivers" && (
-        <>
-          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                className="pl-10 pr-3 py-2 w-full border rounded-sm"
-                placeholder="Search name, contact or license…"
-                maxLength={50}
-                value={driverTable.searchInput}
-                onChange={(e) => driverTable.setSearchInput(e.target.value)}
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="flex-1 min-w-[250px] max-w-md">
+                  <input
+                    className="px-3 py-2 w-full border rounded-sm nicInput"
+                    placeholder="Search name, contact or license…"
+                    maxLength={50}
+                    value={driverTable.searchInput}
+                    onChange={(e) => driverTable.setSearchInput(e.target.value)}
+                  />
+                </div>
+              }
+              right={
+                <Button
+                  className="bg-[#00247D] text-white btn-icon-text h-10 px-4 flex items-center"
+                  onClick={() => {
+                    setShowAddDriver(true);
+                    setDirty(false);
+                    resetDriverForm();
+                    setFormErrors({});
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Driver
+                </Button>
+              }
+            />
+          }
+          stats={
+            <>
+              {/* TOTAL DRIVERS = ALL */}
+              <StatCard
+                title="Total Drivers"
+                value={driverStats.total}
+                icon={Users}
+                variant="orange"
+                active={driverTable.query.status === undefined}
+                onClick={() => {
+                  driverTable.setStatus(undefined); // ALL
+                  driverTable.setPage(1);
+                }}
               />
-            </div>
 
-            <Button
-              className="bg-[#00247D] text-white btn-icon-text"
-              onClick={() => {
-                setShowAddDriver(true);
-                setDirty(false);
-                resetDriverForm();
-                setFormErrors({});
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Driver
-            </Button>
-          </div>
+              {/* ACTIVE DRIVERS */}
+              <StatCard
+                title="Active Drivers"
+                value={driverStats.active}
+                icon={CheckCircle}
+                variant="green"
+                active={driverTable.query.status === "ACTIVE"}
+                onClick={() => {
+                  driverTable.setStatus('ACTIVE');
+                  driverTable.setPage(1);
+                }}
+              />
 
+              {/* INACTIVE DRIVERS */}
+              <StatCard
+                title="Inactive Drivers"
+                value={driverStats.inactive}
+                icon={AlertCircle}
+                variant="red"
+                active={driverTable.query.status === "INACTIVE"}
+                onClick={() => {
+                  driverTable.setStatus('INACTIVE');
+                  driverTable.setPage(1);
+                }}
+              />
+            </>
+          }
+        >
           {/* Driver List Table */}
-          <DataTable
-            data={drivers}
-            columns={driverColumns}
-            keyField="driver_id"
-
-            page={driverTable.query.page}
-            limit={driverTable.query.limit}
-            totalCount={driverTable.total}
-
-            sortBy={driverTable.query.sortBy}
-            sortOrder={driverTable.query.sortOrder}
-            loading={driverTable.loading}
-
-            onPageChange={driverTable.setPage}
-            onLimitChange={driverTable.setLimit}
-            onSortChange={driverTable.setSort}
-          />
-        </>
+          <div className="bg-white border rounded-sm overflow-hidden">
+            <DataTable
+              data={drivers}
+              columns={driverColumns}
+              keyField="driver_id"
+              page={driverTable.query.page}
+              limit={driverTable.query.limit}
+              totalCount={driverTable.total}
+              sortBy={driverTable.query.sortBy}
+              sortOrder={driverTable.query.sortOrder}
+              loading={driverTable.loading}
+              onPageChange={driverTable.setPage}
+              onLimitChange={driverTable.setLimit}
+              onSortChange={driverTable.setSort}
+            />
+          </div>
+        </PageLayout>
       )}
 
       {/* Add Vehicle Modal */}

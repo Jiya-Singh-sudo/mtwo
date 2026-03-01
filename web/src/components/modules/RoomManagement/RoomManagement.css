@@ -80,20 +80,6 @@
 /* ============================
    HEADER
 ============================ */
-.nicModalHeader {
-  flex-shrink: 0;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.nicModalHeader h2 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #00247D;
-}
 
 .closeBtn {
   background: none;
@@ -102,6 +88,28 @@
   cursor: pointer;
   color: #555;
 }
+
+/* ============================
+   WIDE MODAL (landscape)
+=============================== */
+.nicModal.wide {
+  width: 90vw;
+  max-width: 1200px;
+}
+
+/* ============================
+   MEDIUM & LARGE MODALS
+=============================== */
+.nicModal.medium {
+  width: 600px;
+  max-width: 92vw;
+}
+
+.nicModal.largeModal {
+  width: 700px;
+  max-width: 95vw;
+}
+
 
 /* ============================
    BODY (SCROLL AREA)
@@ -507,19 +515,6 @@ td .icon-btn.text-purple-600 {
 .detailSection b {
   font-weight: 600;
   color: #111827;
-}
-
-/* ============================
-   WIDE MODAL (landscape)
-=============================== */
-.nicModal.wide {
-  width: 90vw;
-  max-width: 1200px;
-}
-
-/* Fix horizontal overflow */
-.nicModalBody {
-  overflow-x: hidden;
 }
 
 /* ============================

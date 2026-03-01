@@ -9,8 +9,6 @@ export interface Housekeeping {
 
   address?: string | null;
 
-  shift: "Morning" | "Evening" | "Night" | "Full-Day";
-
   is_active: boolean;
 
   inserted_at: string;
@@ -29,8 +27,6 @@ export interface HousekeepingCreateDto {
   hk_alternate_contact?: string;
 
   address?: string;
-
-  shift: "Morning" | "Evening" | "Night" | "Full-Day";
 }
 
 export interface HousekeepingUpdateDto {
@@ -40,8 +36,6 @@ export interface HousekeepingUpdateDto {
   hk_alternate_contact?: string;
 
   address?: string;
-
-  shift?: "Morning" | "Evening" | "Night" | "Full-Day";
 
   is_active?: boolean;
 }

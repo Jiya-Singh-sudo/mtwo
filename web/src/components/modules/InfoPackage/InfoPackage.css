@@ -2,7 +2,7 @@
    INFO PACKAGE – NIC STYLE
 =========================== */
 
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 24px;
 }
 
@@ -118,16 +118,6 @@ button:disabled {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-.nicModalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.nicModalHeader h3 {
-  font-size: 16px;
-  color: #00247d;
-}
 
 .nicModalHeader button {
   background: none;
@@ -198,6 +188,7 @@ button:disabled {
   text-align: center;
   margin-top: 12px;
 }
+
 /* ---------- GUEST CATEGORY BADGES (VIP / VVIP) ---------- */
 .guestBadge {
   display: inline-flex;
@@ -209,7 +200,8 @@ button:disabled {
   font-weight: 600;
   line-height: 1;
 
-  border-radius: 999px; /* pill shape */
+  border-radius: 999px;
+  /* pill shape */
   white-space: nowrap;
 }
 

@@ -5,11 +5,13 @@ import type { Role } from "@/types/userManagement.types";
 import { getActiveUsers, createUser, updateUser, softDeleteUser, getActiveRoles } from "@/api/authentication/users.api";
 import { useAuth } from "@/context/AuthContext";
 import { Column, DataTable } from "@/components/ui/DataTable";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useTableQuery } from "@/hooks/useTableQuery";
-import { StatCard } from "@/components/ui/StatCard";
 import { validateSingleField } from "@/utils/validateSingleField";
 import { FieldError } from "@/components/ui/FieldError";
-import { userCreateSchema, userUpdateSchema } from "@/validation/user.validation";
+import { userCreateSchema } from "@/validation/user.validation";
+import { useError } from "@/context/ErrorContext";
 
 /* ======================================================
    Types – mapped to m_User table
@@ -41,6 +43,7 @@ export default function UserManagement() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { hasPermission } = useAuth();
+  const { showError } = useError();
 
   const [form, setForm] = useState({
     username: "",
@@ -77,26 +80,26 @@ export default function UserManagement() {
 
   const validate = (isEdit = false) => {
     if (!form.username || !form.fullName || !form.role_id) {
-      alert("Username, Full Name and Role are required");
+      showError("Username, Full Name and Role are required");
       return false;
     }
     if (!isEdit && !form.password) {
-      alert("Password is required");
+      showError("Password is required");
       return false;
     }
     if (
       form.primary_mobile.trim() !== "" &&
       !/^\d{10}$/.test(form.primary_mobile.trim())
     ) {
-      alert("Mobile number must be 10 digits");
+      showError("Mobile number must be 10 digits");
       return false;
     }
     if (!form.email.trim()) {
-      alert("Email is required");
+      showError("Email is required");
       return false;
     }
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      alert("Invalid email format");
+      showError("Invalid email format");
       return false;
     }
     return true;
@@ -113,8 +116,8 @@ export default function UserManagement() {
         const rows = Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res)
-          ? res
-          : [];
+            ? res
+            : [];
 
         const mapped = rows.map((u: any) => ({
           id: u.user_id,
@@ -336,88 +339,73 @@ export default function UserManagement() {
      UI
   ====================================================== */
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[#00247D]">User Management</h2>
-          <p className="text-sm text-gray-600">
-            Manage system users and roles | उपयोगकर्ता प्रबंधन
-          </p>
-        </div>
-        {/* Header action button moved to search bar area usually, but keeping here if preferred or...
-            Wait, instructions said "Search + Add Bar" - checking Step 101.
-            Step 101: "Step 2 — You already added the correct Search + Add bar... Leave it."
-            But in the current file view (Step 139), I see standard header with Add button, NO Search bar.
-            I must have missed that "You already added..." part because I reverted files or the user reverted files.
-            I will re-add the Search + Add bar structure as per Transport style.
-         */}
-      </div>
-
-      {/* STAT CARDS */}
-      <div className="statsGrid">
-        <div className="statCard blue">
-          <div className="statIcon blue">
-            <Users />
+    <PageLayout
+      title="User Management"
+      subtitle="Manage system users and roles | उपयोगकर्ता प्रबंधन"
+      toolbar={
+        <PageToolbar
+          left={
+            <div className="relative flex-1 min-w-[250px] max-w-md">
+              <input
+                className="pl-3 pr-3 py-2 w-full border rounded-sm nicInput"
+                placeholder="Search username or name..."
+                value={userTable.searchInput ?? ""}
+                maxLength={100}
+                onChange={(e) => userTable.setSearchInput(e.target.value)}
+              />
+            </div>
+          }
+          right={
+            hasPermission("user.create") && (
+              <button
+                className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text h-10 px-4 flex items-center rounded-sm"
+                onClick={() => {
+                  resetForm();
+                  setIsAddOpen(true);
+                }}
+              >
+                <Plus size={16} className="mr-2" /> Add New User
+              </button>
+            )
+          }
+        />
+      }
+      stats={
+        <>
+          <div className="statCard blue">
+            <div className="statIcon blue">
+              <Users />
+            </div>
+            <div className="statContent">
+              <p className="statLabel">Total Users</p>
+              <h3 className="statValue">{userTable.total}</h3>
+            </div>
           </div>
-          <div className="statContent">
-            <p className="statLabel">Total Users</p>
-            <h3 className="statValue">{userTable.total}</h3>
+
+          <div className="statCard green">
+            <div className="statIcon green">
+              <CheckCircle />
+            </div>
+            <div className="statContent">
+              <p className="statLabel">Active Roles</p>
+              <h3 className="statValue">{roles.length}</h3>
+            </div>
           </div>
-        </div>
-
-        <div className="statCard green">
-          <div className="statIcon green">
-            <CheckCircle />
-          </div>
-          <div className="statContent">
-            <p className="statLabel">Active Roles</p>
-            <h3 className="statValue">{roles.length}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* SEARCH + ADD BAR */}
-      <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          {/* Simple Input for now, or match Transport search */}
-          <input
-            className="pl-3 pr-3 py-2 w-full border rounded-sm"
-            placeholder="Search username or name..."
-            value={userTable.searchInput}
-            maxLength={100}
-            onChange={(e) => userTable.setSearchInput(e.target.value)}
-          />
-        </div>
-
-        {hasPermission("user.create") && (
-          <button
-            className="nicPrimaryBtn"
-            onClick={() => {
-              resetForm();
-              setIsAddOpen(true);
-            }}
-          >
-            <Plus size={16} /> Add New User
-          </button>
-        )}
-      </div>
-
+        </>
+      }
+    >
       {/* DATATABLE */}
-      <div className="bg-white border rounded-sm">
+      <div className="bg-white border rounded-sm overflow-hidden">
         <DataTable
           data={users}
           columns={userColumns}
           keyField="id"
-
           page={userTable.query.page}
           limit={userTable.query.limit}
           totalCount={userTable.total}
-
           sortBy={userTable.query.sortBy}
           sortOrder={userTable.query.sortOrder}
           loading={userTable.loading}
-
           onPageChange={userTable.setPage}
           onLimitChange={userTable.setLimit}
           onSortChange={userTable.setSort}
@@ -449,12 +437,11 @@ export default function UserManagement() {
                   autoComplete="username"
                   value={form.username}
                   maxLength={30}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "username", form.username, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "username", e.target.value, setFormErrors);
-                      setForm({ ...form, username: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "username", form.username, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "username", e.target.value, setFormErrors);
+                    setForm({ ...form, username: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.username} />
@@ -465,12 +452,11 @@ export default function UserManagement() {
                 <input
                   className="nicInput"
                   value={form.fullName}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "full_name", form.fullName, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "full_name", e.target.value, setFormErrors);
-                      setForm({ ...form, fullName: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "full_name", form.fullName, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "full_name", e.target.value, setFormErrors);
+                    setForm({ ...form, fullName: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.full_name} />
@@ -482,12 +468,11 @@ export default function UserManagement() {
                 <input
                   className="nicInput"
                   value={form.email}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "email", form.email, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "email", e.target.value, setFormErrors);
-                      setForm({ ...form, email: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "email", form.email, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "email", e.target.value, setFormErrors);
+                    setForm({ ...form, email: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.email} />
@@ -498,12 +483,11 @@ export default function UserManagement() {
                 <input
                   className="nicInput"
                   value={form.primary_mobile}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "user_mobile", form.primary_mobile, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "user_mobile", e.target.value, setFormErrors);
-                      setForm({ ...form, primary_mobile: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "user_mobile", form.primary_mobile, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "user_mobile", e.target.value, setFormErrors);
+                    setForm({ ...form, primary_mobile: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.user_mobile} />
@@ -513,12 +497,11 @@ export default function UserManagement() {
                 <input
                   className="nicInput"
                   value={form.alternate_mobile}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "user_alternate_mobile", form.alternate_mobile, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "user_alternate_mobile", e.target.value, setFormErrors);
-                      setForm({ ...form, alternate_mobile: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "user_alternate_mobile", form.alternate_mobile, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "user_alternate_mobile", e.target.value, setFormErrors);
+                    setForm({ ...form, alternate_mobile: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.user_alternate_mobile} />
@@ -532,12 +515,11 @@ export default function UserManagement() {
                     autoComplete="new-password"
                     className="nicInput"
                     value={form.password}
-                    onBlur={(e) => validateSingleField(userCreateSchema, "password", form.password, setFormErrors)}
-                    onChange={(e) =>
-                      {
-                        validateSingleField(userCreateSchema, "password", e.target.value, setFormErrors);
-                        setForm({ ...form, password: e.target.value })
-                      }
+                    onBlur={() => validateSingleField(userCreateSchema, "password", form.password, setFormErrors)}
+                    onChange={(e) => {
+                      validateSingleField(userCreateSchema, "password", e.target.value, setFormErrors);
+                      setForm({ ...form, password: e.target.value })
+                    }
                     }
                   />
                 </div>
@@ -548,12 +530,11 @@ export default function UserManagement() {
                 <select
                   className="nicInput"
                   value={form.role_id}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "role_id", form.role_id, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "role_id", e.target.value, setFormErrors);
-                      setForm({ ...form, role_id: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "role_id", form.role_id, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "role_id", e.target.value, setFormErrors);
+                    setForm({ ...form, role_id: e.target.value })
+                  }
                   }
                 >
                   <option value="">Select role</option>
@@ -570,12 +551,11 @@ export default function UserManagement() {
                 <input
                   className="nicInput"
                   value={form.address}
-                  onBlur={(e) => validateSingleField(userCreateSchema, "address", form.address, setFormErrors)}
-                  onChange={(e) =>
-                    {
-                      validateSingleField(userCreateSchema, "address", e.target.value, setFormErrors);
-                      setForm({ ...form, address: e.target.value })
-                    }
+                  onBlur={() => validateSingleField(userCreateSchema, "address", form.address, setFormErrors)}
+                  onChange={(e) => {
+                    validateSingleField(userCreateSchema, "address", e.target.value, setFormErrors);
+                    setForm({ ...form, address: e.target.value })
+                  }
                   }
                 />
                 <FieldError message={formErrors.address} />
@@ -625,6 +605,6 @@ export default function UserManagement() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

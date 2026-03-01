@@ -144,14 +144,14 @@ export function Sidebar() {
       permission: 'user.view',
     },
 
-    {
-      id: 'activity-log',
-      label: 'Activity Log',
-      labelHi: 'गतिविधि लॉग',
-      icon: FileText,
-      path: '/activity-log',
-      permission: 'audit.view',
-    },
+    // {
+    //   id: 'activity-log',
+    //   label: 'Activity Log',
+    //   labelHi: 'गतिविधि लॉग',
+    //   icon: FileText,
+    //   path: '/activity-log',
+    //   permission: 'audit.view',
+    // },
 
 
    /* {

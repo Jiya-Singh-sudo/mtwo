@@ -14,6 +14,7 @@ type Props = {
     onReset: () => void;
 
     children?: React.ReactNode;
+    variant?: "toolbar" | "default";
 };
 
 export default function GlobalTableFilters({
@@ -24,13 +25,14 @@ export default function GlobalTableFilters({
     toDate,
     setToDate,
     onReset,
-    children
+    children,
+    variant = "default"
 }: Props) {
     return (
-        <div className="bg-white border rounded-sm p-4 flex items-end gap-3 flex-wrap">
+        <div className="flex items-center gap-3 w-full flex-nowrap bg-white border rounded-sm p-4">
 
             {/* SEARCH */}
-            <div className="flex-1 min-w-[200px]">
+            <div className="flex-1 min-w-[260px] max-w-md">
                 <label className="text-xs text-gray-500 block mb-1">Search</label>
                 <input
                     type="text"
@@ -42,7 +44,7 @@ export default function GlobalTableFilters({
             </div>
 
             {/* FROM */}
-            <div>
+            <div className="shrink-0">
                 <label className="text-xs text-gray-500 block mb-1">From</label>
                 <input
                     type="date"
@@ -53,7 +55,7 @@ export default function GlobalTableFilters({
             </div>
 
             {/* TO */}
-            <div>
+            <div className="shrink-0">
                 <label className="text-xs text-gray-500 block mb-1">To</label>
                 <input
                     type="date"
@@ -64,15 +66,19 @@ export default function GlobalTableFilters({
             </div>
 
             {/* RESET */}
-            <button
-                onClick={onReset}
-                className="secondaryBtn h-10 px-4 border rounded-sm bg-gray-100 hover:bg-gray-200 text-sm font-medium"
-            >
-                Reset
-            </button>
+            <div className="shrink-0 flex items-end h-[60px]">
+                <button
+                    onClick={onReset}
+                    className="secondaryBtn h-10 px-4 border rounded-sm bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+                >
+                    Reset
+                </button>
+            </div>
 
             {/* EXISTING BUTTON — UNTOUCHED */}
-            {children}
+            <div className="shrink-0 flex items-end h-[60px]">
+                {children}
+            </div>
 
         </div>
     );

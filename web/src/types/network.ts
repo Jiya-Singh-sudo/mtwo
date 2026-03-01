@@ -7,6 +7,7 @@ export type NetworkProvider = {
   provider_name: string;
   provider_name_local_language?: string;
   network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
+  address?: string;
   username?: string;
   is_active: boolean;
   inserted_at: string;
@@ -21,6 +22,7 @@ export type CreateNetworkPayload = {
   provider_name: string;
   provider_name_local_language?: string;
   network_type: NetworkProvider['network_type'];
+  address?: string;
   username?: string;
   password?: string;
 };
@@ -39,7 +41,7 @@ export type NetworkTableQuery = {
 
   search?: string;
 
-  sortBy?: 'provider_name' | 'network_type' | 'bandwidth_mbps' | 'inserted_at';
+  sortBy?: 'provider_name' | 'network_type' | 'inserted_at';
   sortOrder?: 'asc' | 'desc';
 
   status?: "all" | "active" | "inactive" | undefined;
@@ -54,9 +56,9 @@ export type NetworkTableResponse = {
     total: number;
     active: number;
     inactive: number;
-    // wifi: number;
-    // broadband: number;
-    // hotspot: number;
-    // leasedLine: number;
+    wifi: number;
+    broadband: number;
+    hotspot: number;
+    leasedLine: number;
   };
 };

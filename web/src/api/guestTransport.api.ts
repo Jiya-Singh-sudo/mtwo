@@ -21,6 +21,7 @@ export async function getGuestTransportTable(query: TableQuery) {
   return {
     data: res.data.data,
     totalCount: res.data.totalCount,
+    stats: res.data.stats,
   };
 }
 /* Reassign vehicle (CLOSE + INSERT) */

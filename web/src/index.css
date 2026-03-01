@@ -48,6 +48,33 @@
   padding: 10px 16px;
 }
 
+/* ======================================================
+   GLOBAL MODAL STYLES
+====================================================== */
+.nicModal {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.nicModalHeader {
+  background: #ffffff;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 8px 8px 0 0;
+}
+
+.nicModalHeader h2,
+.nicModalHeader h3 {
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
 
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {

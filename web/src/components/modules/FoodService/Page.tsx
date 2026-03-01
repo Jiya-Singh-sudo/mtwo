@@ -1,13 +1,16 @@
 ﻿import { useEffect, useState } from "react";
-import { UtensilsCrossed, Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X } from "lucide-react";
+import { Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X, Search } from "lucide-react";
+import { StatCard } from "@/components/ui/StatCard";
 import "./FoodService.css";
-import { getFoodDashboard, updateGuestFood, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
+import { getFoodDashboard, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
 import { FoodDashboard, GuestFoodTableRow } from "../../../types/guestFood";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, updateGuestButler } from "@/api/guestButler.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { Butler } from "@/types/butler";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { butlerManagementSchema } from "@/validation/butler.validation";
 // import { guestButlerSchema } from "@/validation/guestButler.validation";
 // import { guestFoodSchema } from "@/validation/guestFood.validation";
@@ -161,7 +164,7 @@ export function FoodService() {
   >("Veg");
   const [menuMode, setMenuMode] = useState<"create" | "edit">("create");
   const [activeGuestForEdit, setActiveGuestForEdit] = useState<GuestWithButler | null>(null);
-
+  const [menuRemarks, setMenuRemarks] = useState("");
 
   /* ---------------- SPECIAL REQUEST MODAL STATE ---------------- */
   const [specialReqModalOpen, setSpecialReqModalOpen] = useState(false);
@@ -273,6 +276,11 @@ export function FoodService() {
 
     setDailyPlan(mappedPlan);
 
+    // FIX 3: Load remarks in EDIT mode
+    // The guestRows might have a single distinct remark, 
+    // or we can take the first one available
+    setMenuRemarks(guestRows[0]?.remarks ?? "");
+
     setSelectedMeal("breakfast");
     setMenuModalOpen(true);
   }
@@ -350,10 +358,6 @@ export function FoodService() {
       loadButlers();
     }
   }, [butlerTable.query, activeTab]);
-  useEffect(() => {
-    loadButlers();
-  }, [butlerTable.query]);
-
   useEffect(() => {
     loadFoodData();
     // loadButlers();
@@ -591,28 +595,18 @@ export function FoodService() {
       sortKey: "guest_name",
     },
     {
+      header: "Designation",
+      accessor: "designation_name",
+      emptyFallback: "—",
+      sortable: true,
+      sortKey: "designation_name",
+    },
+    {
       header: "Room",
-      accessor: "room_number", // Verify if backend sends 'room_number' or 'room_id' or 'room_no'
-    },
-    {
-      header: "Meal",
-      accessor: "meal_type",
+      accessor: "room_number",
+      emptyFallback: "—",
       sortable: true,
-      sortKey: "meal_type",
-    },
-    {
-      header: "Food Item",
-      accessor: "food_name",
-    },
-    {
-      header: "Stage",
-      sortable: true,
-      sortKey: "food_stage",
-      render: (r) => (
-        <span className={`statusPill ${r.food_stage?.toLowerCase()}`}>
-          {r.food_stage}
-        </span>
-      ),
+      sortKey: "room_number",
     },
     {
       header: "Butler",
@@ -707,6 +701,12 @@ export function FoodService() {
     },
   ];
 
+  // --- DEBUGGING ---
+  console.log("foodRows:", foodRows);
+  if (foodRows && foodRows.length > 0) {
+    console.log("First row keys:", Object.keys(foodRows[0]));
+  }
+
   /* ---------------- RENDER ---------------- */
   return (
     <div className="foodServicePage">
@@ -718,79 +718,6 @@ export function FoodService() {
         </div>
       </div>
 
-      {/* STATS - Clickable filters */}
-      <div className="statsGrid">
-        <div
-          className="statCard blue"
-          onClick={() =>
-            foodTable.batchUpdate(prev => ({
-              ...prev,
-              page: 1,
-              status: "Entered",
-              foodStatus: undefined,
-              mealType: undefined,
-            }))
-          }
-        >
-          <Users />
-          <div>
-            <p>Active Guests</p>
-            <h3>{foodTable.total}</h3>
-          </div>
-        </div>
-
-        <div
-          className={`statCard green`}
-          onClick={() =>
-            foodTable.batchUpdate(prev => ({
-              ...prev,
-              page: 1,
-              status: "Entered",
-              foodStatus: "SERVED",
-            }))
-          }
-        >
-          <CheckCircle />
-          <div>
-            <p>Meals Served</p>
-            <h3>{stats?.mealsServed ?? 0}</h3>
-          </div>
-        </div>
-
-        <div
-          className={`statCard orange`}
-          onClick={() =>
-            foodTable.batchUpdate(prev => ({
-              ...prev,
-              page: 1,
-            }))
-          }
-        >
-          <AlertCircle />
-          <div>
-            <p>Special Requests</p>
-            <h3>{stats?.specialRequests ?? 0}</h3>
-          </div>
-        </div>
-
-        <div
-          className={`statCard purple`}
-          onClick={() =>
-            foodTable.batchUpdate(prev => ({
-              ...prev,
-              page: 1,
-            }))
-          }
-        >
-          <UtensilsCrossed />
-          <div>
-            <p>Menu Items</p>
-            <h3>{stats?.menuItems ?? 0}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* TABS */}
       <div className="nicTabs">
         <button
           className={`nicTab ${activeTab === "food" ? "active" : ""}`}
@@ -809,72 +736,105 @@ export function FoodService() {
 
       {/* ---------------- GUEST FOOD PLANNING TAB ---------------- */}
       {activeTab === "food" && (
-        <div className="bg-white border rounded-sm p-6">
-          {/* HEADER: Search + Plan Menu */}
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 w-full">
-              <GuestTableFilters
-                searchInput={foodTable.searchInput}
-                setSearchInput={foodTable.setSearchInput}
-                query={foodTable.query}
-                batchUpdate={foodTable.batchUpdate}
-                defaultSortBy="entry_date"
-                variant="toolbar"
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="flex-1 w-full min-w-[200px]">
+                  <GuestTableFilters
+                    searchInput={foodTable.searchInput}
+                    setSearchInput={foodTable.setSearchInput}
+                    query={foodTable.query}
+                    batchUpdate={foodTable.batchUpdate}
+                    defaultSortBy="entry_date"
+                    variant="toolbar"
+                  />
+                </div>
+              }
+              right={
+                <div className="shrink-0 flex items-center">
+                  <button
+                    className="h-10 px-4 bg-[#00247D] text-white btn-icon-text whitespace-nowrap flex items-center"
+                    onClick={() => {
+                      setMenuMode("create");
+                      setActiveGuestForEdit(null);
+                      setSelectedMeal("breakfast");
+                      setMenuModalOpen(true);
+                    }}
+                  >
+                    <Plus size={16} className="mr-2" /> Plan Menu
+                  </button>
+                </div>
+              }
+            />
+          }
+          stats={
+            <>
+              <StatCard
+                title="Active Guests"
+                value={stats?.totalGuests ?? 0}
+                icon={Users}
+                variant="blue"
+                active={
+                  !foodTable.query.foodStatus &&
+                  !foodTable.query.specialRequest
+                }
+                onClick={() =>
+                  foodTable.batchUpdate(prev => ({
+                    ...prev,
+                    page: 1,
+                    status: "Entered",
+                    foodStatus: undefined,
+                    specialRequest: undefined,
+                    search: undefined,
+                  }))
+                }
               />
-            </div>
 
-            {/* ➕ PLAN MENU */}
-            <div className="shrink-0">
-              <label className="text-xs mb-1 block invisible">Plan</label>
-              <button
-                className="h-10 px-4 nicPrimaryBtn whitespace-nowrap flex items-center"
-                onClick={() => {
-                  setMenuMode("create");
-                  setActiveGuestForEdit(null);
-                  setSelectedMeal("breakfast");
-                  setMenuModalOpen(true);
-                }}
-              >
-                <Plus size={16} /> Plan Menu
-              </button>
-            </div>
-          </div>
-
-
-          {/* <div className="planMenuHeader">
-            <div className="searchWrapper">
-              <Search size={18} className="searchIcon" />
-              <input
-                className="nicInput searchInput"
-                placeholder="Search guest / room..."
-                value={foodTable.searchInput}
-                onChange={(e) => foodTable.setSearchInput(e.target.value)}
+              <StatCard
+                title="Meals Served"
+                value={stats?.mealsServed ?? 0}
+                icon={CheckCircle}
+                variant="green"
+                active={foodTable.query.foodStatus === "SERVED"}
+                onClick={() =>
+                  foodTable.batchUpdate(prev => ({
+                    ...prev,
+                    page: 1,
+                    status: "Entered",
+                    foodStatus:
+                      prev.foodStatus === "SERVED" ? undefined : "SERVED",
+                    specialRequest: undefined,
+                  }))
+                }
               />
-            </div>
-            <button
-              className="nicPrimaryBtn"
-              onClick={() => {
-                setMenuMode("create");
-                setActiveGuestForEdit(null);
-                setSelectedMeal("breakfast");
-                setMenuInput("");
-                setMenuModalOpen(true);
-              }}
-            >
-              <Plus size={16} /> Plan Menu
-            </button>
-          </div> */}
 
-          {/* TODAY'S MEAL PLAN SUMMARY (optional quick view) */}
-
-          {/* TABLE */}
-
-
+              <StatCard
+                title="Special Requests"
+                value={stats?.specialRequests ?? 0}
+                icon={AlertCircle}
+                variant="orange"
+                active={!!foodTable.query.specialRequest}
+                onClick={() =>
+                  foodTable.batchUpdate(prev => ({
+                    ...prev,
+                    page: 1,
+                    foodStatus: undefined,
+                    specialRequest:
+                      prev.specialRequest ? undefined : true,
+                  }))
+                }
+              />
+            </>
+          }
+        >
           <div className="bg-white border rounded-sm overflow-hidden">
             <DataTable
               data={foodRows}
               columns={foodColumns}
-              keyField="guest_food_id"
+              keyField="inout_id"
               page={foodTable.query.page}
               limit={foodTable.query.limit}
               totalCount={foodTable.total}
@@ -886,34 +846,56 @@ export function FoodService() {
               onSortChange={foodTable.setSort}
             />
           </div>
-        </div>
+        </PageLayout>
       )}
 
       {/* ---------------- BUTLER MANAGEMENT TAB ---------------- */}
       {activeTab === "butler" && (
-        <div className="bg-white border rounded-sm p-6">
-          <div className="tableHeader">
-            <h3 className="sectionTitle">Butler Management</h3>
-
-            <button className="nicPrimaryBtn" onClick={openAddButler}>
-              <Plus size={16} /> Add Butler
-            </button>
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="relative flex-1 min-w-[250px] max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    className="pl-10 pr-3 py-2 w-full border rounded-sm nicInput"
+                    placeholder="Search butlers..."
+                    value={butlerTable.searchInput ?? ""}
+                    onChange={(e) => butlerTable.setSearchInput(e.target.value)}
+                    maxLength={50}
+                  />
+                </div>
+              }
+              right={
+                <button
+                  className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text h-10 px-4 flex items-center"
+                  onClick={openAddButler}
+                >
+                  <Plus size={16} className="mr-2" /> Add Butler
+                </button>
+              }
+            />
+          }
+        >
+          <div className="bg-white border rounded-sm overflow-hidden">
+            <DataTable
+              data={butlers}
+              columns={butlerColumns}
+              keyField="butler_id"
+              page={butlerTable.query.page}
+              limit={butlerTable.query.limit}
+              totalCount={butlerTable.total}
+              sortBy={butlerTable.query.sortBy}
+              sortOrder={butlerTable.query.sortOrder}
+              loading={butlerTable.loading}
+              onPageChange={butlerTable.setPage}
+              onLimitChange={butlerTable.setLimit}
+              onSortChange={butlerTable.setSort}
+            />
           </div>
-          <DataTable
-            data={butlers}
-            columns={butlerColumns}
-            keyField="butler_id"
-            page={butlerTable.query.page}
-            limit={butlerTable.query.limit}
-            totalCount={butlerTable.total}
-            sortBy={butlerTable.query.sortBy}
-            sortOrder={butlerTable.query.sortOrder}
-            loading={butlerTable.loading}
-            onPageChange={butlerTable.setPage}
-            onLimitChange={butlerTable.setLimit}
-            onSortChange={butlerTable.setSort}
-          />
-        </div>
+        </PageLayout>
       )}
 
       {/* ---------------- BUTLER MODAL ---------------- */}
@@ -1336,6 +1318,18 @@ export function FoodService() {
                   )}
                 </div>
               </div>
+
+              {/* Remarks Box */}
+              <div className="fullWidth">
+                <label>Remarks</label>
+                <textarea
+                  className="nicInput"
+                  rows={2}
+                  value={menuRemarks}
+                  onChange={(e) => setMenuRemarks(e.target.value)}
+                  placeholder="Optional notes..."
+                />
+              </div>
             </div>
 
             <div className="nicModalActions">
@@ -1355,7 +1349,10 @@ export function FoodService() {
                         return;
                       }
 
-                      await createDayMealPlan(dailyPlan);
+                      await createDayMealPlan({
+                        ...dailyPlan,
+                        remarks: menuRemarks || undefined,
+                      });
                       await loadTodayMealPlan();
                       await loadGuests();
                       setMenuModalOpen(false);
@@ -1392,6 +1389,7 @@ export function FoodService() {
                           meal_type: mealLabel,
                           plan_date: new Date().toISOString().split("T")[0],
                           food_stage: "PLANNED",
+                          remarks: menuRemarks || undefined,
                         });
                       }
                     }
@@ -1422,6 +1420,7 @@ export function FoodService() {
 
                     await loadGuests();
                     setMenuModalOpen(false);
+                    setMenuRemarks("");
                   } catch (err: any) {
                     showError(err?.response?.data?.message || "Failed to save menu");
                   } finally {

@@ -239,25 +239,26 @@
 
 /* ================= BUTTONS ================= */
 
-.loginBtn {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
-  color: #fff;
+.nicPrimaryBtn {
+  height: 48px;
+  border-radius: 10px;
+  font-weight: 600;
   background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
-  cursor: pointer;
-  transition: .25s;
+  color: #fff;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 18px rgba(30, 58, 138, 0.25);
 }
 
-.loginBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, .2);
+.nicPrimaryBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(30, 58, 138, 0.35);
 }
 
-.loginBtn:disabled {
-  background: #d1d5db;
+.nicPrimaryBtn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ================= ERROR BOX ================= */
@@ -293,4 +294,14 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ================= AUTOFILL FIX ================= */
+.login-page input:-webkit-autofill,
+.login-page input:-webkit-autofill:hover,
+.login-page input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #000 !important;
+  background-color: transparent !important;
 }

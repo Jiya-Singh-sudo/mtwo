@@ -25,6 +25,7 @@ export const createGuestFood = async (
     meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
     plan_date: string;
     food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
+    remarks?: string;
   }
 ) => {
   const res = await apiClient.post("/guest-food", payload);
@@ -44,10 +45,16 @@ export const updateGuestFood = async (
   return res.data;
 };
 
-export async function createDayMealPlan(meals: Record<string, string[]>) {
+export async function createDayMealPlan(payload: {
+  breakfast?: string[];
+  lunch?: string[];
+  highTea?: string[];
+  dinner?: string[];
+  remarks?: string;
+}) {
   const res = await apiClient.post(
     "/guest-food/plan/day",
-    { meals },
+    payload,
   );
 
   return res.data;

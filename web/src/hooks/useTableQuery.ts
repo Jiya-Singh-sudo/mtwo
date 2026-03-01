@@ -80,6 +80,10 @@ export function useTableQuery(
             defaults?.foodStatus
         ) as TableQuery["foodStatus"],
 
+        specialRequest: searchParams.get(key("specialRequest")) === "true"
+            ? true
+            : defaults?.specialRequest,
+
     }));
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -102,12 +106,15 @@ export function useTableQuery(
         //     params[key("entryDateFrom")] = query.entryDateFrom;
         // if (query.entryDateTo)
         //     params[key("entryDateTo")] = query.entryDateTo;
-        
+
         if (query.mealType)
             params[key("mealType")] = query.mealType;
 
         if (query.foodStatus)
             params[key("foodStatus")] = query.foodStatus;
+
+        if (query.specialRequest !== undefined)
+            params[key("specialRequest")] = String(query.specialRequest);
 
         if (query.entryDateFrom)
             params[key("entryDateFrom")] = query.entryDateFrom;

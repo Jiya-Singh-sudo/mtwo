@@ -105,7 +105,7 @@ export const roomBoyManagementSchema = z
     }
   });
 
-  
+
 /* ======================================================
    ROOM BOY (ADD)
 ====================================================== */
@@ -139,8 +139,6 @@ export const housekeepingCreateEditSchema = z.object({
     .max(250, "Address too long")
     .regex(safeTextRegex, "Invalid characters in address")
     .optional(),
-
-  shift: z.enum(["Morning", "Evening", "Night", "Full-Day"]),
 });
 
 /* ======================================================
@@ -207,27 +205,27 @@ export const roomBoyAssignmentSchema = z
       .transform(v => v.replace(/[\r\n]+/g, " "))
       .optional(),
   })
-  // .superRefine((data, ctx) => {
-  //   const taskDate = parseDate(data.assignment_start_date);
-  //   const today = new Date();
-  //   today.setHours(0, 0, 0, 0);
+// .superRefine((data, ctx) => {
+//   const taskDate = parseDate(data.assignment_start_date);
+//   const today = new Date();
+//   today.setHours(0, 0, 0, 0);
 
-  //   if (taskDate < today) {
-  //     ctx.addIssue({
-  //       path: ["assignment_start_date"],
-  //       message: "Task date cannot be in the past",
-  //       code: z.ZodIssueCode.custom,
-  //     });
-  //   }
+//   if (taskDate < today) {
+//     ctx.addIssue({
+//       path: ["assignment_start_date"],
+//       message: "Task date cannot be in the past",
+//       code: z.ZodIssueCode.custom,
+//     });
+//   }
 
-  //   if (diffDays(today, taskDate) > 7) {
-  //     ctx.addIssue({
-  //       path: ["assignment_start_date"],
-  //       message: "Task date cannot be more than 7 days ahead",
-  //       code: z.ZodIssueCode.custom,
-  //     });
-  //   }
-  // });
+//   if (diffDays(today, taskDate) > 7) {
+//     ctx.addIssue({
+//       path: ["assignment_start_date"],
+//       message: "Task date cannot be more than 7 days ahead",
+//       code: z.ZodIssueCode.custom,
+//     });
+//   }
+// });
 
 /* ======================================================
    TYPES

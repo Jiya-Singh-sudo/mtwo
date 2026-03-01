@@ -13,6 +13,7 @@ export interface ActiveGuestRow {
   gd_id?: string | null;
   designation_id?: string;
   designation_name?: string | null;
+  designation?: string | null;
   department?: string | null;
   organization?: string | null;
   office_location?: string | null;
@@ -28,4 +29,5 @@ export interface ActiveGuestRow {
   room_id?: string | null;
   allocatedRooms?: number;
   rooms_required?: number;
+  companions?: number;
 }

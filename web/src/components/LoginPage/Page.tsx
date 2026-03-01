@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, AlertCircle, Shield } from 'lucide-react';
 import './LoginPage.css';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import Carousel from '@/components/carousel/Carousel';
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
-const carouselImage2 = '/4d519aa914a9b25ad3459a587f5224ecd108d8a9.png';
+const carouselImage2 = '/4d519aa914a9b25ad3459a587af5224ecd108d8a9.png';
 const carouselImage3 = '/7c146dfd37ee595fdc09e56ad998da5fa5abe1ce.png';
 
-// Government emblems - referenced from public folder via URL paths
+// Government emblems - referenced from public folder via URaL paths
 const ashokaEmblem = '/ashoka_emblem.png';
 const goldenSeal = '/govt_Page.png';
 const indianFlag = '/Flag_of_India.svg.png';
@@ -30,7 +31,6 @@ export function LoginPage() {
     const { executeRecaptcha } = useGoogleReCaptcha();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [currentSlide, setCurrentSlide] = useState(0);
     const [errors, setErrors] = useState<{
         username?: string;
         password?: string;
@@ -49,29 +49,11 @@ export function LoginPage() {
     // const [captchaCode, setCaptchaCode] = useState('');
     const navigate = useNavigate();
 
-    // Auto-play carousel
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % CAROUSEL_IMAGES.length);
-        }, 4000);
-        return () => clearInterval(interval);
-    }, []);
-
     useEffect(() => {
         if (isAuthenticated) {
             navigate('/dashboard', { replace: true });
         }
     }, [isAuthenticated]);
-
-    // Navigate to next slide
-    const nextSlide = () => {
-        setCurrentSlide((prev) => (prev + 1) % CAROUSEL_IMAGES.length);
-    };
-
-    // Navigate to previous slide
-    const prevSlide = () => {
-        setCurrentSlide((prev) => (prev - 1 + CAROUSEL_IMAGES.length) % CAROUSEL_IMAGES.length);
-    };
 
     // Generate random CAPTCHA
     const generateCaptcha = () => {
@@ -261,66 +243,20 @@ export function LoginPage() {
             <main className="flex flex-1 min-h-0">
                 {/* Left Side - Carousel */}
                 <div className="hidden lg:flex lg:w-[70%] xl:w-[75%] relative overflow-hidden flex-1">
-                    <div className="relative w-full h-full">
-
-                        <img
-                            src={CAROUSEL_IMAGES[currentSlide].src}
-                            alt={CAROUSEL_IMAGES[currentSlide].alt}
-                            className="absolute inset-0 w-full h-full object-cover scale-110"
-                        />
-
-                        {/* Caption */}
-                        {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-8 z-10">
-                            <h3 className="text-white text-2xl mb-2">राज्यपाल महाराष्ट्र</h3>
-                            <p className="text-blue-200">
-                                Lok Bhavan Maharashtra - Guest Management System
-                            </p>
-                        </div> */}
-
-                        {/* Left Arrow */}
-                        <button
-                            onClick={prevSlide}
-                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg"
-                        >
-                            <ChevronLeft className="h-6 w-6 text-gray-800" />
-                        </button>
-
-                        {/* Right Arrow */}
-                        <button
-                            onClick={nextSlide}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg"
-                        >
-                            <ChevronRight className="h-6 w-6 text-gray-800" />
-                        </button>
-
-                        {/* Dots */}
-                        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                            {CAROUSEL_IMAGES.map((_, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setCurrentSlide(index)}
-                                    className={`h-3 rounded-full transition-all ${currentSlide === index
-                                        ? 'w-8 bg-white'
-                                        : 'w-3 bg-white/50 hover:bg-white/75'
-                                        }`}
-                                />
-                            ))}
-                        </div>
-
-                    </div>
+                    <Carousel images={CAROUSEL_IMAGES.map(img => img.src)} />
                 </div>
 
                 {/* Right Side - Login Form */}
                 <div className="w-full lg:w-[45%] flex-1 flex items-center justify-center px-6 py-12 bg-gradient-to-br from-gray-50 to-blue-50">
                     <div className="w-full max-w-xl">
                         {/* Login Card */}
-                        <div className="bg-white rounded-xl shadow-2xl border-t-4 border-blue-700 p-8">
+                        <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-gray-200 p-10 space-y-6">
                             <div className="text-center mb-8">
                                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-900 rounded-full mb-4">
                                     <Shield className="h-8 w-8 text-white" />
                                 </div>
-                                <h2 className="text-gray-900 mb-2">Secure Login</h2>
-                                <p className="text-sm text-gray-600">Guest Management System</p>
+                                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Secure Login</h2>
+                                <p className="text-sm text-gray-500 mt-1">Guest Management System</p>
                             </div>
 
                             {/* General Error */}
@@ -331,14 +267,20 @@ export function LoginPage() {
                                 </div>
                             )}
 
-                            <form onSubmit={handleLogin} className="space-y-5">
+                            <form onSubmit={handleLogin} className="space-y-6">
                                 {/* Username Field */}
-                                <div>
-                                    <label htmlFor="username" className="block text-sm text-gray-700 mb-2">
+                                <div className="space-y-2">
+                                    <label htmlFor="username" className="block text-sm font-semibold text-gray-800">
                                         Username <span className="text-red-500">*</span>
                                     </label>
 
-                                    <div className="relative">
+                                    <div
+                                        className={`flex items-center h-12 w-full rounded-lg border transition-all focus-within:ring-0
+                                        ${errors.username && touched.username
+                                                ? 'border-red-500 focus-within:ring-1 focus-within:ring-red-500'
+                                                : 'border-gray-300 focus-within:border-black'
+                                            }`}
+                                    >
                                         <input
                                             type="text"
                                             id="username"
@@ -348,12 +290,7 @@ export function LoginPage() {
                                             placeholder="Enter your username"
                                             disabled={isLoading}
                                             maxLength={20}
-                                            className={`w-full h-12 px-4 pr-10 text-base
-                                        border rounded-lg focus:outline-none focus:ring-2 transition-all
-                                        ${errors.username && touched.username
-                                                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                    : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                                }`}
+                                            className="flex-1 h-full px-4 bg-transparent border-none outline-none shadow-none focus:ring-0 appearance-none"
                                         />
                                     </div>
 
@@ -367,12 +304,18 @@ export function LoginPage() {
 
 
                                 {/* Password Field */}
-                                <div dir="ltr">
-                                    <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
+                                <div className="space-y-2">
+                                    <label htmlFor="password" className="block text-sm font-semibold text-gray-800">
                                         Password <span className="text-red-500">*</span>
                                     </label>
 
-                                    <div className="relative">
+                                    <div
+                                        className={`flex items-center h-12 w-full rounded-lg border transition-all focus-within:ring-0
+                                        ${errors.password && touched.password
+                                                ? 'border-red-500 focus-within:ring-1 focus-within:ring-red-500'
+                                                : 'border-gray-300 focus-within:border-black'
+                                            }`}
+                                    >
                                         <input
                                             type={showPassword ? 'text' : 'password'}
                                             id="password"
@@ -382,20 +325,13 @@ export function LoginPage() {
                                             placeholder="Enter your password"
                                             disabled={isLoading}
                                             maxLength={30}
-                                            className={`w-full h-12 px-4 pr-12 text-base
-                                        border rounded-lg focus:outline-none focus:ring-2 transition-all
-                                        ${errors.password && touched.password
-                                                    ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                                                    : 'border-gray-300 focus:ring-blue-600 focus:border-blue-600'
-                                                }`}
+                                            className="flex-1 h-full px-4 bg-transparent border-none outline-none shadow-none focus:ring-0 appearance-none"
                                         />
 
-                                        {/* 👁 Eye button INSIDE input, right aligned */}
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2
-                                                text-gray-500 hover:text-blue-700"
+                                            className="px-3 text-gray-500 hover:text-black"
                                             tabIndex={-1}
                                         >
                                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -403,7 +339,7 @@ export function LoginPage() {
                                     </div>
 
                                     {errors.password && touched.password && (
-                                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                        <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                                             <AlertCircle className="h-4 w-4" />
                                             {errors.password}
                                         </p>
@@ -466,7 +402,7 @@ export function LoginPage() {
                                     //     ? 'bg-blue-200 text-blue-700 cursor-not-allowed'
                                     //     : 'bg-blue-700 hover:bg-blue-800 text-black shadow-md'
                                     //     }`}
-                                    className="nicPrimaryBtn w-full"
+                                    className="nicPrimaryBtn w-full mt-3"
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -479,10 +415,10 @@ export function LoginPage() {
                                 </button>
 
                                 {/* Forgot Password Link */}
-                                <div className="text-center pt-2">
+                                <div className="text-center pt-6 pb-2">
                                     <button
                                         type="button"
-                                        className="text-sm text-blue-700 hover:text-blue-900 hover:underline transition-colors"
+                                        className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors"
                                         disabled={isLoading}
                                     >
                                         Forgot Password?

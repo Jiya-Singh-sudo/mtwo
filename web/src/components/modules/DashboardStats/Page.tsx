@@ -1,13 +1,10 @@
-import { Users, UserCheck, UserX, Clock, Building2, Car, Calendar, Bell, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, Building2, Car, Calendar, Bell } from 'lucide-react';
 import { getDashboardOverview } from '../../../api/dashboard.api';
 import { DashboardOverview } from '../../../types/dashboard';
 import { useEffect, useState } from 'react';
-import { RecentActivity } from '../../RecentActivity';
-import { useAuth } from '@/context/AuthContext';
 import { QuickActions } from '@/components/QuickActions';
 
 export function DashboardStats() {
-  const { hasPermission } = useAuth();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   useEffect(() => {
@@ -178,30 +175,8 @@ export function DashboardStats() {
         })}
       </div>
 
-      <QuickActions/>
+      <QuickActions />
 
-      {/* ================= RECENT ACTIVITY ================= */}
-      {hasPermission('audit.view') && <RecentActivity />}
-
-
-      {/* ================= ALERTS ================= */}
-      <div className="bg-orange-50 border-l-4 border-[#FF9933] p-4 rounded-sm">
-        <div className="flex gap-3">
-          <AlertCircle className="w-5 h-5 text-orange-600 mt-1" />
-          <div>
-            <h4 className="text-orange-900">
-              Attention Required | ध्यान देने योग्य
-            </h4>
-            <ul className="mt-2 space-y-1 text-sm text-orange-800">
-              <li>• 3 VIP guests arriving tomorrow</li>
-              <li>• 2 vehicles scheduled for maintenance</li>
-              <li>• 5 duty rosters pending approval</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
-
-
   );
 }

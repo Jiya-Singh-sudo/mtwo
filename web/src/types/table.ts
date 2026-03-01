@@ -12,8 +12,9 @@ export type TableQuery = {
   entryDateFrom?: string;
   entryDateTo?: string;
   networkType?: "WiFi" | "Broadband" | "Hotspot" | "Leased-Line";
-  mealType?: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+  mealType?: "Breakfast" | "Lunch" | "High Tea" | "Dinner" | "ALL";
   foodStatus?: "SERVED" | "NOT_SERVED";
+  specialRequest?: boolean;
 
 
 }; 

@@ -1,6 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { FilterField } from "@/components/ui/FilterField";
-import { addOneMonth } from "@/utils/addOneMonth";
 
 type Props = {
     searchInput: string;
@@ -25,7 +24,7 @@ export function GuestTableFilters({
     defaultSortBy = "entry_date",
 }: Props) {
     return (
-        <div className="flex items-end gap-3 w-full">
+        <div className="flex items-center gap-3 flex-wrap">
 
             {/* LEFT — search grows to fill */}
             <FilterField label="Search" className="flex-1">
@@ -38,7 +37,7 @@ export function GuestTableFilters({
             </FilterField>
 
             {/* RIGHT — fixed controls, won't shrink */}
-            <div className="flex items-end gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
 
                 {/* 📅 FROM */}
                 <FilterField label="From" className="w-[150px]">
@@ -48,12 +47,10 @@ export function GuestTableFilters({
                         value={query.entryDateFrom || ""}
                         onChange={(e) => {
                             const from = e.target.value;
-                            const to = addOneMonth(from);
-                            batchUpdate(prev => ({
+                            batchUpdate((prev: any) => ({
                                 ...prev,
                                 page: 1,
                                 entryDateFrom: from,
-                                entryDateTo: to,
                                 sortBy: defaultSortBy,
                                 sortOrder: "asc",
                             }));
@@ -68,7 +65,6 @@ export function GuestTableFilters({
                         className="nicInput h-10"
                         value={query.entryDateTo || ""}
                         min={query.entryDateFrom || ""}
-                        max={addOneMonth(query.entryDateFrom || "")}
                         onChange={(e) =>
                             batchUpdate(prev => ({
                                 ...prev,
@@ -84,7 +80,7 @@ export function GuestTableFilters({
                 {/* 🔄 RESET */}
                 <FilterField className="shrink-0">
                     <button
-                        className="h-10 px-4 secondaryBtn"
+                        className="h-10 px-4 flex items-center secondaryBtn"
                         onClick={() => {
                             batchUpdate(prev => ({
                                 ...prev,

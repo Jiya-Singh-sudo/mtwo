@@ -7,6 +7,7 @@ import {
   XCircle,
   X
 } from 'lucide-react';
+import { useError } from "@/context/ErrorContext";
 
 interface Notification {
   id: string;
@@ -75,6 +76,7 @@ export function Notifications() {
 
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduleTime, setScheduleTime] = useState('');
+  const { showError } = useError();
 
   /* ---------------- HELPERS ---------------- */
   const now = () =>
@@ -83,7 +85,7 @@ export function Notifications() {
   /* ---------------- ACTIONS ---------------- */
   function sendNow() {
     if (!form.message.trim()) {
-      alert('Message is required');
+      showError('Message is required');
       return;
     }
 
@@ -104,7 +106,7 @@ export function Notifications() {
 
   function saveDraft() {
     if (!form.message.trim()) {
-      alert('Nothing to save');
+      showError('Nothing to save');
       return;
     }
     alert('Draft saved (mock)');
@@ -112,7 +114,7 @@ export function Notifications() {
 
   function scheduleSend() {
     if (!scheduleTime) {
-      alert('Please select schedule time');
+      showError('Please select schedule time');
       return;
     }
 
@@ -286,10 +288,10 @@ export function Notifications() {
                 <td className="px-6 py-3">{n.sentAt}</td>
                 <td className="px-6 py-3">
                   <span className={`px-3 py-1 rounded-full text-xs ${n.status === 'Delivered'
-                      ? 'bg-green-100 text-green-700'
-                      : n.status === 'Pending'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
+                    ? 'bg-green-100 text-green-700'
+                    : n.status === 'Pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
                     }`}>
                     {n.status}
                   </span>

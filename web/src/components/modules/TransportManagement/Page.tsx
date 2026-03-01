@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Car, UserCheck, Trash2, X, UserMinus, MinusCircle } from "lucide-react";
 import "./GuestTransportManagement.css";
-import { Input } from "@/components/ui/input";
 import { FilterField } from "@/components/ui/FilterField";
-import { addOneMonth } from "@/utils/addOneMonth";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import {
   formatISTDate,
@@ -17,6 +15,8 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import TimePicker12h from "@/components/common/TimePicker12h";
 import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
 import { FieldError } from "@/components/ui/FieldError";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
 import { StatCard } from "@/components/ui/StatCard";
 import {
@@ -49,8 +49,6 @@ import { AssignableVehicle } from "../../../types/vehicles";
 import { assignDriverSchema, assignVehicleSchema } from "@/validation/transportAssignment.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
 // import { ActiveGuestRow } from "../../../types/guests";
-import { fetchGuestStatusCounts } from "@/api/guest.api";
-
 function GuestTransportManagement() {
 
   // const today = new Date();
@@ -222,7 +220,7 @@ function GuestTransportManagement() {
             guest_name: row.guest_name,
             guest_name_local_language: row.guest_name_local_language,
             guest_mobile: row.guest_mobile,
-            room_id: row.room_id,
+            designation: row.designation,
             entry_date: combineDateAndTime(row.entry_date, row.entry_time),
             exit_date: combineDateAndTime(row.exit_date, row.exit_time),
             inout_status: row.inout_status,
@@ -274,6 +272,9 @@ function GuestTransportManagement() {
 
 
         GuestTable.setTotal(res.totalCount);
+        if (res.stats) {
+          setStatusCounts(res.stats);
+        }
       } finally {
         GuestTable.setLoading(false);
       }
@@ -313,9 +314,7 @@ function GuestTransportManagement() {
       setFormErrors({});
     }
   }, [vehicleModalOpen, editVehicleModalOpen]);
-  useEffect(() => {
-    fetchGuestStatusCounts().then(setStatusCounts);
-  }, []);
+
 
   /* =======================
      DRIVER ACTIONS
@@ -653,8 +652,8 @@ function GuestTransportManagement() {
       render: (row) => row.guest.guest_mobile || "—",
     },
     {
-      header: "Room",
-      render: (row) => row.guest.room_id || "—",
+      header: "Designation",
+      render: (row) => row.guest.designation || "—",
     },
     {
       header: "Stay",
@@ -887,153 +886,128 @@ function GuestTransportManagement() {
 
   return (
     <>
-      <div className="guest-transport">
-        <div>
-          <h2 className="text-[#00247D]">Guest Transport Management</h2>
-          <p className="text-sm text-gray-600">
-            Assign drivers and vehicles to checked-in guests
-          </p>
-        </div>
-
-        <div className="statsGrid">
-          {GUEST_STATUS_CARDS.map(card => (
+      <PageLayout
+        title="Guest Transport Management"
+        subtitle="Assign drivers and vehicles to checked-in guests"
+        toolbar={
+          <PageToolbar
+            left={
+              <div className="flex-1 w-full min-w-[200px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <FilterField className="min-w-[200px] flex-1">
+                    <input
+                      className="nicInput w-full"
+                      placeholder="Search guest name / mobile / ID…"
+                      value={GuestTable.query.search || ""}
+                      onChange={(e) => {
+                        GuestTable.setPage(1);
+                        GuestTable.setSearchInput(e.target.value);
+                      }}
+                      maxLength={50}
+                    />
+                  </FilterField>
+                  <FilterField label="From">
+                    <input
+                      type="date"
+                      className="nicInput w-[130px]"
+                      value={GuestTable.query.entryDateFrom || ""}
+                      onChange={(e) => {
+                        const from = e.target.value;
+                        GuestTable.batchUpdate((prev) => ({
+                          ...prev,
+                          page: 1,
+                          entryDateFrom: from,
+                        }));
+                      }}
+                    />
+                  </FilterField>
+                  <FilterField label="To">
+                    <input
+                      type="date"
+                      className="nicInput w-[130px]"
+                      value={GuestTable.query.entryDateTo || ""}
+                      onChange={(e) => {
+                        GuestTable.batchUpdate((prev) => ({
+                          ...prev,
+                          page: 1,
+                          entryDateTo: e.target.value,
+                        }));
+                      }}
+                    />
+                  </FilterField>
+                  <FilterField>
+                    <button
+                      className="h-10 px-4 secondaryBtn"
+                      onClick={() => {
+                        GuestTable.batchUpdate(() => ({
+                          page: 1,
+                          limit: GuestTable.query.limit,
+                          sortBy: "guest_name",
+                          sortOrder: "asc",
+                          status: "All",
+                          entryDateFrom: "",
+                          entryDateTo: "",
+                          search: ""
+                        }));
+                        setAssignmentFilter("ALL");
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </FilterField>
+                </div>
+              </div>
+            }
+            right={
+              <div className="flex items-center gap-2">
+                <FilterField label="Assignment" className="w-[180px]">
+                  <select
+                    className="nicInput"
+                    value={assignmentFilter}
+                    onChange={(e) => setAssignmentFilter(e.target.value as any)}
+                  >
+                    <option value="ALL">All</option>
+                    <option value="DRIVER_ASSIGNED">Driver Assigned</option>
+                    <option value="VEHICLE_ASSIGNED">Vehicle Assigned</option>
+                    <option value="UNASSIGNED">Unassigned</option>
+                  </select>
+                </FilterField>
+              </div>
+            }
+          />
+        }
+        stats={
+          GUEST_STATUS_CARDS.map(card => (
             <StatCard
               key={card.key}
               title={card.label}
-              value={
-                card.key === "All"
-                  ? statusCounts?.All ?? 0
-                  : statusCounts?.[card.key] ?? 0
-              }
+              value={card.key === "All" ? statusCounts.All : statusCounts[card.key as keyof typeof statusCounts]}
               icon={card.icon}
               variant={card.color}
               active={GuestTable.query.status === card.key}
               onClick={() => {
-                GuestTable.batchUpdate(prev => ({
-                  ...prev,
-                  status: card.key,
-                  page: 1,
-                  entryDateFrom: "",
-                  entryDateTo: "",
-                }));
+                GuestTable.setPage(1);
+                GuestTable.setStatus(card.key as any);
               }}
             />
-          ))}
-        </div>
-
-        {/* {GuestTable.loading && <p>Loading...</p>} */}
-
-        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> */}
-        <div className="transportFilters nicCard">
-          <FilterField label="Search" className="flex-1">
-            <Input
-              placeholder="Search guest name / mobile / ID…"
-              value={GuestTable.searchInput}
-              onChange={(e: any) => GuestTable.setSearchInput(e.target.value)}
-              className="h-10 w-full"
-              maxLength={50}
-            />
-          </FilterField>
-
-          <div className="flex items-end gap-3 shrink-0">
-            <FilterField label="From" className="w-[150px]">
-              <input
-                type="date"
-                min={assignWindow?.minDate}
-                max={assignWindow?.maxDate}
-                className="nicInput h-10"
-                value={GuestTable.query.entryDateFrom}
-                onChange={(e) => {
-                  const from = e.target.value;
-                  const to = addOneMonth(from);
-                  GuestTable.batchUpdate(prev => ({
-                    ...prev,
-                    page: 1,
-                    entryDateFrom: from,
-                    entryDateTo: to,
-                  }));
-                }}
-              />
-            </FilterField>
-
-            <FilterField label="To" className="w-[150px]">
-              <input
-                type="date"
-                min={GuestTable.query.entryDateFrom || assignWindow?.minDate}
-                max={addOneMonth(GuestTable.query.entryDateFrom || "")}
-                className="nicInput h-10"
-                value={GuestTable.query.entryDateTo}
-                onChange={(e) => GuestTable.batchUpdate(prev => ({
-                  ...prev,
-                  page: 1,
-                  entryDateTo: e.target.value,
-                }))}
-              />
-            </FilterField>
-
-            <FilterField>
-              <button
-                className="h-10 px-4 secondaryBtn"
-                onClick={() => {
-                  GuestTable.batchUpdate(() => ({
-                    page: 1,
-                    limit: GuestTable.query.limit,
-                    sortBy: "entry_date",
-                    sortOrder: "desc",
-                    status: "All",
-                    entryDateFrom: "",
-                    entryDateTo: "",
-                  }));
-                  setAssignmentFilter("ALL");
-                }}
-              >
-                Reset
-              </button>
-            </FilterField>
-
-            <FilterField label="Assignment" className="min-w-[160px]">
-              <select
-                className="nicInput h-10"
-                value={assignmentFilter}
-                onChange={(e) => setAssignmentFilter(e.target.value as any)}
-              >
-                <option value="ALL">All</option>
-                <option value="DRIVER_ASSIGNED">Driver Assigned</option>
-                <option value="VEHICLE_ASSIGNED">Vehicle Assigned</option>
-                <option value="UNASSIGNED">Unassigned</option>
-              </select>
-            </FilterField>
-          </div>
-        </div>
-
-        {/* 2️⃣ Empty state */}
-        {/* {!GuestTable.loading && rows.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              <p className="text-lg font-medium">No guests found</p>
-              <p className="text-sm mt-1">
-                Try adjusting search, filters, or date range
-              </p>
-            </div>
-          )} */}
-
-        <div className="bg-white border rounded-sm overflow-hidden mt-4">
-          <DataTable
-            data={tableData}
-            columns={transportColumns}
-            keyField="id"
-            page={GuestTable.query.page}
-            limit={GuestTable.query.limit}
-            totalCount={GuestTable.total}
-            sortBy={GuestTable.query.sortBy}
-            sortOrder={GuestTable.query.sortOrder}
-            loading={GuestTable.loading}
-            onPageChange={GuestTable.setPage}
-            onLimitChange={GuestTable.setLimit}
-            onSortChange={GuestTable.setSort}
-          />
-        </div>
-
-      </div >
+          ))
+        }
+      >
+        <DataTable
+          data={tableData}
+          columns={transportColumns}
+          keyField="id"
+          page={GuestTable.query.page}
+          limit={GuestTable.query.limit}
+          totalCount={GuestTable.total}
+          sortBy={GuestTable.query.sortBy}
+          sortOrder={GuestTable.query.sortOrder}
+          loading={GuestTable.loading}
+          onPageChange={GuestTable.setPage}
+          onLimitChange={GuestTable.setLimit}
+          onSortChange={GuestTable.setSort}
+        />
+      </PageLayout>
 
       {/* ASSIGN DRIVER MODAL */}
       {

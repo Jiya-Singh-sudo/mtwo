@@ -4,6 +4,7 @@ export type GuestFoodTableRow = {
   guest_id: string;
   guest_name: string;
   guest_name_local_language?: string;
+  designation_name?: string;
   guest_mobile?: string;
 
   inout_id: string;

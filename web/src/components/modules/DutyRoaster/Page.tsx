@@ -1,5 +1,6 @@
 'use client';
 import { useState } from "react";
+import "./DutyRoster.css";
 import {
   Calendar,
   Users,
@@ -12,6 +13,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
+import { useError } from "@/context/ErrorContext";
 
 interface RosterItem {
   department: string;
@@ -25,6 +27,7 @@ interface RosterItem {
 type FilterType = "ALL" | "ACTIVE" | "PENDING";
 
 export function DutyRoster() {
+  const { showError } = useError();
   /* ---------------- STATE ---------------- */
 
   const [roster, setRoster] = useState<RosterItem[]>([
@@ -64,6 +67,8 @@ export function DutyRoster() {
 
   /* 🔹 FILTER STATE */
   const [filter, setFilter] = useState<FilterType>("ALL");
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [search, setSearch] = useState("");
 
   const officersByDepartment: Record<string, string[]> = {
     Housekeeping: ["Ramesh Kumar", "Suresh Yadav"],
@@ -91,11 +96,33 @@ export function DutyRoster() {
     time: "",
   });
 
+  /* ---------------- WEEK HELPERS ---------------- */
+
+  function startOfWeek(date: Date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  }
+
+  function changeWeek(offset: number) {
+    const newDate = new Date(currentWeek);
+    newDate.setDate(newDate.getDate() + offset * 7);
+    setCurrentWeek(newDate);
+  }
+
+  const prevWeek = () => changeWeek(-1);
+  const nextWeek = () => changeWeek(1);
+
+  function formatDate(date: Date) {
+    return startOfWeek(date).toISOString().split("T")[0];
+  }
+
   /* ---------------- ACTIONS ---------------- */
 
   function addToRoster() {
     if (!builderForm.department || !builderForm.officer || !builderForm.time) {
-      alert("Please fill all fields");
+      showError("Please fill all fields");
       return;
     }
 
@@ -177,15 +204,20 @@ export function DutyRoster() {
   const pendingApproval = roster.filter((r) => r.approval === "Pending").length;
 
   /* 🔹 FILTERED DATA */
-  const filteredRoster =
-    filter === "ALL"
-      ? roster
-      : filter === "ACTIVE"
-        ? roster.filter((r) => r.status === "Active")
-        : roster.filter((r) => r.approval === "Pending");
+  const filteredRoster = roster
+    .filter((r) =>
+      filter === "ALL"
+        ? true
+        : filter === "ACTIVE"
+          ? r.status === "Active"
+          : r.approval === "Pending"
+    )
+    .filter((r) =>
+      r.officer.toLowerCase().includes(search.toLowerCase())
+    );
 
   return (
-    <div className="space-y-6">
+    <div className="dutyRosterPage space-y-6">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
@@ -232,7 +264,22 @@ export function DutyRoster() {
         />
       </div>
 
-      {/* TABLE */}
+      {/* SEARCH AND WEEK NAV */}
+      <div className="rosterToolbar">
+        <div className="weekNav">
+          <button onClick={prevWeek}>← Prev Week</button>
+          <span>Week of {formatDate(currentWeek)}</span>
+          <button onClick={nextWeek}>Next Week →</button>
+        </div>
+
+        <input
+          type="text"
+          placeholder="Search driver name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="rosterSearch"
+        />
+      </div>
       <div className="bg-white border rounded-sm overflow-x-auto">
         <table className="w-full">
           <thead className="bg-[#F5A623] text-white">

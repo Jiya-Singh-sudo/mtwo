@@ -168,19 +168,22 @@ export default function InfoPackage() {
 
       {/* ===== GENERATE CUSTOM REPORT ===== */}
       <div className="bg-white">
-        <GlobalTableFilters
-          search={search}
-          setSearch={setSearch}
-          fromDate={fromDate}
-          setFromDate={setFromDate}
-          toDate={toDate}
-          setToDate={setToDate}
-          onReset={() => {
-            setSearch("");
-            setFromDate("");
-            setToDate("");
-          }}
-        />
+        <div className="flex-1 w-full min-w-[200px]">
+          <GlobalTableFilters
+            search={search}
+            setSearch={setSearch}
+            fromDate={fromDate}
+            setFromDate={setFromDate}
+            toDate={toDate}
+            setToDate={setToDate}
+            onReset={() => {
+              setSearch("");
+              setFromDate("");
+              setToDate("");
+            }}
+            variant="toolbar"
+          />
+        </div>
       </div>
 
       {/* ===== DATA TABLE (ALL GUESTS) ===== */}

@@ -8,6 +8,7 @@ import React from "react";
 import TimePicker12h from "@/components/common/TimePicker12h";
 import { driverDutyEditSchema } from "@/validation/driverDutyManagement.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
+import { useError } from "@/context/ErrorContext";
 
 type DriverDutyTableRow = {
   driver_id: string;
@@ -43,6 +44,7 @@ export default function DriverDutyRoasterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const { showError } = useError();
 
 
   const [editForm, setEditForm] = useState<DriverDuty | null>(null);
@@ -126,7 +128,7 @@ export default function DriverDutyRoasterPage() {
       return sortOrder === "asc"
         ? nameA.localeCompare(nameB)
         : nameB.localeCompare(nameA);
-  });
+    });
 
   const tableData: DriverDutyTableRow[] = filteredRosters.map((row) => {
     const datesByDay = {
@@ -144,9 +146,8 @@ export default function DriverDutyRoasterPage() {
       const duty = row.duties[date];
       acc[day] = (
         <div
-          className={`dayCell ${duty ? "hasDuty" : ""} ${
-            duty?.is_week_off ? "weekOff" : ""
-          }`}
+          className={`dayCell ${duty ? "hasDuty" : ""} ${duty?.is_week_off ? "weekOff" : ""
+            }`}
         >
           {renderDay(
             duty?.duty_in_time,
@@ -161,7 +162,7 @@ export default function DriverDutyRoasterPage() {
                 duty ?? {
                   driver_id: row.driver_id,
                   duty_date: date,
-                  shift: "full-day", 
+                  shift: "full-day",
                   duty_in_time: null,
                   duty_out_time: null,
                   is_week_off: false,
@@ -190,7 +191,7 @@ export default function DriverDutyRoasterPage() {
       sun: cellsByDay.sun,
     };
   });
-  
+
   function toLocalDateKey(value: string): string {
     return value.slice(0, 10);
   }
@@ -248,8 +249,8 @@ export default function DriverDutyRoasterPage() {
       setFormErrors({});
       await load();
     } catch (err: any) {
-        console.error("Save failed:", err?.response?.data || err);
-        alert(err?.response?.data?.message || "Failed to save duty");
+      console.error("Save failed:", err?.response?.data || err);
+      showError(err?.response?.data?.message || "Failed to save duty");
     } finally {
       setSaving(false);
     }
@@ -337,27 +338,27 @@ export default function DriverDutyRoasterPage() {
 
       <div className="rosterTableWrapper">
         <div className="rosterTable">
-        <div className="bg-white border rounded-sm overflow-hidden">
+          <div className="bg-white border rounded-sm overflow-hidden">
 
-        <DataTable
-          data={tableData}
-          columns={driverColumns}
-          keyField="driver_id"
-          loading={loading}
-          page={page}
-          limit={limit}
-          totalCount={totalCount}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onPageChange={() => {}}
-          onSortChange={(key, order) => {
-            if (key === "driver_name") {
-              setSortOrder(order);
-            }
-          }}
-          onLimitChange={() => {}}
-        />
-        </div>
+            <DataTable
+              data={tableData}
+              columns={driverColumns}
+              keyField="driver_id"
+              loading={loading}
+              page={page}
+              limit={limit}
+              totalCount={totalCount}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onPageChange={() => { }}
+              onSortChange={(key, order) => {
+                if (key === "driver_name") {
+                  setSortOrder(order);
+                }
+              }}
+              onLimitChange={() => { }}
+            />
+          </div>
         </div>
       </div>
 
@@ -368,7 +369,7 @@ export default function DriverDutyRoasterPage() {
           <div className="nicModal large">
             <div className="nicModalHeader">
               <h3>Edit Duty</h3>
-              <button onClick={() => {setEditForm(null); setFormErrors({});}}>
+              <button onClick={() => { setEditForm(null); setFormErrors({}); }}>
                 <X />
               </button>
             </div>

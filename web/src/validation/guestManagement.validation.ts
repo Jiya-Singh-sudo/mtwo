@@ -93,12 +93,12 @@ export const guestManagementSchema = z
     exit_date: z
       .string()
       .regex(dateRegex, "Invalid date format (DD-MM-YYYY)"),
-      // .optional(),
+    // .optional(),
 
     exit_time: z
       .string()
       .regex(timeRegex, "Invalid time format (HH:mm)"),
-      // .optional(),
+    // .optional(),
 
     status: z.enum(["Scheduled", "Entered", "Inside", "Exited", "Cancelled"]).optional(),
     purpose: z
@@ -106,13 +106,17 @@ export const guestManagementSchema = z
       .max(100, "Purpose too long")
       .regex(safeTextRegex, "Invalid characters in purpose")
       .optional(),
-      number_of_rooms: z
-  .coerce
-  
-  .number()
-  .min(0, "Cannot be negative")
-  .default(0),
-  
+    number_of_rooms: z
+      .coerce
+      .number()
+      .min(0, "Cannot be negative")
+      .default(0),
+
+    no_of_companions: z
+      .coerce
+      .number()
+      .min(0, "Cannot be negative")
+      .default(0),
 
   })
 
@@ -174,7 +178,7 @@ export const guestManagementSchema = z
         message: "Exit time is required when exit date is set",
         code: z.ZodIssueCode.custom,
       });
-      
+
     }
     if (entry_date === new Date().toISOString().slice(0, 10)) {
       const now = new Date();
@@ -182,71 +186,71 @@ export const guestManagementSchema = z
 
       if (inDT < now) {
         ctx.addIssue({
-      path: ["entry_time"],
-      message: "Check-in time cannot be in the past",
-      code: z.ZodIssueCode.custom,
-    });
-  }
-}
+          path: ["entry_time"],
+          message: "Check-in time cannot be in the past",
+          code: z.ZodIssueCode.custom,
+        });
+      }
+    }
     /* ---------- DATE RULES ---------- */
 
-  //   const inDate = parseDate(entry_date);
-  //   // const today = new Date();
+    //   const inDate = parseDate(entry_date);
+    //   // const today = new Date();
 
-  //   // if (inDate > today) {
-  //   //   ctx.addIssue({
-  //   //     path: ["entry_date"],
-  //   //     message: "Future date not allowed",
-  //   //     code: z.ZodIssueCode.custom,
-  //   //   });
-  //   // }
+    //   // if (inDate > today) {
+    //   //   ctx.addIssue({
+    //   //     path: ["entry_date"],
+    //   //     message: "Future date not allowed",
+    //   //     code: z.ZodIssueCode.custom,
+    //   //   });
+    //   // }
 
-  //   const inYear = inDate.getFullYear();
-  //   if (inYear < MIN_YEAR || inYear > MAX_YEAR) {
-  //     ctx.addIssue({
-  //       path: ["entry_date"],
-  //       message: "Date outside allowed year range",
-  //       code: z.ZodIssueCode.custom,
-  //     });
-  //   }
+    //   const inYear = inDate.getFullYear();
+    //   if (inYear < MIN_YEAR || inYear > MAX_YEAR) {
+    //     ctx.addIssue({
+    //       path: ["entry_date"],
+    //       message: "Date outside allowed year range",
+    //       code: z.ZodIssueCode.custom,
+    //     });
+    //   }
 
-  //   if (exit_date) {
-  //     const outDate = parseDate(exit_date);
+    //   if (exit_date) {
+    //     const outDate = parseDate(exit_date);
 
-  //     if (outDate < inDate) {
-  //       ctx.addIssue({
-  //         path: ["exit_date"],
-  //         message: "Check-out cannot be before check-in",
-  //         code: z.ZodIssueCode.custom,
-  //       });
-  //     }
+    //     if (outDate < inDate) {
+    //       ctx.addIssue({
+    //         path: ["exit_date"],
+    //         message: "Check-out cannot be before check-in",
+    //         code: z.ZodIssueCode.custom,
+    //       });
+    //     }
 
-  //     const stayDays = diffDays(inDate, outDate);
-  //     if (stayDays > MAX_STAY_DAYS) {
-  //       ctx.addIssue({
-  //         path: ["exit_date"],
-  //         message: "Stay period cannot exceed 90 days",
-  //         code: z.ZodIssueCode.custom,
-  //       });
-  //     }
-  //   }
+    //     const stayDays = diffDays(inDate, outDate);
+    //     if (stayDays > MAX_STAY_DAYS) {
+    //       ctx.addIssue({
+    //         path: ["exit_date"],
+    //         message: "Stay period cannot exceed 90 days",
+    //         code: z.ZodIssueCode.custom,
+    //       });
+    //     }
+    //   }
 
-  //   /* ---------- TIME ORDER RULE ---------- */
+    //   /* ---------- TIME ORDER RULE ---------- */
 
-  //   if (exit_date && exit_time) {
-  //     const inDT = new Date(`${entry_date}T${entry_time}`);
-  //     const outDT = new Date(`${exit_date}T${exit_time}`);
+    //   if (exit_date && exit_time) {
+    //     const inDT = new Date(`${entry_date}T${entry_time}`);
+    //     const outDT = new Date(`${exit_date}T${exit_time}`);
 
-  //     if (outDT <= inDT) {
-  //       ctx.addIssue({
-  //         path: ["exit_time"],
-  //         message: "Exit time must be after entry time",
-  //         code: z.ZodIssueCode.custom,
-  //       });
-  //     }
-  //   }
-  // })
-      /* ---------- DATE RULES ---------- */
+    //     if (outDT <= inDT) {
+    //       ctx.addIssue({
+    //         path: ["exit_time"],
+    //         message: "Exit time must be after entry time",
+    //         code: z.ZodIssueCode.custom,
+    //       });
+    //     }
+    //   }
+    // })
+    /* ---------- DATE RULES ---------- */
 
     const inDate = parseDate(entry_date);
 

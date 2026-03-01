@@ -3,6 +3,7 @@ import { Download, TrendingUp } from 'lucide-react';
 import './Report.css';
 // import { downloadGuestSummaryExcel, downloadGuestSummaryPdf, downloadRoomSummaryExcel, downloadRoomSummaryPdf, downloadVehicleDriverExcel, downloadVehicleDriverPdf, downloadFoodServiceExcel, downloadFoodServicePdf, downloadNetworkExcel, downloadNetworkPdf, downloadDriverDutyExcel, downloadDriverDutyPdf, viewReport } from '@/api/reportsPkg.api';
 import { generateSectionReport } from '@/api/reportsPkg.api';
+import { useError } from "@/context/ErrorContext";
 
 export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
@@ -16,9 +17,10 @@ export function Reports() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [viewData, setViewData] = useState<any>(null);
+  const { showError } = useError();
   async function handleGlobalGenerate() {
     if (globalRange === 'Custom Range' && (!startDate || !endDate)) {
-      alert('Please select start and end dates');
+      showError('Please select start and end dates');
       return;
     }
 

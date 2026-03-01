@@ -3,6 +3,7 @@ import { safeGet, safePost, safePatch, safeDelete } from './httpHelpers';
 export type PaginatedResponse<T> = {
   data: T[];
   totalCount: number;
+  statusCounts?: Record<string, number>;
 };
 
 export const fetchGuestStatusCounts = async () => {

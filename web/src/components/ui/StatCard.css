@@ -9,16 +9,22 @@
 /* ================= STATS GRID ================= */
 
 .statsGrid {
-  display: flex;
-  flex-wrap: nowrap;
-  /* 🚫 never wrap */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 6px;
+  width: 100%;
 }
 
-.statsGrid>* {
-  width: auto !important;
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* optional scrollbar polish */
@@ -38,17 +44,14 @@
   border-radius: 12px;
   padding: 14px 18px;
   border: 1px solid #e5e7eb;
-  border-left: 5px solid transparent;
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
+  width: 100%;
+  min-height: 72px;
   transition: all 0.2s ease;
   text-align: left;
-  height: 72px;
-  min-width: 220px;
-  /* 🔑 guarantees one-row layout */
-  flex-shrink: 0;
 }
 
 .statCard:hover {
@@ -236,7 +239,74 @@
 
 /* ================= ACTIVE STATE ================= */
 
-.statCard.activeStat {
-  background: #f0f6ff;
-  box-shadow: 0 0 0 2px #00247d;
+.statCard.blue {
+  border-left: 4px solid transparent;
+}
+
+.statCard.green {
+  border-left: 4px solid transparent;
+}
+
+.statCard.orange {
+  border-left: 4px solid transparent;
+}
+
+.statCard.purple {
+  border-left: 4px solid transparent;
+}
+
+.statCard.indigo {
+  border-left: 4px solid transparent;
+}
+
+.statCard.red {
+  border-left: 4px solid transparent;
+}
+
+.statCard.yellow {
+  border-left: 4px solid transparent;
+}
+
+.statCard.gray {
+  border-left: 4px solid transparent;
+}
+
+.statCard.blue.activeStat {
+  border-left-color: #2563eb;
+  background: #f9fafb;
+}
+
+.statCard.green.activeStat {
+  border-left-color: #16a34a;
+  background: #f9fafb;
+}
+
+.statCard.orange.activeStat {
+  border-left-color: #f97316;
+  background: #f9fafb;
+}
+
+.statCard.purple.activeStat {
+  border-left-color: #7c3aed;
+  background: #f9fafb;
+}
+
+.statCard.indigo.activeStat {
+  border-left-color: #6366f1;
+  background: #f9fafb;
+}
+
+.statCard.red.activeStat {
+  border-left-color: #dc2626;
+  background: #f9fafb;
+}
+
+.statCard.yellow.activeStat {
+  border-left-color: #d97706;
+  background: #f9fafb;
+}
+
+.statCard.gray.activeStat {
+  border-left-color: #6b7280;
+  background: #f9fafb;
 }

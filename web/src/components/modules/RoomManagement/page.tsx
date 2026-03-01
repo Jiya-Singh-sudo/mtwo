@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "../../ui/button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import "./RoomManagement.css";
 import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
@@ -13,14 +15,12 @@ import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekee
 import { createRoom } from "../../../api/rooms.api";
 import { getRoomManagementOverview, updateFullRoom, getAssignableGuests } from "../../../api/roomManagement.api";
 import type { Housekeeping, HousekeepingCreateDto, HousekeepingUpdateDto } from "../../../types/housekeeping";
-import { HK_SHIFTS } from "../../../constants/housekeeping";
-type ShiftType = "Morning" | "Evening" | "Night" | "Full-Day";
 import { RoomRow, EditRoomFullPayload } from "@/types/roomManagement";
 import { ActiveGuestRow } from "@/types/guests";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { housekeepingCreateEditSchema, roomBoyAssignmentSchema, roomCreateEditSchema } from "@/validation/roomManagement.validation";
 // import { guestRoomAssignSchema } from "@/validation/roomManagement.validation";
-import { formatDate, normalizeDateOnly, formatDateDDMMYYYY, formatDateOnlyDDMMYYYY } from "@/utils/dateTime";
+import { normalizeDateOnly, formatDateOnlyDDMMYYYY } from "@/utils/dateTime";
 /* ================= BACKEND-MATCHING TYPES ================= */
 
 /* Matches DB / API response (snake_case, flat structure) */
@@ -49,6 +49,7 @@ export function RoomManagement() {
   const roomTable = useTableQuery({
     sortBy: 'room_no',
     sortOrder: 'asc',
+    limit: 10,
   });
   const {
     query,
@@ -91,7 +92,6 @@ export function RoomManagement() {
   const [guestOptions, setGuestOptions] = useState<ActiveGuestRow[]>([]);
   const [assignCheckInDate, setAssignCheckInDate] = useState<string>("");
   const [assignCheckOutDate, setAssignCheckOutDate] = useState<string>("");
-  const [hkShifts, setHkShifts] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [roomBoyOptions, setRoomBoyOptions] = useState<RoomBoyOption[]>([]);
   const [viewRoom, setViewRoom] = useState<RoomRow | null>(null);
@@ -149,7 +149,6 @@ export function RoomManagement() {
     hk_contact: "",
     hk_alternate_contact: "",
     address: "",
-    shift: "Morning",
   });
 
   /* ================= LOAD DATA ================= */
@@ -200,12 +199,14 @@ export function RoomManagement() {
         status: roomTable.query.status === "Available" || roomTable.query.status === "Occupied" ? roomTable.query.status : undefined,
         entryDateFrom: roomTable.query.entryDateFrom,
         entryDateTo: roomTable.query.entryDateTo,
-      });
+      }, { silent: true });
 
       setRooms(res.data);
       roomTable.setTotal(res.totalCount);
       setRoomStats(res.stats);
 
+    } catch (err) {
+      console.error("Room load failed", err);
     } finally {
       roomTable.setLoading(false);
     }
@@ -271,8 +272,6 @@ export function RoomManagement() {
           name: hk.hk_name,
         }))
       );
-
-      setHkShifts([...HK_SHIFTS]);
     } catch (err) {
       console.error("Failed to load room boys or shifts", err);
     }
@@ -563,7 +562,6 @@ export function RoomManagement() {
       hk_contact: roomBoyForm.hk_contact,
       hk_alternate_contact: roomBoyForm.hk_alternate_contact,
       address: roomBoyForm.address,
-      shift: roomBoyForm.shift,
     };
 
     await updateHousekeeping(selectedRoomBoy.hk_id, payload);
@@ -615,7 +613,6 @@ export function RoomManagement() {
       hk_contact: "",
       hk_alternate_contact: "",
       address: "",
-      shift: "Morning",
     });
   };
 
@@ -626,7 +623,6 @@ export function RoomManagement() {
       hk_contact: rb.hk_contact,
       hk_alternate_contact: rb.hk_alternate_contact || "",
       address: rb.address || "",
-      shift: rb.shift as "Morning" | "Evening" | "Night" | "Full-Day",
     });
     setShowEditRoomBoy(true);
   };
@@ -713,6 +709,21 @@ export function RoomManagement() {
       status: "Available",
     });
     resetFormErrors();
+  }
+
+  function openAddRoom() {
+    setRoomForm({
+      room_no: "",
+      room_name: "",
+      residence_type: "",
+      building_name: "",
+      room_type: "",
+      room_capacity: 1,
+      room_category: "",
+      status: "Available",
+    });
+    resetFormErrors();
+    setShowAddRoom(true);
   }
 
   const roomColumns: Column<RoomRow>[] = [
@@ -815,12 +826,7 @@ export function RoomManagement() {
       sortKey: "hk_alternate_contact",
       sortable: true,
     },
-    {
-      header: "Shift",
-      accessor: "shift",
-      sortable: true,
-      sortKey: "shift",
-    },
+
     {
       header: "Address",
       accessor: "address",
@@ -881,12 +887,12 @@ export function RoomManagement() {
       </div>
 
       {/* ================= ROOM STATS GRID =================*/}
-      <div className="statsGrid">
+      {/* <div className="statsGrid">
         <StatCard
           title="All Rooms"
           value={roomStats.total}
           icon={Layers}
-          variant="blue"
+          variant="indigo"
           active={activeCard === "ALL"}
           onClick={() => applyCardView("ALL")}
         />
@@ -913,7 +919,7 @@ export function RoomManagement() {
           title="Guest Assigned"
           value={roomStats.withGuest}
           icon={UserCheck}
-          variant="blue"
+          variant="indigo"
           active={activeCard === "WITH_GUEST"}
           onClick={() => applyCardView("WITH_GUEST")}
         />
@@ -926,7 +932,7 @@ export function RoomManagement() {
           active={activeCard === "WITH_HOUSEKEEPING"}
           onClick={() => applyCardView("WITH_HOUSEKEEPING")}
         />
-      </div>
+      </div> */}
 
       {/* TABS */}
       <div className="nicTabs">
@@ -946,39 +952,81 @@ export function RoomManagement() {
 
       {/* ---------------- ROOMS TAB ---------------- */}
       {activeTab === "rooms" && (
-        <>
-          {/* SEARCH + ADD ROOM */}
-          <div className="bg-white border rounded-sm p-4">
-            <div className="flex flex-wrap items-end gap-3">
-
-              {/* 🔍 SEARCH + 📅 DATE FILTERS */}
-              <div className="flex-1 w-full">
-                <GuestTableFilters
-                  searchInput={searchInput}
-                  setSearchInput={setSearchInput}
-                  query={query}
-                  batchUpdate={batchUpdate}
-                  defaultSortBy="room_no"
-                  variant="toolbar"
-                />
-              </div>
-
-              {/* ➕ ADD ROOM */}
-              <div className="shrink-0">
-                <label className="text-xs mb-1 block invisible">Add</label>
-                <Button
-                  className="h-10 px-4 bg-[#00247D] text-white btn-icon-text whitespace-nowrap flex items-center"
-                  onClick={resetAddRoomState}
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Room
-                </Button>
-              </div>
-
-            </div>
-          </div>
-
-          {/* ROOMS TABLE */}
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="flex-1 w-full min-w-[200px]">
+                  <GuestTableFilters
+                    searchInput={searchInput}
+                    setSearchInput={setSearchInput}
+                    query={query}
+                    batchUpdate={batchUpdate}
+                    defaultSortBy="room_no"
+                    variant="toolbar"
+                  />
+                </div>
+              }
+              right={
+                <div className="shrink-0 flex items-center">
+                  <Button
+                    className="h-10 px-4 bg-[#00247D] text-white btn-icon-text whitespace-nowrap flex items-center"
+                    onClick={openAddRoom}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Room
+                  </Button>
+                </div>
+              }
+            />
+          }
+          stats={
+            <>
+              <StatCard
+                title="Total Rooms"
+                value={roomStats.total}
+                icon={Layers}
+                variant="blue"
+                active={activeCard === "ALL"}
+                onClick={() => applyCardView("ALL")}
+              />
+              <StatCard
+                title="Available"
+                value={roomStats.available}
+                icon={CheckCircle}
+                variant="green"
+                active={activeCard === "AVAILABLE"}
+                onClick={() => applyCardView("AVAILABLE")}
+              />
+              <StatCard
+                title="Occupied"
+                value={roomStats.occupied}
+                icon={XCircle}
+                variant="orange"
+                active={activeCard === "OCCUPIED"}
+                onClick={() => applyCardView("OCCUPIED")}
+              />
+              <StatCard
+                title="Guest Assigned"
+                value={roomStats.withGuest}
+                icon={UserCheck}
+                variant="indigo"
+                active={activeCard === "WITH_GUEST"}
+                onClick={() => applyCardView("WITH_GUEST")}
+              />
+              <StatCard
+                title="Housekeeping"
+                value={roomStats.withHousekeeping}
+                icon={UserCog}
+                variant="purple"
+                active={activeCard === "WITH_HOUSEKEEPING"}
+                onClick={() => applyCardView("WITH_HOUSEKEEPING")}
+              />
+            </>
+          }
+        >
           <div className="bg-white border rounded-sm overflow-hidden">
             <DataTable
               data={rooms}
@@ -995,36 +1043,43 @@ export function RoomManagement() {
               onSortChange={roomTable.setSort}
             />
           </div>
-        </>
+        </PageLayout>
       )}
 
       {/* ---------------- ROOM BOYS TAB ---------------- */}
       {activeTab === "roomBoys" && (
-        <>
-          <div className="bg-white border rounded-sm p-4 flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                className="pl-10 pr-3 py-2 w-full border rounded-sm"
-                placeholder="Search room boys..."
-                value={hkTable.searchInput ?? ""}
-                onChange={(e) => hkTable.setSearchInput(e.target.value)}
-                maxLength={50}
-              />
-            </div>
-
-            <Button
-              onClick={() => {
-                resetRoomBoyForm();
-                setShowAddRoomBoy(true);
-              }}
-              className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text"
-            >
-              <Plus className="w-4 h-4" />
-              Add Room Boy
-            </Button>
-          </div>
-
+        <PageLayout
+          title=""
+          subtitle=""
+          toolbar={
+            <PageToolbar
+              left={
+                <div className="relative flex-1 min-w-[250px] max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    className="pl-10 pr-3 py-2 w-full border rounded-sm nicInput"
+                    placeholder="Search room boys..."
+                    value={hkTable.searchInput ?? ""}
+                    onChange={(e) => hkTable.setSearchInput(e.target.value)}
+                    maxLength={50}
+                  />
+                </div>
+              }
+              right={
+                <Button
+                  onClick={() => {
+                    resetRoomBoyForm();
+                    setShowAddRoomBoy(true);
+                  }}
+                  className="bg-[#00247D] hover:bg-[#003399] text-white btn-icon-text h-10 px-4"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Room Boy
+                </Button>
+              }
+            />
+          }
+        >
           <div className="bg-white border rounded-sm overflow-hidden">
             <DataTable
               data={roomBoys}
@@ -1041,7 +1096,7 @@ export function RoomManagement() {
               onSortChange={hkTable.setSort}
             />
           </div>
-        </>
+        </PageLayout>
       )}
 
       {/* ================= ASSIGN ROOM BOY MODAL ================= */}
@@ -1244,7 +1299,7 @@ export function RoomManagement() {
 
       {editRoom && (
         <div className="modalOverlay">
-          <div className="nicModal">
+          <div className="nicModal largeModal">
             {Object.keys(formErrors).length > 0 && (
               <div className="alert alert-error">
                 <XCircle size={18} />
@@ -1262,7 +1317,7 @@ export function RoomManagement() {
             </div>
 
             <div className="nicModalBody">
-              <div className="nicFormStack">
+              <div className="nicFormGrid">
 
                 {/* Room No */}
                 <div>
@@ -1563,7 +1618,7 @@ export function RoomManagement() {
       {
         showAddRoom && (
           <div className="modalOverlay">
-            <div className="nicModal">
+            <div className="nicModal largeModal">
 
               {/* HEADER */}
               <div className="nicModalHeader">
@@ -1586,7 +1641,7 @@ export function RoomManagement() {
               )}
               {/* BODY (SCROLLABLE) */}
               <div className="nicModalBody">
-                <div className="nicFormStack">
+                <div className="nicFormGrid">
 
                   <div>
                     <label>Room Number <span className="required">*</span></label>
@@ -1731,7 +1786,7 @@ export function RoomManagement() {
 
                   </div>
 
-                  <div>
+                  <div className="fullWidth">
                     <label>Room Category <span className="required">*</span></label>
                     <input
                       className="nicInput"
@@ -2012,7 +2067,7 @@ export function RoomManagement() {
       {
         showAddRoomBoy && (
           <div className="modalOverlay">
-            <div className="nicModal">
+            <div className="nicModal largeModal">
 
               {/* HEADER */}
               <div className="nicModalHeader">
@@ -2038,7 +2093,7 @@ export function RoomManagement() {
               )}
               {/* BODY */}
               <div className="nicModalBody">
-                <div className="nicFormStack">
+                <div className="nicFormGrid">
 
                   {/* Name */}
                   <div>
@@ -2123,30 +2178,9 @@ export function RoomManagement() {
                     />
                   </div>
 
-                  {/* Shift */}
-                  <div>
-                    <label className="nicLabel">
-                      Shift <span className="required">*</span>
-                    </label>
-                    <select
-                      className="nicInput"
-                      value={roomBoyForm.shift}
-                      onChange={(e) =>
-                        setRoomBoyForm({
-                          ...roomBoyForm,
-                          shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day",
-                        })
-                      }
-                    >
-                      <option value="Morning">Morning</option>
-                      <option value="Evening">Evening</option>
-                      <option value="Night">Night</option>
-                      <option value="Full-Day">Full-Day</option>
-                    </select>
-                  </div>
 
                   {/* Address */}
-                  <div>
+                  <div className="fullWidth">
                     <label className="nicLabel">Address<span className="required">*</span></label>
                     <textarea
                       className="nicInput"
@@ -2186,7 +2220,7 @@ export function RoomManagement() {
       {
         showEditRoomBoy && selectedRoomBoy && (
           <div className="modalOverlay">
-            <div className="nicModal">
+            <div className="nicModal largeModal">
 
               {/* HEADER */}
               <div className="nicModalHeader">
@@ -2209,7 +2243,7 @@ export function RoomManagement() {
               )}
               {/* BODY */}
               <div className="nicModalBody">
-                <div className="nicFormStack">
+                <div className="nicFormGrid">
 
                   {/* Name */}
                   <div>
@@ -2294,30 +2328,9 @@ export function RoomManagement() {
                     />
                   </div>
 
-                  {/* Shift */}
-                  <div>
-                    <label className="nicLabel">
-                      Shift <span className="required">*</span>
-                    </label>
-                    <select
-                      className="nicInput"
-                      value={roomBoyForm.shift}
-                      onChange={(e) =>
-                        setRoomBoyForm({
-                          ...roomBoyForm,
-                          shift: e.target.value as "Morning" | "Evening" | "Night" | "Full-Day",
-                        })
-                      }
-                    >
-                      <option value="Morning">Morning</option>
-                      <option value="Evening">Evening</option>
-                      <option value="Night">Night</option>
-                      <option value="Full-Day">Full-Day</option>
-                    </select>
-                  </div>
 
                   {/* Address */}
-                  <div>
+                  <div className="fullWidth">
                     <label className="nicLabel">Address<span className="required">*</span></label>
                     <textarea
                       className="nicInput"
@@ -2372,7 +2385,6 @@ export function RoomManagement() {
                     <h4>Basic Information</h4>
                     <p><b>Name:</b> {viewRoomBoy.hk_name}</p>
                     <p><b>Local Name:</b> {viewRoomBoy.hk_name_local_language || "—"}</p>
-                    <p><b>Shift:</b> {viewRoomBoy.shift}</p>
                   </div>
 
                   <div className="detailSection">

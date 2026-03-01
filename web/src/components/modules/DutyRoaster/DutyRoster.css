@@ -1,0 +1,144 @@
+/* PAGE MUST BREAK OUT OF CENTERED LAYOUT */
+.dutyRosterPage {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    padding: 32px;
+    box-sizing: border-box;
+}
+
+/* TOOLBAR */
+.rosterToolbar {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* WEEK NAV */
+.weekNav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    color: #00247D;
+}
+
+/* SEARCH INPUT — FULL WIDTH */
+.rosterSearch {
+    width: 100%;
+    height: 46px;
+    padding: 0 18px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 15px;
+}
+
+.rosterSearch:focus {
+    outline: none;
+    border-color: #00247D;
+    box-shadow: 0 0 0 2px rgba(0, 36, 125, 0.15);
+}
+
+/* ================= TABLE ================= */
+
+.rosterTableWrapper {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.rosterTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rosterTable thead {
+    background: #f5a623;
+    color: #fff;
+}
+
+.rosterTable th,
+.rosterTable td {
+    padding: 14px 18px;
+    text-align: left;
+}
+
+.rosterTable tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    transition: 0.15s;
+}
+
+.rosterTable tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* ================= ACTION ICON BUTTONS ================= */
+
+.icon-btn {
+    padding: 6px;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+
+.icon-btn:hover {
+    background: #f3f4f6;
+}
+
+/* ================= MODAL ================= */
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+}
+
+.modal {
+    background: #fff;
+    width: 420px;
+    border-radius: 8px;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+}
+
+
+.modalContent {
+    padding: 16px;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.saveBtn {
+    background: #00247d;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+}
+
+.saveBtn:hover {
+    background: #001a5c;
+}
+
+/* ================= ANIMATION ================= */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

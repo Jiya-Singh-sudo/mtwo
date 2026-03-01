@@ -104,6 +104,16 @@
 }
 
 /* ============================
+   MEDIUM MODAL (Room Assign)
+=============================== */
+.modal.medium {
+  width: 600px;
+  max-width: 92vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* ============================
    GUEST FORM HORIZONTAL (3-column)
 =============================== */
 .guestFormHorizontal {
