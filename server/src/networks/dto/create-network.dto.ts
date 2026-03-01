@@ -47,7 +47,7 @@ export class CreateNetworkDto {
   // @IsIP(4)
   // static_ip?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // address?: string;
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

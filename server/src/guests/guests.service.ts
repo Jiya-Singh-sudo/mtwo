@@ -33,6 +33,12 @@ export class GuestsService {
     `);
     return res.rows[0].id;
   }
+  private async generateInoutId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'INOUT' || LPAD(nextval('guest_inout_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
   async getGuestStatusCounts() {
     const sql = `
       SELECT
@@ -266,7 +272,6 @@ export class GuestsService {
             'Exit date cannot be before entry date'
           );
         }
-        const inout_id = `IN${Date.now()}`;
         if (!payload.inout?.entry_date || !payload.inout?.entry_time) {
           throw new BadRequestException("Entry date and time are required");
         }
@@ -289,7 +294,6 @@ export class GuestsService {
         const entry_time = payload.inout.entry_time;
         const companions = payload.inout?.companions ?? 0;
         const roomsRequired = payload.inout?.rooms_required ?? 1;
-
         if (companions < 0) {
           throw new BadRequestException('Companions cannot be negative');
         }
@@ -311,6 +315,7 @@ export class GuestsService {
         const exitTs = payload.inout?.exit_date
           ? new Date(`${payload.inout.exit_date} ${payload.inout.exit_time || '00:00'}`)
           : null;
+        const inoutId = await this.generateInoutId(client);
 
         if (exitTs && exitTs <= entryTs) {
           throw new BadRequestException('Exit datetime must be after entry datetime');
@@ -323,7 +328,7 @@ export class GuestsService {
         `;
 
         const ioRes = await client.query(insertIoSql, [
-          inout_id,
+          inoutId,
           guestRow.guest_id,
           true,
           entry_date,
@@ -380,7 +385,7 @@ export class GuestsService {
           message: 'Guest stay details added',
           module: 'GUEST INOUT',
           action: 'CREATE',
-          referenceId: inout_id,
+          referenceId: inoutId,
           performedBy: user,
           ipAddress: ip,
         }, client);

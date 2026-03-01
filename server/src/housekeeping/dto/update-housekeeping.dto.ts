@@ -33,11 +33,11 @@ export class UpdateHousekeepingDto {
   @MaxLength(255, { message: 'Address is too long' })
   address?: string;
 
-  @IsOptional()
-  @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {
-    message: 'Invalid shift value',
-  })
-  shift?: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
+  // @IsOptional()
+  // @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {
+  //   message: 'Invalid shift value',
+  // })
+  // shift?: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
 
   @IsOptional()
   @IsBoolean()

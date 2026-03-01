@@ -244,7 +244,6 @@ export class GuestNetworkService {
       LEFT JOIN t_guest_room gr
         ON gr.guest_id = g.guest_id
         AND gr.is_active = TRUE
-        AND gr.check_out_date IS NULL
 
       LEFT JOIN m_rooms r
         ON r.room_id = gr.room_id
@@ -474,7 +473,6 @@ export class GuestNetworkService {
         FROM t_guest_room
         WHERE guest_id = $1
         AND is_active = TRUE
-        AND check_out_date IS NULL
         LIMIT 1
       `, [dto.guest_id]);
 
@@ -536,7 +534,7 @@ export class GuestNetworkService {
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,TRUE,NOW(),$6,$7)
+        VALUES ($1,$2,$3,$4,$5,$6,TRUE,NOW(),$7,$8)
         RETURNING *;
       `;
 

@@ -57,7 +57,7 @@ export class DriverDutyService {
         const driverCheck = await client.query(
            `SELECT 1
             FROM m_driver d
-            JOIN m_staff s ON s.id = d.staff_id
+            JOIN m_staff s ON s.staff_id = d.staff_id
             WHERE d.driver_id = $1
               AND d.is_active = true
               AND s.is_active = true

@@ -367,7 +367,7 @@ export class ButlersService {
           WHERE primary_mobile = $1
             AND staff_id <> $2
             AND is_active = TRUE
-            DESIGNATION = 'Butler'
+            AND designation = 'Butler'
           LIMIT 1
         `, [dto.butler_mobile, existing.staff_id]);
 

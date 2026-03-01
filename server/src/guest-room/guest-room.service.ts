@@ -191,7 +191,7 @@ export class GuestRoomService {
           referenceId: guestRoomId,
           performedBy: user,
           ipAddress: ip,
-        }, client);
+        }, trx);
         return { success: true };
 
       } catch (err) {
@@ -476,6 +476,7 @@ export class GuestRoomService {
           UPDATE m_rooms SET status = 'Occupied'
           WHERE room_id = $1
         `, [dto.room_id]);
+        
       await this.activityLog.log({
         message: 'Room assigned to guest',
         module: 'GUEST ROOM',
@@ -483,7 +484,7 @@ export class GuestRoomService {
         referenceId: guestRoomId,
         performedBy: user,
         ipAddress: ip,
-      }, client);
+      }, trx);
         return { guest_room_id: guestRoomId };
 
       } catch (err) {

@@ -28,8 +28,8 @@ export class CreateHousekeepingDto {
   @MaxLength(255, { message: 'Address is too long' })
   address?: string;
 
-  @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {
-    message: 'Invalid shift value',
-  })
-  shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
+  // @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {
+  //   message: 'Invalid shift value',
+  // })
+  // shift: 'Morning' | 'Evening' | 'Night' | 'Full-Day';
 }

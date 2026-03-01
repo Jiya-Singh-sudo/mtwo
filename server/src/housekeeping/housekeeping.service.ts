@@ -49,8 +49,11 @@ export class HousekeepingService {
     if (!Number.isInteger(limit) || limit <= 0) {
       throw new BadRequestException('Invalid limit');
     }
+    const isDropdownMode =
+      page === 1 &&
+      !search;
 
-    if (limit > 100) {
+    if (limit > 100 && !isDropdownMode) {
       throw new BadRequestException('Limit too large');
     }
     if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
@@ -70,7 +73,6 @@ export class HousekeepingService {
       s.primary_mobile AS hk_contact,
       s.alternate_mobile AS hk_alternate_contact,
       s.address,
-      hk.shift,
       hk.is_active
     `;
 
@@ -167,7 +169,6 @@ export class HousekeepingService {
     const res = await this.db.query(
       `SELECT
         hk.hk_id,
-        hk.shift,
         hk.is_active,
         s.staff_id,
         s.full_name,
@@ -288,17 +289,15 @@ export class HousekeepingService {
       INSERT INTO m_housekeeping (
         hk_id,
         staff_id,
-        shift,
         is_active,
         inserted_at,
         inserted_by,
         inserted_ip
       )
-      VALUES ($1,$2,$3,true,NOW(),$4,$5)
+      VALUES ($1,$2,true,NOW(),$3,$4)
     `, [
       hkId,
       staffId,
-      dto.shift,
       user,
       ip
     ]);
@@ -312,7 +311,6 @@ export class HousekeepingService {
         s.primary_mobile AS hk_contact,
         s.alternate_mobile AS hk_alternate_contact,
         s.address,
-        hk.shift,
         hk.is_active
       FROM m_housekeeping hk
       JOIN m_staff s ON s.staff_id = hk.staff_id
@@ -405,11 +403,11 @@ export class HousekeepingService {
           'Cannot deactivate housekeeping staff while assigned to a room'
         );
       }
-      if (dto.shift && dto.shift !== existing.shift && activeAssignment.rowCount > 0) {
-        throw new BadRequestException(
-          'Cannot change shift while staff is assigned to a room'
-        );
-      }
+      // if (dto.shift && dto.shift !== existing.shift && activeAssignment.rowCount > 0) {
+      //   throw new BadRequestException(
+      //     'Cannot change shift while staff is assigned to a room'
+      //   );
+      // }
       const primaryContact = dto.hk_contact ?? existing.primary_mobile;
       const alternateContact = dto.hk_alternate_contact ?? existing.alternate_mobile;
       if (alternateContact && primaryContact === alternateContact) {
@@ -470,16 +468,14 @@ export class HousekeepingService {
       const res = await client.query(
         `
         UPDATE m_housekeeping SET
-          shift = $1,
-          is_active = $2,
+          is_active = $1,
           updated_at = NOW(),
-          updated_by = $3,
-          updated_ip = $4
-        WHERE hk_id = $5
+          updated_by = $2,
+          updated_ip = $3
+        WHERE hk_id = $4
         RETURNING *;
         `,
         [
-          dto.shift ?? existing.shift,
           dto.is_active ?? existing.is_active,
           user,
           ip,
@@ -495,7 +491,6 @@ export class HousekeepingService {
           s.primary_mobile AS hk_contact,
           s.alternate_mobile AS hk_alternate_contact,
           s.address,
-          hk.shift,
           hk.is_active
         FROM m_housekeeping hk
         JOIN m_staff s ON s.staff_id = hk.staff_id

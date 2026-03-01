@@ -15,7 +15,12 @@ export class GuestInoutService {
     `);
     return res.rows[0].id;
   }
-
+  private async generateId(client: any): Promise<string> {
+    const res = await client.query(`
+      SELECT 'GD' || LPAD(nextval('guest_driver_seq')::text, 3, '0') AS id
+    `);
+    return res.rows[0].id;
+  }
   async create(dto: CreateGuestInOutDto, user?: string, ip?: string) {
     // ensure guest exists
     return this.db.transaction(async (client) => {
