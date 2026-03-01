@@ -155,7 +155,7 @@ export class ButlersService {
             b.is_active
           FROM m_butler b
           JOIN m_staff s ON s.staff_id = b.staff_id
-          WHERE b.is_active = $1
+          WHERE b.is_active = $1 AND s.is_active = $1 AND s.designation = 'Butler'
           ORDER BY s.full_name`
         : `SELECT 
             b.butler_id,
@@ -169,6 +169,7 @@ export class ButlersService {
             b.is_active
           FROM m_butler b
           JOIN m_staff s ON s.staff_id = b.staff_id
+          WHERE s.designation = 'Butler'
           ORDER BY s.full_name`;
 
       const result = await client.query(sql, activeOnly ? [true] : []);
@@ -234,6 +235,7 @@ export class ButlersService {
           SELECT 1 FROM m_staff
           WHERE primary_mobile = $1
             AND is_active = TRUE
+            AND designation = 'Butler'
           LIMIT 1
         `, [dto.butler_mobile]);
 
@@ -322,6 +324,9 @@ export class ButlersService {
         FROM m_butler b
         JOIN m_staff s ON s.staff_id = b.staff_id
         WHERE b.butler_id = $1
+          AND b.is_active = TRUE 
+          AND s.is_active = TRUE
+          AND s.designation = 'Butler'
         FOR UPDATE
       `, [id]);
 
@@ -362,6 +367,7 @@ export class ButlersService {
           WHERE primary_mobile = $1
             AND staff_id <> $2
             AND is_active = TRUE
+            DESIGNATION = 'Butler'
           LIMIT 1
         `, [dto.butler_mobile, existing.staff_id]);
 
@@ -380,9 +386,11 @@ export class ButlersService {
       }
       if (dto.is_active === true && existing.is_active === false) {
         const duplicate = await client.query(`
-          SELECT 1 FROM m_butler
+          SELECT 1 FROM m_butler 
+          LEFT JOIN m_staff
           WHERE staff_id = $1
             AND is_active = TRUE
+            AND designation = 'Butler'
         `, [existing.staff_id]);
 
         if (duplicate.rowCount > 0) {
@@ -449,9 +457,10 @@ export class ButlersService {
       //   throw new ConflictException('Invalid Butler ID format');
       // }
       const existingRes = await client.query(`
-        SELECT b.staff_id, b.is_active
+        SELECT b.staff_id, b.is_active, s.is_active
         FROM m_butler b
-        WHERE b.butler_id = $1 AND b.is_active = true
+        FROM m_staff s
+        WHERE b.butler_id = $1 AND b.is_active = true AND s.ia_active = true
         FOR UPDATE
       `, [id]);
       if (!existingRes.rowCount) {

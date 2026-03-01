@@ -12,7 +12,6 @@ export class GuestVehicleService {
   `);
     return res.rows[0].id;
   }
-
   private async assertGuestIsAssignable(guestId: string, client: any) {
     const sql = `
       SELECT io.status
@@ -23,22 +22,17 @@ export class GuestVehicleService {
       LIMIT 1
       FOR UPDATE;
     `;
-
     const res = await client.query(sql, [guestId]);
-
     if (!res.rows.length) {
       throw new NotFoundException("Guest status not found");
     }
-
     const status = res.rows[0].status;
-
     if (["Exited", "Cancelled"].includes(status)) {
       throw new BadRequestException(
         `Cannot assign vehicle to guest with status '${status}'`
       );
     }
   }
-
   async findActiveByGuest(guestId: string) {
     if (!/^G\d+$/.test(guestId)) {
       throw new BadRequestException('Invalid guest ID format');
@@ -57,7 +51,6 @@ export class GuestVehicleService {
     }
     return res.rows[0] || null;
   }
-
   // READ #1 — Guests checked-in but without vehicle
   async findCheckedInGuestsWithoutVehicle() {
     const sql = `
@@ -65,6 +58,7 @@ export class GuestVehicleService {
         g.guest_id,
         g.guest_name,
         g.guest_name_local_language,
+        g.guest_mobile,
         g.remarks,
 
         d.designation_id,
@@ -157,6 +151,8 @@ export class GuestVehicleService {
         ON v.vehicle_no = gv.vehicle_no
 
       WHERE gv.guest_id = $1
+        AND gv.is_active = TRUE
+        AND v.is_active = TRUE
       ORDER BY gv.assigned_at DESC;
     `;
 
@@ -381,7 +377,9 @@ export class GuestVehicleService {
         g.guest_name
       FROM t_guest_vehicle gv
       JOIN m_guest g ON g.guest_id = gv.guest_id
-      JOIN m_vehicle v ON v.vehicle_no = gv.vehicle_no
+      JOIN m_vehicle v 
+        ON v.vehicle_no = gv.vehicle_no
+        AND v.is_active = TRUE
       LEFT JOIN t_guest_driver gd
         ON gd.guest_id = gv.guest_id
         AND gd.is_active = TRUE
@@ -416,16 +414,16 @@ export class GuestVehicleService {
       if (dto.released_at && isNaN(Date.parse(dto.released_at))) {
         throw new BadRequestException('Invalid released_at timestamp');
       }
-      if (dto.released_at) {
-        const assigned = new Date(dto.assigned_at);
-        const released = new Date(dto.released_at);
+      // if (dto.released_at) {
+      //   const assigned = new Date(dto.assigned_at);
+      //   const released = new Date(dto.released_at);
 
-        if (released <= assigned) {
-          throw new BadRequestException(
-            'released_at must be after assigned_at'
-          );
-        }
-      }
+      //   if (released <= assigned) {
+      //     throw new BadRequestException(
+      //       'released_at must be after assigned_at'
+      //     );
+      //   }
+      // }
       if (dto.location && dto.location.length > 255) {
         throw new BadRequestException('Location cannot exceed 255 characters');
       }
@@ -435,7 +433,7 @@ export class GuestVehicleService {
 
         if (released <= assigned) {
           throw new BadRequestException(
-            'released_at must be after assigned_at'
+            'Vehicle release time must be after assigned time'
           );
         }
       }
@@ -444,19 +442,18 @@ export class GuestVehicleService {
         SELECT guest_id, is_active
         FROM t_guest_vehicle
         WHERE guest_vehicle_id = $1
+          AND is_active = TRUE
         FOR UPDATE
         `,
         [oldGuestVehicleId]
       );
       await client.query(
-        `SELECT 1 FROM m_vehicle WHERE vehicle_no = $1 FOR UPDATE`,
+        `SELECT 1 FROM m_vehicle WHERE vehicle_no = $1 AND is_active = TRUE FOR UPDATE`,
         [dto.vehicle_no]
       );
-
       if (!old.rows.length) {
         throw new NotFoundException("Vehicle assignment not found");
       }
-
       await client.query(
         `
         SELECT 1

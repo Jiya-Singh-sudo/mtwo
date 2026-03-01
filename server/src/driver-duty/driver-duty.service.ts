@@ -55,7 +55,14 @@ export class DriverDutyService {
       }
       try {
         const driverCheck = await client.query(
-          `SELECT 1 FROM m_driver WHERE driver_id = $1 AND is_active = true FOR UPDATE`,
+           `SELECT 1
+            FROM m_driver d
+            JOIN m_staff s ON s.id = d.staff_id
+            WHERE d.driver_id = $1
+              AND d.is_active = true
+              AND s.is_active = true
+              AND s.designation = 'Driver'
+            FOR UPDATE;`,
           [dto.driver_id]
         );
 
@@ -179,7 +186,7 @@ export class DriverDutyService {
         throw new BadRequestException('Repeat weekly only allowed for week off');
       }
       const existingRes = await client.query(
-        `SELECT * FROM t_driver_duty WHERE duty_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_driver_duty WHERE duty_id = $1 and is_active = true FOR UPDATE`,
         [dutyId]
       );
 
@@ -277,7 +284,7 @@ export class DriverDutyService {
         throw new BadRequestException('Invalid duty ID format');
       }
       const res = await client.query(
-        `SELECT * FROM t_driver_duty WHERE duty_id = $1`,
+        `SELECT * FROM t_driver_duty WHERE duty_id = $1 and is_active = true`,
         [dutyId],
       );
 
@@ -307,6 +314,7 @@ export class DriverDutyService {
           s.full_name AS driver_name,
           s.full_name_local_language,
           s.primary_mobile AS driver_contact,
+          s.designation,
           drv.driver_license,
           drv.license_expiry_date,
           cal.duty_date::text AS duty_date,

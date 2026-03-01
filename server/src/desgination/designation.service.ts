@@ -93,7 +93,7 @@ export class DesignationService {
     return this.db.transaction(async (client) => {
 
       const existingResult = await client.query(
-        `SELECT * FROM m_guest_designation WHERE designation_name = $1 FOR UPDATE`,
+        `SELECT * FROM m_guest_designation WHERE designation_name = $1 AND is_active = true FOR UPDATE`,
         [name]
       );
       const existing = existingResult.rows[0];
@@ -135,7 +135,7 @@ export class DesignationService {
   async softDelete(name: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       const existingResult = await client.query(
-        `SELECT * FROM m_guest_designation WHERE designation_name = $1 FOR UPDATE`,
+        `SELECT * FROM m_guest_designation WHERE designation_name = $1 AND is_active = true FOR UPDATE`,
         [name]
       );
 

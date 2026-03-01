@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DriverDutyService } from './driver-duty.service';
-
+import { DriverDutyService } from './driver-duty.service'
 describe('DriverDutyService', () => {
   let service: DriverDutyService;
 

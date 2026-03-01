@@ -124,12 +124,12 @@ export class GuestNetworkService {
         idx++;
       }
 
-  if (toDate) {
-    // inclusive end-of-day logic
-    where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
-    params.push(toDate);
-    idx++;
-  }
+      if (toDate) {
+        // inclusive end-of-day logic
+        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        params.push(toDate);
+        idx++;
+      }
     }
     /* ---------- BUILD WHERE CLAUSE AFTER ALL FILTERS ---------- */
     const whereClause = `WHERE ${where.join(' AND ')}`;
@@ -180,22 +180,22 @@ export class GuestNetworkService {
     //   ${whereClause};
     // `;
 
-  //   const countSql = `
-  //   SELECT COUNT(*)::int AS count
-  //   FROM t_guest_inout io
-  //   JOIN m_guest g
-  //     ON g.guest_id = io.guest_id
-  //   LEFT JOIN t_guest_room gr
-  //     ON gr.guest_id = g.guest_id
-  //   AND gr.is_active = TRUE
-  //   LEFT JOIN t_guest_network gn
-  //     ON gn.guest_id = g.guest_id
-  //   AND gn.is_active = TRUE
-  //   LEFT JOIN t_guest_messenger gm
-  //     ON gm.guest_id = g.guest_id
-  //   AND gm.is_active = TRUE
-  //   ${whereClause};
-  // `;
+    //   const countSql = `
+    //   SELECT COUNT(*)::int AS count
+    //   FROM t_guest_inout io
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = g.guest_id
+    //   AND gr.is_active = TRUE
+    //   LEFT JOIN t_guest_network gn
+    //     ON gn.guest_id = g.guest_id
+    //   AND gn.is_active = TRUE
+    //   LEFT JOIN t_guest_messenger gm
+    //     ON gm.guest_id = g.guest_id
+    //   AND gm.is_active = TRUE
+    //   ${whereClause};
+    // `;
 
     /* ---------- DATA ---------- */
     const dataSql = `
@@ -374,22 +374,27 @@ export class GuestNetworkService {
     // `;
 
     const statsSql = `
-    SELECT
-      COUNT(*)::int AS total,
-      COUNT(CASE WHEN gn.network_status = 'Requested' THEN 1 END)::int AS requested,
-      COUNT(CASE WHEN gn.network_status = 'Connected' THEN 1 END)::int AS connected,
-      COUNT(CASE WHEN gn.network_status = 'Disconnected' THEN 1 END)::int AS disconnected,
-      COUNT(CASE WHEN gn.network_status = 'Issue-Reported' THEN 1 END)::int AS issue_reported,
-      COUNT(CASE WHEN gn.network_status = 'Resolved' THEN 1 END)::int AS resolved,
-      COUNT(CASE WHEN gn.network_status = 'Cancelled' THEN 1 END)::int AS cancelled,
-      (SELECT COUNT(*)::int FROM t_guest_messenger gm WHERE gm.is_active = TRUE) AS messenger_assigned
-    FROM t_guest_network gn
-    WHERE gn.is_active = TRUE;
-  `;
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN gn.network_status = 'Requested' THEN 1 END)::int AS requested,
+        COUNT(CASE WHEN gn.network_status = 'Connected' THEN 1 END)::int AS connected,
+        COUNT(CASE WHEN gn.network_status = 'Disconnected' THEN 1 END)::int AS disconnected,
+        COUNT(CASE WHEN gn.network_status = 'Issue-Reported' THEN 1 END)::int AS issue_reported,
+        COUNT(CASE WHEN gn.network_status = 'Resolved' THEN 1 END)::int AS resolved,
+        COUNT(CASE WHEN gn.network_status = 'Cancelled' THEN 1 END)::int AS cancelled,
+        COUNT(gm.guest_messenger_id)::int AS messenger_assigned
+      FROM t_guest_inout io
+      JOIN m_guest g ON g.guest_id = io.guest_id AND g.is_active = TRUE
+      LEFT JOIN t_guest_room gr ON gr.guest_id = g.guest_id AND gr.is_active = TRUE AND gr.check_out_date IS NULL
+      LEFT JOIN t_guest_network gn ON gn.guest_id = g.guest_id AND gn.room_id = gr.room_id AND gn.is_active = TRUE
+      LEFT JOIN m_wifi_provider wp ON wp.provider_id = gn.provider_id
+      LEFT JOIN t_guest_messenger gm ON gm.guest_id = g.guest_id AND gm.is_active = TRUE
+      ${whereClause};
+    `;
 
     const dataRes = await this.db.query(dataSql, [...params, limit, offset]);
     const countRes = await this.db.query(countSql, params);
-    const statsRes = await this.db.query(statsSql);
+    const statsRes = await this.db.query(statsSql, params);
 
     return {
       data: dataRes.rows,

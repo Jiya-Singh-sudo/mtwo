@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestDesignationDto } from './dto/create-guest-designation.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+
 @Injectable()
 export class GuestDesignationService {
   constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
@@ -27,7 +28,7 @@ export class GuestDesignationService {
         `, [dto.designation_id, dto.designation_name, user, ip]);
       } else {
         const check = await client.query(
-          'SELECT 1 FROM m_guest_designation WHERE designation_id = $1 FOR UPDATE',
+          'SELECT 1 FROM m_guest_designation WHERE designation_id = $1 is_active = TRUE FOR UPDATE',
           [dto.designation_id]
         );
 
@@ -83,7 +84,7 @@ export class GuestDesignationService {
     return this.db.transaction(async (client) => {
 
       const existing = await client.query(
-        `SELECT * FROM t_guest_designation WHERE gd_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_designation WHERE gd_id = $1 is_active = TRUE FOR UPDATE`,
         [gd_id]
       );
 

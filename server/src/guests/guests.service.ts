@@ -63,30 +63,30 @@ export class GuestsService {
   }
   // create guest (transactional)
   async createFullGuest(payload: {
-      guest: CreateGuestDto;
-        designation?: {
-          designation_id?: string;   // 👈 ADD THIS LINE
-          designation_name?: string;
-          department?: string;
-          organization?: string;
-          office_location?: string;
-          is_current?: boolean;
-        };
-      inout?: {
-        entry_date?: string;
-        entry_time?: string;
-        exit_date?: string;
-        exit_time?: string;
-        // status?: 'Entered' | 'Inside' | 'Exited' | 'Scheduled';
-        purpose?: string;
-        remarks?: string;
-        rooms_required?: number;
-        requires_driver?: boolean;
-        companions?: number;
-      };
-    }, user: string, ip: string) {
-      // transaction start
-      return this.db.transaction(async (client) => {
+    guest: CreateGuestDto;
+    designation?: {
+      designation_id?: string;   // 👈 ADD THIS LINE
+      designation_name?: string;
+      department?: string;
+      organization?: string;
+      office_location?: string;
+      is_current?: boolean;
+    };
+    inout?: {
+      entry_date?: string;
+      entry_time?: string;
+      exit_date?: string;
+      exit_time?: string;
+      // status?: 'Entered' | 'Inside' | 'Exited' | 'Scheduled';
+      purpose?: string;
+      remarks?: string;
+      rooms_required?: number;
+      requires_driver?: boolean;
+      companions?: number;
+    };
+  }, user: string, ip: string) {
+    // transaction start
+    return this.db.transaction(async (client) => {
       const today = todayISO();
       let status: 'Entered' | 'Scheduled' | 'Exited' | 'Inside' | 'Cancelled' = 'Entered';
 
@@ -227,8 +227,8 @@ export class GuestsService {
         const d = payload.designation;
         const gd_id = await this.generateGuestDesignationId(client);
 
-          await client.query(
-            `
+        await client.query(
+          `
             INSERT INTO t_guest_designation (
               gd_id,
               guest_id,
@@ -244,17 +244,17 @@ export class GuestsService {
             )
             VALUES ($1,$2,$3,$4,$5,$6, TRUE, TRUE, NOW(), $7, $8)
             `,
-            [
-              gd_id,
-              guestRow.guest_id,
-              finalDesignationId,
-              d?.department || null,
-              d?.organization || null,
-              d?.office_location || null,
-              user,
-              ip,
-            ]
-          );
+          [
+            gd_id,
+            guestRow.guest_id,
+            finalDesignationId,
+            d?.department || null,
+            d?.organization || null,
+            d?.office_location || null,
+            user,
+            ip,
+          ]
+        );
 
         // 5. Create t_guest_inout
         if (
@@ -339,51 +339,51 @@ export class GuestsService {
           user,
           ip
         ]);
-      const insertedRow = ioRes.rows[0];
-      const today = todayISO();
-      if (
-        insertedRow.status === 'Entered' &&
-        insertedRow.entry_date?.toISOString().split('T')[0] === today
-      ) {
-        await this.guestFoodService.propagateTodayPlanToGuest(
-          client,
-          insertedRow,
-          user || 'system',
-          ip || '0.0.0.0'
-        );
-      }
-      await this.activityLog.log({
-        message: 'New Guest added',
-        module: 'GUESTS',
-        action: 'CREATE',
-        referenceId: guestRow.guest_id,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
-      await this.activityLog.log({
-        message: 'Designation added for guest',
-        module: 'GUEST DESIGNATION',
-        action: 'CREATE',
-        referenceId: gd_id,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
-      // await this.activityLog.log({
-      //   message: 'New Designation added',
-      //   module: 'DESIGNATION',
-      //   action: 'CREATE',
-      //   referenceId: gd_id,
-      //   performedBy: user,
-      //   ipAddress: ip,
-      // }, client);
-      await this.activityLog.log({
-        message: 'Guest stay details added',
-        module: 'GUEST INOUT',
-        action: 'CREATE',
-        referenceId: inout_id,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
+        const insertedRow = ioRes.rows[0];
+        const today = todayISO();
+        if (
+          insertedRow.status === 'Entered' &&
+          insertedRow.entry_date?.toISOString().split('T')[0] === today
+        ) {
+          await this.guestFoodService.propagateTodayPlanToGuest(
+            client,
+            insertedRow,
+            user || 'system',
+            ip || '0.0.0.0'
+          );
+        }
+        await this.activityLog.log({
+          message: 'New Guest added',
+          module: 'GUESTS',
+          action: 'CREATE',
+          referenceId: guestRow.guest_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+        await this.activityLog.log({
+          message: 'Designation added for guest',
+          module: 'GUEST DESIGNATION',
+          action: 'CREATE',
+          referenceId: gd_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+        // await this.activityLog.log({
+        //   message: 'New Designation added',
+        //   module: 'DESIGNATION',
+        //   action: 'CREATE',
+        //   referenceId: gd_id,
+        //   performedBy: user,
+        //   ipAddress: ip,
+        // }, client);
+        await this.activityLog.log({
+          message: 'Guest stay details added',
+          module: 'GUEST INOUT',
+          action: 'CREATE',
+          referenceId: inout_id,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return {
           guest: guestRow,
           inout: ioRes.rows[0],
@@ -412,68 +412,68 @@ export class GuestsService {
           [guestId]
         );
 
-      if (statusCheck.rowCount > 0) {
-        const status = statusCheck.rows[0].status;
+        if (statusCheck.rowCount > 0) {
+          const status = statusCheck.rows[0].status;
 
-        if (['Exited', 'Cancelled'].includes(status)) {
-          throw new BadRequestException(
-            `Cannot edit guest once status is ${status}`
-          );
-        }
-      }
-      const allowed = new Set([
-        'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
-        'guest_address', 'email'
-      ]);
-      const fields: string[] = [];
-      const vals: any[] = [];
-      let idx = 1;
-      for (const [k, v] of Object.entries(dto)) {
-        if (!allowed.has(k)) continue;
-        if (k === 'guest_address' && typeof v === 'string' && v.length > 255) {
-          throw new BadRequestException(
-            'Address cannot exceed 255 characters'
-          );
-        }
-        if (k === 'guest_name') {
-          if (!v || typeof v !== 'string' || !v.trim()) {
-            throw new BadRequestException('Guest name is required');
-          }
-          if (v.length > 100) {
-            throw new BadRequestException('Guest name cannot exceed 100 characters');
+          if (['Exited', 'Cancelled'].includes(status)) {
+            throw new BadRequestException(
+              `Cannot edit guest once status is ${status}`
+            );
           }
         }
-
-        if (k === 'guest_mobile' && v) {
-          if (!/^[0-9]{10}$/.test(String(v))) {
-            throw new BadRequestException('Invalid guest mobile number');
+        const allowed = new Set([
+          'guest_name', 'guest_name_local_language', 'guest_mobile', 'guest_alternate_mobile',
+          'guest_address', 'email'
+        ]);
+        const fields: string[] = [];
+        const vals: any[] = [];
+        let idx = 1;
+        for (const [k, v] of Object.entries(dto)) {
+          if (!allowed.has(k)) continue;
+          if (k === 'guest_address' && typeof v === 'string' && v.length > 255) {
+            throw new BadRequestException(
+              'Address cannot exceed 255 characters'
+            );
           }
-        }
-
-        if (k === 'guest_alternate_mobile' && v) {
-          if (!/^[0-9]{10}$/.test(String(v))) {
-            throw new BadRequestException('Invalid alternate mobile number');
+          if (k === 'guest_name') {
+            if (!v || typeof v !== 'string' || !v.trim()) {
+              throw new BadRequestException('Guest name is required');
+            }
+            if (v.length > 100) {
+              throw new BadRequestException('Guest name cannot exceed 100 characters');
+            }
           }
-        }
 
-        if (k === 'email' && v) {
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
-            throw new BadRequestException('Invalid email format');
+          if (k === 'guest_mobile' && v) {
+            if (!/^[0-9]{10}$/.test(String(v))) {
+              throw new BadRequestException('Invalid guest mobile number');
+            }
           }
-        }
 
-        fields.push(`${k} = $${idx}`);
-        vals.push(v);
-        idx++;
-      }
-      if (fields.length === 0) {
-        return this.findOne(guestId);
-      }
-      fields.push(`updated_at = NOW()`);
-      fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
-      fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
-      const sql = 
-      `UPDATE m_guest
+          if (k === 'guest_alternate_mobile' && v) {
+            if (!/^[0-9]{10}$/.test(String(v))) {
+              throw new BadRequestException('Invalid alternate mobile number');
+            }
+          }
+
+          if (k === 'email' && v) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
+              throw new BadRequestException('Invalid email format');
+            }
+          }
+
+          fields.push(`${k} = $${idx}`);
+          vals.push(v);
+          idx++;
+        }
+        if (fields.length === 0) {
+          return this.findOne(guestId);
+        }
+        fields.push(`updated_at = NOW()`);
+        fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
+        fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
+        const sql =
+          `UPDATE m_guest
         SET
           ${fields.join(', ')},
           version = version + 1
@@ -481,18 +481,18 @@ export class GuestsService {
           guest_id = $${idx}
         RETURNING *;
       `;
-      vals.push(guestId);
-      const r = await client.query(sql, vals);
-      await this.activityLog.log({
-        message: 'Guest details updated',
-        module: 'GUESTS',
-        action: 'UPDATE',
-        referenceId: guestId,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
+        vals.push(guestId);
+        const r = await client.query(sql, vals);
+        await this.activityLog.log({
+          message: 'Guest details updated',
+          module: 'GUESTS',
+          action: 'UPDATE',
+          referenceId: guestId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
 
-      return r.rows[0];
+        return r.rows[0];
       } catch (err) {
         console.error('Guest update failed:', err);
         throw new BadRequestException('Guest update failed');
@@ -512,7 +512,7 @@ export class GuestsService {
   async softDeleteGuest(guestId: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       try {
-        
+
         // 1. Deactivate guest
         const sql = `
           UPDATE m_guest
@@ -549,14 +549,14 @@ export class GuestsService {
           await this.cascadeGuestExit(row.inout_id, client, user, ip);
         }
         // 2. Cascade exit
-      await this.activityLog.log({
-        message: 'Guest deleted',
-        module: 'GUESTS',
-        action: 'DELETE',
-        referenceId: guestId,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
+        await this.activityLog.log({
+          message: 'Guest deleted',
+          module: 'GUESTS',
+          action: 'DELETE',
+          referenceId: guestId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
         return r.rows[0];
       } catch (err) {
         console.error('Guest delete failed:', err);
@@ -661,7 +661,13 @@ export class GuestsService {
 
     /* ---------------- COUNT QUERY ---------------- */
     const countSql = `
-      SELECT COUNT(DISTINCT g.guest_id)::int AS total
+      SELECT 
+        COUNT(DISTINCT g.guest_id)::int AS total,
+        COUNT(DISTINCT g.guest_id) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+        COUNT(DISTINCT g.guest_id) FILTER (WHERE io.status = 'Entered')::int AS entered,
+        COUNT(DISTINCT g.guest_id) FILTER (WHERE io.status = 'Inside')::int AS inside,
+        COUNT(DISTINCT g.guest_id) FILTER (WHERE io.status = 'Exited')::int AS exited,
+        COUNT(DISTINCT g.guest_id) FILTER (WHERE io.status = 'Cancelled')::int AS cancelled
       FROM m_guest g
       LEFT JOIN t_guest_inout io
         ON io.guest_id = g.guest_id
@@ -728,9 +734,20 @@ export class GuestsService {
     );
     values.push(limit, offset);
     const dataResult = await this.db.query(dataSql, values);
+
+    const countRow = countResult.rows[0];
+
     return {
       data: dataResult.rows,
-      totalCount: countResult.rows[0].total,
+      totalCount: countRow.total,
+      statusCounts: {
+        All: countRow.total,
+        Scheduled: countRow.scheduled || 0,
+        Entered: countRow.entered || 0,
+        Inside: countRow.inside || 0,
+        Exited: countRow.exited || 0,
+        Cancelled: countRow.cancelled || 0,
+      }
     };
   }
 
@@ -743,14 +760,14 @@ export class GuestsService {
         RETURNING *;
       `;
       const r = await client.query(sql, [inoutId, user, ip]);
-        await this.activityLog.log({
-          message: 'Guest stay cancelled',
-          module: 'GUEST INOUT',
-          action: 'CANCEL',
-          referenceId: inoutId,
-          performedBy: user,
-          ipAddress: ip,
-        }, client);
+      await this.activityLog.log({
+        message: 'Guest stay cancelled',
+        module: 'GUEST INOUT',
+        action: 'CANCEL',
+        referenceId: inoutId,
+        performedBy: user,
+        ipAddress: ip,
+      }, client);
       if (!r.rowCount) {
         throw new BadRequestException('InOut record not found');
       }
@@ -776,34 +793,34 @@ export class GuestsService {
   ) {
     return this.db.transaction(async (client) => {
       try {
-      const lockRes = await client.query(
-        `
+        const lockRes = await client.query(
+          `
         SELECT *
         FROM t_guest_inout
         WHERE inout_id = $1
         FOR UPDATE
         `,
-        [inoutId]
-      );
+          [inoutId]
+        );
 
-      if (!lockRes.rowCount) {
-        throw new BadRequestException('InOut record not found');
-      }
-      const existingInout = lockRes.rows[0];
-      const entryDate = payload.entry_date ?? existingInout.entry_date;
-      const entryTime = payload.entry_time ?? existingInout.entry_time;
-      const exitDate = payload.exit_date ?? existingInout.exit_date;
-      const exitTime = payload.exit_time ?? existingInout.exit_time;
-
-      if (exitDate) {
-        const entryTs = new Date(`${entryDate} ${entryTime || '00:00'}`);
-        const exitTs = new Date(`${exitDate} ${exitTime || '23:59'}`);
-
-        if (exitTs <= entryTs) {
-          throw new BadRequestException('Exit datetime must be after entry datetime');
+        if (!lockRes.rowCount) {
+          throw new BadRequestException('InOut record not found');
         }
-      }
-      const currentRoomsRes = await client.query(`
+        const existingInout = lockRes.rows[0];
+        const entryDate = payload.entry_date ?? existingInout.entry_date;
+        const entryTime = payload.entry_time ?? existingInout.entry_time;
+        const exitDate = payload.exit_date ?? existingInout.exit_date;
+        const exitTime = payload.exit_time ?? existingInout.exit_time;
+
+        if (exitDate) {
+          const entryTs = new Date(`${entryDate} ${entryTime || '00:00'}`);
+          const exitTs = new Date(`${exitDate} ${exitTime || '23:59'}`);
+
+          if (exitTs <= entryTs) {
+            throw new BadRequestException('Exit datetime must be after entry datetime');
+          }
+        }
+        const currentRoomsRes = await client.query(`
         SELECT r.room_capacity
         FROM t_guest_room gr
         JOIN m_rooms r ON r.room_id = gr.room_id
@@ -811,97 +828,97 @@ export class GuestsService {
           AND gr.is_active = TRUE
       `, [existingInout.guest_id]);
 
-      const currentRoomCount = currentRoomsRes.rowCount;
-      const currentTotalCapacity = currentRoomsRes.rows.reduce(
-        (sum, r) => sum + Number(r.room_capacity),
-        0
-      );
-      if (payload.status) {
-        const currentStatus = existingInout.status;
+        const currentRoomCount = currentRoomsRes.rowCount;
+        const currentTotalCapacity = currentRoomsRes.rows.reduce(
+          (sum, r) => sum + Number(r.room_capacity),
+          0
+        );
+        if (payload.status) {
+          const currentStatus = existingInout.status;
 
-        const allowedTransitions: Record<string, string[]> = {
-          Scheduled: ['Entered', 'Cancelled'],
-          Entered: ['Inside', 'Exited'],
-          Inside: ['Exited'],
-        };
+          const allowedTransitions: Record<string, string[]> = {
+            Scheduled: ['Entered', 'Cancelled'],
+            Entered: ['Inside', 'Exited'],
+            Inside: ['Exited'],
+          };
 
-        if (
-          allowedTransitions[currentStatus] &&
-          !allowedTransitions[currentStatus].includes(payload.status)
-        ) {
+          if (
+            allowedTransitions[currentStatus] &&
+            !allowedTransitions[currentStatus].includes(payload.status)
+          ) {
+            throw new BadRequestException(
+              `Invalid status transition from ${currentStatus} to ${payload.status}`
+            );
+          }
+        }
+        const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
+        const newCompanions = payload.companions ?? existingInout.companions ?? 0;
+        const totalPeople = 1 + newCompanions;
+
+        // 🚨 Rule 1: cannot reduce rooms_required below already allocated rooms
+        if (newRoomsRequired < currentRoomCount) {
           throw new BadRequestException(
-            `Invalid status transition from ${currentStatus} to ${payload.status}`
+            `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
           );
         }
-      }
-      const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
-      const newCompanions = payload.companions ?? existingInout.companions ?? 0;
-      const totalPeople = 1 + newCompanions;
+        if (payload.rooms_required !== undefined && payload.rooms_required <= 0) {
+          throw new BadRequestException('Rooms required must be at least 1');
+        }
 
-      // 🚨 Rule 1: cannot reduce rooms_required below already allocated rooms
-      if (newRoomsRequired < currentRoomCount) {
-        throw new BadRequestException(
-          `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
-        );
-      }
-      if (payload.rooms_required !== undefined && payload.rooms_required <= 0) {
-        throw new BadRequestException('Rooms required must be at least 1');
-      }
+        if (payload.companions !== undefined && payload.companions < 0) {
+          throw new BadRequestException('Companions cannot be negative');
+        }
+        if (payload.entry_time && !/^\d{2}:\d{2}$/.test(payload.entry_time)) {
+          throw new BadRequestException('Invalid entry time format');
+        }
 
-      if (payload.companions !== undefined && payload.companions < 0) {
-        throw new BadRequestException('Companions cannot be negative');
-      }
-      if (payload.entry_time && !/^\d{2}:\d{2}$/.test(payload.entry_time)) {
-        throw new BadRequestException('Invalid entry time format');
-      }
+        if (payload.exit_time && !/^\d{2}:\d{2}$/.test(payload.exit_time)) {
+          throw new BadRequestException('Invalid exit time format');
+        }
+        // 🚨 Rule 2: if allocation is already complete, capacity must still satisfy people
+        if (
+          currentRoomCount === newRoomsRequired &&
+          currentTotalCapacity < totalPeople
+        ) {
+          throw new BadRequestException(
+            `Current allocated room capacity (${currentTotalCapacity}) is insufficient for ${totalPeople} people`
+          );
+        }
 
-      if (payload.exit_time && !/^\d{2}:\d{2}$/.test(payload.exit_time)) {
-        throw new BadRequestException('Invalid exit time format');
-      }
-      // 🚨 Rule 2: if allocation is already complete, capacity must still satisfy people
-      if (
-        currentRoomCount === newRoomsRequired &&
-        currentTotalCapacity < totalPeople
-      ) {
-        throw new BadRequestException(
-          `Current allocated room capacity (${currentTotalCapacity}) is insufficient for ${totalPeople} people`
-        );
-      }
+        if (
+          payload.entry_date &&
+          payload.exit_date &&
+          isBefore(payload.exit_date, payload.entry_date)
+        ) {
+          throw new BadRequestException(
+            'Exit date cannot be before entry date'
+          );
+        }
+        const fields: string[] = [];
+        const values: any[] = [];
+        let idx = 1;
 
-      if (
-        payload.entry_date &&
-        payload.exit_date &&
-        isBefore(payload.exit_date, payload.entry_date)
-      ) {
-        throw new BadRequestException(
-          'Exit date cannot be before entry date'
-        );
-      }
-      const fields: string[] = [];
-      const values: any[] = [];
-      let idx = 1;
+        for (const [key, value] of Object.entries(payload)) {
+          if (value === undefined) continue;
+          fields.push(`${key} = $${idx}`);
+          values.push(value);
+          idx++;
+        }
 
-      for (const [key, value] of Object.entries(payload)) {
-        if (value === undefined) continue;
-        fields.push(`${key} = $${idx}`);
-        values.push(value);
+        if (fields.length === 0) {
+          throw new BadRequestException('No fields to update');
+        }
+
+        fields.push(`updated_at = NOW()`);
+        fields.push(`updated_by = $${idx}`);
+        values.push(user);
         idx++;
-      }
 
-      if (fields.length === 0) {
-        throw new BadRequestException('No fields to update');
-      }
+        fields.push(`updated_ip = $${idx}`);
+        values.push(ip);
+        idx++;
 
-      fields.push(`updated_at = NOW()`);
-      fields.push(`updated_by = $${idx}`);
-      values.push(user);
-      idx++;
-
-      fields.push(`updated_ip = $${idx}`);
-      values.push(ip);
-      idx++;
-
-      const sql = `
+        const sql = `
       UPDATE t_guest_inout
       SET ${fields.join(', ')}
       WHERE inout_id = $${idx}
@@ -909,59 +926,59 @@ export class GuestsService {
       RETURNING *;
     `;
 
-      values.push(inoutId);
-      const res = await client.query(sql, values);
-      await this.activityLog.log({
-        message: 'Guest stay details updated',
-        module: 'GUEST INOUT',
-        action: 'UPDATE',
-        referenceId: inoutId,
-        performedBy: user,
-        ipAddress: ip,
-      }, client);
-      const updated = res.rows[0]; 
-      if (!updated){
-        throw new BadRequestException('InOut record not found');
-      }
-      
-      // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
-      if (
-        updated.guest_id &&
-        (payload.status === 'Exited' || payload.status === 'Cancelled')
-      ) {
-        await this.cascadeGuestExit(
-          updated.inout_id,
-          client,
-          user,
-          ip
-        );
-      } 
+        values.push(inoutId);
+        const res = await client.query(sql, values);
+        await this.activityLog.log({
+          message: 'Guest stay details updated',
+          module: 'GUEST INOUT',
+          action: 'UPDATE',
+          referenceId: inoutId,
+          performedBy: user,
+          ipAddress: ip,
+        }, client);
+        const updated = res.rows[0];
+        if (!updated) {
+          throw new BadRequestException('InOut record not found');
+        }
 
-      // 🔴 ADD THIS BLOCK
-      let warnings = [];
-      if (
-        payload.entry_date || payload.exit_date ||
-        payload.entry_time || payload.exit_time
-      ) {
-        const entryTs = new Date(
-          `${updated.entry_date} ${updated.entry_time || '00:00'}`
-        );
-        const exitTs = new Date(
-          `${updated.exit_date} ${updated.exit_time || '23:59'}`
-        );
-
-        warnings = await this.guestTransportService
-          .findTransportConflictsForGuest(
-            updated.guest_id,
-            entryTs,
-            exitTs,
-            client
+        // 🔑 AUTO-RELEASE ASSIGNMENTS ON EXIT / CANCEL
+        if (
+          updated.guest_id &&
+          (payload.status === 'Exited' || payload.status === 'Cancelled')
+        ) {
+          await this.cascadeGuestExit(
+            updated.inout_id,
+            client,
+            user,
+            ip
           );
-      }
-      return {
-        inout: updated,
-        warnings, // 🔑 FRONTEND NEEDS THIS
-      };
+        }
+
+        // 🔴 ADD THIS BLOCK
+        let warnings = [];
+        if (
+          payload.entry_date || payload.exit_date ||
+          payload.entry_time || payload.exit_time
+        ) {
+          const entryTs = new Date(
+            `${updated.entry_date} ${updated.entry_time || '00:00'}`
+          );
+          const exitTs = new Date(
+            `${updated.exit_date} ${updated.exit_time || '23:59'}`
+          );
+
+          warnings = await this.guestTransportService
+            .findTransportConflictsForGuest(
+              updated.guest_id,
+              entryTs,
+              exitTs,
+              client
+            );
+        }
+        return {
+          inout: updated,
+          warnings, // 🔑 FRONTEND NEEDS THIS
+        };
       } catch (err) {
         throw err;
       }
@@ -982,7 +999,7 @@ export class GuestsService {
   }
   async findCheckedInWithoutVehicle() {
 
-  const sql = `
+    const sql = `
   SELECT
     g.guest_id,
     g.guest_name,
@@ -1058,20 +1075,20 @@ export class GuestsService {
       throw new BadRequestException('Invalid inout record');
     }
     const guestId = inoutRes.rows[0].guest_id;
-      const guestRooms = await trx.query(
-        `
+    const guestRooms = await trx.query(
+      `
         SELECT guest_room_id, room_id
         FROM t_guest_room
         WHERE guest_id = $1 AND is_active = TRUE
         FOR UPDATE
         `,
-        [guestId]
-      );
+      [guestId]
+    );
 
-      for (const gr of guestRooms.rows) {
-        // 1️⃣ Close guest-room assignment
-        await trx.query(
-          `
+    for (const gr of guestRooms.rows) {
+      // 1️⃣ Close guest-room assignment
+      await trx.query(
+        `
           UPDATE t_guest_room
           SET
             is_active = FALSE,
@@ -1083,12 +1100,12 @@ export class GuestsService {
             updated_ip = $3
           WHERE guest_room_id = $1
           `,
-          [gr.guest_room_id, user, ip]
-        );
+        [gr.guest_room_id, user, ip]
+      );
 
-        // 2️⃣ Free the room
-        await trx.query(
-          `
+      // 2️⃣ Free the room
+      await trx.query(
+        `
           UPDATE m_rooms
           SET status = 'Available',
               updated_at = NOW(),
@@ -1096,12 +1113,12 @@ export class GuestsService {
               updated_ip = $3
           WHERE room_id = $1
           `,
-          [gr.room_id, user, ip]
-        );
+        [gr.room_id, user, ip]
+      );
 
-        // 3️⃣ Cancel housekeeping
-        await trx.query(
-          `
+      // 3️⃣ Cancel housekeeping
+      await trx.query(
+        `
           UPDATE t_guest_hk
           SET
             status = 'Unassigned',
@@ -1112,10 +1129,10 @@ export class GuestsService {
           WHERE guest_id = $1
             AND is_active = TRUE
           `,
-          [gr.guest_id, user, ip]
-        );
-      }
- 
+        [gr.guest_id, user, ip]
+      );
+    }
+
     /* ================= HOUSEKEEPING ================= */
 
     await trx.query(
@@ -1205,7 +1222,7 @@ export class GuestsService {
       WHERE guest_id = $1 AND is_active = TRUE
     `, [guestId, user, ip]);
 
-  
+
     /* ================= LIAISONING OFFICER ================= */
     await trx.query(`
       UPDATE t_guest_liaisoning_officer
@@ -1301,14 +1318,14 @@ export class GuestsService {
           FOR UPDATE SKIP LOCKED
         `);
 
-      // const guestIds = new Set<string>();
+        // const guestIds = new Set<string>();
 
-      for (const row of expired.rows) {
-        if (!row.inout_id) {
-          continue;
-        }
-        await client.query(
-          `
+        for (const row of expired.rows) {
+          if (!row.inout_id) {
+            continue;
+          }
+          await client.query(
+            `
           UPDATE t_guest_inout
           SET
             status = 'Exited',
@@ -1318,23 +1335,23 @@ export class GuestsService {
             updated_ip = $3
           WHERE inout_id = $1
           `,
-          [row.inout_id, user, ip]
-        );
+            [row.inout_id, user, ip]
+          );
 
-        // guestIds.add(row.guest_id);
-      }
+          // guestIds.add(row.guest_id);
+        }
 
-      for (const row of expired.rows) {
-        await this.cascadeGuestExit(row.inout_id, client, user, ip);
-        await this.activityLog.log({
-          message: 'Rooms, drivers, vehicles, messangers, liaisoning officers, medical contacts, butlers, and networks have been deleted for the exited guest inouts',
-          module: 'GUEST INOUT',
-          action: 'EXIT',
-          referenceId: row.inout_id,
-          performedBy: user,
-          ipAddress: ip,
-        }, client);
-      }
+        for (const row of expired.rows) {
+          await this.cascadeGuestExit(row.inout_id, client, user, ip);
+          await this.activityLog.log({
+            message: 'Rooms, drivers, vehicles, messangers, liaisoning officers, medical contacts, butlers, and networks have been deleted for the exited guest inouts',
+            module: 'GUEST INOUT',
+            action: 'EXIT',
+            referenceId: row.inout_id,
+            performedBy: user,
+            ipAddress: ip,
+          }, client);
+        }
         return { updated: expired.rowCount };
       } catch (err) {
         throw err;

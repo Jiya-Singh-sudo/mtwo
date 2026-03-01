@@ -4,7 +4,7 @@ import { GuestTransportTableQueryDto } from './dto/guest-transport-table.dto';
 
 @Injectable()
 export class GuestTransportService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   async getGuestTransportTable(
     params: GuestTransportTableQueryDto & {
@@ -163,9 +163,15 @@ export class GuestTransportService {
 
     const whereSql = `WHERE ${where.join(' AND ')}`;
 
-    /* ---------------- COUNT ---------------- */
+    /* ---------------- COUNT & STATS ---------------- */
     const countSql = `
-      SELECT COUNT(*)::int AS total
+      SELECT 
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE io.status = 'Scheduled')::int AS scheduled,
+        COUNT(*) FILTER (WHERE io.status = 'Entered')::int AS entered,
+        COUNT(*) FILTER (WHERE io.status = 'Inside')::int AS inside,
+        COUNT(*) FILTER (WHERE io.status = 'Exited')::int AS exited,
+        COUNT(*) FILTER (WHERE io.status = 'Cancelled')::int AS cancelled
       FROM t_guest_inout io
       JOIN m_guest g
         ON g.guest_id = io.guest_id
@@ -320,17 +326,27 @@ export class GuestTransportService {
 
     return this.db.transaction(async (client) => {
       try {
-      const countRes = await client.query(countSql, sqlParams);
+        const countRes = await client.query(countSql, sqlParams);
 
-      const dataRes = await client.query(
-        dataSql,
-        [...sqlParams, limit, offset]
-      );
+        const dataRes = await client.query(
+          dataSql,
+          [...sqlParams, limit, offset]
+        );
 
-      return {
-        data: dataRes.rows,
-        totalCount: countRes.rows[0].total,
-      };
+        const countRow = countRes.rows[0];
+
+        return {
+          data: dataRes.rows,
+          totalCount: countRow.total,
+          stats: {
+            All: countRow.total,
+            Scheduled: countRow.scheduled || 0,
+            Entered: countRow.entered || 0,
+            Inside: countRow.inside || 0,
+            Exited: countRow.exited || 0,
+            Cancelled: countRow.cancelled || 0,
+          }
+        };
       } catch (err) {
         throw err;
       }

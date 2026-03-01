@@ -126,7 +126,7 @@ export class GuestFoodService {
     if (!/^GF\d+$/.test(id)) {
       throw new BadRequestException('Invalid Guest Food ID format');
     }
-    const sql = `SELECT * FROM t_guest_food WHERE guest_food_id = $1`;
+    const sql = `SELECT * FROM t_guest_food WHERE guest_food_id = $1 AND is_active = TRUE`;
     const res = await this.db.query(sql, [id]);
     if (!res.rowCount) {
       throw new NotFoundException(`Guest Food "${id}" not found`);
@@ -156,7 +156,8 @@ export class GuestFoodService {
         // 🔒 Validate guest exists
         const guestCheck = await client.query(
           `SELECT 1 FROM m_guest 
-          WHERE guest_id = $1 AND is_active = TRUE
+          WHERE guest_id = $1 
+          AND is_active = TRUE
           FOR UPDATE`,
           [dto.guest_id]
         );
@@ -253,7 +254,7 @@ export class GuestFoodService {
           if (err.code === '23505') {
             // Already exists → fetch ID
             const existing = await client.query(
-              `SELECT food_id FROM m_food_items WHERE food_name = $1`,
+              `SELECT food_id FROM m_food_items WHERE food_name = $1 AND is_active = TRUE`,
               [dto.food_name.trim()]
             );
             foodId = existing.rows[0].food_id;

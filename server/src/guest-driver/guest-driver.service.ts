@@ -56,14 +56,10 @@ export class GuestDriverService {
       LIMIT 1
       FOR UPDATE;
     `;
-
     const res = await client.query(sql, [guestId]);
-
     if (!res.rows.length) {
       throw new BadRequestException("Guest status not found!");    }
-
     const status = res.rows[0].status;
-
     if (["Exited", "Cancelled"].includes(status)) {
       throw new BadRequestException("Guest not assignable!");    }
   }
@@ -97,7 +93,6 @@ export class GuestDriverService {
       if (dto.drop_date && dto.drop_time) {
         const start = new Date(`${dto.trip_date}T${dto.start_time}`);
         const end = new Date(`${dto.drop_date}T${dto.drop_time}`);
-
         if (end <= start) {
           throw new BadRequestException("Invalid trip duration!");
         }
@@ -603,7 +598,7 @@ export class GuestDriverService {
         throw new BadRequestException("Invalid trip id");
       }
       const existing = await client.query(
-        `SELECT 1 FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
+        `SELECT 1 FROM t_guest_driver WHERE guest_driver_id = $1 AND is_active = TRUE FOR UPDATE`,
         [id]
       );
 
@@ -658,7 +653,7 @@ export class GuestDriverService {
           throw new BadRequestException("Invalid guest id");
         }
       const oldRes = await client.query(
-        `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 FOR UPDATE`,
+        `SELECT * FROM t_guest_driver WHERE guest_driver_id = $1 is_active = TRUE FOR UPDATE`,
         [oldGuestDriverId]
       );
 

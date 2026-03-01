@@ -3,6 +3,7 @@ import { DatabaseService } from "../database/database.service";
 import { CreateGuestButlerDto } from "./dto/create-guest-butler.dto";
 import { UpdateGuestButlerDto } from "./dto/update-guest-butler.dto";
 import { ActivityLogService } from "src/activity-log/activity-log.service";
+
 @Injectable()
 export class GuestButlerService {
   constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) {}
@@ -29,7 +30,6 @@ export class GuestButlerService {
         b.butler_id,
         s.full_name AS butler_name,
         s.primary_mobile AS butler_mobile,
-        b.shift
 
       FROM t_guest_butler gb
       JOIN m_butler b ON b.butler_id = gb.butler_id
@@ -52,7 +52,6 @@ export class GuestButlerService {
         b.butler_id,
         s.full_name AS butler_name,
         s.primary_mobile AS butler_mobile,
-        b.shift
       FROM t_guest_butler gb
       JOIN m_butler b ON b.butler_id = gb.butler_id
       JOIN m_staff s ON s.staff_id = b.staff_id
@@ -393,6 +392,7 @@ export class GuestButlerService {
       const hasRequests = await client.query(`
         SELECT 1 FROM t_guest_butler
         WHERE guest_butler_id = $1
+          AND is_active = TRUE
           AND special_request IS NOT NULL
           AND TRIM(special_request) <> ''
       `, [id]);

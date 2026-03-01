@@ -79,11 +79,11 @@ export class DriversService {
       const normalized = query.search.trim();
 
       if (!normalized) {
-        throw new BadRequestException('INVALID_SEARCH');
+        throw new BadRequestException('Invalid search');
       }
 
       if (normalized.length > 100) {
-        throw new BadRequestException('SEARCH_TOO_LONG');
+        throw new BadRequestException('Search is too long');
       }
 
       params.push(`%${normalized}%`);
@@ -121,6 +121,7 @@ export class DriversService {
         s.alternate_mobile AS driver_alternate_mobile,
         s.email AS driver_mail,
         s.address,
+        s.designation,
         d.driver_license,
         d.license_expiry_date,
         d.is_active,
@@ -165,6 +166,7 @@ export class DriversService {
       JOIN m_staff s ON s.staff_id = d.staff_id
       WHERE d.is_active = TRUE
         AND s.is_active = TRUE
+        AND s.designation = 'Driver'
         AND NOT EXISTS (
           SELECT 1
           FROM t_guest_driver gd
@@ -262,35 +264,35 @@ export class DriversService {
       const staffId = await this.generateStaffId(client);
       const license = dto.driver_license?.trim();
       if (!dto.driver_name || !dto.driver_name.trim()) {
-        throw new BadRequestException('DRIVER_NAME_REQUIRED');
+        throw new BadRequestException('Driver name is required');
       }
       if (dto.driver_name.length > 100) {
-        throw new BadRequestException('DRIVER_NAME_TOO_LONG');
+        throw new BadRequestException('Driver name too long');
       }
       const mobileRegex = /^[6-9]\d{9}$/;
       if (dto.driver_contact && !mobileRegex.test(dto.driver_contact)) {
-        throw new BadRequestException('INVALID_DRIVER_CONTACT');
+        throw new BadRequestException('Invalid driver contact');
       }
       if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
-        throw new BadRequestException('INVALID_ALTERNATE_CONTACT');
+        throw new BadRequestException('Invalid alternate contact');
       }
       if (dto.driver_mail) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(dto.driver_mail)) {
-          throw new BadRequestException('INVALID_EMAIL');
+          throw new BadRequestException('Invalid email');
         }
       }
       if (!license) {
-        throw new BadRequestException('DRIVER_LICENSE_REQUIRED');
+        throw new BadRequestException('Driver license is required');
       }
       if (dto.license_expiry_date) {
         if (isNaN(Date.parse(dto.license_expiry_date))) {
-          throw new BadRequestException('INVALID_LICENSE_EXPIRY_DATE');
+          throw new BadRequestException('Invalid license expiry date');
         }
 
         if (new Date(dto.license_expiry_date) < new Date()) {
-          throw new BadRequestException('LICENSE_ALREADY_EXPIRED');
+          throw new BadRequestException('License is expired');
         }
       }
       if (license) {
@@ -329,7 +331,7 @@ export class DriversService {
         VALUES ($1,$2,$3,$4,$5,$6,$7,'Driver',true,NOW(),$8,$9)
       `, [
         staffId,
-        dto.driver_name,
+        driverName,
         driver_name_local_language,
         dto.driver_contact ?? null,
         dto.driver_alternate_contact ?? null,
@@ -387,7 +389,7 @@ export class DriversService {
         throw new BadRequestException('INVALID_GUEST_VEHICLE_ID');
       }
       const driverRes = await client.query(
-        `SELECT d.*, s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE d.driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE FOR UPDATE`,
+        `SELECT d.*, s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE d.driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE AND s.designation = 'Driver' FOR UPDATE`,
         [payload.driver_id]
       );
 
@@ -409,7 +411,14 @@ export class DriversService {
       }
 
       const vehicleRes = await client.query(
-        `SELECT * FROM t_guest_vehicle WHERE guest_vehicle_id = $1 AND is_active = TRUE FOR UPDATE`,
+        `SELECT d.*, v.*
+          FROM t_guest_driver d
+          JOIN t_guest_vehicle v 
+            ON v.guest_vehicle_id = d.guest_vehicle_id
+          WHERE d.guest_driver_id = $1
+            AND d.is_active = TRUE
+            AND v.is_active = TRUE
+          FOR UPDATE;`,
         [payload.guest_vehicle_id]
       );
 
@@ -418,17 +427,17 @@ export class DriversService {
       }
       const existingAssignment = await client.query(`
         SELECT 1
-        FROM t_guest_vehicle
+        FROM t_guest_driver
         WHERE driver_id = $1
           AND is_active = TRUE
         LIMIT 1
       `, [payload.driver_id]);
 
       if (existingAssignment.rowCount > 0) {
-        throw new BadRequestException('DRIVER_ALREADY_ASSIGNED');
+        throw new BadRequestException('Driver is already assigned to a guest & vehicle');
       }
       const sql = `
-      UPDATE t_guest_vehicle
+      UPDATE t_guest_driver
       SET
         driver_id = $2,
         updated_at = NOW(),
@@ -459,7 +468,7 @@ export class DriversService {
 
   async findDriversOnDutyByDate(dutyDate: string) {
     if (!dutyDate || isNaN(Date.parse(dutyDate))) {
-      throw new BadRequestException('INVALID_DUTY_DATE');
+      throw new BadRequestException('Invalid duty date');
     }
     const sql = `
       SELECT DISTINCT
@@ -488,7 +497,7 @@ export class DriversService {
       SELECT d.*, s.full_name
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
-      WHERE d.is_active = $1
+      WHERE d.is_active = $1 AND s.is_active = TRUE
       ORDER BY s.full_name
     `
     : `
@@ -507,7 +516,6 @@ export class DriversService {
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
       WHERE s.full_name = $1
-      
     `;
     const result = await this.db.query(sql, [driver_name]);
     return result.rows[0];
@@ -515,7 +523,7 @@ export class DriversService {
 
   async findOneById(driver_id: string) {
     if (!/^D\d+$/.test(driver_id)) {
-      throw new BadRequestException('INVALID_DRIVER_ID');
+      throw new BadRequestException('Invalid driver ID');
     }
     const sql = `
       SELECT d.*, s.*
@@ -530,28 +538,28 @@ export class DriversService {
   async update(driver_id: string, dto: UpdateDriverDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       if (!/^D\d+$/.test(driver_id)) {
-        throw new BadRequestException('INVALID_DRIVER_ID');
+        throw new BadRequestException('Invalid driver ID');
       }
       if (dto.driver_name && !dto.driver_name.trim()) {
-        throw new BadRequestException('INVALID_DRIVER_NAME');
+        throw new BadRequestException('Invalid driver name');
       }
       if (dto.license_expiry_date) {
         if (isNaN(Date.parse(dto.license_expiry_date))) {
-          throw new BadRequestException('INVALID_LICENSE_EXPIRY_DATE');
+          throw new BadRequestException('Invalid license expiry date');
         }
       }
       const mobileRegex = /^[6-9]\d{9}$/;
       if (dto.driver_contact && !mobileRegex.test(dto.driver_contact)) {
-        throw new BadRequestException('INVALID_DRIVER_CONTACT');
+        throw new BadRequestException('Invalid driver contact');
       }
       if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
-        throw new BadRequestException('INVALID_ALTERNATE_CONTACT');
+        throw new BadRequestException('Invalid alternate contact');
       }
       if (dto.driver_mail) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(dto.driver_mail)) {
-          throw new BadRequestException('INVALID_EMAIL');
+          throw new BadRequestException('Invalid email');
         }
       }
       const existingRes = await client.query(
@@ -559,25 +567,17 @@ export class DriversService {
         SELECT d.*, s.*
         FROM m_driver d
         JOIN m_staff s ON s.staff_id = d.staff_id
-        WHERE d.driver_id = $1
+        WHERE d.driver_id = $1 AND s.is_active = TRUE AND d.is_active = TRUE
         FOR UPDATE`,
         [driver_id]
       );
-
       const existing = existingRes.rows[0];
-
       if (!existing) {
         throw new NotFoundException(`Driver '${driver_id}' not found`);
       }
       const driver_name_local_language = transliterateToDevanagari(dto.driver_name);
       const updatedName = dto.driver_name?.trim();
       const updatedLicense = dto.driver_license?.trim();
-
-      // const now = new Date().toLocaleString('en-GB', {
-      //   timeZone: 'Asia/Kolkata',
-      //   hour12: false,
-      // }).replace(',', '');
-
       // 🚫 CHECK: Prevent deactivation if driver is assigned
       if (dto.is_active === false && existing.is_active === true) {
         const assignmentCheck = await client.query(`
@@ -587,10 +587,9 @@ export class DriversService {
             AND is_active = TRUE
           LIMIT 1
         `, [driver_id]);
-
         if (assignmentCheck.rowCount > 0) {
           throw new BadRequestException(
-            `Cannot deactivate driver '${driver_id}' because the driver is currently assigned`
+            `Cannot delete driver '${driver_id}' because the driver is currently assigned`
           );
         }
       }
@@ -676,19 +675,16 @@ export class DriversService {
   async softDelete(driver_id: string, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       if (!/^D\d+$/.test(driver_id)) {
-        throw new BadRequestException('INVALID_DRIVER_ID');
+        throw new BadRequestException('Invalid driver ID');
       }
       const existingRes = await client.query(
-        `SELECT d.*,s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE FOR UPDATE`,
+        `SELECT d.*,s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE AND d.designation = 'Driver' FOR UPDATE`,
         [driver_id]
       );
-
       const existing = existingRes.rows[0];
-
       if (!existing) {
         throw new NotFoundException(`Driver '${driver_id}' does not exist`);
       }
-
       // 🚫 CHECK: Is driver currently assigned?
       const assignmentCheck = await client.query(
         `
@@ -700,7 +696,6 @@ export class DriversService {
         `,
         [driver_id]
       );
-
       if (assignmentCheck.rows.length > 0) {
         throw new BadRequestException(
           `Cannot deactivate driver '${driver_id}' because the driver is currently assigned to an active duty`
@@ -714,7 +709,6 @@ export class DriversService {
           updated_ip = $2
         WHERE staff_id = $3
       `, [user, ip, existing.staff_id]);
-
       const sql = `
         UPDATE m_driver SET
           is_active = FALSE,
@@ -724,7 +718,6 @@ export class DriversService {
         WHERE driver_id = $3
         RETURNING *;
       `;
-
       const result = await client.query(sql, [user, ip, driver_id]);
       await this.activityLog.log({
         message: 'Driver deleted',
