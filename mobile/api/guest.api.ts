@@ -1,0 +1,52 @@
+import { safeGet, safePost, safePatch, safeDelete } from './httpHelpers';
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  totalCount: number;
+  statusCounts?: Record<string, number>;
+};
+
+export const fetchGuestStatusCounts = async () => {
+  const data = await safeGet("/guests/status-counts");
+  return data; // <-- unwrap one more level
+};
+
+export async function getActiveGuests(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  entryDateFrom?: string;
+  entryDateTo?: string;
+}) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      query.append(key, String(value));
+    }
+  });
+
+  return safeGet(`/guests/active?${query.toString()}`);
+}
+
+export async function createGuest(payload: { guest: any; designation?: any; inout?: any }) {
+  return safePost('/guests', payload);
+}
+
+export async function updateGuest(id: number | string, payload: any) {
+  return safePatch(`/guests/${id}`, payload);
+}
+export async function exitGuestInOut(inoutId: string) {
+  return safePatch(`/guests/inout/${inoutId}/exit`, {});
+}
+
+export async function cancelGuestInOut(inoutId: string) {
+  return safePatch(`/guests/inout/${inoutId}/cancel`, {});
+}
+
+export async function softDeleteGuest(id: number | string) {
+  return safeDelete(`/guests/${id}`);
+}
