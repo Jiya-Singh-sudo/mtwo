@@ -44,21 +44,32 @@ export const updateGuestFood = async (
   const res = await apiClient.put(`/guest-food/${guestFoodId}`, payload);
   return res.data;
 };
-
 export async function createDayMealPlan(payload: {
   breakfast?: string[];
   lunch?: string[];
   highTea?: string[];
   dinner?: string[];
-  remarks?: string;
 }) {
-  const res = await apiClient.post(
-    "/guest-food/plan/day",
-    payload,
-  );
+  const res = await apiClient.post("/guest-food/plan/day", {
+    meals: payload
+  });
 
   return res.data;
 }
+// export async function createDayMealPlan(payload: {
+//   breakfast?: string[];
+//   lunch?: string[];
+//   highTea?: string[];
+//   dinner?: string[];
+//   remarks?: string;
+// }) {
+//   const res = await apiClient.post(
+//     "/guest-food/plan/day",
+//     payload,
+//   );
+
+//   return res.data;
+// }
 export const getTodayGuestOrders = async () => {
   const res = await apiClient.get("/guest-food/guests/today");
   return res.data;

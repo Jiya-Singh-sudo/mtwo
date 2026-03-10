@@ -132,7 +132,7 @@ function GuestTransportManagement() {
     useState<VehicleDateTimeParts & {
       guest_id: string;
       vehicle_no: string;
-      location?: string;
+      location: string;
     }>({
       guest_id: "",
       vehicle_no: "",
@@ -208,7 +208,7 @@ function GuestTransportManagement() {
           ...(entryDateTo ? { entryDateTo } : {}),
         });
 
-        console.log("Guest Transport Table Response:", res);
+        // console.log("Guest Transport Table Response:", res);
         // const adaptedRows: GuestTransportRow[] = res.data.map((guest: any) => ({
         //   guest,
         //   driver: null,
@@ -224,7 +224,11 @@ function GuestTransportManagement() {
             entry_date: combineDateAndTime(row.entry_date, row.entry_time),
             exit_date: combineDateAndTime(row.exit_date, row.exit_time),
             inout_status: row.inout_status,
-            requires_driver: row.requires_driver,
+            requires_driver:
+              row.requires_driver === true ||
+              row.requires_driver === "true" ||
+              row.requires_driver === 1 ||
+              row.requires_driver === "1",
           },
 
           driver: row.driver_id
@@ -457,27 +461,38 @@ function GuestTransportManagement() {
      ======================= */
 
   async function openAssignVehicle(guest_id: string, entry_date: string, exit_date: string, inout_status?: string | null) {
+    // console.log("OPEN VEHICLE MODAL CALLED");
     if (isGuestLocked(inout_status)) return;
-    const list = await getAssignableVehicles();
-    setVehicles(list);
+
+    try {
+      const list = await getAssignableVehicles();
+      // console.log("Vehicles:", list);
+      setVehicles(list || []);
+    } catch (err) {
+      console.error("Vehicle load failed", err);
+      setVehicles([]);
+    }
 
     // const min = addDays(entry_date, -1);
     // const max = addDays(exit_date, 1);
-    const min = entry_date;
-    const max = exit_date;
+    const min = toISODateOnly(entry_date);
+    const max = toISODateOnly(exit_date);
 
     setAssignWindow({
-      minDate: toISODateOnly(min),
-      maxDate: toISODateOnly(max),
-      minDateTime: toISOLocalDateTime(min),
-      maxDateTime: toISOLocalDateTime(max),
+      minDate: min,
+      maxDate: max,
+      minDateTime: toISOLocalDateTime(entry_date),
+      maxDateTime: toISOLocalDateTime(exit_date),
     });
-    setVehicleForm(prev => ({
-      ...prev,
+    setVehicleForm({
       guest_id: String(guest_id),
       vehicle_no: "",
       location: "",
-    }));
+      assigned_date: "",
+      assigned_time: "",
+      released_date: "",
+      released_time: "",
+    });
 
     setFormErrors({});
     setVehicleModalOpen(true);
@@ -608,23 +623,32 @@ function GuestTransportManagement() {
   }
 
   function isGuestLocked(status?: string | null) {
-    return status === "Exited" || status === "Cancelled";
+    if (!status) return false;
+    const s = status.trim().toLowerCase();
+    return s === "exited" || s === "cancelled";
   }
 
-  function isVehicleExpired(vehicle: any) {
-    if (!vehicle?.released_at) return false;
-    return new Date(vehicle.released_at) <= new Date();
-  }
+  // function isVehicleExpired(vehicle: any) {
+  //   if (!vehicle?.released_at) return false;
 
-  function isDriverExpired(driver: any) {
-    if (!driver?.drop_date || !driver?.drop_time) return false;
+  //   const today = new Date();
+  //   today.setHours(0, 0, 0, 0);
 
-    const dropDateTime = new Date(
-      `${driver.drop_date}T${driver.drop_time}+05:30`
-    );
+  //   const released = new Date(vehicle.released_at);
+  //   released.setHours(0, 0, 0, 0);
 
-    return dropDateTime <= new Date();
-  }
+  //   return released < today;
+  // }
+
+  // function isDriverExpired(driver: any) {
+  //   if (!driver?.drop_date || !driver?.drop_time) return false;
+
+  //   const dropDateTime = new Date(
+  //     `${driver.drop_date}T${driver.drop_time}+05:30`
+  //   );
+
+  //   return dropDateTime <= new Date();
+  // }
 
   /* =======================
      RENDER
@@ -709,13 +733,15 @@ function GuestTransportManagement() {
       render: (row) => {
         const { guest, driver, vehicle } = row;
         const locked = isGuestLocked(guest.inout_status);
-        const driverExpired = isDriverExpired(driver);
-        const vehicleExpired = isVehicleExpired(vehicle);
+        // const locked = isGuestLocked(guest.inout_status);
+        // const driverExpired = isDriverExpired(driver);
+        // const vehicleExpired = isVehicleExpired(vehicle);
+
+        // console.log("VEHICLE OBJECT:", vehicle);
 
         return (
           <div className="flex gap-2 items-center">
             {/* DRIVER ACTIONS */}
-            {!driverExpired ? (
               <div className="flex gap-1">
                 <button
                   className="icon-btn text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -773,21 +799,19 @@ function GuestTransportManagement() {
                   </button>
                 )}
               </div>
-            ) : (
-              <span className="text-xs text-gray-400 italic mr-2">Completed</span>
-            )}
+
 
             {/* VEHICLE ACTIONS */}
-            {!vehicleExpired ? (
               <div className="flex gap-1">
                 <button
                   className="icon-btn text-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={locked}
                   title={vehicle ? "Edit Vehicle" : "Assign Vehicle"}
                   onClick={() => {
+                    // console.log("LOCKED:", locked, "STATUS:", guest.inout_status);
                     if (locked) return;
 
-                    if (vehicle) {
+                    if (vehicle && vehicle.guest_vehicle_id) {
                       setEditingGuestVehicleId(vehicle.guest_vehicle_id);
 
                       const assigned = splitDateTime(vehicle.assigned_at || undefined);
@@ -839,9 +863,7 @@ function GuestTransportManagement() {
                   </button>
                 )}
               </div>
-            ) : (
-              <span className="text-xs text-gray-400 italic mr-2">Completed</span>
-            )}
+            
 
             {/* DELETE GUEST */}
             <button
@@ -900,6 +922,7 @@ function GuestTransportManagement() {
                       value={GuestTable.query.search || ""}
                       onChange={(e) => {
                         GuestTable.setPage(1);
+                        console.log("QUERY SENT TO API:", GuestTable.query);
                         GuestTable.setSearchInput(e.target.value);
                       }}
                       maxLength={50}
@@ -1203,9 +1226,6 @@ function GuestTransportManagement() {
                   onBlur={() => validateSingleField(assignVehicleSchema, "vehicle_no", vehicleForm.vehicle_no, setFormErrors)}
                   onKeyUp={() => validateSingleField(assignVehicleSchema, "vehicle_no", vehicleForm.vehicle_no, setFormErrors)}
                 >
-                  <FieldError message={formErrors.vehicle_no} />
-                  {/* <p className="errorText">{formErrors.vehicle_no}</p> */}
-
                   <option value="">Select Vehicle</option>
                   {vehicles.map((v) => (
                     <option key={v.vehicle_no} value={v.vehicle_no}>
@@ -1213,6 +1233,8 @@ function GuestTransportManagement() {
                     </option>
                   ))}
                 </select>
+                <FieldError message={formErrors.vehicle_no} />
+                {/* <p className="errorText">{formErrors.vehicle_no}</p> */}
 
                 <input
                   className="nicInput"

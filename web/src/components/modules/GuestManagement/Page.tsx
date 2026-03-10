@@ -107,7 +107,11 @@ export function GuestManagement() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [roomGuest, setRoomGuest] = useState<ActiveGuestRow | null>(null);
   const [roomsRequired, setRoomsRequired] = useState<number>(1);
-
+  const [designationSearch, setDesignationSearch] = useState("");
+  const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
+  const filteredDesignations = designations.filter((d) =>
+    d.designation_name.toLowerCase().includes(designationSearch.toLowerCase())
+  );
   const initialGuestForm = {
     guest_name: '',
     guest_name_local_language: '',
@@ -317,8 +321,11 @@ export function GuestManagement() {
   useEffect(() => {
     loadGuests();
   }, [query]);
-
-
+  useEffect(() => {
+    const closeDropdown = () => setShowDesignationDropdown(false);
+    window.addEventListener("click", closeDropdown);
+    return () => window.removeEventListener("click", closeDropdown);
+  }, []);
 
   // useEffect(() => {
   //   console.log("Status counts:", statusCounts);
@@ -411,7 +418,7 @@ export function GuestManagement() {
         guest_address: guestForm.guest_address,
         email: guestForm.email,
         requires_driver: guestForm.requires_driver,
-        no_of_companions: guestForm.no_of_companions,
+        companions: guestForm.no_of_companions,
 
         designation_id: guestForm.designation_id || undefined,
         designation_name: guestForm.designation_name || undefined,
@@ -484,7 +491,7 @@ export function GuestManagement() {
   }
 
   function openView(g: ActiveGuestRow) {
-    console.log("VIEW ROW:", g);
+    // console.log("VIEW ROW:", g);
     setSelectedGuest(g);
     setShowView(true);
   }
@@ -520,12 +527,11 @@ export function GuestManagement() {
 
       status: g.inout_status || "Scheduled"
     });
-
     setEditGdId(g.gd_id || "");
     setEditInoutId(g.inout_id || "");
-
     setModalMode("edit");
     setDesignationMode(g.designation_id ? "existing" : "other");
+    setDesignationSearch(g.designation_name || "");
   }
 
   async function submitEdit() {
@@ -595,8 +601,9 @@ export function GuestManagement() {
           entry_time: parsed.entry_time,
           exit_date: parsed.exit_date,
           exit_time: parsed.exit_time,
-          status: parsed.status,
+          status: parsed.status,     
           companions: parsed.no_of_companions,
+          requires_driver: parsed.requires_driver
         });
         if (res?.warnings?.length) {
           alert(
@@ -608,14 +615,14 @@ export function GuestManagement() {
       resetEditGuestState();
       setModalMode(null);
       await loadGuests();
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof ZodError) {
         setFormErrors(zodToFormErrors(err));
         return;
       }
 
       console.error("Edit failed", err);
-      alert("Failed to update guest");
+      alert(err?.response?.data?.message || "Failed to update guest");
     }
   }
 
@@ -691,6 +698,9 @@ export function GuestManagement() {
                 className="h-10 px-4 bg-[#00247D] text-white rounded-sm flex items-center gap-2 hover:bg-blue-900 whitespace-nowrap shrink-0"
                 onClick={() => {
                   setGuestForm(initialGuestForm);
+                  setDesignationSearch("");
+                  setShowDesignationDropdown(false);
+                  setDesignationMode("existing");
                   setModalMode("add");
                 }}
               >
@@ -893,6 +903,8 @@ export function GuestManagement() {
                   onClick={() => {
                     setModalMode(null);
                     resetEditGuestState();
+                    setDesignationSearch("");
+                    setShowDesignationDropdown(false);
                   }}
                   aria-label="Close"
                 >
@@ -961,7 +973,69 @@ export function GuestManagement() {
                         </div> */}
 
                       <div className="fullWidth">
-                        <label>Designation <span className="required">*</span></label>
+                        <div className="menuInputRow">
+                          <input
+                            className="nicInput"
+                            placeholder="Search designation..."
+                            value={designationSearch}
+                            autoComplete="off"
+                            spellCheck={false}
+                            onFocus={() => setShowDesignationDropdown(true)}
+                            onChange={(e) => {
+                              setDesignationSearch(e.target.value);
+                              setShowDesignationDropdown(true);
+                            }}
+                          />
+
+                          {showDesignationDropdown && (
+                            <div className="menuDropdown">
+                              {filteredDesignations.length > 0 ? (
+                                filteredDesignations.map((d) => (
+                                <div
+                                  key={d.designation_id}
+                                  className="menuOption"
+                                  onClick={() => {
+                                    setGuestForm((prev) => ({
+                                      ...prev,
+                                      designation_id: d.designation_id,
+                                      designation_name: d.designation_name,
+                                    }));
+
+                                    setDesignationSearch(d.designation_name);
+                                    setDesignationMode("existing");
+                                    setShowDesignationDropdown(false);
+                                  }}
+                                >
+                                  {d.designation_name}
+                                </div>
+                              ))
+                              ) : (
+                                <div className="menuOption disabled">
+                                  No designations found
+                                </div>
+                              )}
+
+                              <div
+                                className="menuOption newItem"
+                                onClick={() => {
+                                  setDesignationMode("other");
+                                  setGuestForm((s) => ({
+                                    ...s,
+                                    designation_id: "",
+                                    designation_name: "",
+                                  }));
+                                  setDesignationSearch("");
+                                  setShowDesignationDropdown(false);
+                                }}
+                              >
+                                + Add New Designation
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <FieldError message={formErrors.designation_id} />
+                        {/* <label>Designation <span className="required">*</span></label>
                         <select
                           name="designation_id"
                           className="nicInput"
@@ -1007,7 +1081,7 @@ export function GuestManagement() {
 
                           <option value="OTHER">Other</option>
                         </select>
-                        <FieldError message={formErrors.designation_id} />
+                        <FieldError message={formErrors.designation_id} /> */}
                         {/* <p className="errorText">{formErrors.designation_id}</p> */}
                         {/* {formErrors.designation_id && (
                         <div className="fieldError">
@@ -1335,7 +1409,6 @@ export function GuestManagement() {
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            defaultChecked
                             checked={guestForm.requires_driver}
                             onChange={(e) =>
                               setGuestForm(s => ({
@@ -1386,62 +1459,63 @@ export function GuestManagement() {
 
                       <div className="fullWidth">
                         <label>Designation <span className="required">*</span></label>
-                        <select
-                          name="designation_id"
-                          className="nicInput"
-                          value={designationMode === "other" ? "OTHER" : editGuestForm.designation_id}
-                          onBlur={() => validateSingleField(guestManagementSchema, "designation_id", editGuestForm.designation_id, setFormErrors)}
-                          onChange={(e) => {
-                            const value = e.target.value;
 
-                            if (value === "OTHER") {
-                              setDesignationMode("other");
-                              setEditGuestForm((s) => ({
-                                ...s,
-                                designation_id: "",
-                                designation_name: "",
-                                department: "",
-                                organization: "",
-                                office_location: "",
-                              }));
-                              return;
-                            }
+                        <div className="menuInputRow">
+                          <input
+                            className="nicInput"
+                            placeholder="Search designation..."
+                            value={designationSearch}
+                            onFocus={() => setShowDesignationDropdown(true)}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              setDesignationSearch(e.target.value);
+                              setShowDesignationDropdown(true);
+                            }}
+                          />
 
-                            const selected = designations.find(d => d.designation_id === value);
-                            if (!selected) return;
+                          {showDesignationDropdown && (
+                            <div className="menuDropdown">
+                              {filteredDesignations.map((d) => (
+                                <div
+                                  key={d.designation_id}
+                                  className="menuOption"
+                                  onClick={() => {
+                                    setEditGuestForm((prev) => ({
+                                      ...prev,
+                                      designation_id: d.designation_id,
+                                      designation_name: d.designation_name,
+                                    }));
 
-                            setDesignationMode("existing");
-                            setEditGuestForm((s) => ({
-                              ...s,
-                              designation_id: selected.designation_id,
-                              designation_name: selected.designation_name,
-                              // department: selected.department ?? "",
-                              // organization: selected.organization ?? "",
-                              // office_location: selected.office_location ?? "",
-                            }));
-                          }}
-                        >
-                          <option value="">Select designation *</option>
+                                    setDesignationSearch(d.designation_name);
+                                    setDesignationMode("existing");
+                                    setShowDesignationDropdown(false);
+                                  }}
+                                >
+                                  {d.designation_name}
+                                </div>
+                              ))}
 
-                          {designations.map((d) => (
-                            <option key={d.designation_id} value={d.designation_id}>
-                              {d.designation_name}
-                            </option>
-                          ))}
-
-                          <option value="OTHER">Other</option>
-                        </select>
-                        <FieldError message={formErrors.designation_id} />
-                        {/* <p className="errorText">{formErrors.designation_id}</p>
-                      <p className="errorText">{formErrors.designation_id}</p> */}
-                        {/* {formErrors.designation_id && (
-                        <div className="fieldError">
-                          <XCircle size={14} />
-                          <span>{formErrors.designation_id}</span>
+                              <div
+                                className="menuOption newItem"
+                                onClick={() => {
+                                  setDesignationMode("other");
+                                  setEditGuestForm((s) => ({
+                                    ...s,
+                                    designation_id: "",
+                                    designation_name: "",
+                                  }));
+                                  setDesignationSearch("");
+                                  setShowDesignationDropdown(false);
+                                }}
+                              >
+                                + Add New Designation
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )} */}
-                      </div>
 
+                        <FieldError message={formErrors.designation_id} />
+                      </div>
                       {designationMode === "other" && (
                         <>
                           <div>
@@ -1737,6 +1811,8 @@ export function GuestManagement() {
                 <button onClick={() => {
                   setModalMode(null);
                   resetEditGuestState();
+                  setDesignationSearch("");
+                  setShowDesignationDropdown(false);
                 }}>Cancel</button>
 
                 {modalMode === "add" ? (

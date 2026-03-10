@@ -95,7 +95,7 @@ export function Reports() {
         <p className="text-sm text-gray-600">रिपोर्ट और विश्लेषण - Generate comprehensive reports and analytics</p>
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white border-2 border-blue-200 rounded-sm p-6 shadow-sm">
           <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export function Reports() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Global Report Generator */}
       <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm">

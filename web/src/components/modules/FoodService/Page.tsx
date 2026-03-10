@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X, Search } from "lucide-react";
+import Select from "react-select";
 import { StatCard } from "@/components/ui/StatCard";
 import "./FoodService.css";
 import { getFoodDashboard, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
@@ -155,6 +156,13 @@ export function FoodService() {
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
   const [foodItems, setFoodItems] = useState<any[]>([]);
+  const foodOptions = [
+    ...foodItems.map((f) => ({
+      value: f.food_id,
+      label: f.food_name,
+    })),
+    { value: "__new__", label: "+ Add New Item" },
+  ];
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<keyof DailyMealPlan>("breakfast");
   const [selectedFoodId, setSelectedFoodId] = useState<string>("");
@@ -702,10 +710,10 @@ export function FoodService() {
   ];
 
   // --- DEBUGGING ---
-  console.log("foodRows:", foodRows);
-  if (foodRows && foodRows.length > 0) {
-    console.log("First row keys:", Object.keys(foodRows[0]));
-  }
+  // console.log("foodRows:", foodRows);
+  // if (foodRows && foodRows.length > 0) {
+  //   console.log("First row keys:", Object.keys(foodRows[0]));
+  // }
 
   /* ---------------- RENDER ---------------- */
   return (
@@ -1223,7 +1231,7 @@ export function FoodService() {
               <div className="fullWidth">
                 <label>Add Menu Item</label>
                 <div className="menuInputRow">
-                  <select
+                  {/* <select
                     className="nicInput"
                     value={selectedFoodId}
                     onChange={(e) => {
@@ -1241,9 +1249,33 @@ export function FoodService() {
                         {f.food_name}
                       </option>
                     ))}
+                    
                     <option value="__new__">+ Add New Item</option>
-                  </select>
+                  </select> */}
+                  <Select
+                    options={foodOptions}
+                    value={
+                      foodOptions.find((o) => o.value === selectedFoodId) || null
+                    }
+                    onChange={(option) => {
+                      const val = option?.value || "";
+                      setSelectedFoodId(val);
 
+                      if (val !== "__new__") {
+                        setNewFoodName("");
+                      }
+                    }}
+                    placeholder="Search food item..."
+                    isSearchable
+                    className="w-full"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        minHeight: "40px",
+                        borderColor: "#d1d5db",
+                      }),
+                    }}
+                  />
                   {selectedFoodId === "__new__" && (
                     <>
                       <input
@@ -1335,6 +1367,7 @@ export function FoodService() {
             <div className="nicModalActions">
               <button
                 className="saveBtn"
+                disabled={!Object.values(dailyPlan).some(a => a.length)}
                 onClick={async () => {
                   try {
                     if (saving) return;
@@ -1348,11 +1381,12 @@ export function FoodService() {
                         setSaving(false);
                         return;
                       }
-
-                      await createDayMealPlan({
-                        ...dailyPlan,
-                        remarks: menuRemarks || undefined,
-                      });
+                      console.log("Sending meal plan:", dailyPlan);
+                      await createDayMealPlan(dailyPlan);
+                      // await createDayMealPlan({
+                      //   ...dailyPlan,
+                      //   remarks: menuRemarks || undefined,
+                      // });
                       await loadTodayMealPlan();
                       await loadGuests();
                       setMenuModalOpen(false);

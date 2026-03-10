@@ -13,7 +13,35 @@
   font-size: 20px;
   font-weight: bolder;
 }
+.menuInputRow {
+  position: relative;
+}
+.menuDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-top: none;
+  z-index: 50;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+.menuOption {
+  padding: 8px 12px;
+  cursor: pointer;
+}
 
+.menuOption:hover {
+  background: #f1f5f9;
+}
+
+.menuOption.newItem {
+  font-weight: 500;
+  color: #2563eb;
+}
 .modal {
   background: white;
   width: 420px;

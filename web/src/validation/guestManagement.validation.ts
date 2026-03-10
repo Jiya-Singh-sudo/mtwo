@@ -67,6 +67,9 @@ export const guestManagementSchema = z
       .transform(v => v.replace(/[\r\n]+/g, " "))
       .optional(),
 
+    requires_driver: z.boolean().optional().default(false),
+    no_of_companions: z.number().int().min(0).optional().default(0),
+
     /* ---------------- DESIGNATION ---------------- */
 
     designation_id: z.string().optional(),
@@ -107,12 +110,6 @@ export const guestManagementSchema = z
       .regex(safeTextRegex, "Invalid characters in purpose")
       .optional(),
     number_of_rooms: z
-      .coerce
-      .number()
-      .min(0, "Cannot be negative")
-      .default(0),
-
-    no_of_companions: z
       .coerce
       .number()
       .min(0, "Cannot be negative")

@@ -130,7 +130,7 @@ export function DashboardStats() {
         })}
       </div>
 
-      {/* ================= RESOURCES ================= */}
+      {/* ================= RESOURCES =================
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {resourceStats.map((r) => {
           const Icon = r.icon;
@@ -174,6 +174,7 @@ export function DashboardStats() {
           );
         })}
       </div>
+      */}
 
       <QuickActions />
 
