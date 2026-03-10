@@ -1262,12 +1262,56 @@ export class ReportsPkgService {
 
     return { filePath };
   }
+  // private sectionRegistry = {
+  //   guest: {
+  //     resolveCode: resolveGuestSummaryReportCode,
+  //     engine: GuestReportEngine,
+  //     excelExporter: exportGuestSummaryExcel,
+  //     templateFolder: 'guest-summary',
+  //   },
+
+  //   room: {
+  //     resolveCode: resolveRoomSummaryReportCode,
+  //     engine: RoomReportEngine,
+  //     excelExporter: exportRoomOccupancyExcel,
+  //     templateFolder: 'room',
+  //   },
+
+  //   vehicle: {
+  //     resolveCode: resolveVehicleDriverReportCode,
+  //     engine: VehicleDriverReportEngine,
+  //     excelExporter: exportVehicleDriverExcel,
+  //     templateFolder: 'vehicle-driver',
+  //   },
+
+  //   'driver-duty': {
+  //     resolveCode: resolveDriverDutyReportCode,
+  //     engine: DriverDutyReportEngine,
+  //     excelExporter: exportDriverDutyExcel,
+  //     templateFolder: 'driver-duty',
+  //   },
+
+  //   food: {
+  //     resolveCode: resolveFoodServiceReportCode,
+  //     engine: FoodServiceReportEngine,
+  //     excelExporter: exportFoodServiceExcel,
+  //     templateFolder: 'food-service',
+  //   },
+
+  //   network: {
+  //     resolveCode: resolveNetworkReportCode,
+  //     engine: NetworkReportEngine,
+  //     excelExporter: exportNetworkExcel,
+  //     templateFolder: 'network',
+  //   },
+  // };
   private sectionRegistry = {
     guest: {
       resolveCode: resolveGuestSummaryReportCode,
       engine: GuestReportEngine,
       excelExporter: exportGuestSummaryExcel,
       templateFolder: 'guest-summary',
+      templateFile: 'guest-summary-range.hbs'
     },
 
     room: {
@@ -1275,6 +1319,7 @@ export class ReportsPkgService {
       engine: RoomReportEngine,
       excelExporter: exportRoomOccupancyExcel,
       templateFolder: 'room',
+      templateFile: 'room-summary.hbs'
     },
 
     vehicle: {
@@ -1282,6 +1327,7 @@ export class ReportsPkgService {
       engine: VehicleDriverReportEngine,
       excelExporter: exportVehicleDriverExcel,
       templateFolder: 'vehicle-driver',
+      templateFile: 'vehicle-driver-summary.hbs'
     },
 
     'driver-duty': {
@@ -1289,6 +1335,7 @@ export class ReportsPkgService {
       engine: DriverDutyReportEngine,
       excelExporter: exportDriverDutyExcel,
       templateFolder: 'driver-duty',
+      templateFile: 'driver-duty-summary.hbs'
     },
 
     food: {
@@ -1296,6 +1343,7 @@ export class ReportsPkgService {
       engine: FoodServiceReportEngine,
       excelExporter: exportFoodServiceExcel,
       templateFolder: 'food-service',
+      templateFile: 'food-service-summary.hbs'
     },
 
     network: {
@@ -1303,9 +1351,9 @@ export class ReportsPkgService {
       engine: NetworkReportEngine,
       excelExporter: exportNetworkExcel,
       templateFolder: 'network',
+      templateFile: 'network-summary.hbs'
     },
   };
-
   private getReportTitle(
     section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network',
     language: 'en' | 'mr' = 'en'
@@ -1414,16 +1462,16 @@ export class ReportsPkgService {
     /* ================= PDF ================= */
     if (input.format === 'PDF') {
 
-      let templateFile = `${input.section}-summary.hbs`;
+    let templateFile = config.templateFile;
 
-      // 🔥 SPECIAL CASE: guest has 2 templates
-      if (input.section === 'guest') {
-        const isDaily = fromDate === toDate;
+    // guest is the only dynamic template
+    if (input.section === 'guest') {
+      const isDaily = fromDate === toDate;
 
-        templateFile = isDaily
-          ? 'guest-summary-daily.hbs'
-          : 'guest-summary-range.hbs';
-      }
+      templateFile = isDaily
+        ? 'guest-summary-daily.hbs'
+        : 'guest-summary-range.hbs';
+    }
 
       const templatePath = path.join(
         process.cwd(),

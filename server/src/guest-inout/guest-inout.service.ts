@@ -59,11 +59,14 @@ export class GuestInoutService {
       // ✅ Propagate daily meal plan ONLY if guest actually entered today
       const today = todayISO();
 
+      const entryDateISO = insertedRow.entry_date
+        ? new Date(insertedRow.entry_date).toISOString().split('T')[0]
+        : null;
+
       if (
         insertedRow.status === 'Entered' &&
-        insertedRow.entry_date?.toISOString().split('T')[0] === today
+        entryDateISO === today
       ) {
-
         await this.guestFoodService.propagateTodayPlanToGuest(
           client,
           insertedRow,
@@ -104,7 +107,7 @@ export class GuestInoutService {
 
       // ✅ NORMALIZED existing entry date
       const existingEntryDate = existing.rows[0].entry_date
-        ? existing.rows[0].entry_date.toISOString().split('T')[0]
+        ? new Date(existing.rows[0].entry_date).toISOString().split('T')[0]
         : null;
 
       let status = dto.status ?? 'Entered';
@@ -162,7 +165,7 @@ export class GuestInoutService {
 
       fields.push(`updated_at = NOW()`);
       fields.push(`updated_by = $${idx}`);
-      vals.push(user || 'system');
+      vals.push(user);
       idx++;
 
       fields.push(`updated_ip = $${idx}`);

@@ -6,13 +6,13 @@ export class NetworkTableQueryDto extends BaseTableQueryDto {
   @IsIn([
     'provider_name',
     'network_type',
-    'bandwidth_mbps',
+    // 'bandwidth_mbps',
     'inserted_at',
   ])
   sortBy?:
     | 'provider_name'
     | 'network_type'
-    | 'bandwidth_mbps'
+    // | 'bandwidth_mbps'
     | 'inserted_at';
 
   @IsOptional()

@@ -50,7 +50,7 @@ export class DriverDutyReportEngine {
         ON d.driver_id = td.driver_id
        AND d.is_active = true
       LEFT JOIN m_staff s
-        ON s.staff_id = td.staff_id
+        ON s.staff_id = d.staff_id
        AND s.is_active = true
 
       WHERE td.is_active = true

@@ -323,6 +323,9 @@ export class GuestFoodService {
   ) {
     return this.db.transaction(async (client) => {
       const planDate = new Date().toISOString().split("T")[0];
+      if (!meals || Object.keys(meals).length === 0) {
+        throw new BadRequestException('Meal plan cannot be empty');
+      }
       // Reset today's plan
       // Deactivate today's previous plan (preserve history)
       await client.query(

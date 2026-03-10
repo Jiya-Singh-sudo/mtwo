@@ -104,7 +104,7 @@ export async function exportNetworkExcel(payload: {
       r.room_id ?? '',
       r.provider_name ?? '',
       r.network_type ?? '',
-      r.bandwidth_mbps ?? '',
+      // r.bandwidth_mbps ?? '',
       r.network_zone_from ?? '',
       r.network_zone_to ?? '',
       r.network_status ?? '',

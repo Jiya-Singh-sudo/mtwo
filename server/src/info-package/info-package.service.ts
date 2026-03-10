@@ -257,7 +257,7 @@ export class InfoPackageService {
     };
   }
 
-  async generatePdf(guestId: string) {
+  async generatePdf(guestId: string, user: string, ip:string) {
     const data = await this.getGuestInfo(guestId);
 
     const html = infoPackageTemplate(data);
@@ -266,15 +266,15 @@ export class InfoPackageService {
       await logInfoPackageAudit(client, {
         guestId,
         actionType: 'PDF_GENERATED',
-        performedBy: 'system',
+        performedBy: user,
       });
       await this.activityLog.log({
         message: 'Guest Info Package generated successfully',
         module: 'INFO_PACKAGE',
         action: 'GENERATE',
         referenceId: guestId,
-        performedBy: 'system',
-        ipAddress: 'system',
+        performedBy: user,
+        ipAddress: ip,
       }, client);
     });
     return {

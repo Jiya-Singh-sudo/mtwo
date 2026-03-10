@@ -34,58 +34,66 @@ export class NetworkReportEngine {
       SELECT
         tgn.guest_network_id,
 
-        -- Lifecycle
-
+        -- lifecycle
+        gi.entry_date,
+        gi.exit_date,
         tgn.network_status,
 
-        -- Zones
+        -- zones
         tgn.network_zone_from,
         tgn.network_zone_to,
 
-        -- Guest
+        -- guest
         g.guest_name,
 
-        -- Room
-        tgn.room_id,
+        -- room
+        r.room_no,
 
-        -- Network provider
+        -- provider
         wp.provider_name,
         wp.network_type,
-        wp.bandwidth_mbps,
 
-        -- Messenger (contextual)
-        s.full_name,
+        -- messenger
+        s.full_name AS messenger_name,
         s.designation,
 
-        -- Notes
+        -- notes
         tgn.remarks
 
       FROM t_guest_network tgn
 
       LEFT JOIN m_guest g
         ON g.guest_id = tgn.guest_id
-       AND g.is_active = true
+      AND g.is_active = true
+
+      LEFT JOIN t_guest_inout gi
+        ON gi.guest_id = tgn.guest_id
+      AND gi.is_active = true
+
+      LEFT JOIN m_rooms r
+        ON r.room_id = tgn.room_id
+      AND r.is_active = true
 
       LEFT JOIN m_wifi_provider wp
         ON wp.provider_id = tgn.provider_id
-       AND wp.is_active = true
+      AND wp.is_active = true
 
       LEFT JOIN t_guest_messenger tgm
         ON tgm.guest_id = tgn.guest_id
-       AND tgm.is_active = true
+      AND tgm.is_active = true
 
       LEFT JOIN m_messenger ms
         ON ms.messenger_id = tgm.messenger_id
-       AND ms.is_active = true
+      AND ms.is_active = true
+
       LEFT JOIN m_staff s
-        ON s.staff_id = tgm.staff_id
+        ON s.staff_id = ms.staff_id
+      AND s.is_active = true
 
       WHERE tgn.is_active = true
-        AND tgn.start_date BETWEEN $1 AND $2
+        AND gi.entry_date BETWEEN $1 AND $2
 
-      ORDER BY
-        tgn.start_date DESC,
-        tgn.start_time ASC
+      ORDER BY gi.entry_date DESC
       `,
       [fromDate, toDate]
     );

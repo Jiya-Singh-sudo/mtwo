@@ -26,56 +26,111 @@ export class VehicleDriverReportEngine {
     toDate: string;
   }) {
     const { fromDate, toDate } = filters;
-
     const result = await this.db.query(
-      `
-      SELECT
-        tgd.guest_driver_id,
-        tgd.trip_date,
-        tgd.start_time,
-        tgd.end_time,
-        tgd.from_location,
-        tgd.to_location,
-        tgd.pickup_location,
-        tgd.drop_location,
-        tgd.pickup_status,
-        tgd.drop_status,
-        tgd.trip_status,
-        tgd.remarks,
+    `
+    SELECT
+      tgd.guest_driver_id,
+      tgd.trip_date,
+      tgd.start_time,
+      tgd.drop_time,
+      tgd.pickup_location,
+      tgd.drop_location,
+      tgd.pickup_status,
+      tgd.drop_status,
+      tgd.trip_status,
+      tgd.remarks,
 
-        g.guest_name,
+      g.guest_name,
 
-        d.driver_name,
-        d.driver_contact,
-        d.driver_license,
-        d.license_expiry_date,
+      s.full_name AS driver_name,
+      s.primary_mobile AS driver_contact,
+      d.driver_license,
+      d.license_expiry_date,
 
-        v.vehicle_no,
-        v.vehicle_name,
-        v.model,
-        v.capacity
+      v.vehicle_no,
+      v.vehicle_name,
+      v.model,
+      v.capacity
 
-      FROM t_guest_driver tgd
+    FROM t_guest_driver tgd
 
-      LEFT JOIN m_guest g
-        ON g.guest_id = tgd.guest_id
-       AND g.is_active = true
+    LEFT JOIN t_guest_vehicle tgv
+      ON tgv.guest_id = tgd.guest_id
+    AND tgv.is_active = true
 
-      LEFT JOIN m_driver d
-        ON d.driver_id = tgd.driver_id
-       AND d.is_active = true
+    LEFT JOIN m_guest g
+      ON g.guest_id = tgd.guest_id
+    AND g.is_active = true
 
-      LEFT JOIN m_vehicle v
-        ON v.vehicle_no = tgd.vehicle_no
-       AND v.is_active = true
+    LEFT JOIN m_driver d
+      ON d.driver_id = tgd.driver_id
+    AND d.is_active = true
 
-      WHERE tgd.is_active = true
-        AND tgd.trip_date BETWEEN $1 AND $2
+    LEFT JOIN m_staff s
+      ON s.staff_id = d.staff_id
+    AND s.is_active = true
 
-      ORDER BY tgd.trip_date DESC, tgd.start_time ASC
-      `,
-      [fromDate, toDate]
+    LEFT JOIN m_vehicle v
+      ON v.vehicle_no = tgv.vehicle_no
+    AND v.is_active = true
+
+    WHERE tgd.is_active = true
+      AND tgd.trip_date BETWEEN $1 AND $2
+
+    ORDER BY tgd.trip_date DESC, tgd.start_time ASC
+    `,
+    [fromDate, toDate]
     );
+    // const result = await this.db.query(
+    //   `
+    //   SELECT
+    //     tgd.guest_driver_id,
+    //     tgd.trip_date,
+    //     tgd.start_time,
+    //     tgd.end_time,
+    //     tgd.from_location,
+    //     tgd.to_location,
+    //     tgd.pickup_location,
+    //     tgd.drop_location,
+    //     tgd.pickup_status,
+    //     tgd.drop_status,
+    //     tgd.trip_status,
+    //     tgd.remarks,
+
+    //     g.guest_name,
+
+    //     d.driver_name,
+    //     d.driver_contact,
+    //     d.driver_license,
+    //     d.license_expiry_date,
+
+    //     v.vehicle_no,
+    //     v.vehicle_name,
+    //     v.model,
+    //     v.capacity
+
+    //   FROM t_guest_driver tgd
+    //   AND FROM t_guest_vehicle tgv
+
+    //   LEFT JOIN m_guest g
+    //     ON g.guest_id = tgd.guest_id
+    //    AND g.is_active = true
+
+    //   LEFT JOIN m_driver d
+    //     ON d.driver_id = tgd.driver_id
+    //    AND d.is_active = true
+
+    //   LEFT JOIN m_vehicle v
+    //     ON v.vehicle_no = tgv.vehicle_no
+    //    AND v.is_active = true
+
+    //   WHERE tgd.is_active = true AND tgv.is_active = true
+    //     AND tgd.trip_date BETWEEN $1 AND $2
+
+    //   ORDER BY tgd.trip_date DESC, tgd.start_time ASC
+    //   `,
+    //   [fromDate, toDate]
+    // );
 
     return result?.rows ?? [];
   }

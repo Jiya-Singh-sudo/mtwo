@@ -353,8 +353,8 @@ export class GuestsService {
           await this.guestFoodService.propagateTodayPlanToGuest(
             client,
             insertedRow,
-            user || 'system',
-            ip || '0.0.0.0'
+            user,
+            ip
           );
         }
         await this.activityLog.log({
@@ -475,17 +475,27 @@ export class GuestsService {
           return this.findOne(guestId);
         }
         fields.push(`updated_at = NOW()`);
-        fields.push(`updated_by = $${idx}`); vals.push(user); idx++;
-        fields.push(`updated_ip = $${idx}`); vals.push(ip); idx++;
+        fields.push(`updated_by = $${idx}`); 
+        vals.push(user); idx++;
+        fields.push(`updated_ip = $${idx}::inet`);
+        vals.push(ip); idx++;
         const sql =
           `UPDATE m_guest
-        SET
-          ${fields.join(', ')},
-          version = version + 1
-        WHERE
-          guest_id = $${idx}
-        RETURNING *;
-      `;
+          SET
+            ${fields.join(', ')}
+          WHERE
+            guest_id = $${idx}
+          RETURNING *;
+          `;
+      //   const sql =
+      //     `UPDATE m_guest
+      //   SET
+      //     ${fields.join(', ')},
+      //     version = version + 1
+      //   WHERE
+      //     guest_id = $${idx}
+      //   RETURNING *;
+      // `;
         vals.push(guestId);
         const r = await client.query(sql, vals);
         await this.activityLog.log({
@@ -500,6 +510,7 @@ export class GuestsService {
         return r.rows[0];
       } catch (err) {
         console.error('Guest update failed:', err);
+        throw err;
         throw new BadRequestException('Guest update failed');
       }
     });

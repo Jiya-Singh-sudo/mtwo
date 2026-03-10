@@ -49,7 +49,6 @@ export class GuestReportEngine {
 
         wp.provider_name              AS wifi_provider,
         wp.network_type,
-        wp.bandwidth_mbps,
 
         gi.entry_date,
         gi.exit_date

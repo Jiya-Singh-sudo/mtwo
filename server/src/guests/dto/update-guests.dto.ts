@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean, IsInt, Min } from 'class-validator';
 
 export class UpdateGuestDto {
   @IsOptional()
@@ -32,5 +32,10 @@ export class UpdateGuestDto {
   // @IsOptional()
   // @IsBoolean()
   // requires_driver?: boolean;
+
+  // @IsOptional()
+  // @IsInt()
+  // @Min(0)
+  // companions?: number;
 
 }

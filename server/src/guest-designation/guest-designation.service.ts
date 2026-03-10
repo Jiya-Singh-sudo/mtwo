@@ -84,7 +84,7 @@ export class GuestDesignationService {
     return this.db.transaction(async (client) => {
 
       const existing = await client.query(
-        `SELECT * FROM t_guest_designation WHERE gd_id = $1 is_active = TRUE FOR UPDATE`,
+        `SELECT * FROM t_guest_designation WHERE gd_id = $1 AND is_active = TRUE FOR UPDATE`,
         [gd_id]
       );
 

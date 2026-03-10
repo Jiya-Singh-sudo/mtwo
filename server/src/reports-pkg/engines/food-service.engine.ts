@@ -33,9 +33,6 @@ export class FoodServiceReportEngine {
         tgf.plan_date,
         tgf.meal_type,
         tgf.food_stage,
-        tgf.quantity,
-        tgf.order_datetime,
-        tgf.delivered_datetime,
         tgf.delivery_status,
         tgf.remarks,
 
@@ -46,7 +43,9 @@ export class FoodServiceReportEngine {
         fi.food_name,
         fi.food_type,
 
-        b.butler_name,
+        s.full_name AS butler_name,
+        s.full_name_local_language AS butler_name_local,
+        s.primary_mobile AS butler_contact,
         b.shift
 
       FROM t_guest_food tgf
@@ -66,11 +65,14 @@ export class FoodServiceReportEngine {
       LEFT JOIN m_butler b
         ON b.butler_id = tgb.butler_id
        AND b.is_active = true
+      LEFT JOIN m_staff s
+        ON s.staff_id = b.staff_id
+       AND s.is_active = true
 
       WHERE tgf.is_active = true
         AND tgf.plan_date BETWEEN $1 AND $2
 
-      ORDER BY tgf.plan_date DESC, tgf.order_datetime ASC
+      ORDER BY tgf.plan_date DESC
       `,
       [fromDate, toDate]
     );

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Query, Res, Req } from '@nestjs/common';
 import { InfoPackageService } from './info-package.service';
 import { InfoPackageSearchDto } from './dto/info-package-search.dto';
 import type { Response } from 'express';
+import { getRequestContext, RequestContext } from 'common/utlis/request-context.util';
 
 @Controller('info-package')
 export class InfoPackageController {
@@ -24,8 +25,10 @@ export class InfoPackageController {
     async generatePdf(
         @Param('guestId') guestId: string,
         @Res() res: Response,
+        @Req() req: any,
     ) {
-        const { fileName, buffer } = await this.service.generatePdf(guestId);
+        const { user, ip } = getRequestContext(req);
+        const { fileName, buffer } = await this.service.generatePdf(guestId, user, ip);
 
         res.set({
             'Content-Type': 'application/pdf',

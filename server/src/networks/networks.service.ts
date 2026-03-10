@@ -24,7 +24,7 @@ export class NetworksService {
     const SORT_MAP: Record<string, string> = {
       provider_name: 'provider_name',
       network_type: 'network_type',
-      bandwidth_mbps: 'bandwidth_mbps',
+      // bandwidth_mbps: 'bandwidth_mbps',
       inserted_at: 'inserted_at',
     };
     if (query.sortBy && !Object.keys(SORT_MAP).includes(query.sortBy)) {
@@ -116,9 +116,7 @@ export class NetworksService {
       where.push(`
         (
           provider_name ILIKE $${index}
-          OR network_type::text ILIKE $${index}
-          OR CAST(bandwidth_mbps AS TEXT) ILIKE $${index}
-        )
+          OR network_type::text ILIKE $${index}        )
       `);
     }
     /* ---------- DATA QUERY ---------- */

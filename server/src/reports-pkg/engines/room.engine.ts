@@ -48,13 +48,12 @@ export class RoomReportEngine {
 
       LEFT JOIN t_guest_hk gh
         ON gh.guest_id = gr.guest_id
-      AND gh.task_date BETWEEN $1 AND $2
-      AND gh.is_active = true
+        AND gh.is_active = true
 
       LEFT JOIN m_housekeeping hk
         ON hk.hk_id = gh.hk_id
       LEFT JOIN m_staff s
-        ON s.staff_id = gh.staff_id
+        ON s.staff_id = hk.staff_id
 
       WHERE gr.check_in_date <= $2
         AND (gr.check_out_date IS NULL OR gr.check_out_date >= $1)
@@ -62,8 +61,7 @@ export class RoomReportEngine {
       ORDER BY
         gr.guest_id,
         gr.room_id,
-        gr.check_in_date,
-        gh.task_date DESC;
+        gr.check_in_date
       `,
       [filters.fromDate, filters.toDate]
     );

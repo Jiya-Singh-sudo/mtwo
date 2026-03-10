@@ -43,7 +43,7 @@ export class GuestTransportService {
       guest_name: 'base.guest_name',
       driver_name: 'base.driver_name',
       vehicle_no: 'base.vehicle_no',
-      trip_status: 'base.trip_status',
+      trip_status: 'base.inout_status',
     };
     if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
       throw new BadRequestException('INVALID_SORT_FIELD');
@@ -87,19 +87,19 @@ export class GuestTransportService {
           SELECT 1
           FROM t_guest_driver gd2
           JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
-          WHERE gd2.guest_id = g.guest_id
-            AND gd2.is_active = TRUE
-            AND d2.driver_name ILIKE $${idx}
-        )
-        OR EXISTS (
-          SELECT 1
-          FROM t_guest_driver gd2
-          JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
           JOIN m_staff s2 ON s2.staff_id = d2.staff_id
           WHERE gd2.guest_id = g.guest_id
             AND gd2.is_active = TRUE
             AND s2.is_active = TRUE
             AND s2.full_name ILIKE $${idx}
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM t_guest_vehicle gv2
+          JOIN m_vehicle v2 ON v2.vehicle_no = gv2.vehicle_no
+          WHERE gv2.guest_id = g.guest_id
+            AND gv2.is_active = TRUE
+            AND v2.vehicle_no ILIKE $${idx}
         )
       )`);
 
@@ -195,7 +195,8 @@ export class GuestTransportService {
 
       ${whereSql};
     `;
-
+      const limitParam = idx;
+      const offsetParam = idx + 1;
     /* ---------------- DATA ---------------- */
     const dataSql = `
       WITH base AS (
@@ -284,9 +285,8 @@ export class GuestTransportService {
 
         ${whereSql}
       )
-      SELECT
-        base.*,
-
+        SELECT
+          base.*,
         CASE
           WHEN base.guest_driver_id IS NOT NULL
           AND (
@@ -321,7 +321,7 @@ export class GuestTransportService {
 
       FROM base
       ORDER BY ${sortColumn} ${order}
-      LIMIT $${idx} OFFSET $${idx + 1}
+      LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
     return this.db.transaction(async (client) => {
