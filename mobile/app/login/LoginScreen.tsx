@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
 import { Button, Input, Card } from '@/components/ui';
+import Recaptcha from '@/components/ui/Recaptcha';
 
 export default function LoginScreen() {
     const { login } = useAuth();
@@ -22,6 +23,9 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState('');
+    const recaptchaRef = React.useRef<any>(null);
+
     const [errors, setErrors] = useState<{ username?: string; password?: string; general?: string }>({});
 
     const validate = () => {
@@ -33,20 +37,46 @@ export default function LoginScreen() {
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-
     const handleLogin = async () => {
         if (!validate()) return;
 
+        if (recaptchaRef.current) {
+            recaptchaRef.current.refreshToken();
+        }
+
         setIsLoading(true);
+
         try {
-            await login(username, password, 'mobile_app_placeholder_token');
+            await login(username, password, captchaToken);
             router.replace('/');
-        } catch (error: any) {
+        } catch (error) {
             setErrors({ general: 'Invalid username or password' });
-            Alert.alert('Login Failed', 'Please check your credentials and try again.');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // const handleLogin = async () => {
+    //     if (!validate()) return;
+
+    //     setIsLoading(true);
+    //     try {
+    //         if (!captchaToken) {
+    //             Alert.alert('Verification Required', 'Please complete verification');
+    //             return;
+    //         }
+
+    //         await login(username, password, captchaToken);
+    //         router.replace('/');
+    //     } catch (error: any) {
+    //         setErrors({ general: 'Invalid username or password' });
+    //         Alert.alert('Login Failed', 'Please check your credentials and try again.');
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+    const handleRecaptchaVerify = (token: string) => {
+        setCaptchaToken(token);
     };
 
     return (
@@ -97,6 +127,13 @@ export default function LoginScreen() {
                                 error={errors.password}
                                 editable={!isLoading}
                             />
+                            <Recaptcha
+                                ref={recaptchaRef}
+                                siteKey="6Ld-lncsAAAAAOc1KQ3PBx7R4mILJ8bIrJ4qxErt"
+                                url="https://localhost"
+                                onExecute={handleRecaptchaVerify}
+                            />
+
                             <TouchableOpacity 
                                 onPress={() => setShowPassword(!showPassword)} 
                                 style={styles.eyeIcon}
