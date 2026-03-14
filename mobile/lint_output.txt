@@ -1,0 +1,128 @@
+
+> mobile@1.0.0 lint C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile
+> expo lint
+
+npm warn Unknown env config "global-bin-dir". This will stop working in the next major version of npm.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+npm warn Unknown global config "global-bin-dir". This will stop working in the next major version of npm.
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\(drawer)\index.tsx
+  16:23  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\activity\ActivityLogScreen.tsx
+   1:38  warning  'useCallback' is defined but never used                                                                      @typescript-eslint/no-unused-vars
+   6:3   warning  'ScrollView' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+  31:8   warning  React Hook useEffect has a missing dependency: 'loadLogs'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\driver-duty\DriverDutyScreen.tsx
+   59:8  warning  React Hook useEffect has a missing dependency: 'loadDuties'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  120:8  warning  React Hook useCallback has a missing dependency: 'loadDuties'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\duty\DutyRosterScreen.tsx
+   8:3  warning  'TextInput' is defined but never used  @typescript-eslint/no-unused-vars
+  14:3  warning  'Card' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\food\FoodServiceScreen.tsx
+   8:3   warning  'ActivityIndicator' is defined but never used                                                                  @typescript-eslint/no-unused-vars
+  31:12  warning  'loading' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  46:8   warning  React Hook useEffect has a missing dependency: 'loadFood'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  82:8   warning  React Hook useCallback has a missing dependency: 'loadFood'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  92:18  warning  'err' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\guest\GuestManagementScreen.tsx
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                    @typescript-eslint/no-unused-vars
+   31:9   warning  'width' is assigned a value but never used                                                                       @typescript-eslint/no-unused-vars
+   37:10  warning  'totalCount' is assigned a value but never used                                                                  @typescript-eslint/no-unused-vars
+   63:6   warning  React Hook useEffect has a missing dependency: 'loadGuests'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+   89:6   warning  React Hook useCallback has a missing dependency: 'loadGuests'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  125:14  warning  'err' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+  137:14  warning  'err' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\info-package\InfoPackageScreen.tsx
+   1:38  warning  'useCallback' is defined but never used                                                                        @typescript-eslint/no-unused-vars
+   8:3   warning  'ActivityIndicator' is defined but never used                                                                  @typescript-eslint/no-unused-vars
+  19:3   warning  'Card' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+  28:12  warning  'loading' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  35:8   warning  React Hook useEffect has a missing dependency: 'loadGuests'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  67:34  warning  'error' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\login\LoginScreen.tsx
+  44:18  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\network\NetworkScreen.tsx
+    1:38  warning  'useCallback' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                     @typescript-eslint/no-unused-vars
+   11:3   warning  'Dimensions' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   23:3   warning  'Card' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+   57:8   warning  React Hook useEffect has a missing dependency: 'loadProviders'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  124:30  warning  'err' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\report\ReportScreen.tsx
+   9:3   warning  'ActivityIndicator' is defined but never used  @typescript-eslint/no-unused-vars
+  69:18  warning  'error' is defined but never used              @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\room\RoomManagementScreen.tsx
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+   16:3   warning  'getAssignableGuests' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+   20:3   warning  'softDeleteHousekeeping' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+   28:3   warning  'Modal' is defined but never used                                                                                                    @typescript-eslint/no-unused-vars
+   32:9   warning  'width' is assigned a value but never used                                                                                           @typescript-eslint/no-unused-vars
+   38:10  warning  'loading' is assigned a value but never used                                                                                         @typescript-eslint/no-unused-vars
+   43:20  warning  'setRoomPage' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+   44:19  warning  'setBoyPage' is assigned a value but never used                                                                                      @typescript-eslint/no-unused-vars
+   47:24  warning  'setStatusFilter' is assigned a value but never used                                                                                 @typescript-eslint/no-unused-vars
+   55:6   warning  React Hook useEffect has missing dependencies: 'loadRoomBoys' and 'loadRooms'. Either include them or remove the dependency array    react-hooks/exhaustive-deps
+  101:6   warning  React Hook useCallback has missing dependencies: 'loadRoomBoys' and 'loadRooms'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\settings\SystemSettingsScreen.tsx
+  56:13  warning  Expected an assignment or function call and instead saw an expression  no-unused-expressions
+  60:13  warning  Expected an assignment or function call and instead saw an expression  no-unused-expressions
+  64:13  warning  Expected an assignment or function call and instead saw an expression  no-unused-expressions
+  69:13  warning  Expected an assignment or function call and instead saw an expression  no-unused-expressions
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\transport\TransportScreen.tsx
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+   11:3   warning  'Dimensions' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   28:3   warning  'Badge' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+   32:22  warning  'formatTime' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   36:10  warning  'loading' is assigned a value but never used                                                                        @typescript-eslint/no-unused-vars
+   38:10  warning  'totalCount' is assigned a value but never used                                                                     @typescript-eslint/no-unused-vars
+   57:6   warning  React Hook useEffect has a missing dependency: 'loadTransport'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+   84:6   warning  React Hook useCallback has a missing dependency: 'loadTransport'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  121:14  warning  'error' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+  144:14  warning  'error' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\user\UserManagementScreen.tsx
+    1:38  warning  'useCallback' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                 @typescript-eslint/no-unused-vars
+   22:3   warning  'Card' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   74:8   warning  React Hook useEffect has a missing dependency: 'loadUsers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  110:18  warning  'err' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+  162:30  warning  'err' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\app\vehicle\VehicleScreen.tsx
+    8:3   warning  'ActivityIndicator' is defined but never used                                                                      @typescript-eslint/no-unused-vars
+   37:24  warning  'setStatusFilter' is assigned a value but never used                                                               @typescript-eslint/no-unused-vars
+   57:6   warning  React Hook useEffect has a missing dependency: 'loadVehicles'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+   93:6   warning  React Hook useCallback has a missing dependency: 'loadVehicles'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  140:20  warning  'err' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\components\ui\Badge.tsx
+  3:18  warning  'spacing' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\components\ui\Button.tsx
+  11:27  warning  'typography' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\components\ui\Input.tsx
+  12:27  warning  'typography' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\components\ui\Modal.tsx
+  16:27  warning  'typography' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ayij3\Desktop\JiyaProjects\MTWO\mobile\components\ui\Table.tsx
+  9:3  warning  'TextStyle' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 76 problems (0 errors, 76 warnings)
+

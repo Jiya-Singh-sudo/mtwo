@@ -1,0 +1,23 @@
+api/httpHelpers.ts(4,26): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+app/(drawer)/_layout.tsx(38,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(49,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(61,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(73,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(85,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(97,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(109,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(121,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(133,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(145,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/(drawer)/_layout.tsx(157,26): error TS7031: Binding element 'color' implicitly has an 'any' type.
+app/driver-duty/DriverDutyScreen.tsx(132,61): error TS2552: Cannot find name 'formatDate'. Did you mean 'FormData'?
+app/driver-duty/DriverDutyScreen.tsx(312,32): error TS2339: Property 'divider' does not exist on type '{ primary: string; accent: string; background: string; surface: string; border: string; text: string; muted: string; error: string; success: string; warning: string; info: string; white: string; black: string; ... 5 more ...; primaryBg: string; }'.
+app/food/FoodServiceScreen.tsx(56,17): error TS2322: Type '"plan_date"' is not assignable to type '"room_id" | "entry_date" | "guest_name" | "meal_status" | "delivery_status" | "butler_name" | undefined'.
+app/report/ReportScreen.tsx(235,51): error TS2339: Property 'divider' does not exist on type '{ primary: string; accent: string; background: string; surface: string; border: string; text: string; muted: string; error: string; success: string; warning: string; info: string; white: string; black: string; ... 5 more ...; primaryBg: string; }'.
+app/room/RoomManagementScreen.tsx(263,47): error TS2322: Type '"success"' is not assignable to type '"outline" | "primary" | "secondary" | "danger" | "ghost" | undefined'.
+app/user/UserManagementScreen.tsx(127,21): error TS2353: Object literal may only specify known properties, and 'primary_mobile' does not exist in type 'UserUpdateDto'.
+app/user/UserManagementScreen.tsx(138,21): error TS2353: Object literal may only specify known properties, and 'primary_mobile' does not exist in type 'UserCreateDto'.
+app/vehicle/VehicleScreen.tsx(66,9): error TS2322: Type 'string | undefined' is not assignable to type '"ACTIVE" | "INACTIVE" | undefined'.
+  Type 'string' is not assignable to type '"ACTIVE" | "INACTIVE" | undefined'.
+app/vehicle/VehicleScreen.tsx(105,11): error TS2353: Object literal may only specify known properties, and 'vehicle_type' does not exist in type 'VehicleUpdateDto'.
+app/vehicle/VehicleScreen.tsx(114,11): error TS2353: Object literal may only specify known properties, and 'vehicle_type' does not exist in type 'VehicleCreateDto'.

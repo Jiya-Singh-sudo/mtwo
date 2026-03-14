@@ -1,7 +1,7 @@
 // web/src/api/httpHelpers.ts
 
 // Use environment variable or fallback
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 async function request(path: string, opts: RequestInit = {}) {
   const res = await fetch(BASE + path, {
