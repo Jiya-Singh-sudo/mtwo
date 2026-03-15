@@ -1,7 +1,7 @@
 import { Drawer } from "expo-router/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from '@/context/AuthContext';
-import { colors } from '@/theme';
+import { colors } from '@/theme/colors';
 
 export default function DrawerLayout() {
   const { hasPermission } = useAuth();
