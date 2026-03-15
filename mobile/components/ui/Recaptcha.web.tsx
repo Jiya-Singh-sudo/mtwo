@@ -5,38 +5,47 @@ interface RecaptchaProps {
     siteKey: string;
     action?: string;
     onExecute: (token: string) => void;
-    url?: string; // Kept for interface compatibility
+    url?: string;
 }
 
-const RecaptchaInner = forwardRef<any, Omit<RecaptchaProps, 'siteKey'>>(({ action = 'login', onExecute }, ref) => {
-    const { executeRecaptcha } = useGoogleReCaptcha();
+const RecaptchaInner = forwardRef<any, Omit<RecaptchaProps, 'siteKey'>>(
+    ({ action = 'login', onExecute }, ref) => {
+        const { executeRecaptcha } = useGoogleReCaptcha();
 
-    useImperativeHandle(ref, () => ({
-        refreshToken: async () => {
-            if (executeRecaptcha) {
-                const token = await executeRecaptcha(action);
-                onExecute(token);
+        useImperativeHandle(ref, () => ({
+            refreshToken: async () => {
+                if (executeRecaptcha) {
+                    const token = await executeRecaptcha(action);
+                    onExecute(token);
+                }
             }
-        }
-    }));
+        }));
 
-    useEffect(() => {
-        if (executeRecaptcha) {
+        useEffect(() => {
+            if (!executeRecaptcha) return;
             executeRecaptcha(action).then((token) => {
                 onExecute(token);
             });
-        }
-    }, [executeRecaptcha, action, onExecute]);
+        }, [executeRecaptcha]);
 
-    return null; // Invisible functional component
-});
+        return null;
+    }
+);
+
+RecaptchaInner.displayName = 'RecaptchaInner';
 
 const Recaptcha = forwardRef<any, RecaptchaProps>((props, ref) => {
     return (
         <GoogleReCaptchaProvider reCaptchaKey={props.siteKey}>
-            <RecaptchaInner {...props} ref={ref} />
+            <RecaptchaInner
+                action={props.action}
+                onExecute={props.onExecute}
+                ref={ref}
+            />
         </GoogleReCaptchaProvider>
     );
 });
+
+Recaptcha.displayName = 'Recaptcha';
 
 export default Recaptcha;

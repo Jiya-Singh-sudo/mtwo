@@ -12,6 +12,32 @@ export const unstable_settings = {
   anchor: '(drawer)',
 };
 
+// 🔍 DEBUG - check all screen components are valid, remove once fixed
+const screenChecks: Record<string, unknown> = {
+  'GuestManagementScreen':    require('./(app)/guest/GuestManagementScreen').default,
+  'ActivityLogScreen':        require('./(app)/activity/ActivityLogScreen').default,
+  'UserManagementScreen':     require('./(app)/user/UserManagementScreen').default,
+  'RoomManagementScreen':     require('./(app)/room/RoomManagementScreen').default,
+  'TransportScreen':          require('./(app)/transport/TransportScreen').default,
+  'FoodServiceScreen':        require('./(app)/food/FoodServiceScreen').default,
+  'VehicleScreen':            require('./(app)/vehicle/VehicleScreen').default,
+  'NetworkScreen':            require('./(app)/network/NetworkScreen').default,
+  'DriverDutyScreen':         require('./(app)/driver-duty/DriverDutyScreen').default,
+  'DutyRosterScreen':         require('./(app)/duty/DutyRosterScreen').default,
+  'ReportScreen':             require('./(app)/report/ReportScreen').default,
+  'InfoPackageScreen':        require('./(app)/info-package/InfoPackageScreen').default,
+  'NotificationScreen':       require('./(app)/notification/NotificationScreen').default,
+  'SystemSettingsScreen':     require('./(app)/settings/SystemSettingsScreen').default,
+};
+
+Object.entries(screenChecks).forEach(([name, component]) => {
+  if (!component) {
+    console.error(`❌ BROKEN SCREEN: "${name}" is undefined — check its default export`);
+  } else {
+    console.log(`✅ OK: "${name}"`);
+  }
+});
+
 function InitialLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
@@ -23,10 +49,8 @@ function InitialLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to the login page if the user is not authenticated
       router.replace('/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to the home page if the user is authenticated
       router.replace('/(drawer)');
     }
   }, [isAuthenticated, segments, navigationState, isLoading]);

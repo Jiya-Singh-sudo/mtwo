@@ -13,7 +13,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getDashboardOverview } from '@/api/dashboard.api';
 import { colors, spacing, typography } from '@/theme';
-import { Card, Badge, Button } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;

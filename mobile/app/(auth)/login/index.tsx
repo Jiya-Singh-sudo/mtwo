@@ -40,43 +40,25 @@ export default function LoginScreen() {
         return Object.keys(newErrors).length === 0;
     };
     const handleLogin = async () => {
-        if (!validate()) return;
+    if (!validate()) return;
 
-        if (recaptchaRef.current) {
-            recaptchaRef.current.refreshToken();
-        }
+    if (!captchaToken) {
+        Alert.alert('Verification Required', 'Please complete captcha');
+        return;
+    }
 
-        setIsLoading(true);
+    setIsLoading(true);
 
-        try {
-            await login(username, password, captchaToken);
-            router.replace('/');
-        } catch (error) {
-            setErrors({ general: 'Invalid username or password' });
-        } finally {
-            setIsLoading(false);
-        }
+    try {
+        await login(username, password, captchaToken);
+        router.replace('/');
+    } catch (error) {
+        setErrors({ general: 'Invalid username or password' });
+    } finally {
+        setIsLoading(false);
+    }
     };
 
-    // const handleLogin = async () => {
-    //     if (!validate()) return;
-
-    //     setIsLoading(true);
-    //     try {
-    //         if (!captchaToken) {
-    //             Alert.alert('Verification Required', 'Please complete verification');
-    //             return;
-    //         }
-
-    //         await login(username, password, captchaToken);
-    //         router.replace('/');
-    //     } catch (error: any) {
-    //         setErrors({ general: 'Invalid username or password' });
-    //         Alert.alert('Login Failed', 'Please check your credentials and try again.');
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
     const handleRecaptchaVerify = (token: string) => {
         setCaptchaToken(token);
     };

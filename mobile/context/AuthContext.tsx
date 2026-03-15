@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '@/api/apiClient';
+import { loginApi, logoutApi } from '@/api/authentication/auth.api';
 
 type UserPayload = {
   sub: string;          // user_id
   username: string;
-  role_id?: string;     // optional stable identifier
+  role: string;     // optional stable identifier
   permissions: string[];
 };
 
@@ -41,24 +42,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadStoredUser();
   }, []);
 
-  const login = async (username: string, password: string, recaptchaToken: string) => {
-    const res = await api.post('/auth/login', {
-      username,
-      password,
-      recaptchaToken,
-    });
+  // const login = async (username: string, password: string, recaptchaToken: string) => {
+  //   const res = await api.post('/auth/login', {
+  //     username,
+  //     password,
+  //     recaptchaToken,
+  //   });
 
-    const { accessToken, payload } = res.data;
+  //   const { accessToken, payload } = res.data;
+
+  //   await AsyncStorage.setItem('accessToken', accessToken);
+  //   await AsyncStorage.setItem('user', JSON.stringify(payload));
+
+  //   setUser(payload);
+  // };
+  const login = async (
+    username: string,
+    password: string,
+    recaptchaToken: string
+  ) => {
+    const res = await loginApi(username, password, recaptchaToken);
+
+    const { accessToken, refreshToken, payload } = res;
 
     await AsyncStorage.setItem('accessToken', accessToken);
+    await AsyncStorage.setItem('refreshToken', refreshToken);
     await AsyncStorage.setItem('user', JSON.stringify(payload));
 
     setUser(payload);
-  };
+  }
 
   const logout = async () => {
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+
+    if (refreshToken) {
+      try {
+        await logoutApi(refreshToken);
+      } catch (e) {
+        console.warn('Logout API failed');
+      }
+    }
+
     await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
     await AsyncStorage.removeItem('user');
+
     setUser(null);
   };
 
