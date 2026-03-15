@@ -13,11 +13,9 @@ import {
   generateSectionReport 
 } from '@/api/reportsPkg.api';
 import { colors, spacing, typography } from '@/theme';
-import { 
-  Card, 
-  Button, 
-  Input, 
-} from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 type Section = 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
 

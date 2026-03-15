@@ -14,7 +14,9 @@ import { useAuth } from '@/context/AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
-import { Button, Input, Card } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import Recaptcha from '@/components/ui/Recaptcha';
 
 export default function LoginScreen() {

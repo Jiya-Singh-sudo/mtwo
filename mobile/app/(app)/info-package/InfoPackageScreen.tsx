@@ -15,12 +15,10 @@ import {
   sendInfoPackageWhatsapp 
 } from '@/api/info-package.api';
 import { colors, spacing, typography } from '@/theme';
-import { 
-  Card, 
-  Button, 
-  Input, 
-  Table 
-} from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Table } from '@/components/ui/Table';
 import { formatDate } from '@/utils/dateTime';
 
 export default function InfoPackageScreen() {

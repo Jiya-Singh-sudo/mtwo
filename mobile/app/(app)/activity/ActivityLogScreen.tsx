@@ -12,12 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { fetchActivityLogs } from '@/api/activityLog.api';
 import { colors, spacing, typography } from '@/theme';
-import { Card, Badge, Modal, Button } from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime } from '@/utils/dateTime';
 
 import { ActivityLog } from '@/types/activity-log';
 
-export default function ActivityLogScreen() {
+function ActivityLogScreen() {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -139,7 +142,7 @@ export default function ActivityLogScreen() {
         </View>
     );
 }
-
+export default ActivityLogScreen;
 const DetailRow = ({ label, value }: { label: string, value: string }) => (
     <View style={styles.detailRow}>
         <Text style={styles.detailLabel}>{label}</Text>

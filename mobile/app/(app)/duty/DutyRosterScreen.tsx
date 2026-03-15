@@ -10,15 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
-import { 
-  Card, 
-  Button, 
-  Input, 
-  Badge, 
-  Modal, 
-  Table 
-} from '@/components/ui';
-
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Table } from '@/components/ui/Table';
 type RosterItem = { 
     department: string; 
     officer: string; 

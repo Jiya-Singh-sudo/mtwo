@@ -16,12 +16,10 @@ import {
   createDriverDuty 
 } from '@/api/driverDuty.api';
 import { colors, spacing, typography } from '@/theme';
-import { 
-  Card, 
-  Button, 
-  Input, 
-  Modal 
-} from '@/components/ui';
+import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { formatDate } from '@/utils/dateTime';
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
