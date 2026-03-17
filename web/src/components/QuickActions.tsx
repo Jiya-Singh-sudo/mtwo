@@ -6,7 +6,6 @@ import {
   Bell,
   Calendar,
   Download,
-  Settings,
   UserCog,
   UtensilsCrossed,
   Building2
@@ -132,24 +131,24 @@ export function QuickActions() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
-      {actions
-        .filter(action => hasPermission(action.permission))
-        .map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.title}
-              onClick={() => navigate(`/${action.module}`)}
-              className={`${action.color} text-white p-4 rounded-sm transition-all hover:shadow-lg flex flex-col items-center justify-center gap-2 min-h-[120px]`}
-            >
-              <Icon className="w-8 h-8" />
-              <div className="text-center">
-                <p className="text-sm">{action.title}</p>
-                <p className="text-xs opacity-90 mt-1">{action.titleHi}</p>
-              </div>
-            </button>
-          );
-        })}
+        {actions
+          .filter(action => hasPermission(action.permission))
+          .map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.title}
+                onClick={() => navigate(`/${action.module}`)}
+                className={`${action.color} text-white p-4 rounded-sm transition-all hover:shadow-lg flex flex-col items-center justify-center gap-2 min-h-[120px]`}
+              >
+                <Icon className="w-8 h-8" />
+                <div className="text-center">
+                  <p className="text-sm">{action.title}</p>
+                  <p className="text-xs opacity-90 mt-1">{action.titleHi}</p>
+                </div>
+              </button>
+            );
+          })}
       </div>
     </div>
   );

@@ -43,7 +43,7 @@ export default function UserManagement() {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { hasPermission } = useAuth();
-  const { showError } = useError();
+  const { showError, showSuccess } = useError();
 
   const [form, setForm] = useState({
     username: "",
@@ -133,8 +133,9 @@ export default function UserManagement() {
         setUsers(mapped);
         userTable.setTotal(res?.totalCount ?? rows.length ?? 0);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load users", err);
+        showError(err?.response?.data?.message || "Failed to load users");
         setUsers([]);
         userTable.setTotal(0);
       } finally {
@@ -174,8 +175,9 @@ export default function UserManagement() {
       try {
         const data = await getActiveRoles();
         setRoles(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load roles", err);
+        showError(err?.response?.data?.message || "Failed to load roles");
       }
     }
 
@@ -186,84 +188,67 @@ export default function UserManagement() {
   /* ---------------- ACTIONS ---------------- */
   async function addUser() {
     if (!validate()) return;
-
     const payload = {
       username: form.username,
       full_name: form.fullName,
       role_id: form.role_id,
       password: form.password,
       email: form.email.trim(),
-      primary_mobile:
-        form.primary_mobile.trim() !== ""
-          ? Number(form.primary_mobile.trim())
-          : undefined,
-      alternate_mobile:
-        form.alternate_mobile.trim() !== ""
-          ? Number(form.alternate_mobile.trim())
-          : undefined,
+      primary_mobile: form.primary_mobile.trim() !== "" ? Number(form.primary_mobile.trim()) : undefined,
+      alternate_mobile: form.alternate_mobile.trim() !== "" ? Number(form.alternate_mobile.trim()) : undefined,
       address: form.address || undefined,
     };
 
-    await createUser(payload);
-
-    // Reload table to properly handle pagination/sorting update
-    userTable.batchUpdate(prev => ({
-      ...prev,
-      page: 1
-    }));
-
-    setIsAddOpen(false);
-    resetForm();
+    try {
+      await createUser(payload);
+      userTable.batchUpdate(prev => ({ ...prev, page: 1 }));
+      showSuccess("User added successfully");
+      setIsAddOpen(false);
+      resetForm();
+    } catch (err: any) {
+      console.error("Failed to add user:", err);
+      showError(err?.response?.data?.message || "Failed to add user");
+    }
   }
 
   async function editUser() {
     if (!selectedUser || !validate(true)) return;
-
     const payload = {
       username: form.username,
       full_name: form.fullName,
       role_id: form.role_id,
       email: form.email.trim(),
-      primary_mobile:
-        form.primary_mobile.trim() !== ""
-          ? Number(form.primary_mobile.trim())
-          : undefined,
-
-      alternate_mobile:
-        form.alternate_mobile.trim() !== ""
-          ? Number(form.alternate_mobile.trim())
-          : undefined,
+      primary_mobile: form.primary_mobile.trim() !== "" ? Number(form.primary_mobile.trim()) : undefined,
+      alternate_mobile: form.alternate_mobile.trim() !== "" ? Number(form.alternate_mobile.trim()) : undefined,
       address: form.address || undefined,
     };
 
-    await updateUser(selectedUser.username, payload);
-
-    // Reload table or update local state if we want to be optimistic
-    // Ideally reload for consistent sort/filter
-    userTable.batchUpdate(prev => ({
-      ...prev,
-      page: 1
-    }));
-
-    setIsEditOpen(false);
-    setSelectedUser(null);
-    resetForm();
+    try {
+      await updateUser(selectedUser.username, payload);
+      userTable.batchUpdate(prev => ({ ...prev, page: 1 }));
+      showSuccess("User updated successfully");
+      setIsEditOpen(false);
+      setSelectedUser(null);
+      resetForm();
+    } catch (err: any) {
+      console.error("Failed to update user:", err);
+      showError(err?.response?.data?.message || "Failed to update user");
+    }
   }
 
 
   async function deleteUser() {
     if (!selectedUser) return;
-
-    await softDeleteUser(selectedUser.username);
-
-    // Refresh table
-    userTable.batchUpdate(prev => ({
-      ...prev,
-      page: 1
-    }));
-
-    setIsDeleteOpen(false);
-    setSelectedUser(null);
+    try {
+      await softDeleteUser(selectedUser.username);
+      userTable.batchUpdate(prev => ({ ...prev, page: 1 }));
+      showSuccess("User deleted successfully");
+      setIsDeleteOpen(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      console.error("Failed to delete user:", err);
+      showError(err?.response?.data?.message || "Failed to delete user");
+    }
   }
 
   /* ---------------- COLUMNS ---------------- */

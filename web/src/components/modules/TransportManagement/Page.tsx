@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Car, UserCheck, Trash2, X, UserMinus, MinusCircle } from "lucide-react";
+import { useError } from "@/context/ErrorContext";
 import "./GuestTransportManagement.css";
 import { FilterField } from "@/components/ui/FilterField";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -50,6 +51,7 @@ import { assignDriverSchema, assignVehicleSchema } from "@/validation/transportA
 import { validateSingleField } from "@/utils/validateSingleField";
 // import { ActiveGuestRow } from "../../../types/guests";
 function GuestTransportManagement() {
+  const { showError, showSuccess } = useError();
 
   // const today = new Date();
   // const currentYear = today.getFullYear();
@@ -279,6 +281,9 @@ function GuestTransportManagement() {
         if (res.stats) {
           setStatusCounts(res.stats);
         }
+      } catch (err: any) {
+        console.error("Failed to load guests", err);
+        showError(err?.response?.data?.message || "Failed to load guests");
       } finally {
         GuestTable.setLoading(false);
       }
@@ -297,9 +302,9 @@ function GuestTransportManagement() {
       try {
         const list = await getAssignableDriversByDate(driverForm.trip_date);
         setDrivers(list);
-      } catch (err) {
-        console.error("Failed to load drivers by date", err);
-        setDrivers([]);
+      } catch (err: any) {
+        console.error("Failed to load drivers:", err);
+        showError(err?.response?.data?.message || "Failed to load available drivers");
       }
     }
 
@@ -395,64 +400,10 @@ function GuestTransportManagement() {
         trip_status: driverForm.trip_status,
       });
 
-      // ✅ SUCCESS
-      setFormErrors({});
-      setHasBackendError(false);
-      setDriverModalOpen(false);
-      GuestTable.setPage(1);
-
+      showSuccess("Driver assigned successfully");
     } catch (err: any) {
-      const backendMessage = Array.isArray(err?.response?.data?.message)
-        ? err.response.data.message[0]
-        : err?.response?.data?.message;
-
-      switch (backendMessage) {
-        case "DRIVER_WEEK_OFF":
-          setHasBackendError(true);
-          setFormErrors({
-            _form: "This driver is on week off for the selected date. Please choose another driver.",
-          });
-          break;
-
-        case "DRIVER_NOT_ON_DUTY":
-          setHasBackendError(true);
-          setFormErrors({
-            _form: "This driver is not on duty during the selected time.",
-          });
-          break;
-
-        case "DRIVER_ALREADY_ASSIGNED":
-          setHasBackendError(true);
-
-          setFormErrors({
-            _form: "This driver is already assigned during the selected time.",
-          });
-          break;
-
-        case "GUEST_NOT_ASSIGNABLE":
-          setHasBackendError(true);
-
-          setFormErrors({
-            _form: "This guest cannot be assigned a driver.",
-          });
-          break;
-
-        case "GUEST_STATUS_NOT_FOUND":
-          setHasBackendError(true);
-
-          setFormErrors({
-            _form: "Guest status could not be determined.",
-          });
-          break;
-
-        default:
-          setHasBackendError(true);
-
-          setFormErrors({
-            _form: "Failed to assign driver. Please try again.",
-          });
-      }
-      console.log("FORM ERRORS SET:", backendMessage);
+      console.error("Assignment failed:", err);
+      showError(err?.response?.data?.message || "Failed to assign driver");
     }
   }
 
@@ -518,16 +469,22 @@ function GuestTransportManagement() {
     }
 
 
-    await assignVehicleToGuest({
-      guest_id: vehicleForm.guest_id,
-      vehicle_no: vehicleForm.vehicle_no,
-      location: vehicleForm.location || undefined,
-      assigned_at,
-      released_at: released_at || undefined,
-    });
+    try {
+      await assignVehicleToGuest({
+        guest_id: vehicleForm.guest_id,
+        vehicle_no: vehicleForm.vehicle_no,
+        location: vehicleForm.location || undefined,
+        assigned_at,
+        released_at: released_at || undefined,
+      });
 
-    setVehicleModalOpen(false);
-    GuestTable.setPage(1);
+      showSuccess("Vehicle assigned successfully");
+      setVehicleModalOpen(false);
+      GuestTable.setPage(1);
+    } catch (err: any) {
+      console.error("Vehicle assignment failed:", err);
+      showError(err?.response?.data?.message || "Failed to assign vehicle");
+    }
   }
 
   /* =======================
@@ -546,19 +503,25 @@ function GuestTransportManagement() {
     //   trip_status: driverForm.trip_status,
     // });
 
-    await reviseGuestDriver(editingGuestDriverId, {
-      pickup_location: driverForm.pickup_location || undefined,
-      drop_location: driverForm.drop_location || undefined,
-      trip_date: driverForm.trip_date || undefined,
-      start_time: driverForm.start_time || undefined,
-      end_time: driverForm.end_time || undefined,
-      trip_status: driverForm.trip_status,
-    });
+    try {
+      await reviseGuestDriver(editingGuestDriverId, {
+        pickup_location: driverForm.pickup_location || undefined,
+        drop_location: driverForm.drop_location || undefined,
+        trip_date: driverForm.trip_date || undefined,
+        start_time: driverForm.start_time || undefined,
+        end_time: driverForm.end_time || undefined,
+        trip_status: driverForm.trip_status,
+      });
 
-    setEditDriverModalOpen(false);
-    setFormErrors({});
-    setEditingGuestDriverId(null);
-    GuestTable.setPage(1);
+      showSuccess("Driver trip updated successfully");
+      setEditDriverModalOpen(false);
+      setFormErrors({});
+      setEditingGuestDriverId(null);
+      GuestTable.setPage(1);
+    } catch (err: any) {
+      console.error("Update driver failed:", err);
+      showError(err?.response?.data?.message || "Failed to update driver trip");
+    }
   }
 
   /* =======================
@@ -586,17 +549,23 @@ function GuestTransportManagement() {
       return;
     }
 
-    await reassignVehicleToGuest(editingGuestVehicleId, {
-      guest_id: vehicleForm.guest_id,
-      vehicle_no: vehicleForm.vehicle_no,
-      location: vehicleForm.location,
-      assigned_at,
-      released_at: released_at || undefined,
-    });
+    try {
+      await reassignVehicleToGuest(editingGuestVehicleId, {
+        guest_id: vehicleForm.guest_id,
+        vehicle_no: vehicleForm.vehicle_no,
+        location: vehicleForm.location,
+        assigned_at,
+        released_at: released_at || undefined,
+      });
 
-    setEditVehicleModalOpen(false);
-    setEditingGuestVehicleId(null);
-    GuestTable.setPage(1);
+      showSuccess("Vehicle assignment updated successfully");
+      setEditVehicleModalOpen(false);
+      setEditingGuestVehicleId(null);
+      GuestTable.setPage(1);
+    } catch (err: any) {
+      console.error("Update vehicle failed:", err);
+      showError(err?.response?.data?.message || "Failed to update vehicle assignment");
+    }
   }
 
   // async function submitEditVehicle() {
@@ -787,9 +756,14 @@ function GuestTransportManagement() {
                       openConfirm(
                         "Are you sure you want to unassign this driver?",
                         async () => {
-                          await closeGuestDriver(driver.guest_driver_id);
-                          GuestTable.setPage(1);
-                          closeConfirm();
+                          try {
+                            await closeGuestDriver(driver.guest_driver_id);
+                            showSuccess("Driver unassigned successfully");
+                            GuestTable.setPage(1);
+                            closeConfirm();
+                          } catch (err: any) {
+                            showError(err?.response?.data?.message || "Failed to unassign driver");
+                          }
                         },
                         { title: "Unassign Driver", confirmText: "Unassign", cancelText: "Cancel" }
                       );

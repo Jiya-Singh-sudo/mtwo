@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Settings, Shield, Globe, X } from "lucide-react";
 import "./SystemSettings.css";
+import { useError } from "@/context/ErrorContext";
 
 type ModalType = "room" | "vehicle" | "duty" | "emergency";
 
 export function SystemSettings() {
+  const { confirmDialog } = useError();
   /* ---------- STATE ---------- */
 
   const [roomCategories, setRoomCategories] = useState<string[]>([
@@ -72,8 +74,9 @@ export function SystemSettings() {
     list: T[],
     setter: React.Dispatch<React.SetStateAction<T[]>>
   ) => {
-    if (!confirm("Are you sure?")) return;
-    setter(list.filter((_, i) => i !== index));
+    confirmDialog("Are you sure you want to delete this item?", () => {
+      setter(list.filter((_, i) => i !== index));
+    });
   };
 
   const saveModal = () => {

@@ -27,18 +27,18 @@
 }
 
 .primaryBtn {
-  background: #00247D;
+  background: var(--primary);
   color: white;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-weight: 500;
 }
 
 .secondaryBtn {
-  border: 1px solid #00247D;
-  color: #00247D;
+  border: 1px solid var(--primary);
+  color: var(--primary);
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .dangerBtn {
@@ -52,9 +52,10 @@
    GLOBAL MODAL STYLES
 ====================================================== */
 .nicModal {
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .nicModalHeader {

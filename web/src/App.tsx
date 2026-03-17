@@ -1,15 +1,11 @@
-import { useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ErrorProvider } from '@/context/ErrorContext';
 import AppRoutes from '@/routes/AppRoutes';
 import { Sidebar } from './components/Sidebar';
-// import { Search, Globe } from 'lucide-react';
+import HeaderUserChip from './components/common/UserBadge';
 
 function Layout() {
-  const { isAuthenticated } = useAuth();
-  const [language, setLanguage] = useState<'english' | 'hindi'>('english');
-
-  const { logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
 
   // Show ONLY login routes when not authenticated
   if (!isAuthenticated) {
@@ -22,19 +18,6 @@ function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
         <header className="bg-white border-b border-gray-200">
-          {/* Top bar with dark background */}
-          <div className="bg-[#2C2C2C] px-8 py-2">
-            <div className="flex items-center justify-end gap-4">
-              {/* 
-              <button className="text-white" onClick={() => setLanguage}>
-                Hindi
-              </button> */}
-
-              <button className="text-white" onClick={logout}>
-                Logout
-              </button>
-            </div>
-          </div>
           {/* Main header with logos */}
           <div className="px-8 py-4">
             <div className="flex items-center justify-between">
@@ -61,12 +44,21 @@ function Layout() {
                   alt="Maharashtra Government Seal"
                   className="w-20 h-20 object-contain"
                 />
-                {/* Indian Flag - Real Image */}
+                {/* Indian Flag - Real Image
                 <img
                   src={"./public/indian_flag.png"}
                   alt="Indian National Flag"
                   className="w-20 h-14 object-cover rounded-sm shadow border border-gray-300"
-                />
+                /> */}
+
+                {/* User Identity Card */}
+                {isAuthenticated && user && (
+                  <HeaderUserChip
+                    name={user.username}
+                    role={user.role_id || "Staff"}
+                    onLogout={logout}
+                  />
+                )}
               </div>
             </div>
           </div>

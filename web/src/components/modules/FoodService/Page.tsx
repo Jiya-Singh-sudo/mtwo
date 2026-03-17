@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X, Search } from "lucide-react";
 import Select from "react-select";
 import { StatCard } from "@/components/ui/StatCard";
@@ -297,8 +297,9 @@ export function FoodService() {
     try {
       const dashboard = await getFoodDashboard();
       setStats(dashboard);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showError(err?.response?.data?.message || "Failed to load dashboard data");
     }
   }
   async function loadTodayMealPlan() {
@@ -331,6 +332,9 @@ export function FoodService() {
 
       setFoodRows(res.data);
       foodTable.setTotal(res.totalCount);
+    } catch (err: any) {
+      console.error("Failed to load guests", err);
+      showError(err?.response?.data?.message || "Failed to load guests");
     } finally {
       foodTable.setLoading(false);
     }
@@ -350,9 +354,9 @@ export function FoodService() {
 
       setButlers(res.data);
       butlerTable.setTotal(res.totalCount);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load butlers", err);
-      console.log("Butler Query:", butlerTable.query);
+      showError(err?.response?.data?.message || "Failed to load butlers");
     } finally {
       butlerTable.setLoading(false);
     }
@@ -547,9 +551,9 @@ export function FoodService() {
 
       setButlerModalOpen(false);
       loadButlers();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showError("Failed to save butler");
+      showError(err?.response?.data?.message || "Failed to save butler");
     }
   }
   async function reloadGuestModalData(guestId: string) {
@@ -1526,8 +1530,9 @@ export function FoodService() {
 
                     setSpecialReqModalOpen(false);
                     await loadGuests();
-                  } catch (err) {
-                    showError("Failed to save special request");
+                  } catch (err: any) {
+                    console.error('Failed to save special request', err);
+                    showError(err?.response?.data?.message || 'Failed to save special request');
                   }
                 }}
               >

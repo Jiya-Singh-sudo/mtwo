@@ -1,16 +1,23 @@
-import { Users, UserCheck, UserX, Clock, Building2, Car, Calendar, Bell } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock } from 'lucide-react';
 import { getDashboardOverview } from '../../../api/dashboard.api';
 import { DashboardOverview } from '../../../types/dashboard';
 import { useEffect, useState } from 'react';
 import { QuickActions } from '@/components/QuickActions';
+import { useError } from "@/context/ErrorContext";
 
 export function DashboardStats() {
+  const { showError } = useError();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   useEffect(() => {
     async function load() {
-      const data = await getDashboardOverview();
-      setOverview(data);
+      try {
+        const data = await getDashboardOverview();
+        setOverview(data);
+      } catch (err: any) {
+        console.error("Dashboard Load Error:", err);
+        showError(err?.response?.data?.message || "Failed to load dashboard overview");
+      }
     }
     load();
   }, []);
@@ -55,41 +62,6 @@ export function DashboardStats() {
       color: 'bg-gray-50 text-gray-600',
       border: 'border-gray-200',
       path: '/guests?status=checked-out'
-    }
-  ];
-
-  const resourceStats = [
-    {
-      title: 'Room Occupancy',
-      titleHi: 'कक्ष अधिभोग',
-      total: 40,
-      occupied: 28,
-      icon: Building2,
-      path: '/rooms'
-    },
-    {
-      title: 'Vehicle Fleet',
-      titleHi: 'वाहन बेड़ा',
-      total: 15,
-      occupied: 7,
-      icon: Car,
-      path: '/vehicles'
-    },
-    {
-      title: 'Duty Roster',
-      titleHi: 'ड्यूटी रोस्टर',
-      total: 35,
-      occupied: 10,
-      icon: Calendar,
-      path: '/duty-roster'
-    },
-    {
-      title: 'Notifications',
-      titleHi: 'सूचनाएं',
-      total: 32,
-      occupied: 24,
-      icon: Bell,
-      path: '/notifications'
     }
   ];
 

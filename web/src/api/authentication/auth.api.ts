@@ -17,14 +17,26 @@ export type LoginResponse = {
 /**
  * Login API call
  */
-export async function loginApi(username: string, password: string): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/auth/login', {
-        username,
-        password,
-    });
-    return response.data;
-}
+// export async function loginApi(username: string, password: string): Promise<LoginResponse> {
+//     const response = await apiClient.post<LoginResponse>('/auth/login', {
+//         username,
+//         password,
+//     });
+//     return response.data;
+// }
+export async function loginApi(
+  username: string,
+  password: string,
+  recaptchaToken: string
+): Promise<LoginResponse> {
+  const response = await apiClient.post<LoginResponse>('/auth/login', {
+    username,
+    password,
+    recaptchaToken,
+  });
 
+  return response.data;
+}
 /**
  * Refresh token API call
  */

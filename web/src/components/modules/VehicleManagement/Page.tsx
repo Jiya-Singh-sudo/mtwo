@@ -15,6 +15,7 @@ import { PageToolbar } from "@/components/layout/PageToolbar";
 import { driverCreateEditSchema as driverSchema, vehicleCreateEditSchema as vehicleSchema } from '@/validation/transportManagement.validation';
 import { validateSingleField } from '@/utils/validateSingleField';
 import { FieldError } from '@/components/ui/FieldError';
+import { useError } from "@/context/ErrorContext";
 
 interface Vehicle {
   vehicle_no: string;
@@ -52,6 +53,7 @@ interface Driver {
 }
 
 export function VehicleManagement() {
+  const { showError, showSuccess } = useError();
 
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -120,6 +122,9 @@ export function VehicleManagement() {
         });
         setVehicles(res.data);
         vehicleTable.setTotal(res.totalCount);
+      } catch (err: any) {
+        console.error("Failed to load vehicles", err);
+        showError(err?.response?.data?.message || "Failed to load vehicles");
       } finally {
         vehicleTable.setLoading(false);
       }
@@ -138,6 +143,9 @@ export function VehicleManagement() {
         });
         setDrivers(res.data);
         driverTable.setTotal(res.totalCount);
+      } catch (err: any) {
+        console.error("Failed to load drivers", err);
+        showError(err?.response?.data?.message || "Failed to load drivers");
       } finally {
         driverTable.setLoading(false);
       }
@@ -209,8 +217,10 @@ export function VehicleManagement() {
       setShowAddVehicle(false);
       setFormErrors({});
       resetVehicleForm();
-    } catch (error) {
-      console.error('Failed to create vehicle', error);
+      showSuccess("Vehicle added successfully");
+    } catch (err: any) {
+      console.error('Failed to create vehicle', err);
+      showError(err?.response?.data?.message || "Failed to create vehicle");
     }
   };
 
@@ -225,16 +235,22 @@ export function VehicleManagement() {
       color: vehicleFormData.color,
     };
 
-    const updated = await updateVehicle(selectedVehicle.vehicle_no, payload);
+    try {
+      const updated = await updateVehicle(selectedVehicle.vehicle_no, payload);
 
-    setVehicles(prev =>
-      prev.map(v => (v.vehicle_no === selectedVehicle.vehicle_no ? updated : v))
-    );
+      setVehicles(prev =>
+        prev.map(v => (v.vehicle_no === selectedVehicle.vehicle_no ? updated : v))
+      );
 
-    setShowEditVehicle(false);
-    setFormErrors({});
-    resetVehicleForm();
-    setDirty(false);
+      setShowEditVehicle(false);
+      setFormErrors({});
+      resetVehicleForm();
+      setDirty(false);
+      showSuccess("Vehicle updated successfully");
+    } catch (err: any) {
+      console.error('Failed to update vehicle', err);
+      showError(err?.response?.data?.message || "Failed to update vehicle");
+    }
   };
 
 
@@ -245,8 +261,10 @@ export function VehicleManagement() {
       await softDeleteVehicle(selectedVehicle.vehicle_no);
       vehicleTable.setPage(1);
       setShowDeleteVehicleConfirm(false);
+      showSuccess("Vehicle deleted successfully");
     } catch (err: any) {
-      setApiError(err.message);
+      console.error('Failed to delete vehicle', err);
+      showError(err?.response?.data?.message || "Failed to delete vehicle");
     }
   };
 
@@ -299,8 +317,10 @@ export function VehicleManagement() {
       setFormErrors({});
       setShowAddDriver(false);
       resetDriverForm();
-    } catch (error) {
-      console.error('Failed to create driver', error);
+      showSuccess("Driver added successfully");
+    } catch (err: any) {
+      console.error('Failed to create driver', err);
+      showError(err?.response?.data?.message || "Failed to create driver");
     }
   };
 
@@ -331,8 +351,10 @@ export function VehicleManagement() {
       setSelectedDriver(null);
       setFormErrors({});
       resetDriverForm();
+      showSuccess("Driver updated successfully");
     } catch (err: any) {
-      setApiError(err.message);
+      console.error('Failed to update driver', err);
+      showError(err?.response?.data?.message || "Failed to update driver");
     }
   };
   // const handleEditDriver = () => {
@@ -363,8 +385,10 @@ export function VehicleManagement() {
       setFormErrors({});
       setShowDeleteDriverConfirm(false);
       setSelectedDriver(null);
+      showSuccess("Driver deleted successfully");
     } catch (err: any) {
-      setApiError(err.message);
+      console.error('Failed to delete driver', err);
+      showError(err?.response?.data?.message || "Failed to delete driver");
     }
   };
 

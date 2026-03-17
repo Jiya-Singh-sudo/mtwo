@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Download, Send, User, BedDouble, Car, Calendar, X, } from "lucide-react";
+import { FileText, Download, Send, X, } from "lucide-react";
 import { formatDateTime } from "@/utils/dateTime";
 import {
   getInfoPackageGuests,
@@ -9,8 +9,10 @@ import {
 
 import { DataTable, Column } from "@/components/ui/DataTable";
 import GlobalTableFilters from "@/components/common/GlobalTableFilters";
+import { useError } from "@/context/ErrorContext";
 
 export default function InfoPackage() {
+  const { showError, showSuccess } = useError();
   const [guests, setGuests] = useState<any[]>([]);
   const [activeGuest, setActiveGuest] = useState<any>(null);
 
@@ -59,10 +61,9 @@ export default function InfoPackage() {
 
       setGuests(Array.isArray(res?.data) ? res.data : []);
       setTotalCount(typeof res?.total === 'number' ? res.total : 0);
-      // console.log('InfoPackage API response:', res);
-      // console.log('Guests state:', res?.data);
-      // console.log('Guests state:', res?.total);
-
+    } catch (err: any) {
+      console.error('Failed to load guests', err);
+      showError(err?.response?.data?.message || 'Failed to load guests');
     } finally {
       setLoading(false);
     }
@@ -75,16 +76,22 @@ export default function InfoPackage() {
   }
 
   async function confirmGeneratePDF() {
-    const blob = await downloadInfoPackagePdf(activeGuest.guest_id);
+    try {
+      const blob = await downloadInfoPackagePdf(activeGuest.guest_id);
 
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Guest_Info_${activeGuest.guest_id}.pdf`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Guest_Info_${activeGuest.guest_id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
 
-    setShowPdfModal(false);
+      setShowPdfModal(false);
+      showSuccess("PDF generated successfully");
+    } catch (err: any) {
+      console.error("Failed to generate PDF", err);
+      showError(err?.response?.data?.message || "Failed to generate PDF");
+    }
   }
 
   function handleSendWhatsApp(guest: any) {
@@ -93,8 +100,14 @@ export default function InfoPackage() {
   }
 
   async function confirmSendWhatsApp() {
-    await sendInfoPackageWhatsapp(activeGuest.guest_id);
-    setShowWhatsAppModal(false);
+    try {
+      await sendInfoPackageWhatsapp(activeGuest.guest_id);
+      setShowWhatsAppModal(false);
+      showSuccess("Info package sent successfully via WhatsApp");
+    } catch (err: any) {
+      console.error("Failed to send WhatsApp", err);
+      showError(err?.response?.data?.message || "Failed to send WhatsApp");
+    }
   }
 
   /* ================= TABLE COLUMNS ================= */

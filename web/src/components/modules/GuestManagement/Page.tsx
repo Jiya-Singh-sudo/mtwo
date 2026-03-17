@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, Eye, XCircle, BedDouble } from "lucide-react";
+import { useError } from "@/context/ErrorContext";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
 import { updateGuestInOut } from "@/api/guestInOut.api";
@@ -53,6 +54,7 @@ type GuestForm = {
 };
 
 export function GuestManagement() {
+  const { showError, showSuccess, showWarning } = useError();
   const today = new Date();
   const currentYear = today.getFullYear();
   const ViewRow = ({
@@ -469,7 +471,7 @@ export function GuestManagement() {
       setModalMode(null);
       setGuestForm(initialGuestForm);
       await loadGuests();
-      alert("Guest added successfully!");
+      showSuccess("Guest added successfully!");
     } catch (err: any) {
       if (err instanceof ZodError) {
         setFormErrors(zodToFormErrors(err));
@@ -486,7 +488,7 @@ export function GuestManagement() {
         return;
       }
 
-      alert(message || "Failed to add guest");
+      showError(message || "Failed to add guest");
     }
   }
 
@@ -606,7 +608,7 @@ export function GuestManagement() {
           requires_driver: parsed.requires_driver
         });
         if (res?.warnings?.length) {
-          alert(
+          showWarning(
             "⚠ Transport conflicts detected:\n" +
             res.warnings.map((w: string) => `• ${w} `).join("\n")
           );
@@ -622,7 +624,7 @@ export function GuestManagement() {
       }
 
       console.error("Edit failed", err);
-      alert(err?.response?.data?.message || "Failed to update guest");
+      showError(err?.response?.data?.message || "Failed to update guest");
     }
   }
 
@@ -639,7 +641,7 @@ export function GuestManagement() {
       await loadGuests();
     } catch (err) {
       console.error("delete failed", err);
-      alert("Failed to delete guest");
+      showError("Failed to delete guest");
     }
   }
 
@@ -664,7 +666,7 @@ export function GuestManagement() {
       await loadGuests();
     } catch (err) {
       console.error("Cancel visit failed", err);
-      alert("Failed to cancel visit");
+      showError("Failed to cancel visit");
     }
   }
 
@@ -1876,12 +1878,12 @@ export function GuestManagement() {
                       await updateGuestInOut(roomGuest.inout_id, {
                         rooms_required: roomsRequired
                       });
-                      alert(`Assigned ${roomsRequired} rooms to ${roomGuest.guest_name} `);
+                      showSuccess(`Assigned ${roomsRequired} rooms to ${roomGuest.guest_name} `);
                       setShowRoomModal(false);
                       setRoomGuest(null);
                       await loadGuests();
                     } catch (err) {
-                      alert("Failed to assign rooms");
+                      showError("Failed to assign rooms");
                     }
                   }}
                 >

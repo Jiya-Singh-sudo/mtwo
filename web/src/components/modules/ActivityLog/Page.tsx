@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { fetchActivityLogs } from '@/api/activityLog.api';
 import type { ActivityLog } from '@/types/activity-log';
 import { SimplePagination } from '@/components/ui/SimplePagination';
+import { useError } from "@/context/ErrorContext";
 
 export default function ActivityLogPage() {
+    const { showError } = useError();
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
@@ -24,8 +26,9 @@ export default function ActivityLogPage() {
             });
             setLogs(res.data);
             setTotal(res.meta.total);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to load activity logs', err);
+            showError(err?.response?.data?.message || 'Failed to load activity logs');
         } finally {
             setLoading(false);
         }

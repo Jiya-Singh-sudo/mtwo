@@ -443,7 +443,7 @@ export function LoginPage() {
 }
 export default function LoginPageWrapper() {
     return (
-        <GoogleReCaptchaProvider reCaptchaKey="6Ld-lncsAAAAAOc1KQ3PBx7R4mILJ8bIrJ4qxErt">
+        <GoogleReCaptchaProvider reCaptchaKey={import.meta.env.VITE_RECAPTCHA_KEY}>
             <LoginPage />
         </GoogleReCaptchaProvider>
     );

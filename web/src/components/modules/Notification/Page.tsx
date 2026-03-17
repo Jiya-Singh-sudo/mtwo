@@ -76,7 +76,7 @@ export function Notifications() {
 
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduleTime, setScheduleTime] = useState('');
-  const { showError } = useError();
+  const { showError, showSuccess } = useError();
 
   /* ---------------- HELPERS ---------------- */
   const now = () =>
@@ -109,7 +109,7 @@ export function Notifications() {
       showError('Nothing to save');
       return;
     }
-    alert('Draft saved (mock)');
+    showSuccess('Draft saved successfully');
   }
 
   function scheduleSend() {

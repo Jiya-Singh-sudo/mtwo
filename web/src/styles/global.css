@@ -5,43 +5,42 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+  --card-foreground: #0F172A;
+
+  --primary: #1D3A8A;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #E2E8F0;
+  --secondary-foreground: #0F172A;
+
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+
+  --accent: #E58A00;
+  --accent-foreground: #111827;
+
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+
+  --border: #E5E7EB;
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
+  --input-background: #F9FAFB;
+
+  --radius: 0.85rem;
+
+  --sidebar: #1D3A8A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #1D3A8A;
+  --sidebar-primary-foreground: #FFFFFF;
+
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .dark {
@@ -129,6 +128,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -208,8 +208,9 @@ html {
   align-items: center;
   justify-content: space-between;
 
-  padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 22px 26px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #F8FAFC;
 
   width: 100%;
   box-sizing: border-box;
@@ -262,26 +263,24 @@ html {
   font-size: 14px;
   font-weight: 600;
 
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
 
-  background-color: #00247D;   /* NIC Blue */
+  background-color: var(--primary);
   color: #ffffff;
 
   cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 36, 125, 0.25);
+  transition: all 0.2s ease;
+  box-shadow: var(--card-shadow);
 }
 
-/* Hover */
 .nicTab:hover {
-  background-color: #001c5a;
+  background-color: #1D4ED8;
 }
 
-/* Active */
 .nicTab.active {
-  background-color: #001a4d;
-  box-shadow: 0 4px 10px rgba(0, 36, 125, 0.4);
+  background-color: var(--sidebar);
+  box-shadow: var(--card-shadow);
 }
 
 /* Keyboard accessibility */
@@ -335,7 +334,7 @@ html {
 /* orange */
 
 .iconBtn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(30,64,175,0.08);
 }
 
 /* ===== STATUS PILLS ===== */
@@ -349,7 +348,7 @@ html {
 }
 
 .statusPill.active {
-  background: #dcfce7;
+  background: #DCFCE7;
   color: #166534;
 }
 
@@ -360,13 +359,13 @@ html {
 }
 
 .statusPill.pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #FEF3C7;
+  color: #92400E;
 }
 
 .statusPill.assigned {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #DBEAFE;
+  color: #1E3A8A;
 }
 
 /* ===== REQUIRED FIELD INDICATOR ===== */
@@ -416,4 +415,59 @@ html {
 .foodTypeBadge.Egg {
   background: #fff7ed;
   color: #9a3412;
+}
+
+/* ===== HEADER USER BOX ===== */
+.headerUserBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 6px 12px;
+}
+
+.headerUserIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+}
+
+.headerUserText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.headerUserName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.headerUserRole {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.headerLogoutBtn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headerLogoutBtn:hover {
+  background: #f3f4f6;
 }

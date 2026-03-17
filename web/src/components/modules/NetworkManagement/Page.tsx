@@ -1816,7 +1816,7 @@ export default function NetworkManagement() {
                                     disabled={!guestForm.provider_id}
                                     onClick={async () => {
                                         if (!guestForm.provider_id) {
-                                            alert('Please select username');
+                                            showError('Please select username');
                                             return;
                                         }
 
@@ -1839,7 +1839,7 @@ export default function NetworkManagement() {
                                             const message =
                                                 err?.response?.data?.message ||
                                                 "Unable to assign network";
-                                            alert(message);
+                                            showError(message);
                                         }
                                     }}
                                 >

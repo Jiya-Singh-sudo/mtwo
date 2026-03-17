@@ -42,7 +42,6 @@ export default function DriverDutyRoasterPage() {
   const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const [rosters, setRosters] = useState<DriverWeeklyRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { showError } = useError();
 
@@ -88,9 +87,9 @@ export default function DriverDutyRoasterPage() {
         }
       }
       setRosters(Object.values(grouped));
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to load duties");
+      showError(err?.response?.data?.message || "Failed to load duties");
     } finally {
       setLoading(false);
     }
@@ -259,7 +258,6 @@ export default function DriverDutyRoasterPage() {
   /* ================= UI STATES ================= */
 
   if (loading) return <p className="p-6">Loading duty roaster…</p>;
-  if (error) return <p className="p-6 text-red-600">{error}</p>;
 
   const page = 1;
   const limit = tableData.length || 1;

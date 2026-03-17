@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from "react";
+import { useError } from "@/context/ErrorContext";
 import { Button } from "../../ui/button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -46,6 +47,7 @@ type AssignmentFormType = {
 };
 
 export function RoomManagement() {
+  const { showError, showSuccess } = useError();
   const roomTable = useTableQuery({
     sortBy: 'room_no',
     sortOrder: 'asc',
@@ -313,6 +315,8 @@ export function RoomManagement() {
         });
 
         setFormErrors(errors);
+      } else {
+        showError((err as any)?.response?.data?.message || "Failed to add room");
       }
     }
   }
@@ -373,7 +377,7 @@ export function RoomManagement() {
 
       closeEditRoom();
       await loadRooms();
-    } catch (err) {
+    } catch (err: any) {
       if (err instanceof ZodError) {
         const errors: Record<string, string> = {};
         err.issues.forEach(i => {
@@ -381,7 +385,7 @@ export function RoomManagement() {
         });
         setFormErrors(errors);
       } else {
-        console.error("Edit room failed", err);
+        showError(err?.response?.data?.message || "Edit room failed");
       }
     } finally {
       setSaving(false);
@@ -419,8 +423,7 @@ export function RoomManagement() {
         err?.response?.data?.message ||
         'Room allocation failed';
 
-      setFormErrors({ guest_id: message });
-
+      showError(message);
     }
   }
 
@@ -488,7 +491,7 @@ export function RoomManagement() {
       const message =
         err?.response?.data?.message || "Assignment failed";
 
-      setFormErrors({ general: message });
+      showError(message);
     } finally {
       setAssigning(false);
     }
@@ -496,26 +499,19 @@ export function RoomManagement() {
 
 
   async function vacateGuest(guestRoomId: string) {
-
-    await updateGuestRoom(guestRoomId, {
-      action_type: "Room-Released",
-      is_active: false,
-    });
-    await Promise.all([
-      loadRooms(),              // refresh rooms
-      loadAssignableGuests(),   // 🔥 refresh dropdown source
-    ]);
-
-    // } catch (err) {
-    //   if (err instanceof ZodError) {
-    //     const errors: Record<string, string> = {};
-    //     err.issues.forEach(i => {
-    //       errors[i.path.join(".")] = i.message;
-    //     });
-    //     setFormErrors(errors);
-    //     return;
-    //   }
-    // }
+    try {
+      await updateGuestRoom(guestRoomId, {
+        action_type: "Room-Released",
+        is_active: false,
+      });
+      await Promise.all([
+        loadRooms(),              // refresh rooms
+        loadAssignableGuests(),   // 🔥 refresh dropdown source
+      ]);
+      showSuccess("Guest vacated successfully");
+    } catch (err: any) {
+      showError(err?.response?.data?.message || "Failed to vacate guest");
+    }
   }
 
   function openAssignGuest(room: RoomRow) {
@@ -537,8 +533,13 @@ export function RoomManagement() {
     }
   }
   async function unassignHousekeeping(guestHkId: string) {
-    await unassignRoomBoy(guestHkId);
-    await loadRooms(); // 🔥 THIS is what you were missing
+    try {
+      await unassignRoomBoy(guestHkId);
+      await loadRooms(); // 🔥 THIS is what you were missing
+      showSuccess("Housekeeping unassigned successfully");
+    } catch (err: any) {
+      showError(err?.response?.data?.message || "Failed to unassign housekeeping");
+    }
   }
 
 
@@ -549,8 +550,8 @@ export function RoomManagement() {
       await loadRoomBoys();
       setShowAddRoomBoy(false);
       resetRoomBoyForm();
-    } catch (err) {
-      console.error("Failed to create room boy", err);
+    } catch (err: any) {
+      showError(err?.response?.data?.message || "Failed to create room boy");
     }
   };
 
@@ -568,6 +569,7 @@ export function RoomManagement() {
     await loadRoomBoys();
     setShowEditRoomBoy(false);
     resetRoomBoyForm();
+    showSuccess("Room boy updated successfully");
   };
 
   // const handleDeleteRoomBoy = async () => {
@@ -597,14 +599,7 @@ export function RoomManagement() {
 
       setShowDeleteRoomBoyConfirm(false);
     } catch (err: any) {
-      // ✅ extract backend message
-      const message =
-        err?.response?.data?.message ||
-        "Unable to delete room boy";
-
-      setDeleteRoomBoyError(message);
-
-      // ❌ DO NOT close modal
+      showError(err?.response?.data?.message || "Unable to delete room boy");
     }
   };
   const resetRoomBoyForm = () => {
@@ -2456,6 +2451,7 @@ export function RoomManagement() {
       }
 
     </div>
+
   );
 }
 export default RoomManagement;

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   UserPlus,
-  BedDouble,
   Car,
   Bell,
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
-import { fetchActivityLogs, getRecentActivity } from '@/api/activityLog.api';
+import { fetchActivityLogs } from '@/api/activityLog.api';
 import type { ActivityLog } from '@/types/activity-log';
 
 const iconMap: Record<string, any> = {
