@@ -1,9 +1,15 @@
 import 'react-native-gesture-handler';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, router, useSegments, useRootNavigationState } from 'expo-router';
+import { withLayoutContext, router, useSegments, useRootNavigationState } from 'expo-router';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { Text, View } from 'react-native';
+
+const NativeStack = createNativeStackNavigator().Navigator;
+const Stack = withLayoutContext(NativeStack);
+
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -11,32 +17,6 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 export const unstable_settings = {
   anchor: '(drawer)',
 };
-
-// 🔍 DEBUG - check all screen components are valid, remove once fixed
-const screenChecks: Record<string, unknown> = {
-  'GuestManagementScreen':    require('./(app)/guest/GuestManagementScreen').default,
-  'ActivityLogScreen':        require('./(app)/activity/ActivityLogScreen').default,
-  'UserManagementScreen':     require('./(app)/user/UserManagementScreen').default,
-  'RoomManagementScreen':     require('./(app)/room/RoomManagementScreen').default,
-  'TransportScreen':          require('./(app)/transport/TransportScreen').default,
-  'FoodServiceScreen':        require('./(app)/food/FoodServiceScreen').default,
-  'VehicleScreen':            require('./(app)/vehicle/VehicleScreen').default,
-  'NetworkScreen':            require('./(app)/network/NetworkScreen').default,
-  'DriverDutyScreen':         require('./(app)/driver-duty/DriverDutyScreen').default,
-  'DutyRosterScreen':         require('./(app)/duty/DutyRosterScreen').default,
-  'ReportScreen':             require('./(app)/report/ReportScreen').default,
-  'InfoPackageScreen':        require('./(app)/info-package/InfoPackageScreen').default,
-  'NotificationScreen':       require('./(app)/notification/NotificationScreen').default,
-  'SystemSettingsScreen':     require('./(app)/settings/SystemSettingsScreen').default,
-};
-
-Object.entries(screenChecks).forEach(([name, component]) => {
-  if (!component) {
-    console.error(`❌ BROKEN SCREEN: "${name}" is undefined — check its default export`);
-  } else {
-    console.log(`✅ OK: "${name}"`);
-  }
-});
 
 function InitialLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -57,22 +37,8 @@ function InitialLayout() {
 
   return (
     <Stack>
-      <Stack.Screen name="(auth)/login/index" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-      <Stack.Screen name="(app)/guest/GuestManagementScreen" options={{ title: 'Guest Management', headerShown: false }} />
-      <Stack.Screen name="(app)/activity/ActivityLogScreen" options={{ title: 'Activity Log', headerShown: false }} />
-      <Stack.Screen name="(app)/user/UserManagementScreen" options={{ title: 'User Management', headerShown: false }} />
-      <Stack.Screen name="(app)/room/RoomManagementScreen" options={{ title: 'Room Management', headerShown: false }} />
-      <Stack.Screen name="(app)/transport/TransportScreen" options={{ title: 'Transport', headerShown: false }} />
-      <Stack.Screen name="(app)/food/FoodServiceScreen" options={{ title: 'Food Service', headerShown: false }} />
-      <Stack.Screen name="(app)/vehicle/VehicleScreen" options={{ title: 'Vehicle Management', headerShown: false }} />
-      <Stack.Screen name="(app)/network/NetworkScreen" options={{ title: 'Network Management', headerShown: false }} />
-      <Stack.Screen name="(app)/driver-duty/DriverDutyScreen" options={{ title: 'Driver Duty Roster', headerShown: false }} />
-      <Stack.Screen name="(app)/duty/DutyRosterScreen" options={{ title: 'Duty Roster', headerShown: false }} />
-      <Stack.Screen name="(app)/report/ReportScreen" options={{ title: 'Reports', headerShown: false }} />
-      <Stack.Screen name="(app)/info-package/InfoPackageScreen" options={{ title: 'Info Package', headerShown: false }} />
-      <Stack.Screen name="(app)/notification/NotificationScreen" options={{ title: 'Notifications', headerShown: false }} />
-      <Stack.Screen name="(app)/settings/SystemSettingsScreen" options={{ title: 'System Settings', headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>
   );

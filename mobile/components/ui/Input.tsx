@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: spacing.md,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
     fontSize: 16,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
   },
   inputDisabled: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.lightGray,
     color: colors.muted,
   },
   errorText: {

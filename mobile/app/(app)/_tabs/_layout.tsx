@@ -1,5 +1,10 @@
-import { Tabs } from 'expo-router';
+import { withLayoutContext } from 'expo-router';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
+
+const BottomTabs = createBottomTabNavigator().Navigator;
+const Tabs = withLayoutContext(BottomTabs);
+
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -23,35 +28,35 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="guest"
         options={{
           title: 'Guests',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="person.2.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={24} name="person.2.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="room"
         options={{
           title: 'Rooms',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="bed.double.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={24} name="bed.double.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="transport"
         options={{
           title: 'Transport',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="car.fill" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={24} name="car.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="food"
         options={{
           title: 'Food',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="fork.knife" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <IconSymbol size={24} name="fork.knife" color={color} />,
         }}
       />
     </Tabs>

@@ -1,6 +1,6 @@
 export const colors = {
-  primary: "#00247D",
-  accent: "#F5A623",
+  primary: "#1D3A8A",
+  accent: "#E58A00",
   background: "#F8FAFC",
   surface: "#FFFFFF",
   border: "#E5E7EB",
@@ -12,6 +12,8 @@ export const colors = {
   info: "#2563EB",
   white: "#FFFFFF",
   black: "#000000",
+  purple: "#8B5CF6",
+  lightGray: "#F3F4F6",
   transparent: "transparent",
   
   // Semantic backgrounds
@@ -20,4 +22,5 @@ export const colors = {
   warningBg: "#FEF3C7",
   infoBg: "#DBEAFE",
   primaryBg: "#EBF0FF",
+  purpleBg: "#F5F3FF",
 };
