@@ -292,11 +292,11 @@ export class GuestsService {
         }
         const entry_date = payload.inout.entry_date;
         const entry_time = payload.inout.entry_time;
-        const companions = payload.inout?.companions ?? 0;
+        const companions = payload.inout?.companions;
         const roomsRequired = payload.inout?.rooms_required ?? 1;
-        if (companions < 0) {
-          throw new BadRequestException('Companions cannot be negative');
-        }
+        // if (companions <= 0) {
+        //   throw new BadRequestException('Companions cannot be negative');
+        // }
 
         if (roomsRequired <= 0) {
           throw new BadRequestException('Rooms required must be at least 1');
@@ -868,7 +868,7 @@ export class GuestsService {
           }
         }
         const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
-        const newCompanions = payload.companions ?? existingInout.companions ?? 0;
+        const newCompanions = payload.companions ?? existingInout.companions;
         const totalPeople = 1 + newCompanions;
 
         // 🚨 Rule 1: cannot reduce rooms_required below already allocated rooms
@@ -1241,7 +1241,7 @@ export class GuestsService {
 
     /* ================= LIAISONING OFFICER ================= */
     await trx.query(`
-      UPDATE t_guest_liaisoning_officer
+      UPDATE t_guest_liasoning_officer
       SET is_active = FALSE,
           assignment_end_date = CURRENT_DATE,
           updated_at = NOW(),

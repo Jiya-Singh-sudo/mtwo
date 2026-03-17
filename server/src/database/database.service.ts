@@ -21,6 +21,9 @@ export class DatabaseService {
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
+      this.pool.on('error', (err) => {
+        console.error('Unexpected PG client error', err);
+      });
     } finally {
       client.release();
     }
