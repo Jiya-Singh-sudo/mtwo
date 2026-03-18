@@ -42,6 +42,7 @@ import { MedicalEmergencyServiceModule } from './medical-emergency-service/medic
 import { GuestMedicalContactModule } from './guest-medical-contact/guest-medical-contact.module';
 import { GuestLiasoningOfficerModule } from './guest-liasoning-officer/guest-liasoning-officer.module';
 import { GuestMessengerModule } from './guest-messenger/guest-messenger.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { GuestMessengerModule } from './guest-messenger/guest-messenger.module';
     MedicalEmergencyServiceModule,
     GuestMedicalContactModule,
     GuestLiasoningOfficerModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
