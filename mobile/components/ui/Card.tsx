@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, StyleSheet, ViewProps, ViewStyle, StyleProp } from 'react-native';
 import { colors, spacing } from '@/theme';
 

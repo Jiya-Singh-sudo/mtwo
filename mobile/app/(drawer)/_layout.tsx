@@ -5,8 +5,11 @@ import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/theme/colors';
 import { Text, View } from 'react-native';
 
-const DrawerNavigator = createDrawerNavigator().Navigator;
-const Drawer = withLayoutContext(DrawerNavigator);
+const { Navigator } = createDrawerNavigator();
+const Drawer = withLayoutContext(Navigator);
+
+console.log('Drawer component type:', typeof Drawer);
+console.log('Drawer.Screen component type:', typeof Drawer.Screen);
 
 export default function DrawerLayout() {
   const { hasPermission } = useAuth();

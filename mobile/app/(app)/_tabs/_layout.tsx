@@ -2,8 +2,8 @@ import { withLayoutContext } from 'expo-router';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 
-const BottomTabs = createBottomTabNavigator().Navigator;
-const Tabs = withLayoutContext(BottomTabs);
+const { Navigator } = createBottomTabNavigator();
+const Tabs = withLayoutContext(Navigator);
 
 
 import { HapticTab } from '@/components/haptic-tab';
