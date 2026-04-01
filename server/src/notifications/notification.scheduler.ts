@@ -12,8 +12,8 @@ export class NotificationScheduler {
   ) {}
 
   // Runs every hour
-  // @Cron('0 * * * *')
-  @Cron('*/30 * * * * *') // every 30 seconds
+  @Cron('0 * * * *')
+  //@Cron('*/30 * * * * *') // every 30 seconds
   async processNotifications()  {
     await this.process48HourReminders();
     await this.process24HourGuestNotifications();
@@ -77,33 +77,33 @@ export class NotificationScheduler {
 
           if (!user.primary_mobile) continue;
 
-          await this.notificationsService.createNotification({
-            guestId: guest.guest_id,
-            inoutId: guest.inout_id,
-            notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
-            recipientType: 'USER',
-            recipientContact: user.primary_mobile,
-            channel: 'WHATSAPP',
-            message
-          });
-          await this.notificationsService.createNotification({
-            guestId: guest.guest_id,
-            inoutId: guest.inout_id,
-            notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
-            recipientType: 'USER',
-            recipientContact: user.primary_mobile,
-            channel: 'SMS',
-            message
-          });
-          await this.notificationsService.createNotification({
-            guestId: guest.guest_id,
-            inoutId: guest.inout_id,
-            notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
-            recipientType: 'USER',
-            recipientContact: user.email,
-            channel: 'EMAIL',
-            message
-          });
+          // await this.notificationsService.createNotification({
+          //   guestId: guest.guest_id,
+          //   inoutId: guest.inout_id,
+          //   notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
+          //   recipientType: 'USER',
+          //   recipientContact: user.primary_mobile,
+          //   channel: 'WHATSAPP',
+          //   message
+          // });
+          // await this.notificationsService.createNotification({
+          //   guestId: guest.guest_id,
+          //   inoutId: guest.inout_id,
+          //   notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
+          //   recipientType: 'USER',
+          //   recipientContact: user.primary_mobile,
+          //   channel: 'SMS',
+          //   message
+          // });
+          // await this.notificationsService.createNotification({
+          //   guestId: guest.guest_id,
+          //   inoutId: guest.inout_id,
+          //   notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
+          //   recipientType: 'USER',
+          //   recipientContact: user.email,
+          //   channel: 'EMAIL',
+          //   message
+          // });
           console.log("🔥 Scheduler running");
           console.log("Guests found:", guests.rows.length);
         }
@@ -196,33 +196,33 @@ export class NotificationScheduler {
           }
         );
 
-        await this.notificationsService.createNotification({
-          guestId: guest.guest_id,
-          inoutId: guest.inout_id,
-          notificationType,
-          recipientType: 'GUEST',
-          recipientContact: guest.guest_mobile,
-          channel: 'WHATSAPP',
-          message
-        });
-        await this.notificationsService.createNotification({
-          guestId: guest.guest_id,
-          inoutId: guest.inout_id,
-          notificationType,
-          recipientType: 'GUEST',
-          recipientContact: guest.guest_mobile,
-          channel: 'SMS',
-          message
-        });
-        await this.notificationsService.createNotification({
-          guestId: guest.guest_id,
-          inoutId: guest.inout_id,
-          notificationType,
-          recipientType: 'GUEST',
-          recipientContact: guest.email,
-          channel: 'EMAIL',
-          message
-        });
+        // await this.notificationsService.createNotification({
+        //   guestId: guest.guest_id,
+        //   inoutId: guest.inout_id,
+        //   notificationType,
+        //   recipientType: 'GUEST',
+        //   recipientContact: guest.guest_mobile,
+        //   channel: 'WHATSAPP',
+        //   message
+        // });
+        // await this.notificationsService.createNotification({
+        //   guestId: guest.guest_id,
+        //   inoutId: guest.inout_id,
+        //   notificationType,
+        //   recipientType: 'GUEST',
+        //   recipientContact: guest.guest_mobile,
+        //   channel: 'SMS',
+        //   message
+        // });
+        // await this.notificationsService.createNotification({
+        //   guestId: guest.guest_id,
+        //   inoutId: guest.inout_id,
+        //   notificationType,
+        //   recipientType: 'GUEST',
+        //   recipientContact: guest.email,
+        //   channel: 'EMAIL',
+        //   message
+        // });
         console.log("🔥 Scheduler running");
         console.log("Guests found:", guests.rows.length);
       }
