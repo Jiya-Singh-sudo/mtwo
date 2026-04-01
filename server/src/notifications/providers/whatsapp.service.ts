@@ -16,17 +16,23 @@ export class WhatsAppService {
 
     let formattedTo = to.trim();
 
-    // ensure + prefix
     if (!formattedTo.startsWith('+')) {
-      formattedTo = `+${formattedTo}`;
+      formattedTo = `+91${formattedTo}`;
     }
 
-    return this.client.messages.create({
+    console.log("📤 Final number:", formattedTo); // ADD THIS
+
+    const res = await this.client.messages.create({
       from: 'whatsapp:+14155238886',
       to: `whatsapp:${formattedTo}`,
       body: message
     });
+
+    console.log("📨 Twilio SID:", res.sid); // ADD THIS
+
+    return res;
   }
+
   // async send(to: string, message: string) {
 
   //   const formattedTo = to.startsWith('+') ? to : `+${to}`;

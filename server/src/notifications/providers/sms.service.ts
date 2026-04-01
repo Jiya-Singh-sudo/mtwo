@@ -1,25 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import axios from 'axios';
+import twilio from 'twilio';
 
 @Injectable()
 export class SmsService {
 
-  private apiKey = process.env.MSG91_API_KEY;
+  private client;
 
-  async sendSMS(phone: string, message: string) {
-
-    await axios.post(
-      "https://api.msg91.com/api/v5/flow/",
-      {
-        mobiles: phone,
-        message: message
-      },
-      {
-        headers: {
-          authkey: this.apiKey
-        }
-      }
+  constructor() {
+    this.client = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
     );
+  }
 
+  async send(to: string, message: string) {
+
+    let formattedTo = to.trim();
+
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = `+91${formattedTo}`;
+    }
+
+    return this.client.messages.create({
+      from: process.env.TWILIO_PHONE_NUMBER, // ⚠️ IMPORTANT
+      to: formattedTo,
+      body: message
+    });
   }
 }

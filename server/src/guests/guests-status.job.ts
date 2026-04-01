@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 
 @Injectable()
-export class GuestStatusJob {
+export class GuestStatusJob implements OnModuleInit {
   constructor(private readonly db: DatabaseService) {}
+
+  async onModuleInit() {
+    await this.autoUpdateGuestStatus();
+  }
 
   @Cron(CronExpression.EVERY_MINUTE) // hourly is too coarse once time is involved
   async autoUpdateGuestStatus() {
@@ -18,7 +22,9 @@ export class GuestStatusJob {
           updated_ip = '127.0.0.1'
       WHERE status = 'Scheduled'
         AND is_active = TRUE
-        AND (entry_date + entry_time)::timestamp <= NOW();
+        AND entry_time IS NOT NULL
+        AND entry_date IS NOT NULL
+        AND (entry_date::timestamp + entry_time) <= NOW();
 
       /* ================= Entered / Inside → Exited ================= */
       UPDATE t_guest_inout
@@ -30,7 +36,7 @@ export class GuestStatusJob {
         AND is_active = TRUE
         AND exit_date IS NOT NULL
         AND exit_time IS NOT NULL
-        AND (exit_date + exit_time)::timestamp <= NOW();
+        AND (exit_date::timestamp + exit_time) <= NOW();
 
       /* ================= Messenger Expiry ================= */
       UPDATE t_guest_messenger
@@ -41,6 +47,7 @@ export class GuestStatusJob {
       WHERE is_active = TRUE
         AND assignment_date <= NOW();
     `);
+    // console.log('Guest status cron executed at', new Date());
     // await this.db.query(`
     //   /* ================= Scheduled → Entered ================= */
     //   UPDATE t_guest_inout

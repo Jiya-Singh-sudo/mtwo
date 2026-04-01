@@ -1,21 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
 
-    constructor() {
-        sgMail.setApiKey(process.env.SENDGRID_KEY as string);
-    }
+  private transporter;
 
-    async sendEmail(to: string, message: string) {
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // app password
+      },
+    });
+  }
 
-        await sgMail.send({
-            to,
-            from: 'noreply@yourdomain.com',
-            subject: 'Notification',
-            text: message
-        });
+  async send(to: string, message: string) {
 
-    }
+    return this.transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to,
+      subject: 'Notification',
+      text: message,
+    });
+  }
 }

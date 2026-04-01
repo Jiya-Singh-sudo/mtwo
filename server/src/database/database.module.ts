@@ -9,7 +9,7 @@ import { DatabaseService } from './database.service';
       useFactory: async () => {
         const pool = new Pool({
           user: 'postgres',
-          host: '10.84.233.234',
+          host: 'localhost',
           database: 'RajbhavanDB',
           password: 'admin',
           port: 5432,

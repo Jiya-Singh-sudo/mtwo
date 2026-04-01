@@ -18,14 +18,15 @@ export class NotificationWorker {
     private readonly db: DatabaseService,
     private readonly notificationsService: NotificationsService,
     private whatsappService: WhatsAppService,
-    // private smsService: SmsService,
-    // private emailService: EmailService
+    private smsService: SmsService,
+    private emailService: EmailService
   ) {}
 
   // runs every 30 seconds
+  // @Cron('*/30 * * * * *')
   @Cron('*/30 * * * * *')
   async processQueue() {
-
+    console.log("⚙️ Worker running..."); // ✅ ADD HERE
     const pending = await this.db.query(`
     UPDATE notifications
     SET status = 'PROCESSING'
@@ -39,10 +40,10 @@ export class NotificationWorker {
     )
     RETURNING *;
     `);
-
+console.log("📦 Pending notifications:", pending.rows.length); // ✅ ADD THIS
     for (const notification of pending.rows as NotificationRow[]) {
       try {
-
+  console.log("🚀 Sending notification:", notification.notification_id);
         await this.dispatchNotification(notification);
 
         await this.notificationsService.markNotificationSent(
@@ -86,30 +87,27 @@ private async dispatchNotification(notification: NotificationRow) {
 }
 private async sendWhatsApp(notification: NotificationRow) {
 
-  await this.whatsappService.send(
+  console.log("📲 Sending WhatsApp to:", notification.recipient_contact);
+
+  const res = await this.whatsappService.send(
     notification.recipient_contact,
     notification.message
   );
 
+  console.log("✅ Twilio response:", res.sid); // VERY IMPORTANT
 }
 
 private async sendSMS(notification: NotificationRow) {
-
-  console.log(`
-  SMS MESSAGE
-  To: ${notification.recipient_contact}
-  Message: ${notification.message}
-  `);
-
+  await this.smsService.send(
+    notification.recipient_contact,
+    notification.message
+  );
 }
 
 private async sendEmail(notification: NotificationRow) {
-
-  console.log(`
-  EMAIL MESSAGE
-  To: ${notification.recipient_contact}
-  Message: ${notification.message}
-  `);
-
+  await this.emailService.send(
+    notification.recipient_contact,
+    notification.message
+  );
 }
 }

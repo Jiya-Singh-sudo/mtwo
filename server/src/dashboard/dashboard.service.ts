@@ -32,7 +32,7 @@ export class DashboardService {
         FROM t_guest_inout
         WHERE is_active = TRUE
           AND guest_inout = TRUE
-          AND exit_date IS NULL
+          AND status = 'Entered'
       `),
 
       // Upcoming Arrivals → entry in next 24 hours
@@ -41,7 +41,9 @@ export class DashboardService {
         FROM t_guest_inout
         WHERE is_active = TRUE
           AND guest_inout = TRUE
-          AND entry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day'
+          AND status = 'Scheduled'
+          AND (entry_date::timestamp + entry_time)
+          BETWEEN NOW() AND NOW() + INTERVAL '24 hours'
       `),
 
       // Checked Out Today → exited today
@@ -49,6 +51,7 @@ export class DashboardService {
         SELECT COUNT(*)
         FROM t_guest_inout
         WHERE is_active = TRUE
+          AND status = 'Exited'
           AND exit_date = CURRENT_DATE
       `),
 

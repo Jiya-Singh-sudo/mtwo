@@ -12,11 +12,13 @@ export class NotificationScheduler {
   ) {}
 
   // Runs every hour
-  @Cron('0 * * * *')
-  async processNotifications() {
+  // @Cron('0 * * * *')
+  @Cron('*/30 * * * * *') // every 30 seconds
+  async processNotifications()  {
     await this.process48HourReminders();
     await this.process24HourGuestNotifications();
     // await this.processStaffDutyNotifications();
+    
   }
 
     private async process48HourReminders() {
@@ -34,16 +36,21 @@ export class NotificationScheduler {
         WHERE
           io.status = 'Scheduled'
           AND io.is_active = TRUE
-          AND (io.entry_date + io.entry_time)::timestamp
-            BETWEEN (io.entry_date + io.entry_time)::timestamp > NOW()
-              AND (io.entry_date + io.entry_time)::timestamp <= NOW() + INTERVAL '48 hours'
+          AND (io.entry_date::timestamp + io.entry_time) > NOW()
+          AND (io.entry_date::timestamp + io.entry_time) <= NOW() + INTERVAL '30 hours'
       `);
 
       // ✅ Fetch users ONCE (outside loop)
       const users = await this.db.query(`
-        SELECT user_id, name, mobile
-        FROM m_user
-        WHERE is_active = TRUE
+        SELECT 
+          u.user_id,
+          s.full_name,
+          s.primary_mobile,
+          s.email
+        FROM m_user u
+        JOIN m_staff s ON s.staff_id = u.staff_id
+        WHERE u.is_active = TRUE
+        AND s.is_active = TRUE
       `);
 
       for (const guest of guests.rows) {
@@ -54,7 +61,7 @@ export class NotificationScheduler {
           .filter(([_, v]) => !v)
           .map(([k]) => k);
 
-        if (missing.length === 0) continue;
+        // if (missing.length === 0) continue;
 
         const message = `
     🚨 Guest Arrival Alert
@@ -68,18 +75,37 @@ export class NotificationScheduler {
         // ✅ Loop users INSIDE guest loop
         for (const user of users.rows) {
 
-          if (!user.mobile) continue;
+          if (!user.primary_mobile) continue;
 
           await this.notificationsService.createNotification({
             guestId: guest.guest_id,
             inoutId: guest.inout_id,
             notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
             recipientType: 'USER',
-            recipientContact: user.mobile,
+            recipientContact: user.primary_mobile,
             channel: 'WHATSAPP',
             message
           });
-
+          await this.notificationsService.createNotification({
+            guestId: guest.guest_id,
+            inoutId: guest.inout_id,
+            notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
+            recipientType: 'USER',
+            recipientContact: user.primary_mobile,
+            channel: 'SMS',
+            message
+          });
+          await this.notificationsService.createNotification({
+            guestId: guest.guest_id,
+            inoutId: guest.inout_id,
+            notificationType: 'T_MINUS_48_ASSIGNMENT_REMINDER',
+            recipientType: 'USER',
+            recipientContact: user.email,
+            channel: 'EMAIL',
+            message
+          });
+          console.log("🔥 Scheduler running");
+          console.log("Guests found:", guests.rows.length);
         }
       }
     }
@@ -93,7 +119,7 @@ export class NotificationScheduler {
         EXISTS(SELECT 1 FROM t_guest_butler WHERE guest_id=$1 AND is_active=TRUE) AS butler,
         EXISTS(SELECT 1 FROM t_guest_messenger WHERE guest_id=$1 AND is_active=TRUE) AS messenger,
         EXISTS(SELECT 1 FROM t_guest_network WHERE guest_id=$1 AND is_active=TRUE) AS network,
-        EXISTS(SELECT 1 FROM t_guest_liaisoning_officer WHERE guest_id=$1 AND is_active=TRUE) AS liaison,
+        EXISTS(SELECT 1 FROM t_guest_liasoning_officer WHERE guest_id=$1 AND is_active=TRUE) AS liaison,
         EXISTS(SELECT 1 FROM t_guest_medical_contact WHERE guest_id=$1 AND is_active=TRUE) AS medical
     `,[guestId]);
 
@@ -107,6 +133,7 @@ export class NotificationScheduler {
           g.guest_id,
           g.guest_name,
           g.guest_mobile,
+          g.email,
           io.inout_id,
           io.entry_date,
           io.entry_time
@@ -115,8 +142,8 @@ export class NotificationScheduler {
         WHERE
           io.status = 'Scheduled'
           AND io.is_active = TRUE
-          AND (io.entry_date + io.entry_time)::timestamp > NOW()
-          AND (io.entry_date + io.entry_time)::timestamp <= NOW() + INTERVAL '24 hours'
+          AND (io.entry_date::timestamp + io.entry_time) > NOW()
+          AND (io.entry_date::timestamp + io.entry_time) <= NOW() + INTERVAL '30 hours'
       `);
 
       for (const guest of guests.rows) {
@@ -178,7 +205,26 @@ export class NotificationScheduler {
           channel: 'WHATSAPP',
           message
         });
-
+        await this.notificationsService.createNotification({
+          guestId: guest.guest_id,
+          inoutId: guest.inout_id,
+          notificationType,
+          recipientType: 'GUEST',
+          recipientContact: guest.guest_mobile,
+          channel: 'SMS',
+          message
+        });
+        await this.notificationsService.createNotification({
+          guestId: guest.guest_id,
+          inoutId: guest.inout_id,
+          notificationType,
+          recipientType: 'GUEST',
+          recipientContact: guest.email,
+          channel: 'EMAIL',
+          message
+        });
+        console.log("🔥 Scheduler running");
+        console.log("Guests found:", guests.rows.length);
       }
     }
 
