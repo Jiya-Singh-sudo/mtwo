@@ -1,8 +1,4 @@
-import { withLayoutContext } from 'expo-router';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-const { Navigator } = createNativeStackNavigator();
-const Stack = withLayoutContext(Navigator);
+import { Stack } from 'expo-router';
 
 export default function AuthLayout() {
   return (

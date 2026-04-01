@@ -5,30 +5,40 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   RefreshControl,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  getGuestTransportTable, 
-  assignDriverToGuest, 
+import {
+  getGuestTransportTable,
+  assignDriverToGuest,
   assignVehicleToGuest,
   getAssignableDriversByDate,
   getAssignableVehicles,
   releaseVehicle,
-  closeGuestDriver
+  closeGuestDriver,
 } from '@/api/guestTransport.api';
-import { colors, spacing, typography } from '@/theme';
+import { colors, spacing } from '@/theme';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Table } from '@/components/ui/Table';
-
+import {
+  StatChipRow,
+  ActionButton,
+  InfoChip,
+  SectionCard,
+  DetailRow,
+  SearchBox,
+  AddButton,
+  EmptyState,
+  PageContainer,
+} from '@/components/ui/Premium';
 import { formatDate, formatTime } from '@/utils/dateTime';
+import Header from '@/components/Header';
 
 export default function TransportScreen() {
   const [records, setRecords] = useState<any[]>([]);
@@ -51,440 +61,230 @@ export default function TransportScreen() {
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadTransport();
-  }, [page, search]);
+  useEffect(() => { loadTransport(); }, [page, search]);
 
   const loadTransport = async () => {
     setLoading(true);
     try {
-      const res = await getGuestTransportTable({
-        page,
-        limit: 10,
-        search: search || undefined,
-        sortBy: 'entry_date',
-        sortOrder: 'desc'
-      });
-      setRecords(res.data || []);
-      setTotalCount(res.totalCount || 0);
-      setStatusCounts(res.stats || {});
-    } catch (error) {
-      console.error('Failed to load transport', error);
-      Alert.alert('Error', 'Could not load transport data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      const res = await getGuestTransportTable({ page, limit: 10, search: search || undefined, sortBy: 'entry_date', sortOrder: 'desc' });
+      setRecords(res.data || []); setTotalCount(res.totalCount || 0); setStatusCounts(res.stats || {});
+    } catch { Alert.alert('Error', 'Could not load transport data'); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadTransport();
-  }, []);
+  const onRefresh = useCallback(() => { setRefreshing(true); loadTransport(); }, []);
 
   const loadDrivers = async (date: string) => {
-    try {
-      const res = await getAssignableDriversByDate(date);
-      setDrivers(res || []);
-    } catch (err) {
-      console.error("Driver fetch failed", err);
-    }
+    try { const res = await getAssignableDriversByDate(date); setDrivers(res || []); } catch {}
   };
-
   const loadVehicles = async () => {
-    try {
-      const res = await getAssignableVehicles();
-      setVehicles(res || []);
-    } catch (err) {
-      console.error("Vehicle fetch failed", err);
-    }
+    try { const res = await getAssignableVehicles(); setVehicles(res || []); } catch {}
   };
 
   const handleAssignDriver = async () => {
-    if (!selectedRecord || !selectedDriver) {
-      Alert.alert("Validation", "Please select a driver first");
-      return;
-    }
+    if (!selectedRecord || !selectedDriver) { Alert.alert('Validation', 'Select a driver first'); return; }
     setActionLoading(true);
     try {
-      await assignDriverToGuest({
-        guest_id: selectedRecord.guest_id,
-        driver_id: selectedDriver,
-        trip_date: selectedRecord.entry_date, // Default to entry date
-        start_time: '09:00', // Default start time
-      });
-
-      Alert.alert("Success", "Driver assigned successfully");
-      loadTransport();
-      setShowAssignModal(false);
-    } catch (error) {
-      Alert.alert("Error", "Driver assignment failed");
-    } finally {
-      setActionLoading(false);
-    }
+      await assignDriverToGuest({ guest_id: selectedRecord.guest_id, driver_id: selectedDriver, trip_date: selectedRecord.entry_date, start_time: '09:00' });
+      Alert.alert('Success', 'Driver assigned'); loadTransport(); setShowAssignModal(false);
+    } catch { Alert.alert('Error', 'Driver assignment failed'); }
+    finally { setActionLoading(false); }
   };
 
   const handleAssignVehicle = async () => {
-    if (!selectedRecord || !selectedVehicle) {
-      Alert.alert("Validation", "Please select a vehicle first");
-      return;
-    }
+    if (!selectedRecord || !selectedVehicle) { Alert.alert('Validation', 'Select a vehicle first'); return; }
     setActionLoading(true);
     try {
-      await assignVehicleToGuest({
-        guest_id: selectedRecord.guest_id,
-        vehicle_no: selectedVehicle,
-        assigned_at: new Date().toISOString(),
-      });
-
-      Alert.alert("Success", "Vehicle assigned successfully");
-      loadTransport();
-      setShowAssignModal(false);
-    } catch (error) {
-      Alert.alert("Error", "Vehicle assignment failed");
-    } finally {
-      setActionLoading(false);
-    }
+      await assignVehicleToGuest({ guest_id: selectedRecord.guest_id, vehicle_no: selectedVehicle, assigned_at: new Date().toISOString() });
+      Alert.alert('Success', 'Vehicle assigned'); loadTransport(); setShowAssignModal(false);
+    } catch { Alert.alert('Error', 'Vehicle assignment failed'); }
+    finally { setActionLoading(false); }
   };
 
-  const handleReleaseVehicleItem = async (vehicleId: string) => {
-    try {
-      await releaseVehicle(vehicleId);
-      Alert.alert("Success", "Vehicle Released");
-      loadTransport();
-    } catch {
-      Alert.alert("Error", "Could not release vehicle");
-    }
+  const handleReleaseVehicle = async (id: string) => {
+    try { await releaseVehicle(id); Alert.alert('Success', 'Vehicle released'); loadTransport(); }
+    catch { Alert.alert('Error', 'Could not release vehicle'); }
   };
 
-  const handleCloseTripItem = async (tripId: string) => {
-    try {
-      await closeGuestDriver(tripId);
-      Alert.alert("Success", "Trip closed");
-      loadTransport();
-    } catch {
-      Alert.alert("Error", "Trip closing failed");
-    }
+  const handleCloseTrip = async (id: string) => {
+    try { await closeGuestDriver(id); Alert.alert('Success', 'Trip closed'); loadTransport(); }
+    catch { Alert.alert('Error', 'Trip closing failed'); }
   };
 
-  const columns = [
-    {
-      key: 'guest_name',
-      title: 'Guest',
-      width: 140,
-      render: (r: any) => (
-        <View>
-          <Text style={styles.cellMainText}>{r.guest_name}</Text>
-          <Text style={styles.cellSubText}>{r.inout_status}</Text>
-        </View>
-      ),
-    },
-    {
-      key: 'driver',
-      title: 'Driver',
-      width: 120,
-      render: (r: any) => (
-        <View>
-          <Text style={styles.cellMainText}>{r.driver_name || '—'}</Text>
-          <Text style={styles.cellSubText}>{r.trip_date ? formatDate(r.trip_date) : ''}</Text>
-        </View>
-      ),
-    },
-    {
-      key: 'vehicle',
-      title: 'Vehicle',
-      width: 120,
-      render: (r: any) => (
-        <View>
-          <Text style={styles.cellMainText}>{r.vehicle_no || '—'}</Text>
-          <Text style={styles.cellSubText}>{r.vehicle_name || ''}</Text>
-        </View>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 100,
-      render: (r: any) => (
-        <View style={styles.actionRow}>
-          <TouchableOpacity 
-            onPress={() => { setSelectedRecord(r); setShowViewModal(true); }}
-            style={styles.actionIcon}
-          >
-            <Ionicons name="eye-outline" size={20} color={colors.info} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionIcon}
-            onPress={() => {
-              setSelectedRecord(r);
-              setShowAssignModal(true);
-              setSelectedDriver(null);
-              setSelectedVehicle(null);
-              loadDrivers(r.entry_date);
-              loadVehicles();
-            }}
-          >
-            <Ionicons name="car-outline" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      ),
-    },
+  const openAssign = (r: any) => {
+    setSelectedRecord(r); setSelectedDriver(null); setSelectedVehicle(null);
+    loadDrivers(r.entry_date); loadVehicles(); setShowAssignModal(true);
+  };
+
+  const statChips = [
+    { key: 'total', label: 'Total', icon: 'car-outline', color: colors.primary, value: statusCounts.total || 0 },
+    { key: 'assigned', label: 'Driver', icon: 'person-outline', color: '#22C55E', value: statusCounts.driverAssigned || 0 },
+    { key: 'unassigned', label: 'Pending', icon: 'time-outline', color: '#F59E0B', value: statusCounts.unassigned || 0 },
   ];
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Transport Management</Text>
-          <Text style={styles.subtitle}>Coordinate driver and vehicle assignments</Text>
-        </View>
+    <PageContainer>
+      <FlatList
+        data={records}
+        keyExtractor={(item, idx) => (item.guest_id || idx).toString()}
+        renderItem={({ item: r }) => (
+          <Card style={s.card}>
+            <View style={s.cardHeader}>
+              <View style={[s.cardIcon, { backgroundColor: r.driver_name ? '#22C55E18' : '#F59E0B18' }]}>
+                <Ionicons name="car-outline" size={20} color={r.driver_name ? '#22C55E' : '#F59E0B'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle} numberOfLines={1}>{r.guest_name}</Text>
+                <Text style={s.cardSub} numberOfLines={1}>{r.designation_name || r.inout_status || '—'}</Text>
+              </View>
+              <Badge label={r.driver_name ? 'Assigned' : 'Pending'} variant={r.driver_name ? 'success' : 'warning'} />
+            </View>
 
-        {/* Action Bar */}
-        <View style={styles.actionBar}>
-           <View style={styles.searchBox}>
-               <Ionicons name="search-outline" size={20} color={colors.muted} style={styles.searchIcon} />
-               <Input 
-                 placeholder="Search guest or driver..." 
-                 value={search}
-                 onChangeText={setSearch}
-                 containerStyle={{ marginBottom: 0, flex: 1 }}
-                 inputStyle={{ borderWidth: 0, height: 40, fontSize: 14 }}
-               />
-           </View>
-        </View>
+            <View style={s.infoGrid}>
+              <InfoChip icon="person-outline" label={r.driver_name || 'No driver'} muted={!r.driver_name} />
+              <InfoChip icon="car-sport-outline" label={r.vehicle_no || 'No vehicle'} muted={!r.vehicle_no} />
+              <InfoChip icon="log-in-outline" label={formatDate(r.entry_date)} />
+              {r.exit_date ? <InfoChip icon="log-out-outline" label={formatDate(r.exit_date)} /> : null}
+            </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsGrid}>
-            <Card style={styles.statBox}>
-                <Text style={[styles.statNum, { color: colors.primary }]}>{statusCounts.total || 0}</Text>
-                <Text style={styles.statLabel}>Total Visits</Text>
-            </Card>
-            <Card style={styles.statBox}>
-                <Text style={[styles.statNum, { color: colors.success }]}>{statusCounts.driverAssigned || 0}</Text>
-                <Text style={styles.statLabel}>Driver Assigned</Text>
-            </Card>
-            <Card style={styles.statBox}>
-                <Text style={[styles.statNum, { color: colors.warning }]}>{statusCounts.unassigned || 0}</Text>
-                <Text style={styles.statLabel}>Unassigned</Text>
-            </Card>
-        </View>
+            <View style={s.cardActions}>
+              <ActionButton icon="eye-outline" color="#3B82F6" label="View" onPress={() => { setSelectedRecord(r); setShowViewModal(true); }} />
+              <ActionButton icon="car-outline" color={colors.primary} label="Assign" onPress={() => openAssign(r)} />
+              {r.guest_driver_id && <ActionButton icon="close-circle-outline" color="#EF4444" label="Close Trip" onPress={() => handleCloseTrip(r.guest_driver_id)} />}
+              {r.guest_vehicle_id && <ActionButton icon="return-down-back-outline" color="#F97316" label="Release" onPress={() => handleReleaseVehicle(r.guest_vehicle_id)} />}
+            </View>
+          </Card>
+        )}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        ListHeaderComponent={
+          <>
+            <Header title="Transport Management" subtitle="Coordinate driver and vehicle assignments" fallback="/(drawer)/transport" />
+            <StatChipRow chips={statChips} />
+            <View style={s.toolbar}>
+              <SearchBox>
+                <Input placeholder="Search guest or driver..." value={search} onChangeText={setSearch}
+                  containerStyle={{ marginBottom: 0, flex: 1 }} inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }} />
+              </SearchBox>
+            </View>
+          </>
+        }
+        ListEmptyComponent={!loading ? <EmptyState icon="car-outline" title="No transport records" /> : null}
+        ListFooterComponent={records.length > 0 ? (
+          <View style={s.pagination}>
+            <Button title="← Prev" variant="outline" size="sm" disabled={page === 1} onPress={() => setPage(page - 1)} />
+            <Text style={s.pageText}>Page {page}</Text>
+            <Button title="Next →" variant="outline" size="sm" disabled={records.length < 10} onPress={() => setPage(page + 1)} />
+          </View>
+        ) : null}
+      />
 
-        <Table 
-          columns={columns} 
-          data={records} 
-          keyExtractor={(item: any, index: number) => (item.guest_id || index).toString()}
-          containerStyle={styles.table}
-        />
-
-        <View style={styles.pagination}>
-            <Button 
-                title="Prev" 
-                variant="outline" 
-                size="sm" 
-                disabled={page === 1} 
-                onPress={() => setPage(page - 1)} 
-            />
-            <Text style={styles.pageText}>Page {page}</Text>
-            <Button 
-                title="Next" 
-                variant="outline" 
-                size="sm" 
-                disabled={records.length < 10} 
-                onPress={() => setPage(page + 1)} 
-            />
-        </View>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      {/* Detail Modal */}
-      <Modal
-        visible={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        title="Transport Details"
+      {/* ── View Modal ── */}
+      <Modal visible={showViewModal} onClose={() => setShowViewModal(false)} title="Transport Details"
         footer={
           <View style={{ flexDirection: 'row', gap: spacing.md, width: '100%' }}>
             {selectedRecord?.guest_driver_id && (
-              <Button 
-                title="Close Trip" 
-                variant="outline" 
-                style={{ flex: 1, borderColor: colors.error }} 
-                textStyle={{ color: colors.error }}
-                onPress={() => handleCloseTripItem(selectedRecord.guest_driver_id)} 
-              />
+              <Button title="Close Trip" variant="outline" style={{ flex: 1, borderColor: colors.error }} textStyle={{ color: colors.error }}
+                onPress={() => { handleCloseTrip(selectedRecord.guest_driver_id); setShowViewModal(false); }} />
             )}
             {selectedRecord?.guest_vehicle_id && (
-              <Button 
-                title="Release Alt" 
-                variant="outline" 
-                style={{ flex: 1, borderColor: colors.warning }} 
-                textStyle={{ color: colors.warning }}
-                onPress={() => handleReleaseVehicleItem(selectedRecord.guest_vehicle_id)} 
-              />
+              <Button title="Release" variant="outline" style={{ flex: 1, borderColor: colors.warning }} textStyle={{ color: colors.warning }}
+                onPress={() => { handleReleaseVehicle(selectedRecord.guest_vehicle_id); setShowViewModal(false); }} />
             )}
             <Button title="Done" style={{ flex: 1 }} onPress={() => setShowViewModal(false)} />
           </View>
         }
       >
         {selectedRecord && (
-            <View>
-                <DetailRow label="Guest" value={selectedRecord.guest_name} />
-                <DetailRow label="Designation" value={selectedRecord.designation_name} />
-                <DetailRow label="In Date" value={formatDate(selectedRecord.entry_date)} />
-                <DetailRow label="Out Date" value={formatDate(selectedRecord.exit_date)} />
-                <View style={styles.sectionDivider} />
-                <Text style={styles.modalSectionTitle}>Driver Information</Text>
-                <DetailRow label="Name" value={selectedRecord.driver_name} />
-                <DetailRow label="Contact" value={selectedRecord.driver_contact} />
-                <DetailRow label="Trip Date" value={selectedRecord.trip_date ? formatDate(selectedRecord.trip_date) : ''} />
-                <DetailRow label="Trip Status" value={selectedRecord.trip_status} />
-                <View style={styles.sectionDivider} />
-                <Text style={styles.modalSectionTitle}>Vehicle Information</Text>
-                <DetailRow label="Vehicle No" value={selectedRecord.vehicle_no} />
-                <DetailRow label="Model" value={selectedRecord.model} />
-                <DetailRow label="Color" value={selectedRecord.color} />
-            </View>
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }}>
+            <SectionCard title="Guest Info" icon="person-outline">
+              <DetailRow label="Guest" value={selectedRecord.guest_name} highlight />
+              <DetailRow label="Designation" value={selectedRecord.designation_name} />
+              <DetailRow label="Entry Date" value={formatDate(selectedRecord.entry_date)} />
+              <DetailRow label="Exit Date" value={formatDate(selectedRecord.exit_date)} />
+            </SectionCard>
+            <SectionCard title="Driver" icon="car-outline">
+              <DetailRow label="Name" value={selectedRecord.driver_name} />
+              <DetailRow label="Contact" value={selectedRecord.driver_contact} />
+              <DetailRow label="Trip Date" value={selectedRecord.trip_date ? formatDate(selectedRecord.trip_date) : ''} />
+              <DetailRow label="Status" value={selectedRecord.trip_status} />
+            </SectionCard>
+            <SectionCard title="Vehicle" icon="car-sport-outline">
+              <DetailRow label="Vehicle No" value={selectedRecord.vehicle_no} />
+              <DetailRow label="Model" value={selectedRecord.model} />
+              <DetailRow label="Color" value={selectedRecord.color} />
+            </SectionCard>
+          </ScrollView>
         )}
       </Modal>
 
-      {/* Assignment Modal */}
-      <Modal
-        visible={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        title="Transport Assignment"
+      {/* ── Assignment Modal ── */}
+      <Modal visible={showAssignModal} onClose={() => setShowAssignModal(false)} title="Transport Assignment"
         footer={
           <View style={{ flexDirection: 'row', gap: spacing.md, width: '100%' }}>
-            <Button 
-              title="Assign Driver" 
-              style={{ flex: 1 }} 
-              onPress={handleAssignDriver} 
-              disabled={!selectedDriver || actionLoading}
-              loading={actionLoading && !!selectedDriver}
-            />
-            <Button 
-              title="Assign Vehicle" 
-              variant="outline"
-              style={{ flex: 1 }} 
-              onPress={handleAssignVehicle} 
-              disabled={!selectedVehicle || actionLoading}
-              loading={actionLoading && !!selectedVehicle}
-            />
+            <Button title="Assign Driver" style={{ flex: 1 }} onPress={handleAssignDriver} disabled={!selectedDriver || actionLoading} loading={actionLoading && !!selectedDriver} />
+            <Button title="Assign Vehicle" variant="outline" style={{ flex: 1 }} onPress={handleAssignVehicle} disabled={!selectedVehicle || actionLoading} loading={actionLoading && !!selectedVehicle} />
           </View>
         }
       >
-        <ScrollView style={{ maxHeight: 400 }}>
-          <Text style={styles.modalLabel}>Available Drivers ({drivers.length})</Text>
-          <View style={styles.chipGrid}>
+        <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.55 }}>
+          <SectionCard title={`Available Drivers (${drivers.length})`} icon="person-outline">
+            {drivers.length === 0 && <Text style={s.emptySelectText}>No available drivers for this date</Text>}
             {drivers.map((d: any) => (
-              <TouchableOpacity
-                key={d.driver_id}
-                style={[styles.chip, selectedDriver === d.driver_id && styles.chipActive]}
-                onPress={() => setSelectedDriver(d.driver_id)}
-              >
-                <Text style={[styles.chipText, selectedDriver === d.driver_id && styles.chipTextActive]}>
-                  {d.driver_name}
-                </Text>
+              <TouchableOpacity key={d.driver_id} onPress={() => setSelectedDriver(d.driver_id)}
+                style={[s.selectItem, selectedDriver === d.driver_id && s.selectItemActive]}>
+                <View style={s.selectItemLeft}>
+                  <View style={[s.selectAvatar, selectedDriver === d.driver_id && { backgroundColor: '#22C55E' }]}>
+                    <Ionicons name="person-outline" size={14} color={selectedDriver === d.driver_id ? '#fff' : '#22C55E'} />
+                  </View>
+                  <Text style={[s.selectName, selectedDriver === d.driver_id && { color: '#22C55E', fontWeight: '700' }]}>{d.driver_name}</Text>
+                </View>
+                {selectedDriver === d.driver_id && <Ionicons name="checkmark-circle" size={18} color="#22C55E" />}
               </TouchableOpacity>
             ))}
-            {drivers.length === 0 && <Text style={styles.emptyText}>No available drivers for this date.</Text>}
-          </View>
+          </SectionCard>
 
-          <View style={styles.sectionDivider} />
-
-          <Text style={styles.modalLabel}>Assignable Vehicles ({vehicles.length})</Text>
-          <View style={styles.chipGrid}>
+          <SectionCard title={`Available Vehicles (${vehicles.length})`} icon="car-sport-outline">
+            {vehicles.length === 0 && <Text style={s.emptySelectText}>No available vehicles</Text>}
             {vehicles.map((v: any) => (
-              <TouchableOpacity
-                key={v.vehicle_id}
-                style={[styles.chip, selectedVehicle === v.vehicle_no && styles.chipActive]}
-                onPress={() => setSelectedVehicle(v.vehicle_no)}
-              >
-                <Text style={[styles.chipText, selectedVehicle === v.vehicle_no && styles.chipTextActive]}>
-                  {v.vehicle_no} ({v.model})
-                </Text>
+              <TouchableOpacity key={v.vehicle_id} onPress={() => setSelectedVehicle(v.vehicle_no)}
+                style={[s.selectItem, selectedVehicle === v.vehicle_no && s.selectItemActive]}>
+                <View style={s.selectItemLeft}>
+                  <View style={[s.selectAvatar, selectedVehicle === v.vehicle_no && { backgroundColor: colors.primary }]}>
+                    <Ionicons name="car-sport-outline" size={14} color={selectedVehicle === v.vehicle_no ? '#fff' : colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={[s.selectName, selectedVehicle === v.vehicle_no && { color: colors.primary, fontWeight: '700' }]}>{v.vehicle_no}</Text>
+                    <Text style={s.selectSub}>{v.model}</Text>
+                  </View>
+                </View>
+                {selectedVehicle === v.vehicle_no && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
               </TouchableOpacity>
             ))}
-            {vehicles.length === 0 && <Text style={styles.emptyText}>No available vehicles found.</Text>}
-          </View>
+          </SectionCard>
         </ScrollView>
       </Modal>
-    </View>
+    </PageContainer>
   );
 }
 
-const DetailRow = ({ label, value }: { label: string, value: string }) => (
-    <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{value || '—'}</Text>
-    </View>
-);
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: spacing.lg },
-  header: { marginBottom: spacing.lg },
-  title: { ...typography.h2, color: colors.primary },
-  subtitle: { ...typography.small, color: colors.muted },
-  actionBar: { marginBottom: spacing.md },
-  searchBox: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingLeft: spacing.sm,
-    height: 40,
-  },
-  searchIcon: { marginRight: spacing.xs },
-  statsGrid: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginBottom: spacing.xl,
-    gap: spacing.sm
-  },
-  statBox: { flex: 1, alignItems: 'center', padding: spacing.md },
-  statNum: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 10, color: colors.muted, marginTop: 2, textAlign: 'center' },
-  table: { marginBottom: spacing.md },
-  cellMainText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  cellSubText: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  actionIcon: { padding: 4 },
-  pagination: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    gap: spacing.xl,
-    marginTop: spacing.md 
-  },
-  pageText: { ...typography.body, fontWeight: '600' },
-  detailRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border 
-  },
-  detailLabel: { ...typography.small, color: colors.muted },
-  detailValue: { ...typography.small, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'right', marginLeft: 10 },
-  sectionDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
-  modalSectionTitle: { ...typography.label, color: colors.primary, marginBottom: spacing.sm },
-  modalLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, marginBottom: spacing.sm, textTransform: 'uppercase' },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 12, color: colors.text },
-  chipTextActive: { color: colors.primary, fontWeight: '700' },
-  emptyText: { fontSize: 12, color: colors.muted, fontStyle: 'italic', paddingVertical: 8 },
+const s = StyleSheet.create({
+  card: { marginBottom: 12, padding: 14, borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  cardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  cardSub: { fontSize: 12, color: colors.muted, marginTop: 1 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
+  pageText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  selectItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', borderRadius: 8 },
+  selectItemActive: { backgroundColor: colors.primary + '08' },
+  selectItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#22C55E18', alignItems: 'center', justifyContent: 'center' },
+  selectName: { fontSize: 13, color: colors.text },
+  selectSub: { fontSize: 11, color: colors.muted, marginTop: 1 },
+  emptySelectText: { textAlign: 'center', padding: 16, color: colors.muted, fontSize: 12, fontStyle: 'italic' },
 });

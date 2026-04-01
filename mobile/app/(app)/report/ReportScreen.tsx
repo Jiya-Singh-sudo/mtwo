@@ -1,245 +1,314 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  generateSectionReport 
-} from '@/api/reportsPkg.api';
-import { colors, spacing, typography } from '@/theme';
+import { generateSectionReport } from '@/api/reportsPkg.api';
+import { colors, spacing } from '@/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { SectionCard, DetailRow, PageContainer } from '@/components/ui/Premium';
+import Header from '@/components/Header';
 
 type Section = 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
-
-const SECTIONS: { value: Section; label: string; icon: string }[] = [
-    { value: 'guest', label: 'Guest Summary', icon: 'people-outline' },
-    { value: 'room', label: 'Room Occupancy', icon: 'bed-outline' },
-    { value: 'vehicle', label: 'Vehicle Usage', icon: 'car-outline' },
-    { value: 'driver-duty', label: 'Driver Duty', icon: 'calendar-outline' },
-    { value: 'food', label: 'Food Service', icon: 'restaurant-outline' },
-    { value: 'network', label: 'Network Logs', icon: 'wifi-outline' },
+const SECTIONS: { value: Section; label: string; icon: string; color: string }[] = [
+  { value: 'guest', label: 'Guest Summary', icon: 'people-outline', color: '#3B82F6' },
+  { value: 'room', label: 'Room Occupancy', icon: 'bed-outline', color: '#8B5CF6' },
+  { value: 'vehicle', label: 'Vehicle Usage', icon: 'car-outline', color: '#22C55E' },
+  { value: 'driver-duty', label: 'Driver Duty', icon: 'calendar-outline', color: '#F59E0B' },
+  { value: 'food', label: 'Food Service', icon: 'restaurant-outline', color: '#F97316' },
+  { value: 'network', label: 'Network Logs', icon: 'wifi-outline', color: '#6D28D9' },
 ];
 
+const RANGES = ['Today', 'This Week', 'This Month', 'Last Month', 'Custom Range'];
+const FORMAT_ICONS: Record<string, string> = { PDF: 'document-outline', EXCEL: 'grid-outline', VIEW: 'eye-outline' };
+
 export default function ReportScreen() {
-    const [section, setSection] = useState<Section>('guest');
-    const [range, setRange] = useState('Today');
-    const [format, setFormat] = useState<'PDF' | 'EXCEL' | 'VIEW'>('PDF');
-    const [generating, setGenerating] = useState(false);
-    const [viewData, setViewData] = useState<any>(null);
+  const [section, setSection] = useState<Section>('guest');
+  const [range, setRange] = useState('Today');
+  const [format, setFormat] = useState<'PDF' | 'EXCEL' | 'VIEW'>('PDF');
+  const [generating, setGenerating] = useState(false);
+  const [viewData, setViewData] = useState<any>(null);
+  const [form, setForm] = useState({ startDate: '', endDate: '', language: 'en' as 'en' | 'mr' });
 
-    const [form, setForm] = useState({
-        startDate: '',
-        endDate: '',
-        language: 'en' as 'en' | 'mr'
-    });
+  const handleGenerate = async () => {
+    if (range === 'Custom Range' && (!form.startDate || !form.endDate)) {
+      Alert.alert('Validation', 'Provide start and end dates');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await generateSectionReport({
+        section, rangeType: range, format,
+        startDate: range === 'Custom Range' ? form.startDate : undefined,
+        endDate: range === 'Custom Range' ? form.endDate : undefined,
+        language: form.language,
+      });
+      if (format === 'VIEW') { setViewData(res); }
+      else { Alert.alert('Success', `${format} report generated.`); setViewData(null); }
+    } catch { Alert.alert('Error', 'Failed to generate report'); }
+    finally { setGenerating(false); }
+  };
 
-    const handleGenerate = async () => {
-        if (range === 'Custom Range' && (!form.startDate || !form.endDate)) {
-            Alert.alert('Validation', 'Please provide start and end dates.');
-            return;
-        }
+  const activeSec = SECTIONS.find(s => s.value === section)!;
 
-        setGenerating(true);
-        try {
-            const res = await generateSectionReport({
-                section,
-                rangeType: range,
-                format,
-                startDate: range === 'Custom Range' ? form.startDate : undefined,
-                endDate: range === 'Custom Range' ? form.endDate : undefined,
-                language: form.language,
-            });
+  return (
+    <PageContainer>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
+        <Header title="Reports & Analytics" subtitle="Generate PDFs and Excel exports" fallback="/(drawer)/report" />
 
-            if (format === 'VIEW') {
-                setViewData(res);
-            } else {
-                Alert.alert('Success', `Report ${format} generated. Check downloads on your account dashboard or email.`);
-                setViewData(null);
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to generate report package');
-        } finally {
-            setGenerating(false);
-        }
-    };
-
-    return (
-        <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Reports & Analytics</Text>
-                    <Text style={styles.subtitle}>Generate status PDFs and usage Excel sheets</Text>
+        {/* ── Section Selection (same card pattern as Room/Food) ── */}
+        <View style={st.sectionGrid}>
+          {SECTIONS.map(item => {
+            const active = section === item.value;
+            return (
+              <TouchableOpacity
+                key={item.value}
+                onPress={() => setSection(item.value)}
+                activeOpacity={0.7}
+                style={[st.sectionCard, active && { backgroundColor: item.color, borderColor: item.color }]}
+              >
+                <View style={[st.sectionIconWrap, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : item.color + '18' }]}>
+                  <Ionicons name={item.icon as any} size={20} color={active ? '#fff' : item.color} />
                 </View>
-
-                {/* Section Selection */}
-                <Text style={styles.groupLabel}>Report Content</Text>
-                <View style={styles.sectionGrid}>
-                    {SECTIONS.map(item => (
-                        <TouchableOpacity 
-                            key={item.value} 
-                            style={[styles.sectionCard, section === item.value && styles.sectionCardActive]}
-                            onPress={() => setSection(item.value)}
-                        >
-                            <Ionicons 
-                                name={item.icon as any} 
-                                size={24} 
-                                color={section === item.value ? colors.white : colors.primary} 
-                            />
-                            <Text style={[styles.sectionText, section === item.value && styles.sectionTextActive]}>
-                                {item.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* Range Selection */}
-                <Card style={styles.configCard}>
-                    <Text style={styles.modalLabel}>Select Timeline</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-                        {['Today', 'This Week', 'This Month', 'Last Month', 'Custom Range'].map(r => (
-                            <TouchableOpacity 
-                                key={r} 
-                                style={[styles.rangeChip, range === r && styles.rangeChipActive]}
-                                onPress={() => setRange(r)}
-                            >
-                                <Text style={[styles.rangeChipText, range === r && styles.rangeChipTextActive]}>{r}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    {range === 'Custom Range' && (
-                        <View style={styles.dateRow}>
-                            <Input 
-                                label="Start (YYYY-MM-DD)" 
-                                value={form.startDate} 
-                                onChangeText={v => setForm({...form, startDate: v})}
-                                containerStyle={{ flex: 1 }}
-                            />
-                            <Input 
-                                label="End (YYYY-MM-DD)" 
-                                value={form.endDate} 
-                                onChangeText={v => setForm({...form, endDate: v})}
-                                containerStyle={{ flex: 1 }}
-                            />
-                        </View>
-                    )}
-
-                    <View style={styles.divider} />
-
-                    <Text style={styles.modalLabel}>Export Format & Language</Text>
-                    <View style={styles.formatRow}>
-                        <View style={styles.toggleGroup}>
-                            {['PDF', 'EXCEL', 'VIEW'].map(f => (
-                                <TouchableOpacity 
-                                    key={f} 
-                                    style={[styles.toggleBtn, format === f && styles.toggleBtnActive]}
-                                    onPress={() => setFormat(f as any)}
-                                >
-                                    <Text style={[styles.toggleText, format === f && styles.toggleTextActive]}>{f}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        <View style={styles.toggleGroup}>
-                            {[
-                                { key: 'en', label: 'EN' },
-                                { key: 'mr', label: 'MR' }
-                            ].map(l => (
-                                <TouchableOpacity 
-                                    key={l.key} 
-                                    style={[styles.toggleBtn, form.language === l.key && styles.toggleBtnActive]}
-                                    onPress={() => setForm({...form, language: l.key as any})}
-                                >
-                                    <Text style={[styles.toggleText, form.language === l.key && styles.toggleTextActive]}>{l.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-
-                    <Button 
-                        title={generating ? "Generating..." : "Generate & Export"} 
-                        onPress={handleGenerate} 
-                        style={{ marginTop: spacing.md }}
-                        loading={generating}
-                    />
-                </Card>
-
-                {/* Preview Section */}
-                {viewData && (
-                    <View style={styles.previewContainer}>
-                        <Text style={styles.groupLabel}>Live Preview ({viewData.totalRecords || 0})</Text>
-                        {viewData.rows?.map((row: any, i: number) => (
-                            <Card key={i} style={styles.dataCard}>
-                                {Object.entries(row).map(([k, v]) => (
-                                    <View key={k} style={styles.dataRow}>
-                                        <Text style={styles.dataKey}>{k.replace(/_/g, ' ')}</Text>
-                                        <Text style={styles.dataVal}>{String(v ?? '—')}</Text>
-                                    </View>
-                                ))}
-                            </Card>
-                        ))}
-                    </View>
-                )}
-
-                <View style={{ height: 40 }} />
-            </ScrollView>
+                <Text style={[st.sectionText, active && { color: '#fff' }]}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-    );
+
+        {/* ── Timeline (range chips — matches Food filter pills) ── */}
+        <SectionCard title="Timeline" icon="time-outline">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={st.chipRow}>
+              {RANGES.map(r => {
+                const active = range === r;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    onPress={() => setRange(r)}
+                    activeOpacity={0.7}
+                    style={[st.filterPill, active && { backgroundColor: activeSec.color, borderColor: activeSec.color }]}
+                  >
+                    <Text style={[st.filterPillText, active && { color: '#fff' }]}>{r}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+          {range === 'Custom Range' && (
+            <View style={st.dateRow}>
+              <Input label="Start (YYYY-MM-DD)" value={form.startDate}
+                onChangeText={v => setForm({ ...form, startDate: v })} containerStyle={{ flex: 1 }} />
+              <Input label="End (YYYY-MM-DD)" value={form.endDate}
+                onChangeText={v => setForm({ ...form, endDate: v })} containerStyle={{ flex: 1 }} />
+            </View>
+          )}
+        </SectionCard>
+
+        {/* ── Export Options ── */}
+        <SectionCard title="Export Options" icon="download-outline">
+          {/* Format toggle */}
+          <Text style={st.optionLabel}>Format</Text>
+          <View style={st.toggleRow}>
+            {(['PDF', 'EXCEL', 'VIEW'] as const).map(f => {
+              const active = format === f;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => setFormat(f)}
+                  activeOpacity={0.7}
+                  style={[st.toggleChip, active && { backgroundColor: activeSec.color, borderColor: activeSec.color }]}
+                >
+                  <Ionicons name={(FORMAT_ICONS[f] || 'document-outline') as any} size={14} color={active ? '#fff' : activeSec.color} />
+                  <Text style={[st.toggleChipText, active && { color: '#fff' }]}>{f}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Language toggle */}
+          <Text style={st.optionLabel}>Language</Text>
+          <View style={st.toggleRow}>
+            {[{ key: 'en', label: 'English', icon: 'language-outline' }, { key: 'mr', label: 'मराठी', icon: 'text-outline' }].map(l => {
+              const active = form.language === l.key;
+              return (
+                <TouchableOpacity
+                  key={l.key}
+                  onPress={() => setForm({ ...form, language: l.key as any })}
+                  activeOpacity={0.7}
+                  style={[st.toggleChip, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                >
+                  <Ionicons name={l.icon as any} size={14} color={active ? '#fff' : colors.primary} />
+                  <Text style={[st.toggleChipText, active && { color: '#fff' }]}>{l.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Generate button */}
+          <TouchableOpacity
+            style={[st.generateBtn, { backgroundColor: activeSec.color }]}
+            onPress={handleGenerate}
+            activeOpacity={0.8}
+            disabled={generating}
+          >
+            <Ionicons name="download-outline" size={18} color="#fff" />
+            <Text style={st.generateBtnText}>
+              {generating ? 'Generating...' : 'Generate & Export'}
+            </Text>
+          </TouchableOpacity>
+        </SectionCard>
+
+        {/* ── Live Preview ── */}
+        {viewData && (
+          <SectionCard title={`Results (${viewData.totalRecords || 0})`} icon="analytics-outline">
+            {viewData.rows?.map((row: any, i: number) => (
+              <Card key={i} style={st.dataCard}>
+                {Object.entries(row).map(([k, v]) => (
+                  <DetailRow key={k} label={k.replace(/_/g, ' ')} value={String(v ?? '—')} />
+                ))}
+              </Card>
+            ))}
+            {(!viewData.rows || viewData.rows.length === 0) && (
+              <View style={st.emptyPreview}>
+                <Ionicons name="file-tray-outline" size={32} color={colors.muted} />
+                <Text style={st.emptyPreviewText}>No records for this range</Text>
+              </View>
+            )}
+          </SectionCard>
+        )}
+      </ScrollView>
+    </PageContainer>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { padding: spacing.lg },
-    header: { marginBottom: spacing.lg },
-    title: { ...typography.h2, color: colors.primary },
-    subtitle: { ...typography.small, color: colors.muted },
-    groupLabel: { ...typography.label, color: colors.primary, marginBottom: spacing.md },
-    sectionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: spacing.xl },
-    sectionCard: { 
-        width: '47.5%', 
-        backgroundColor: colors.white, 
-        padding: spacing.md, 
-        borderRadius: 12, 
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    sectionCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    sectionText: { fontSize: 12, fontWeight: '700', color: colors.text, marginTop: spacing.xs, textAlign: 'center' },
-    sectionTextActive: { color: colors.white },
-    configCard: { padding: spacing.md },
-    modalLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, marginBottom: spacing.sm, textTransform: 'uppercase' },
-    chipRow: { flexDirection: 'row', marginBottom: spacing.md },
-    rangeChip: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-        borderRadius: 16,
-        backgroundColor: colors.background,
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginRight: spacing.sm,
-    },
-    rangeChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-    rangeChipText: { fontSize: 11, color: colors.text },
-    rangeChipTextActive: { color: colors.primary, fontWeight: '700' },
-    dateRow: { flexDirection: 'row', gap: spacing.md },
-    divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
-    formatRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-    toggleGroup: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: 8, padding: 2 },
-    toggleBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 6 },
-    toggleBtnActive: { backgroundColor: colors.white, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
-    toggleText: { fontSize: 10, fontWeight: '700', color: colors.muted },
-    toggleTextActive: { color: colors.primary },
-    previewContainer: { marginTop: spacing.xl },
-    dataCard: { padding: spacing.md, marginBottom: spacing.sm },
-    dataRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
-    dataKey: { fontSize: 10, color: colors.muted, textTransform: 'capitalize' },
-    dataVal: { fontSize: 11, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'right', marginLeft: 10 },
+// ─── Styles (fully aligned with Guest / Room / Food / Transport) ────────────
+const st = StyleSheet.create({
+  // ── Section selection grid (same as room/food card pattern)
+  sectionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  sectionCard: {
+    width: '47%',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  sectionIconWrap: {
+    width: 42,          // same 42px as food/room icon circles
+    height: 42,
+    borderRadius: 12,   // same 12 as food mealIconCircle
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  sectionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+
+  // ── Filter pills (identical to Food meal-filter chips)
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#fff',
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+
+  // ── Toggle chips (same pill pattern, matches action buttons)
+  optionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  toggleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,       // same 20 as food/guest/transport filter pills
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#fff',
+  },
+  toggleChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+
+  // ── Generate button (matches addBtn in Guest/Food toolbar)
+  generateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: spacing.sm,
+  },
+  generateBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // ── Preview cards
+  dataCard: {
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: 14,      // same 14 as all cards
+  },
+
+  // ── Empty preview
+  emptyPreview: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyPreviewText: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 8,
+  },
 });

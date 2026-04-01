@@ -1,15 +1,7 @@
-import { withLayoutContext } from "expo-router";
-import { createDrawerNavigator } from "@react-navigation/drawer";
+import { Drawer } from "expo-router/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/theme/colors';
-import { Text, View } from 'react-native';
-
-const { Navigator } = createDrawerNavigator();
-const Drawer = withLayoutContext(Navigator);
-
-console.log('Drawer component type:', typeof Drawer);
-console.log('Drawer.Screen component type:', typeof Drawer.Screen);
 
 export default function DrawerLayout() {
   const { hasPermission } = useAuth();

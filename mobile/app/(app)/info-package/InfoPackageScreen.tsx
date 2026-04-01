@@ -1,212 +1,106 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
+  View, Text, StyleSheet, Alert, FlatList, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  getInfoPackageGuests, 
-  sendInfoPackageWhatsapp 
-} from '@/api/info-package.api';
-import { colors, spacing, typography } from '@/theme';
+import { getInfoPackageGuests, sendInfoPackageWhatsapp } from '@/api/info-package.api';
+import { colors, spacing } from '@/theme';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Table } from '@/components/ui/Table';
+import {
+  ActionButton, InfoChip, SearchBox, EmptyState, PageContainer,
+} from '@/components/ui/Premium';
 import { formatDate } from '@/utils/dateTime';
+import Header from '@/components/Header';
 
 export default function InfoPackageScreen() {
-    const [guests, setGuests] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const [page, setPage] = useState(1);
-    const [search, setSearch] = useState('');
+  const [guests, setGuests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
 
-    useEffect(() => {
-        loadGuests();
-    }, [page, search]);
+  useEffect(() => { loadGuests(); }, [page, search]);
 
-    const loadGuests = async () => {
-        setLoading(true);
-        try {
-            const res = await getInfoPackageGuests({
-                page,
-                limit: 10,
-                search: search || undefined
-            });
-            setGuests(Array.isArray(res?.data) ? res.data : []);
-        } catch (error) {
-            console.error('Failed to load info package guests', error);
-            Alert.alert('Error', 'Could not load guest list');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+  const loadGuests = async () => {
+    setLoading(true);
+    try { const res = await getInfoPackageGuests({ page, limit: 10, search: search || undefined }); setGuests(Array.isArray(res?.data) ? res.data : []); }
+    catch { Alert.alert('Error', 'Could not load guest list'); }
+    finally { setLoading(false); setRefreshing(false); }
+  };
+
+  const handleSendWhatsApp = (g: any) => {
+    Alert.alert('WhatsApp Delivery', `Send info package to ${g.guest_name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Send Now', onPress: async () => { try { await sendInfoPackageWhatsapp(g.guest_id); Alert.alert('Success', 'Info package sent'); } catch { Alert.alert('Error', 'Failed to send'); } } },
+    ]);
+  };
+
+  return (
+    <PageContainer>
+      <FlatList
+        data={guests}
+        keyExtractor={(item) => item.guest_id}
+        renderItem={({ item: g }) => (
+          <Card style={s.card}>
+            <View style={s.cardHeader}>
+              <View style={s.cardIcon}>
+                <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle} numberOfLines={1}>{g.guest_name}</Text>
+                <Text style={s.cardSub}>{g.designation_name || '—'}</Text>
+              </View>
+              <Badge label="Guest" variant="info" />
+            </View>
+            <View style={s.infoGrid}>
+              <InfoChip icon="log-in-outline" label={`In: ${formatDate(g.arrival_date)}`} />
+              <InfoChip icon="log-out-outline" label={`Out: ${formatDate(g.departure_date)}`} />
+            </View>
+            <View style={s.cardActions}>
+              <ActionButton icon="logo-whatsapp" color="#25D366" label="WhatsApp" onPress={() => handleSendWhatsApp(g)} />
+              <ActionButton icon="document-text-outline" color="#3B82F6" label="PDF" onPress={() => Alert.alert('PDF', 'Available on web dashboard.')} />
+            </View>
+          </Card>
+        )}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
+        refreshing={refreshing}
+        onRefresh={() => { setRefreshing(true); loadGuests(); }}
+        ListHeaderComponent={
+          <>
+            <Header title="Info Package" subtitle="Automated arrival/departure kits" fallback="/(drawer)/info-package" />
+            <View style={s.toolbar}>
+              <SearchBox>
+                <Input placeholder="Guest name or designation..." value={search} onChangeText={setSearch}
+                  containerStyle={{ marginBottom: 0, flex: 1 }} inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }} />
+              </SearchBox>
+            </View>
+          </>
         }
-    };
-
-    const handleSendWhatsApp = (g: any) => {
-        Alert.alert(
-            'WhatsApp Delivery',
-            `Send automated info package to ${g.guest_name}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                    text: 'Send Now', 
-                    onPress: async () => {
-                        try {
-                            await sendInfoPackageWhatsapp(g.guest_id);
-                            Alert.alert('Success', 'Info package sent successfully');
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to send WhatsApp message');
-                        }
-                    } 
-                }
-            ]
-        );
-    };
-
-    const columns = [
-        {
-            key: 'guest_name',
-            title: 'Guest',
-            width: 150,
-            render: (g: any) => (
-                <View>
-                    <Text style={styles.cellMainText}>{g.guest_name}</Text>
-                    <Text style={styles.cellSubText}>{g.designation_name || '—'}</Text>
-                </View>
-            ),
-        },
-        {
-            key: 'stay',
-            title: 'Stay Period',
-            width: 120,
-            render: (g: any) => (
-                <View>
-                    <Text style={styles.cellSubText}>In: {formatDate(g.arrival_date)}</Text>
-                    <Text style={styles.cellSubText}>Out: {formatDate(g.departure_date)}</Text>
-                </View>
-            ),
-        },
-        {
-            key: 'actions',
-            title: 'Actions',
-            width: 100,
-            render: (g: any) => (
-                <View style={styles.actionRow}>
-                    <TouchableOpacity 
-                        onPress={() => handleSendWhatsApp(g)}
-                        style={[styles.actionIcon, { backgroundColor: colors.success + '15' }]}
-                    >
-                        <Ionicons name="logo-whatsapp" size={18} color={colors.success} />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        onPress={() => Alert.alert('PDF', 'PDF download available on web dashboard.')}
-                        style={[styles.actionIcon, { backgroundColor: colors.info + '15' }]}
-                    >
-                        <Ionicons name="document-text-outline" size={18} color={colors.info} />
-                    </TouchableOpacity>
-                </View>
-            ),
-        },
-    ];
-
-    return (
-        <View style={styles.container}>
-            <ScrollView 
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadGuests(); }} />}
-            >
-                <View style={styles.header}>
-                    <Text style={styles.title}>Info Package</Text>
-                    <Text style={styles.subtitle}>Automated Arrival/Departure kits for guests</Text>
-                </View>
-
-                <View style={styles.actionBar}>
-                    <View style={styles.searchBox}>
-                        <Ionicons name="search-outline" size={20} color={colors.muted} style={styles.searchIcon} />
-                        <Input 
-                            placeholder="Guest name or designation..." 
-                            value={search}
-                            onChangeText={setSearch}
-                            containerStyle={{ marginBottom: 0, flex: 1 }}
-                            inputStyle={{ borderWidth: 0, height: 40, fontSize: 14 }}
-                        />
-                    </View>
-                </View>
-
-                <Table 
-                    columns={columns} 
-                    data={guests} 
-                    keyExtractor={(item) => item.guest_id}
-                    containerStyle={styles.table}
-                />
-
-                <View style={styles.pagination}>
-                    <Button 
-                        title="Prev" 
-                        variant="outline" 
-                        size="sm" 
-                        disabled={page === 1} 
-                        onPress={() => setPage(page - 1)} 
-                    />
-                    <Text style={styles.pageText}>Page {page}</Text>
-                    <Button 
-                        title="Next" 
-                        variant="outline" 
-                        size="sm" 
-                        disabled={guests.length < 10} 
-                        onPress={() => setPage(page + 1)} 
-                    />
-                </View>
-
-                <View style={{ height: 40 }} />
-            </ScrollView>
-        </View>
-    );
+        ListEmptyComponent={!loading ? <EmptyState icon="document-text-outline" title="No guests found" /> : null}
+        ListFooterComponent={guests.length > 0 ? (
+          <View style={s.pagination}>
+            <Button title="← Prev" variant="outline" size="sm" disabled={page === 1} onPress={() => setPage(page - 1)} />
+            <Text style={s.pageText}>Page {page}</Text>
+            <Button title="Next →" variant="outline" size="sm" disabled={guests.length < 10} onPress={() => setPage(page + 1)} />
+          </View>
+        ) : null}
+      />
+    </PageContainer>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { padding: spacing.lg },
-    header: { marginBottom: spacing.lg },
-    title: { ...typography.h2, color: colors.primary },
-    subtitle: { ...typography.small, color: colors.muted },
-    actionBar: { marginBottom: spacing.md },
-    searchBox: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        backgroundColor: colors.white,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: colors.border,
-        paddingLeft: spacing.sm,
-        height: 40,
-    },
-    searchIcon: { marginRight: spacing.xs },
-    table: { marginBottom: spacing.md },
-    cellMainText: { fontSize: 13, fontWeight: '600', color: colors.text },
-    cellSubText: { fontSize: 11, color: colors.muted, marginTop: 2 },
-    actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    actionIcon: { 
-        width: 32, 
-        height: 32, 
-        borderRadius: 16, 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-    },
-    pagination: { 
-        flexDirection: 'row', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        gap: spacing.xl,
-        marginTop: spacing.md 
-    },
-    pageText: { ...typography.body, fontWeight: '600' },
+const s = StyleSheet.create({
+  card: { marginBottom: 12, padding: 14, borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  cardIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.primaryBg, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  cardSub: { fontSize: 12, color: colors.muted, marginTop: 1 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
+  pageText: { fontSize: 13, fontWeight: '600', color: colors.text },
 });

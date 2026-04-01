@@ -5,9 +5,19 @@ export { Input } from './Input';
 export { Badge } from './Badge';
 export { Modal } from './Modal';
 export { Table } from './Table';
-// export * from './Card';
-// export * from './Button';
-// export * from './Input';
-// export * from './Badge';
-// export * from './Modal';
-// export * from './Table';
+
+// Premium shared design system components
+export {
+  StatChip,
+  StatChipRow,
+  ActionButton,
+  IconButton,
+  InfoChip,
+  SectionCard,
+  DetailRow,
+  Toolbar,
+  SearchBox,
+  AddButton,
+  EmptyState,
+  PageContainer,
+} from './Premium';

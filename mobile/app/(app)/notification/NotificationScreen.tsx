@@ -1,29 +1,22 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@/theme';
+import { colors, spacing } from '@/theme';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Table } from '@/components/ui/Table';
+import {
+  StatChipRow, SectionCard, SearchBox, AddButton, EmptyState, PageContainer,
+} from '@/components/ui/Premium';
+import Header from '@/components/Header';
 
-type Notification = { 
-    id: string; 
-    type: 'WhatsApp' | 'SMS' | 'Email'; 
-    recipient: string; 
-    message: string; 
-    sentAt: string; 
-    status: 'Delivered' | 'Sent' | 'Failed' | 'Pending' 
-};
+type Notification = { id: string; type: 'WhatsApp' | 'SMS' | 'Email'; recipient: string; message: string; sentAt: string; status: 'Delivered' | 'Sent' | 'Failed' | 'Pending' };
+const CHANNEL_META: Record<string, { color: string; icon: string }> = { WhatsApp: { color: '#25D366', icon: 'logo-whatsapp' }, SMS: { color: '#3B82F6', icon: 'chatbox-ellipses-outline' }, Email: { color: '#F59E0B', icon: 'mail-outline' } };
+const STATUS_VARIANT: Record<string, 'success' | 'error' | 'info' | 'warning'> = { Delivered: 'success', Failed: 'error', Sent: 'info', Pending: 'warning' };
 
 const TEMPLATES = [
   { name: 'Guest Welcome', type: 'WhatsApp', content: 'Welcome to Government Guest House. Your room {room_number} is ready.' },
@@ -32,239 +25,144 @@ const TEMPLATES = [
 ];
 
 export default function NotificationScreen() {
-    const [logs, setLogs] = useState<Notification[]>([
-        { id: 'N001', type: 'WhatsApp', recipient: 'Ram Singh (Driver)', message: 'Vehicle assignment for Shri Rajesh Kumar', sentAt: '2025-12-06 09:15 AM', status: 'Delivered' },
-        { id: 'N002', type: 'WhatsApp', recipient: 'Shri Rajesh Kumar', message: 'Welcome to Guest House - Info Package', sentAt: '2025-12-06 09:10 AM', status: 'Delivered' },
-        { id: 'N003', type: 'SMS', recipient: 'All Staff', message: 'Room 201 cleaning required by 2 PM', sentAt: '2025-12-06 08:30 AM', status: 'Sent' },
-    ]);
+  const [logs, setLogs] = useState<Notification[]>([
+    { id: 'N001', type: 'WhatsApp', recipient: 'Ram Singh (Driver)', message: 'Vehicle assignment for Shri Rajesh Kumar', sentAt: '2025-12-06 09:15 AM', status: 'Delivered' },
+    { id: 'N002', type: 'WhatsApp', recipient: 'Shri Rajesh Kumar', message: 'Welcome to Guest House - Info Package', sentAt: '2025-12-06 09:10 AM', status: 'Delivered' },
+    { id: 'N003', type: 'SMS', recipient: 'All Staff', message: 'Room 201 cleaning required by 2 PM', sentAt: '2025-12-06 08:30 AM', status: 'Sent' },
+  ]);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [form, setForm] = useState({ type: 'WhatsApp' as 'WhatsApp' | 'SMS' | 'Email', recipientGroup: 'Single User', message: '' });
 
-    const [showComposeModal, setShowComposeModal] = useState(false);
-    const [form, setForm] = useState({ 
-        type: 'WhatsApp' as 'WhatsApp' | 'SMS' | 'Email', 
-        recipientGroup: 'Single User', 
-        message: '' 
-    });
+  const sendNow = () => {
+    if (!form.message.trim()) { Alert.alert('Validation', 'Enter a message'); return; }
+    setLogs([{ id: `N${String(logs.length + 1).padStart(3, '0')}`, type: form.type, recipient: form.recipientGroup, message: form.message, sentAt: new Date().toLocaleString(), status: 'Delivered' }, ...logs]);
+    setShowComposeModal(false); setForm({ ...form, message: '' });
+    Alert.alert('Success', 'Notification sent');
+  };
 
-    const sendNow = () => {
-        if (!form.message.trim()) {
-            Alert.alert('Validation', 'Please enter a message');
-            return;
-        }
-        const newLog: Notification = {
-            id: `N${String(logs.length + 1).padStart(3, '0')}`,
-            type: form.type,
-            recipient: form.recipientGroup,
-            message: form.message,
-            sentAt: new Date().toLocaleString(),
-            status: 'Delivered'
-        };
-        setLogs([newLog, ...logs]);
-        setShowComposeModal(false);
-        setForm({ ...form, message: '' });
-        Alert.alert('Success', 'Notification sent successfully');
-    };
+  const statChips = [
+    { key: 'delivered', label: 'Delivered', icon: 'checkmark-circle-outline', color: '#22C55E', value: logs.filter(l => l.status === 'Delivered').length },
+    { key: 'pending', label: 'Pending', icon: 'time-outline', color: '#F59E0B', value: logs.filter(l => l.status === 'Pending').length },
+    { key: 'failed', label: 'Failed', icon: 'close-circle-outline', color: '#EF4444', value: logs.filter(l => l.status === 'Failed').length },
+  ];
 
-    const columns = [
-        {
-            key: 'recipient',
-            title: 'Recipient',
-            width: 140,
-            render: (n: Notification) => (
-                <View>
-                    <Text style={styles.cellMainText}>{n.recipient}</Text>
-                    <Text style={styles.cellSubText}>{n.type}</Text>
+  return (
+    <PageContainer>
+      <FlatList
+        data={logs}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: n }) => {
+          const meta = CHANNEL_META[n.type] || { color: colors.muted, icon: 'chatbox-outline' };
+          return (
+            <Card style={s.card}>
+              <View style={s.cardHeader}>
+                <View style={[s.cardIcon, { backgroundColor: meta.color + '18' }]}>
+                  <Ionicons name={meta.icon as any} size={18} color={meta.color} />
                 </View>
-            ),
-        },
-        {
-            key: 'status',
-            title: 'Status',
-            width: 100,
-            render: (n: Notification) => (
-                <Badge 
-                    label={n.status} 
-                    variant={n.status === 'Delivered' ? 'success' : n.status === 'Failed' ? 'error' : 'info'} 
-                />
-            ),
-        },
-        {
-            key: 'sentAt',
-            title: 'Sent At',
-            width: 120,
-            render: (n: Notification) => <Text style={styles.cellSubText}>{n.sentAt}</Text>,
-        },
-    ];
-
-    return (
-        <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Notifications</Text>
-                    <Text style={styles.subtitle}>Broadcast alerts and automated triggers</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cardTitle} numberOfLines={1}>{n.recipient}</Text>
+                  <Text style={s.cardSub}>{n.type} · {n.sentAt}</Text>
                 </View>
+                <Badge label={n.status} variant={STATUS_VARIANT[n.status] || 'info'} />
+              </View>
+              <Text style={s.messageText} numberOfLines={2}>{n.message}</Text>
+            </Card>
+          );
+        }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
+        ListHeaderComponent={
+          <>
+            <Header title="Notifications" subtitle="Broadcast alerts and triggers" fallback="/(drawer)/notification" />
+            <StatChipRow chips={statChips} />
 
-                {/* Stats Row */}
-                <View style={styles.statsGrid}>
-                    <Card style={styles.statBox}>
-                        <Text style={[styles.statNum, { color: colors.success }]}>{logs.filter(l => l.status === 'Delivered').length}</Text>
-                        <Text style={styles.statLabel}>Delivered</Text>
-                    </Card>
-                    <Card style={styles.statBox}>
-                        <Text style={[styles.statNum, { color: colors.warning }]}>{logs.filter(l => l.status === 'Pending').length}</Text>
-                        <Text style={styles.statLabel}>Pending</Text>
-                    </Card>
-                    <Card style={styles.statBox}>
-                        <Text style={[styles.statNum, { color: colors.error }]}>{logs.filter(l => l.status === 'Failed').length}</Text>
-                        <Text style={styles.statLabel}>Failed</Text>
-                    </Card>
-                </View>
-
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Templates</Text>
-                    <Button 
-                        title="New Message" 
-                        size="sm" 
-                        onPress={() => setShowComposeModal(true)} 
-                    />
-                </View>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.templatesRow}>
-                    {TEMPLATES.map((t, i) => (
-                        <TouchableOpacity 
-                            key={i} 
-                            style={styles.templateCard}
-                            onPress={() => {
-                                setForm({ type: t.type as any, recipientGroup: 'Single User', message: t.content });
-                                setShowComposeModal(true);
-                            }}
-                        >
-                            <View style={styles.templateHeader}>
-                                <Text style={styles.templateName}>{t.name}</Text>
-                                <Ionicons 
-                                    name={t.type === 'WhatsApp' ? 'logo-whatsapp' : 'chatbox-ellipses-outline'} 
-                                    size={16} 
-                                    color={colors.primary} 
-                                />
-                            </View>
-                            <Text style={styles.templateContent} numberOfLines={2}>{t.content}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-
-                <Text style={[styles.sectionTitle, { marginTop: spacing.lg, marginBottom: spacing.md }]}>Recent Logs</Text>
-                <Table 
-                    columns={columns} 
-                    data={logs} 
-                    keyExtractor={(item) => item.id}
-                    containerStyle={styles.table}
-                />
-
-                <View style={{ height: 40 }} />
+            {/* Templates */}
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Templates</Text>
+              <AddButton label="Compose" onPress={() => setShowComposeModal(true)} />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.templatesRow}>
+              {TEMPLATES.map((t, i) => {
+                const meta = CHANNEL_META[t.type] || { color: colors.muted, icon: 'chatbox-outline' };
+                return (
+                  <TouchableOpacity key={i} style={s.templateCard}
+                    onPress={() => { setForm({ type: t.type as any, recipientGroup: 'Single User', message: t.content }); setShowComposeModal(true); }}>
+                    <View style={s.templateHeader}>
+                      <View style={[s.templateIconWrap, { backgroundColor: meta.color + '18' }]}>
+                        <Ionicons name={meta.icon as any} size={14} color={meta.color} />
+                      </View>
+                      <Text style={s.templateName}>{t.name}</Text>
+                    </View>
+                    <Text style={s.templateContent} numberOfLines={2}>{t.content}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
-            {/* Compose Modal */}
-            <Modal
-                visible={showComposeModal}
-                onClose={() => setShowComposeModal(false)}
-                title="Compose Notification"
-                footer={
-                    <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                        <Button title="Cancel" variant="outline" onPress={() => setShowComposeModal(false)} />
-                        <Button title="Broadcast Now" onPress={sendNow} />
-                    </View>
-                }
-            >
-                <ScrollView keyboardShouldPersistTaps="handled">
-                    <Text style={styles.modalLabel}>Channel</Text>
-                    <View style={styles.chipGrid}>
-                        {['WhatsApp', 'SMS', 'Email'].map(t => (
-                            <TouchableOpacity 
-                                key={t} 
-                                style={[styles.channelChip, form.type === t && styles.channelChipActive]}
-                                onPress={() => setForm({...form, type: t as any})}
-                            >
-                                <Text style={[styles.channelChipText, form.type === t && styles.channelChipTextActive]}>{t}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+            <Text style={s.sectionTitle2}>Recent Logs</Text>
+          </>
+        }
+        ListEmptyComponent={<EmptyState icon="notifications-outline" title="No notifications yet" />}
+      />
 
-                    <Text style={styles.modalLabel}>Recipient Group</Text>
-                    <View style={styles.chipGrid}>
-                        {['Single User', 'All Drivers', 'All Staff'].map(r => (
-                            <TouchableOpacity 
-                                key={r} 
-                                style={[styles.channelChip, form.recipientGroup === r && styles.channelChipActive]}
-                                onPress={() => setForm({...form, recipientGroup: r})}
-                            >
-                                <Text style={[styles.channelChipText, form.recipientGroup === r && styles.channelChipTextActive]}>{r}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    <Input 
-                        label="Message content" 
-                        multiline
-                        numberOfLines={4}
-                        value={form.message} 
-                        onChangeText={v => setForm({...form, message: v})}
-                        placeholder="Type your message here..."
-                    />
-                </ScrollView>
-            </Modal>
-        </View>
-    );
+      {/* ── Compose Modal ── */}
+      <Modal visible={showComposeModal} onClose={() => setShowComposeModal(false)} title="Compose Notification"
+        footer={<View style={{ flexDirection: 'row', gap: spacing.md }}><Button title="Cancel" variant="outline" onPress={() => setShowComposeModal(false)} /><Button title="Broadcast" onPress={sendNow} /></View>}>
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <SectionCard title="Channel" icon="send-outline">
+            <View style={s.chipGrid}>
+              {(['WhatsApp', 'SMS', 'Email'] as const).map(t => {
+                const active = form.type === t; const meta = CHANNEL_META[t];
+                return (
+                  <TouchableOpacity key={t} onPress={() => setForm({ ...form, type: t })}
+                    style={[s.channelChip, active && { backgroundColor: meta.color, borderColor: meta.color }]}>
+                    <Ionicons name={meta.icon as any} size={14} color={active ? '#fff' : meta.color} />
+                    <Text style={[s.channelText, active && { color: '#fff' }]}>{t}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </SectionCard>
+          <SectionCard title="Recipients" icon="people-outline">
+            <View style={s.chipGrid}>
+              {['Single User', 'All Drivers', 'All Staff'].map(r => {
+                const active = form.recipientGroup === r;
+                return (
+                  <TouchableOpacity key={r} onPress={() => setForm({ ...form, recipientGroup: r })}
+                    style={[s.recipientChip, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                    <Text style={[s.recipientText, active && { color: '#fff' }]}>{r}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </SectionCard>
+          <SectionCard title="Message" icon="document-text-outline">
+            <Input multiline numberOfLines={4} value={form.message} onChangeText={v => setForm({ ...form, message: v })} placeholder="Type your message..." />
+          </SectionCard>
+        </ScrollView>
+      </Modal>
+    </PageContainer>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { padding: spacing.lg },
-    header: { marginBottom: spacing.lg },
-    title: { ...typography.h2, color: colors.primary },
-    subtitle: { ...typography.small, color: colors.muted },
-    statsGrid: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        marginBottom: spacing.xl,
-        gap: spacing.sm
-    },
-    statBox: { flex: 1, alignItems: 'center', padding: spacing.md },
-    statNum: { fontSize: 20, fontWeight: '700' },
-    statLabel: { fontSize: 10, color: colors.muted, marginTop: 2 },
-    sectionHeader: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: spacing.md 
-    },
-    sectionTitle: { ...typography.label, color: colors.primary },
-    templatesRow: { flexDirection: 'row', marginBottom: spacing.sm },
-    templateCard: {
-        width: 200,
-        backgroundColor: colors.white,
-        borderRadius: 12,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginRight: spacing.md,
-    },
-    templateHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-    templateName: { fontSize: 13, fontWeight: '700', color: colors.text },
-    templateContent: { fontSize: 11, color: colors.muted, lineHeight: 16 },
-    table: { marginBottom: spacing.md },
-    cellMainText: { fontSize: 13, fontWeight: '600', color: colors.text },
-    cellSubText: { fontSize: 11, color: colors.muted, marginTop: 2 },
-    actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-    actionIcon: { padding: 4 },
-    modalLabel: { ...typography.small, fontWeight: '700', color: colors.muted, marginBottom: spacing.sm },
-    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-    channelChip: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    channelChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    channelChipText: { fontSize: 12, color: colors.text },
-    channelChipTextActive: { color: colors.white, fontWeight: '600' },
+const s = StyleSheet.create({
+  card: { marginBottom: 10, padding: 14, borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  cardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  cardSub: { fontSize: 11, color: colors.muted, marginTop: 1 },
+  messageText: { fontSize: 12, color: colors.muted, lineHeight: 18 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  sectionTitle2: { fontSize: 15, fontWeight: '700', color: colors.primary, marginTop: spacing.lg, marginBottom: spacing.md },
+  templatesRow: { flexDirection: 'row', marginBottom: spacing.sm },
+  templateCard: { width: 200, backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E5E7EB', marginRight: 10 },
+  templateHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  templateIconWrap: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  templateName: { fontSize: 13, fontWeight: '700', color: colors.text },
+  templateContent: { fontSize: 11, color: colors.muted, lineHeight: 16 },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  channelChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#fff' },
+  channelText: { fontSize: 12, fontWeight: '600', color: colors.text },
+  recipientChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#fff' },
+  recipientText: { fontSize: 12, fontWeight: '600', color: colors.text },
 });
