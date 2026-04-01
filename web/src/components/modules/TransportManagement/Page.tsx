@@ -678,14 +678,18 @@ function GuestTransportManagement() {
     {
       header: "Vehicle",
       render: (row) =>
-        row.vehicle
-          ? (
-            <div className="text-sm">
-              <p className="font-medium text-gray-900">{row.vehicle.vehicle_name}</p>
-              <p className="text-xs text-gray-500">{row.vehicle.vehicle_no}</p>
-            </div>
-          )
-          : <span className="text-gray-400">—</span>,
+        !row.guest.requires_driver
+          ? <span className="text-xs text-gray-400 italic">Not required</span>
+          : row.driver
+            ? (
+              <div className="text-sm">
+                <p className="font-medium text-gray-900">{row.driver.driver_name}</p>
+                <div className="text-xs text-gray-500">
+                  {formatISTDate(row.driver.trip_date)}
+                </div>
+              </div>
+            )
+            : <span className="text-gray-400">—</span>,
     },
     {
       header: "Status",
