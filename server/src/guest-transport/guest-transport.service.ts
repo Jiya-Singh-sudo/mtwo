@@ -64,7 +64,10 @@ export class GuestTransportService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
-
+    const countWhere: string[] = [
+      'io.is_active = TRUE',
+      'g.is_active = TRUE',
+    ];
     const sqlParams: any[] = [];
     let idx = 1;
 
@@ -80,7 +83,29 @@ export class GuestTransportService {
         throw new BadRequestException('SEARCH_TOO_LONG');
       }
 
-      where.push(`(
+      // where.push(`(
+      //   g.guest_name ILIKE $${idx}
+      //   OR g.guest_mobile ILIKE $${idx}
+      //   OR EXISTS (
+      //     SELECT 1
+      //     FROM t_guest_driver gd2
+      //     JOIN m_driver d2 ON d2.driver_id = gd2.driver_id
+      //     JOIN m_staff s2 ON s2.staff_id = d2.staff_id
+      //     WHERE gd2.guest_id = g.guest_id
+      //       AND gd2.is_active = TRUE
+      //       AND s2.is_active = TRUE
+      //       AND s2.full_name ILIKE $${idx}
+      //   )
+      //   OR EXISTS (
+      //     SELECT 1
+      //     FROM t_guest_vehicle gv2
+      //     JOIN m_vehicle v2 ON v2.vehicle_no = gv2.vehicle_no
+      //     WHERE gv2.guest_id = g.guest_id
+      //       AND gv2.is_active = TRUE
+      //       AND v2.vehicle_no ILIKE $${idx}
+      //   )
+      // )`);
+      const searchCondition = `(
         g.guest_name ILIKE $${idx}
         OR g.guest_mobile ILIKE $${idx}
         OR EXISTS (
@@ -101,8 +126,10 @@ export class GuestTransportService {
             AND gv2.is_active = TRUE
             AND v2.vehicle_no ILIKE $${idx}
         )
-      )`);
+      )`;
 
+      where.push(searchCondition);
+      countWhere.push(searchCondition);
       sqlParams.push(`%${normalized}%`);
       idx++;
     }
@@ -132,28 +159,52 @@ export class GuestTransportService {
       }
     }
     /* If no date filters provided → apply default window */
+    // if (!fromDate && !toDate) {
+    //   where.push(`
+    //     io.entry_date BETWEEN
+    //       (CURRENT_DATE - INTERVAL '15 days')
+    //       AND
+    //       (CURRENT_DATE + INTERVAL '15 days')
+    //   `);
+    // } else {
+    //   if (fromDate) {
+    //     where.push(`io.entry_date >= $${idx}`);
+    //     sqlParams.push(fromDate);
+    //     idx++;
+    //   }
+
+    //   if (toDate) {
+    //     where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+    //     sqlParams.push(toDate);
+    //     idx++;
+    //   }
+    // }
     if (!fromDate && !toDate) {
-      where.push(`
+      const dateCondition = `
         io.entry_date BETWEEN
           (CURRENT_DATE - INTERVAL '15 days')
           AND
           (CURRENT_DATE + INTERVAL '15 days')
-      `);
+      `;
+      where.push(dateCondition);
+      countWhere.push(dateCondition); // ✅ ADD
     } else {
       if (fromDate) {
-        where.push(`io.entry_date >= $${idx}`);
+        const condition = `io.entry_date >= $${idx}`;
+        where.push(condition);
+        countWhere.push(condition); // ✅ ADD
         sqlParams.push(fromDate);
         idx++;
       }
 
       if (toDate) {
-        where.push(`io.entry_date < ($${idx}::date + INTERVAL '1 day')`);
+        const condition = `io.entry_date < ($${idx}::date + INTERVAL '1 day')`;
+        where.push(condition);
+        countWhere.push(condition); // ✅ ADD
         sqlParams.push(toDate);
         idx++;
       }
     }
-
-
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {
       where.push(`io.status = $${idx}`);
@@ -162,6 +213,7 @@ export class GuestTransportService {
     }
 
     const whereSql = `WHERE ${where.join(' AND ')}`;
+    const countWhereSql = `WHERE ${countWhere.join(' AND ')}`;
 
     /* ---------------- COUNT & STATS ---------------- */
     const countSql = `
@@ -193,7 +245,7 @@ export class GuestTransportService {
       LEFT JOIN m_vehicle v
         ON v.vehicle_no = gv.vehicle_no
 
-      ${whereSql};
+      ${countWhereSql};
     `;
       const limitParam = idx;
       const offsetParam = idx + 1;
@@ -249,10 +301,16 @@ export class GuestTransportService {
           ON g.guest_id = io.guest_id
         AND g.is_active = TRUE
 
-        LEFT JOIN t_guest_designation gdsg
-          ON gdsg.guest_id = g.guest_id
-        AND gdsg.is_current = TRUE
-        AND gdsg.is_active = TRUE
+LEFT JOIN LATERAL (
+  SELECT *
+  FROM t_guest_designation
+  WHERE guest_id = g.guest_id
+    AND is_active = TRUE
+  ORDER BY 
+    is_current DESC, 
+    updated_at DESC NULLS LAST
+  LIMIT 1
+) gdsg ON TRUE
 
         LEFT JOIN m_guest_designation md
           ON md.designation_id = gdsg.designation_id
@@ -326,7 +384,13 @@ export class GuestTransportService {
 
     return this.db.transaction(async (client) => {
       try {
-        const countRes = await client.query(countSql, sqlParams);
+        const countParams: any[] = [];
+
+        if (search) countParams.push(`%${search.trim()}%`);
+        if (fromDate) countParams.push(fromDate);
+        if (toDate) countParams.push(toDate);
+
+        const countRes = await client.query(countSql, countParams);
 
         const dataRes = await client.query(
           dataSql,

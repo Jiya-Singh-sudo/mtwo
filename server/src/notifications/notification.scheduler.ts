@@ -12,8 +12,8 @@ export class NotificationScheduler {
   ) {}
 
   // Runs every hour
-  @Cron('0 * * * *')
-  //@Cron('*/30 * * * * *') // every 30 seconds
+  //@Cron('0 * * * *')
+  @Cron('*/30 * * * * *') // every 30 seconds
   async processNotifications()  {
     await this.process48HourReminders();
     await this.process24HourGuestNotifications();

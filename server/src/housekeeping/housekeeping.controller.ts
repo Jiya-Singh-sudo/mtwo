@@ -36,15 +36,15 @@ export class HousekeepingController {
     return this.service.create(dto, user, ip);
   }
 
-  @Put(":hk_name")
-  update(@Param("hk_name") name: string, @Body() dto: UpdateHousekeepingDto, @Req() req: any) {
+  @Put(":hk_id")
+  update(@Param("hk_id") id: string, @Body() dto: UpdateHousekeepingDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
-    return this.service.update(name, dto, user, ip);
+    return this.service.update(id, dto, user, ip);
   }
 
-  @Delete(":hk_name")
-  delete(@Param("hk_name") name: string, @Req() req: any) {
+  @Delete(":hk_id")
+  delete(@Param("hk_id") id: string, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
-    return this.service.softDelete(name, user, ip);
+    return this.service.softDelete(id, user, ip);
   }
 }

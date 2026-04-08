@@ -24,6 +24,10 @@ export class CreateLiasoningOfficerDto {
   @IsEmail()
   email?: string;
 
+  @IsOptional()
+  @IsString()
+  address?: string;
+
   @IsString()
   role_id: string;
 
@@ -60,6 +64,10 @@ export class UpdateLiasoningOfficerDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()

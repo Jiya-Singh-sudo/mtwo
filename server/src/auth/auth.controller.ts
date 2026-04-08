@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Req, Get, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../gaurds/jwt/jwt.guard';
+import { LoginMDto } from './dto/loginM.dto';
 import { LoginDto } from './dto/login.dto';
 import { Throttle } from '@nestjs/throttler';
 
@@ -22,7 +23,20 @@ export class AuthController {
     // console.log('DTO received:', dto);
     return this.authService.login(dto, ip);
   }
-
+  @Post('loginM')
+  @Throttle({ default: { ttl: 60, limit: 5 } }) // 5 attempts per minute per IP
+  async loginM(
+    @Body() dto: LoginMDto,
+    @Req() req: any,
+  ) {
+    const ip =
+      req.headers['x-forwarded-for'] ||
+      req.ip ||
+      req.connection?.remoteAddress ||
+      null;
+    // console.log('DTO received:', dto);
+    return this.authService.loginM(dto, ip);
+  }
   @Post('refresh')
   @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 attempts per minute per IP
   async refresh(@Body('refreshToken') refreshToken: string, @Req() req: any) {

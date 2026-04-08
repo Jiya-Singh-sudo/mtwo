@@ -1,5 +1,5 @@
 // server/src/modules/guest-liasoning-officer/guest-liasoning-officer.controller.ts
-import { Controller, Post, Get, Patch, Delete, Param, Body, Req,} from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Param, Body, Req, Query} from '@nestjs/common';
 import { GuestLiasoningOfficerService } from './guest-liasoning-officer.service';
 import { CreateGuestLiasoningOfficerDto, UpdateGuestLiasoningOfficerDto,} from './dto/guest-liasoning-officer.dto';
 import { getRequestContext } from 'common/utlis/request-context.util';
@@ -8,6 +8,16 @@ import { getRequestContext } from 'common/utlis/request-context.util';
 export class GuestLiasoningOfficerController {
   constructor(private readonly service: GuestLiasoningOfficerService) {}
 
+  @Get('table')
+  getTable(@Query() query: any) {
+    return this.service.getGuestOfficerTable({
+      page: Number(query.page) || 1,
+      limit: Number(query.limit) || 10,
+      search: query.search,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder,
+    });
+  }
   @Post()
   create(@Body() dto: CreateGuestLiasoningOfficerDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);

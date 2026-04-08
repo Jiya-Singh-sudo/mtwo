@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import { LoginMDto } from './dto/loginM.dto';
 import { LoginDto } from './dto/login.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import axios from 'axios';
@@ -290,7 +291,119 @@ export class AuthService {
       };
     });
   }
+  async loginM(dto: LoginMDto, ip: string) {
+    // console.log('📥 DTO RECEIVED:', dto);
 
+    return this.db.transaction(async (client) => {
+
+      // ✅ Detect mobile
+      // const isMobile = true;
+
+      // // 🔐 Web → verify recaptcha
+      // if (!isMobile) {
+      //   console.log('🔐 Checking recaptcha...');
+      //   const recaptchaToken = dto.recaptchaToken!;
+      //   const recaptchaResult = await this.verifyRecaptcha(recaptchaToken);
+
+      //   console.log('🔐 Recaptcha result:', recaptchaResult);
+
+      //   if (!recaptchaResult.success) {
+      //     throw new UnauthorizedException('reCAPTCHA validation failed');
+      //   }
+
+      //   if (recaptchaResult.score < 0.5) {
+      //     throw new UnauthorizedException('Suspicious activity detected');
+      //   }
+      // } else {
+      //   console.log('📱 Mobile login → skipping reCAPTCHA');
+      // }
+
+      // 🔑 Hash password
+      const hashedPassword = this.sha256Hex(dto.password);
+
+      // 👤 Fetch user
+      const result = await client.query(
+        `SELECT * FROM m_user WHERE username = $1 AND is_active = true`,
+        [dto.username]
+      );
+
+      if (!result.rows.length) {
+        await this.activityLog.log({
+          message: `Invalid login attempt for username ${dto.username}`,
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          referenceId: dto.username,
+          ipAddress: ip,
+        }, client);
+
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      const user = result.rows[0];
+
+      // 🔐 Password check
+      if (user.password !== hashedPassword) {
+        await this.activityLog.log({
+          message: `Invalid login attempt for username ${dto.username}`,
+          module: 'AUTH',
+          action: 'LOGIN_FAILED',
+          referenceId: dto.username,
+          ipAddress: ip,
+        }, client);
+
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      // console.log('✅ LOGIN SUCCESS');
+
+      // ✅ Update last login
+      await client.query(
+        `UPDATE m_user
+        SET last_login = NOW(),
+            updated_ip = $1
+        WHERE user_id = $2`,
+        [ip, user.user_id]
+      );
+
+      await this.activityLog.log({
+        message: 'User logged in successfully',
+        module: 'AUTH',
+        action: 'LOGIN_SUCCESS',
+        referenceId: user.user_id,
+        performedBy: user.user_id,
+        ipAddress: ip,
+      }, client);
+
+      // ✅ Load role + permissions
+      const role = await this.loadRole(user.role_id);
+      const permissions = await this.loadPermissions(user.role_id);
+
+      // ✅ JWT payload
+      const payload = {
+        sub: user.user_id,
+        username: user.username,
+        role_id: user.role_id,
+        permissions,
+      };
+
+      // ✅ Tokens
+      const accessToken = this.signAccessToken(payload);
+
+      const refresh = await this.createRefreshTokenRow(
+        user.user_id,
+        ip,
+        undefined,
+        client
+      );
+
+      return {
+        accessToken,
+        refreshToken: refresh.token,
+        refreshExpiresAt: refresh.expiresAt,
+        payload,
+      };
+    });
+  }
   // --------------------- REFRESH TOKEN ---------------------
   async refresh(receivedToken: string, ip: string | null) {
     if (!receivedToken) throw new UnauthorizedException('No refresh token');

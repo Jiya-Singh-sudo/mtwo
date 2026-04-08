@@ -202,10 +202,15 @@ export class GuestNetworkService {
       SELECT
         g.guest_id,
         g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+        g.guest_alternate_mobile,
+        g.email,
 
         /* -------- Room -------- */
         gr.room_id,
         STRING_AGG(DISTINCT r.room_no, ', ') AS room_no,
+        STRING_AGG(DISTINCT r.room_name, ', ') AS room_name,
 
         /* -------- InOut Context -------- */
         io.entry_date,
@@ -213,10 +218,12 @@ export class GuestNetworkService {
         io.exit_date,
         io.exit_time,
         io.status AS inout_status,
+        io.companions,
 
         /* -------- Designation -------- */
         md.designation_name,
         gd.department,
+        gd.organization,
 
         /* -------- Network -------- */
         wp.username,
@@ -275,14 +282,20 @@ export class GuestNetworkService {
       GROUP BY
         g.guest_id,
         g.guest_name,
+        g.guest_name_local_language,
+        g.guest_mobile,
+        g.guest_alternate_mobile,
         gr.room_id,
         io.entry_date,
         io.entry_time,
         io.exit_date,
         io.exit_time,
         io.status,
+        g.email,
+        io.companions,
         md.designation_name,
         gd.department,
+        gd.organization,
         wp.username,
         gn.provider_id,
         gn.network_status,

@@ -597,6 +597,9 @@ export class GuestsService {
       'io.is_active = TRUE',
       'g.is_active = TRUE',
     ];
+    const countWhere: string[] = [
+      'g.is_active = TRUE'
+    ];
     if (page <= 0 || limit <= 0) {
       throw new BadRequestException('Page and limit must be greater than 0');
     }
@@ -612,22 +615,48 @@ export class GuestsService {
     let toDate = entryDateTo;
 
     /* If no date filters provided → apply default window */
+    // if (!fromDate && !toDate) {
+    //   where.push(`
+    //     io.entry_date BETWEEN
+    //       (CURRENT_DATE - INTERVAL '15 days')
+    //       AND
+    //       (CURRENT_DATE + INTERVAL '15 days')
+    //   `);
+    // } else {
+    //   if (fromDate) {
+    //     where.push(`io.entry_date >= $${idx}`);
+    //     values.push(fromDate);
+    //     idx++;
+    //   }
+
+    //   if (toDate) {
+    //     where.push(`io.entry_date <= $${idx}`);
+    //     values.push(toDate);
+    //     idx++;
+    //   }
+    // }
     if (!fromDate && !toDate) {
-      where.push(`
+      const dateCondition = `
         io.entry_date BETWEEN
           (CURRENT_DATE - INTERVAL '15 days')
           AND
           (CURRENT_DATE + INTERVAL '15 days')
-      `);
+      `;
+      where.push(dateCondition);
+      countWhere.push(dateCondition); // ✅ ADD THIS
     } else {
       if (fromDate) {
-        where.push(`io.entry_date >= $${idx}`);
+        const condition = `io.entry_date >= $${idx}`;
+        where.push(condition);
+        countWhere.push(condition); // ✅ ADD THIS
         values.push(fromDate);
         idx++;
       }
 
       if (toDate) {
-        where.push(`io.entry_date <= $${idx}`);
+        const condition = `io.entry_date <= $${idx}`;
+        where.push(condition);
+        countWhere.push(condition); // ✅ ADD THIS
         values.push(toDate);
         idx++;
       }
@@ -656,25 +685,37 @@ export class GuestsService {
       sortOrder === 'asc' ? 'ASC' : 'DESC';
 
     /* ---------------- SEARCH ---------------- */
+    // if (search) {
+    //   where.push(`
+    //     (
+    //       g.guest_name ILIKE $${idx}
+    //       OR g.guest_mobile ILIKE $${idx}
+    //       OR g.guest_id ILIKE $${idx}
+    //     )
+    //   `);
+    //   values.push(`%${search}%`);
+    //   idx++;
+    // }
     if (search) {
-      where.push(`
+      const searchCondition = `
         (
           g.guest_name ILIKE $${idx}
           OR g.guest_mobile ILIKE $${idx}
           OR g.guest_id ILIKE $${idx}
         )
-      `);
+      `;
+      where.push(searchCondition);
+      countWhere.push(searchCondition); // ✅ ADD THIS
       values.push(`%${search}%`);
       idx++;
     }
-
     /* ---------------- STATUS FILTER ---------------- */
     if (status && status !== 'All') {
       where.push(`io.status = $${idx}`);
       values.push(status);
       idx++;
     }
-
+    // const countValues = values.slice(0, idx - (status && status !== 'All' ? 1 : 0));
     /* ---------------- COUNT QUERY ---------------- */
     const countSql = `
       SELECT 
@@ -688,11 +729,11 @@ export class GuestsService {
       LEFT JOIN t_guest_inout io
         ON io.guest_id = g.guest_id
       LEFT JOIN t_guest_designation d
-        ON d.guest_id = g.guest_id
+        ON d.guest_id = g.guest_id  
         AND d.is_current = TRUE
       LEFT JOIN m_guest_designation md
         ON md.designation_id = d.designation_id
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ${countWhere.length ? `WHERE ${countWhere.join(' AND ')}` : ''}
     `;
 
 
@@ -744,10 +785,25 @@ export class GuestsService {
     `;
 
     /* ---------------- EXECUTION ---------------- */
-    const countResult = await this.db.query(
-      countSql,
-      values.slice(0, idx - 1)
-    );
+    const countValues: any[] = [];
+
+    if (fromDate) {
+      countValues.push(fromDate);
+    }
+
+    if (toDate) {
+      countValues.push(toDate);
+    }
+
+    if (search) {
+      countValues.push(`%${search}%`);
+    }
+
+    const countResult = await this.db.query(countSql, countValues);
+    // const countResult = await this.db.query(
+    //   countSql,
+    //   countValues
+    // );
     values.push(limit, offset);
     const dataResult = await this.db.query(dataSql, values);
 

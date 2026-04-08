@@ -478,12 +478,13 @@ export class MessengerService {
         SELECT
           m.messenger_id,
           s.full_name AS messenger_name,
-          s.full_name_local_language,
+          s.full_name_local_language AS messenger_name_local_language,
           s.primary_mobile,
           s.alternate_mobile AS secondary_mobile,
           s.email,
           s.designation,
           m.remarks,
+          s.address,
           m.is_active
         FROM m_messenger m
         LEFT JOIN m_staff s ON s.staff_id = m.staff_id
@@ -494,10 +495,12 @@ export class MessengerService {
     `;
 
     const countSql = `
-        SELECT COUNT(*)::int AS count
-        FROM m_messenger m
-        ${whereClause};
+      SELECT COUNT(*)::int AS count
+      FROM m_messenger m
+      LEFT JOIN m_staff s ON s.staff_id = m.staff_id   -- ✅ ADD THIS
+      ${whereClause};
     `;
+
     const statsSql = `
       SELECT
         COUNT(*)::int AS total,

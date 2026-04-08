@@ -12,7 +12,199 @@ export class GuestLiasoningOfficerService {
     `);
     return res.rows[0].id;
   }
+  async getGuestOfficerTable(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const { page, limit, search, sortBy, sortOrder } = params;
 
+    const offset = (page - 1) * limit;
+    const where: string[] = [
+      'io.is_active = TRUE',
+      'g.is_active = TRUE',
+      `
+      (
+        (io.status = 'Scheduled' AND io.entry_date >= CURRENT_DATE)
+        OR io.status IN ('Entered', 'Inside')
+        OR (
+          io.status = 'Exited'
+          AND NOW() <= (
+            io.exit_date + COALESCE(io.exit_time, TIME '00:00')
+          ) + INTERVAL '24 hours'
+        )
+      )
+      `
+    ];
+
+    const values: any[] = [];
+    let idx = 1;
+
+    /* ================= SEARCH ================= */
+    if (search) {
+      where.push(`
+        (
+          g.guest_name ILIKE $${idx}
+          OR g.guest_id ILIKE $${idx}
+          OR r.room_no::text ILIKE $${idx}
+        )
+      `);
+      values.push(`%${search}%`);
+      idx++;
+    }
+
+    const whereClause = `WHERE ${where.join(' AND ')}`;
+
+    /* ================= SORT ================= */
+    const allowedSorts: Record<string, string> = {
+      guest_name: 'g.guest_name',
+      entry_date: 'io.entry_date',
+    };
+
+    const sortColumn =
+      allowedSorts[sortBy ?? 'entry_date'] ?? 'io.entry_date';
+
+    const sortDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+    /* ================= COUNT ================= */
+    const countSql = `
+      SELECT COUNT(DISTINCT g.guest_id)::int AS total
+      FROM t_guest_inout io
+      JOIN m_guest g 
+        ON g.guest_id = io.guest_id
+
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+        AND gr.is_active = TRUE
+        AND gr.check_out_date IS NULL
+
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
+
+      ${whereClause}
+    `;
+
+    /* ================= DATA ================= */
+    const dataSql = `
+      SELECT
+        g.guest_id,
+        g.guest_name,
+        g.guest_mobile,
+
+        /* ✅ CORRECT ROOM SOURCE */
+        gr.room_id,
+        STRING_AGG(DISTINCT r.room_no, ', ') AS room_no,
+
+        /* ===== LIAISON ===== */
+        lo.officer_id,
+        s1.full_name AS liaison_name,
+        s1.primary_mobile AS liaison_mobile,
+
+        CASE
+          WHEN glo.guest_officer_id IS NOT NULL THEN 'Assigned'
+          ELSE NULL
+        END AS liaison_status,
+
+        /* ===== MEDICAL ===== */
+        mes.service_id,
+        s2.full_name AS medical_name,
+        s2.primary_mobile AS medical_mobile,
+
+        CASE
+          WHEN gmc.medical_contact_id IS NOT NULL THEN 'Assigned'
+          ELSE NULL
+        END AS medical_status,
+
+        io.entry_date
+
+      FROM t_guest_inout io
+
+      JOIN m_guest g
+        ON g.guest_id = io.guest_id
+        AND io.is_active = TRUE
+
+      /* ✅ FIXED ROOM JOIN */
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
+        AND gr.is_active = TRUE
+        AND gr.check_out_date IS NULL
+
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
+
+      /* LIAISON */
+      LEFT JOIN t_guest_liasoning_officer glo
+        ON glo.guest_id = g.guest_id 
+        AND glo.is_active = TRUE
+
+      LEFT JOIN m_liasoning_officer lo
+        ON lo.officer_id = glo.officer_id
+
+      LEFT JOIN m_staff s1
+        ON s1.staff_id = lo.staff_id
+
+      /* MEDICAL */
+      LEFT JOIN t_guest_medical_contact gmc
+        ON gmc.guest_id = g.guest_id 
+        AND gmc.is_active = TRUE
+
+      LEFT JOIN m_medical_emergency_service mes
+        ON mes.service_id = gmc.service_id
+
+      LEFT JOIN m_staff s2
+        ON s2.staff_id = mes.staff_id
+
+      ${whereClause}
+
+      GROUP BY
+        g.guest_id,
+        g.guest_name,
+        g.guest_mobile,
+        gr.room_id,
+        lo.officer_id,
+        s1.full_name,
+        s1.primary_mobile,
+        glo.guest_officer_id,
+        mes.service_id,
+        s2.full_name,
+        s2.primary_mobile,
+        gmc.medical_contact_id,
+        io.entry_date
+
+      ORDER BY ${sortColumn} ${sortDirection}
+
+      LIMIT $${idx} OFFSET $${idx + 1}
+    `;
+
+    /* ================= EXECUTION ================= */
+    const countResult = await this.db.query(
+      countSql,
+      values
+    );
+
+    values.push(limit, offset);
+
+    const dataResult = await this.db.query(dataSql, values);
+
+    /* ================= STATS ================= */
+    const stats = {
+      total: countResult.rows[0].total,
+      liaisonAssigned: dataResult.rows.filter(
+        (r) => r.liaison_status === 'Assigned'
+      ).length,
+      medicalAssigned: dataResult.rows.filter(
+        (r) => r.medical_status === 'Assigned'
+      ).length,
+    };
+
+    return {
+      data: dataResult.rows,
+      totalCount: countResult.rows[0].total,
+      stats,
+    };
+  }
   /* ================= CREATE ================= */
 
   async create(

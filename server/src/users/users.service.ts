@@ -79,17 +79,6 @@ export class UsersService {
     } else if (status === 'Inactive') {
       where.push('u.is_active = FALSE');
     }
-    // If status === 'All', no filter
-
-    // Wait, User page usually shows active users. 
-    // And getActiveUsers implied active users. 
-    // getAllUsers (controller 'all') calls findAll(false).
-    // Let's assume this endpoint is for ACTIVE users table. 
-
-    // If we want to support showing inactive via status param:
-    // if (status === 'All') where = []; else where.push('u.is_active = TRUE');
-    // But original getActiveUsers was STRICTLY active.
-
     const sqlParams: any[] = [];
     let idx = 1;
 

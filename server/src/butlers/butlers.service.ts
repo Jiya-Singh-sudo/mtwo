@@ -96,6 +96,7 @@ export class ButlersService {
         b.is_active,
         s.primary_mobile AS butler_mobile,
         s.alternate_mobile AS butler_alternate_mobile,
+        s.email AS butler_email,
         s.address,
         b.remarks,
         b.shift,

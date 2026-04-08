@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, Matches, MinLength, MaxLength,} from 'class-validator';
+import { IsString, IsOptional, IsIn, Matches, MinLength, MaxLength, IsInt } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateHousekeepingDto {
@@ -9,14 +9,14 @@ export class CreateHousekeepingDto {
   hk_name: string;
 
 
-  @IsString()
+  @IsInt()
   // @Matches(/^[6-9]\d{10}$/, {
   //   message: 'Contact number must be a valid 10-digit mobile number',
   // })
   hk_contact: string; // 10-digit mobile
 
   @IsOptional()
-  @IsString()
+  @IsInt()
   // @Matches(/^[6-9]\d{9}$/, {
   //   message: 'Alternate contact must be a valid 10-digit mobile number',
   // })

@@ -12,6 +12,34 @@ export class LiasoningOfficerService {
         `);
         return res.rows[0].id;
     }
+    async findOne(id: string) {
+    const result = await this.db.query(
+        `
+        SELECT 
+        lo.officer_id,
+        lo.role_id,
+        lo.is_active,
+
+        s.full_name AS officer_name,
+        s.full_name_local_language AS officer_name_local_language,
+        s.primary_mobile AS mobile,
+        s.alternate_mobile,
+        s.email,
+        s.address
+
+        FROM m_liasoning_officer lo
+        LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
+        WHERE lo.officer_id = $1
+        `,
+        [id]
+    );
+
+    if (!result.rowCount) {
+        throw new NotFoundException('Officer not found');
+    }
+
+    return result.rows[0];
+    }
     private async generateStaffId(client: any): Promise<string> {
         const res = await client.query(`
         SELECT 'S' || LPAD(nextval('staff_seq')::text,3,'0') AS id
@@ -32,13 +60,14 @@ export class LiasoningOfficerService {
                 primary_mobile,
                 alternate_mobile,
                 email,
+                address,
                 designation,
                 is_active,
                 inserted_at,
                 inserted_by,
                 inserted_ip
             )
-            VALUES ($1,$2,$3,$4,$5,$6,'Liasoning Officer',true,NOW(),$7,$8)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,'Liasoning Officer',true,NOW(),$8,$9)
             `, [
             staffId,
             dto.officer_name,
@@ -46,6 +75,7 @@ export class LiasoningOfficerService {
             dto.mobile ?? null,
             dto.alternate_mobile ?? null,
             dto.email ?? null,
+            dto.address ?? null,
             userId,
             ip
             ]);
@@ -100,6 +130,7 @@ export class LiasoningOfficerService {
                 s.primary_mobile AS mobile,
                 s.alternate_mobile,
                 s.email,
+                s.address,
                 lo.role_id,
                 lo.is_active
                 FROM m_liasoning_officer lo
@@ -109,32 +140,6 @@ export class LiasoningOfficerService {
             `
         );
         return result.rows;
-    }
-
-    async findOne(id: string) {
-        const result = await this.db.query(
-            `SELECT 
-                lo.officer_id,
-                lo.staff_id,
-                lo.role_id,
-                lo.is_active,
-                s.full_name,
-                s.full_name_local_language,
-                s.primary_mobile,
-                s.alternate_mobile,
-                s.email
-                FROM m_liasoning_officer lo
-                LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
-                WHERE lo.officer_id = $1
-            `,
-            [id]
-        );
-
-        if (!result.rowCount) {
-            throw new NotFoundException('Officer not found');
-        }
-
-        return result.rows[0];
     }
 
     async update(id: string, dto: UpdateLiasoningOfficerDto, userId: string, ip: string) {
@@ -162,16 +167,18 @@ export class LiasoningOfficerService {
                 primary_mobile = $3,
                 alternate_mobile = $4,
                 email = $5,
+                address = $6,
                 updated_at = NOW(),
-                updated_by = $6,
-                updated_ip = $7
-            WHERE staff_id = $8
+                updated_by = $7,
+                updated_ip = $8
+            WHERE staff_id = $9
             `, [
             dto.officer_name ?? existing.full_name,
             dto.officer_name_local_language ?? existing.full_name_local_language,
             dto.mobile ?? existing.primary_mobile,
             dto.alternate_mobile ?? existing.alternate_mobile,
             dto.email ?? existing.email,
+            dto.address ?? existing.address,
             userId,
             ip,
             existing.staff_id
@@ -193,11 +200,11 @@ export class LiasoningOfficerService {
             UPDATE m_liasoning_officer
             SET
                 role_id = $1,
-                is_active = $4,
+                is_active = $2,
                 updated_at = NOW(),
-                updated_by = $5,
-                updated_ip = $6
-            WHERE officer_id = $7
+                updated_by = $3,
+                updated_ip = $4
+            WHERE officer_id = $5
             RETURNING *
             `, [
             dto.role_id ?? existing.role_id,
