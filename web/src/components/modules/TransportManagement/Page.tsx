@@ -28,7 +28,6 @@ import {
   assignVehicleToGuest,
   // unassignDriver,
   // unassignVehicle,
-
   getAssignableDriversByDate,
   getAssignableVehicles,
   // updateDriverTrip,
@@ -223,6 +222,9 @@ function GuestTransportManagement() {
             guest_name_local_language: row.guest_name_local_language,
             guest_mobile: row.guest_mobile,
             designation: row.designation,
+            designation_name: row.designation_name,
+            designation_name_local_language: row.designation_name_local_language,
+            department: row.department,
             entry_date: combineDateAndTime(row.entry_date, row.entry_time),
             exit_date: combineDateAndTime(row.exit_date, row.exit_time),
             inout_status: row.inout_status,
@@ -642,11 +644,25 @@ function GuestTransportManagement() {
     },
     {
       header: "Mobile",
-      render: (row) => row.guest.guest_mobile || "—",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.guest.guest_mobile}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest.guest_alternate_mobile}
+          </p>
+        </>
+      ),
     },
     {
       header: "Designation",
-      render: (row) => row.guest.designation || "—",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.guest.designation_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest.department}
+          </p>
+        </>
+      ),
     },
     {
       header: "Stay",

@@ -5,7 +5,11 @@ export type GuestFoodTableRow = {
   guest_name: string;
   guest_name_local_language?: string;
   designation_name?: string;
+  department?: string;
+  organization?: string;
   guest_mobile?: string;
+  guest_alternate_mobile?: string;
+  companions?: number;
 
   inout_id: string;
   entry_date: string;
@@ -20,10 +24,13 @@ export type GuestFoodTableRow = {
   delivery_status?: string;
 
   room_number?: string;
+  room_name?: string; // keeping just in case
   room_id?: string; // keeping just in case
   food_name?: string;
 
   butler_name?: string;
+  butler_name_local_language?: string;
+  butler_mobile?: string;
   specialrequest?: string;
 };
 

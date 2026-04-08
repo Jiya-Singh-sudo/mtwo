@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, Eye, XCircle, BedDouble } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, XCircle, BedDouble, Check, X } from "lucide-react";
 import { useError } from "@/context/ErrorContext";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
@@ -15,7 +15,6 @@ import { formatSeparate, formatTime, formatDate, toDateInputValue } from "@/util
 import TimePicker12h from "@/components/common/TimePicker12h";
 import { GUEST_STATUS_CARDS } from "@/utils/guestCards";
 import { StatCard } from "@/components/ui/StatCard";
-import { X } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageToolbar } from "@/components/layout/PageToolbar";
 import { validateSingleField } from "@/utils/validateSingleField";
@@ -188,6 +187,14 @@ export function GuestManagement() {
       accessor: "designation_name",
       sortable: true,
       sortKey: "designation_name",
+      render: (g) => (
+        <>
+          <p>{g.designation_name}</p>
+          <p className="text-xs text-gray-500">
+            {g.department} {'|'} {g.organization}
+          </p>
+        </>
+      ),
     },
     {
       header: "Mobile",
@@ -203,7 +210,13 @@ export function GuestManagement() {
     {
       header: "Driver Req.",
       render: (g) =>
-        g.requires_driver ? "Yes" : "No",
+        g.requires_driver ?          
+          <button onClick={() => openView(g)} className="icon-btn text-green-600" title="Yes" disabled={true}>
+            <Check className="w-4 h-4" />
+          </button>
+           : <button onClick={() => openView(g)} className="icon-btn text-red-600" title="No" disabled={true}>
+            <X className="w-4 h-4" />
+          </button>,
     },
     {
       header: "Check-in",
@@ -395,9 +408,9 @@ export function GuestManagement() {
       setGuests(res.data);
       setTotalCount(res.totalCount);
 
-      if (res.statusCounts) {
-        setStatusCounts(res.statusCounts);
-      }
+      // if (res.statusCounts) {
+        setStatusCounts(res.statusCounts || {});
+      // }
     } catch (err) {
       console.error("Failed loading guests", err);
       setError("Failed to load guest data. Please try again.");
@@ -725,8 +738,15 @@ export function GuestManagement() {
             }
             icon={card.icon}
             variant={card.color}
-            active={query.status === card.key}
-            onClick={() => setStatus(card.key)}
+            active={
+              card.key === "All"
+                ? query.status === undefined || query.status === "All"
+                : query.status === card.key
+            }
+            onClick={() => {
+              setStatus(card.key === "All" ? undefined : card.key);
+              setPage(1);
+            }}
           />
         ))
       }

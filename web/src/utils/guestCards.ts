@@ -18,6 +18,16 @@ export type GuestStatusCard = {
     color: StatCardVariant;
 };
 
+export const COLOR_STYLES = {
+    blue: "blue",
+    green: "green",
+    orange: "orange",
+    purple: "purple",
+    yellow: "yellow",
+    red: "red",
+    gray: "gray",
+} as const;
+
 export const GUEST_STATUSES = [
   "All",
   "Scheduled",

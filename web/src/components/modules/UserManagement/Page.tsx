@@ -20,10 +20,12 @@ interface User {
   id: string; // frontend key
   username: string; // username
   fullName: string;
+  full_name_local_language?: string; // for validation
   role_id: string;
   primary_mobile?: string;
   alternate_mobile?: string;
   email?: string;
+  // last_login?: string;
   address?: string;
 }
 
@@ -184,7 +186,6 @@ export default function UserManagement() {
     loadRoles();
   }, []);
 
-
   /* ---------------- ACTIONS ---------------- */
   async function addUser() {
     if (!validate()) return;
@@ -236,7 +237,6 @@ export default function UserManagement() {
     }
   }
 
-
   async function deleteUser() {
     if (!selectedUser) return;
     try {
@@ -260,14 +260,43 @@ export default function UserManagement() {
       sortKey: "username",
     },
     {
-      header: "Name & Email",
+      header: "Name",
       render: (row) => (
-        <div>
-          <p>{row.fullName}</p>
-          <p className="subText">{row.email}</p>
-        </div>
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.fullName}</p>
+          <p className="text-xs text-gray-500">
+            {row.full_name_local_language}
+          </p>
+        </>
       ),
     },
+    {
+      header: "Contact",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.primary_mobile}</p>
+          <p className="text-xs text-gray-500">
+            {row.alternate_mobile}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Email",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.email}</p>
+        </>
+      ),
+    },
+    // {
+    //   header: "Last Login",
+    //   render: (row) => (
+    //     <>
+    //       <p className="font-medium text-sm text-[#00247D]">{row.last_login}</p>
+    //     </>
+    //   ),
+    // },
     {
       header: "Role",
       render: (row) => (

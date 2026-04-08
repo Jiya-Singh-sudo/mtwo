@@ -28,8 +28,10 @@ export default function GlobalTableFilters({
     children,
     variant = "default"
 }: Props) {
+    const wrapperClassName = `flex items-center gap-3 w-full flex-nowrap bg-white border rounded-sm p-4 ${variant === "toolbar" ? "bg-slate-50" : ""}`;
+
     return (
-        <div className="flex items-center gap-3 w-full flex-nowrap bg-white border rounded-sm p-4">
+        <div className={wrapperClassName}>
 
             {/* SEARCH */}
             <div className="flex-1 min-w-[260px] max-w-md">

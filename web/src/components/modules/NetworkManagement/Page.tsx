@@ -4,7 +4,6 @@ import { Plus, Eye, Edit, User, XCircle, Trash2, Wifi, Users, Router, ShieldAler
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { Button } from "@/components/ui/button";
 import { ZodError } from "zod";
-import "./NetworkManagement.css";
 import { StatCard } from "@/components/ui/StatCard";
 import { getNetworkTable, softDeleteNetwork, updateNetwork, createNetwork } from "@/api/network.api";
 import { getMessengerTable, softDeleteMessenger, createMessenger, updateMessenger } from "@/api/messenger.api";
@@ -12,6 +11,7 @@ import { getGuestNetworkTable, createGuestNetwork, getActiveProviders } from "@/
 import { unassignGuestMessenger, createGuestMessenger } from "@/api/guestMessenger.api";
 import { NetworkProvider } from "@/types/network";
 import { Messenger } from "@/types/messenger";
+import { GuestNetworkView } from "@/types/guestNetwork";
 import { useTableQuery } from "@/hooks/useTableQuery";
 import { DataTable } from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
@@ -29,31 +29,13 @@ type AssignMessengerForm = {
     admin_remark: string;
 };
 
-type GuestNetworkView = {
-    guest_id: string;
-    guest_name: string;
-
-    room_id: string | null;
-    room_no: string | null;
-
-    provider_id: string | null;
-    username: string | null;
-    guest_network_id: string | null;
-    provider_name: string | null;
-    network_status: string | null;
-
-    remarks: string | null;
-
-    guest_messenger_id: string | null;
-    messenger_status: string | null;
-};
-
 type MessengerFormState = {
     messenger_name: string;
     messenger_name_local_language: string;
     primary_mobile: string;
     secondary_mobile: string;
     email: string;
+    address: string;
     designation: string;
     remarks: string;
 };
@@ -127,6 +109,7 @@ export default function NetworkManagement() {
         messenger_name_local_language: "",
         primary_mobile: "",
         secondary_mobile: "",
+        address: "",
         email: "",
         designation: "",
         remarks: "",
@@ -150,6 +133,7 @@ export default function NetworkManagement() {
         messenger_name_local_language: "",
         primary_mobile: "",
         secondary_mobile: "",
+        address: "",
         email: "",
         designation: "",
         remarks: "",
@@ -197,10 +181,6 @@ export default function NetworkManagement() {
         networkTable.setStatus(status);
         networkTable.setNetworkType?.(undefined);
     }
-    function applyNetworkType(type?: NetworkProvider["network_type"]) {
-        networkTable.setPage(1);
-        networkTable.setNetworkType?.(type);
-    }
     function applyMessengerStatus(
         status: 'all' | 'active' | 'inactive' | 'assigned' | 'unassigned'
     ) {
@@ -231,6 +211,7 @@ export default function NetworkManagement() {
                     editMessenger.messenger_name_local_language || "",
                 primary_mobile: editMessenger.primary_mobile,
                 secondary_mobile: editMessenger.secondary_mobile || "",
+                address: editMessenger.address || "",
                 email: editMessenger.email || "",
                 designation: editMessenger.designation || "",
                 remarks: editMessenger.remarks || "",
@@ -458,6 +439,7 @@ export default function NetworkManagement() {
                     parsed.messenger_name_local_language || undefined,
                 primary_mobile: parsed.primary_mobile,
                 secondary_mobile: parsed.secondary_mobile || undefined,
+                address: parsed.address || undefined,
                 email: parsed.email || undefined,
                 designation: parsed.designation || undefined,
                 remarks: parsed.remarks || undefined,
@@ -469,6 +451,7 @@ export default function NetworkManagement() {
                 messenger_name_local_language: "",
                 primary_mobile: "",
                 secondary_mobile: "",
+                address: "",
                 email: "",
                 designation: "",
                 remarks: "",
@@ -524,6 +507,52 @@ export default function NetworkManagement() {
             accessor: "guest_name",
             sortable: true,
             sortKey: "guest_name",
+            render: (row) => (
+                <>
+                <p className="font-medium text-sm text-[#00247D]">{row.guest_name}</p>
+                <p className="text-xs text-gray-500">
+                    {row.guest_name_local_language}
+                </p>
+                </>
+            ),
+        },
+        {
+        header: "Mobile",
+        render: (row) => (
+            <>
+            <p className="font-medium text-sm text-[#00247D]">{row.guest_mobile}</p>
+            <p className="text-xs text-gray-500">
+                {row.guest_alternate_mobile}
+            </p>
+            </>
+        ),
+        },
+        {
+        header: "Designation",
+        // accessor: "designation_name",
+        emptyFallback: "—",
+        sortable: true,
+        sortKey: "designation_name",
+        render: (row) => (
+            <>
+            <p className="font-medium text-sm text-[#00247D]">{row.designation_name}</p>
+            <p className="text-xs text-gray-500">
+                {row.department} {'|'} {row.organization}
+            </p>
+            </>
+        ),
+        },
+        {
+        header: "Companions",
+        // accessor: "companions",
+        emptyFallback: "—",
+        sortable: true,
+        sortKey: "companions",
+        render: (row) => (
+            <>
+            <p className="font-medium text-sm text-[#00247D]">{row.companions}</p>
+            </>
+        ),
         },
         {
             header: "Room",
@@ -623,10 +652,22 @@ export default function NetworkManagement() {
             accessor: "provider_name",
             sortable: true,
             sortKey: "provider_name",
+            render: (row) => (
+                <>
+                <p className="font-medium text-sm text-[#00247D]">{row.provider_name}</p>
+                <p className="text-xs text-gray-500">
+                    {row.provider_name_local_language}
+                </p>
+                </>
+            ),
         },
         {
             header: "Type",
             accessor: "network_type",
+        },
+        {
+            header: "Username",
+            accessor: "username",
         },
         {
             header: "Actions",
@@ -684,15 +725,36 @@ export default function NetworkManagement() {
             accessor: "messenger_name",
             sortable: true,
             sortKey: "messenger_name",
+            render: (row) => (
+                <>
+                <p className="font-medium text-sm text-[#00247D]">{row.messenger_name}</p>
+                <p className="text-xs text-gray-500">
+                    {row.messenger_name_local_language}
+                </p>
+                </>
+            ),
         },
         {
             header: "Contact",
             accessor: "primary_mobile",
+            render: (row) => (
+                <>
+                <p className="font-medium text-sm text-[#00247D]">{row.primary_mobile}</p>
+                <p className="text-xs text-gray-500">
+                    {row.secondary_mobile}
+                </p>
+                </>
+            ),
         },
         {
             header: "Email",
             accessor: "email",
             render: (row) => row.email || "—",
+        },
+        {
+            header: "Address",
+            accessor: "address",
+            render: (row) => row.address || "—",
         },
         {
             header: "Actions",
@@ -1133,10 +1195,16 @@ export default function NetworkManagement() {
                                 <div className="detailSection">
                                     <h4>Basic Info</h4>
                                     <p><b>Name:</b> {viewMessenger.messenger_name}</p>
-                                    <p><b>Mobile:</b> {viewMessenger.primary_mobile}</p>
-                                    <p><b>Email:</b> {viewMessenger.email || "—"}</p>
-                                </div>
+                                    <p><b>Name (Local Language):</b> {viewMessenger.messenger_name_local_language || "—"}</p>
 
+                                </div>
+                                <div className="detailSection">
+                                    <h4>Details</h4>
+                                    <p><b>Mobile:</b> {viewMessenger.primary_mobile}</p>
+                                    <p><b>Mobile (Alternate):</b> {viewMessenger.secondary_mobile || "—"}</p>
+                                    <p><b>Email:</b> {viewMessenger.email || "—"}</p>
+                                    <p><b>Address:</b> {viewMessenger.address || "—"}</p>
+                                </div>
                             </div>
                         </div>
 
@@ -1296,7 +1364,20 @@ export default function NetworkManagement() {
                                             <FieldError message={formErrors.primary_mobile} />
                                         )}
                                     </div>
-
+                                    <div>
+                                        <label className="nicLabel">Secondary Mobile</label>
+                                        <input
+                                            className="nicInput"
+                                            value={messengerForm.secondary_mobile}
+                                            maxLength={10}
+                                            onChange={(e) =>
+                                                setMessengerForm({
+                                                    ...messengerForm,
+                                                    secondary_mobile: e.target.value.replace(/\D/g, ""),
+                                                })
+                                            }
+                                        />
+                                    </div>
                                     <div>
                                         <label className="nicLabel">Email</label>
                                         <input
@@ -1315,47 +1396,17 @@ export default function NetworkManagement() {
                                     </div>
 
                                     <div>
-                                        <label className="nicLabel">Name (Local Language)</label>
+                                        <label className="nicLabel">Address</label>
                                         <input
                                             className="nicInput"
-                                            value={messengerForm.messenger_name_local_language}
+                                            value={messengerForm.address}
                                             onChange={(e) =>
                                                 setMessengerForm({
                                                     ...messengerForm,
-                                                    messenger_name_local_language: e.target.value,
+                                                    address: e.target.value,
                                                 })
                                             }
                                             maxLength={100}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="nicLabel">Secondary Mobile</label>
-                                        <input
-                                            className="nicInput"
-                                            value={messengerForm.secondary_mobile}
-                                            maxLength={10}
-                                            onChange={(e) =>
-                                                setMessengerForm({
-                                                    ...messengerForm,
-                                                    secondary_mobile: e.target.value.replace(/\D/g, ""),
-                                                })
-                                            }
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="nicLabel">Designation</label>
-                                        <input
-                                            className="nicInput"
-                                            value={messengerForm.designation}
-                                            maxLength={50}
-                                            onChange={(e) =>
-                                                setMessengerForm({
-                                                    ...messengerForm,
-                                                    designation: e.target.value,
-                                                })
-                                            }
                                         />
                                     </div>
 
@@ -1606,7 +1657,20 @@ export default function NetworkManagement() {
                                     />
                                     <FieldError message={formErrors.messenger_name} />
                                 </div>
-
+                                <div>
+                                    <label className="nicLabel">Name (Local Language)</label>
+                                    <input
+                                        className="nicInput"
+                                        value={messengerEditForm.messenger_name_local_language}
+                                        onChange={(e) =>
+                                            setMessengerEditForm({
+                                                ...messengerEditForm,
+                                                messenger_name_local_language: e.target.value,
+                                            })
+                                        }
+                                        maxLength={100}
+                                    />
+                                </div>
                                 <div>
                                     <label className="nicLabel">
                                         Mobile <span className="required">*</span>
@@ -1624,38 +1688,6 @@ export default function NetworkManagement() {
                                     />
                                     <FieldError message={formErrors.primary_mobile} />
                                 </div>
-
-                                <div>
-                                    <label className="nicLabel">Email <span className="required">*</span></label>
-                                    <input
-                                        className="nicInput"
-                                        value={messengerEditForm.email}
-                                        onChange={(e) =>
-                                            setMessengerEditForm({
-                                                ...messengerEditForm,
-                                                email: e.target.value,
-                                            })
-                                        }
-                                        onBlur={() => validateField(messengerSchema, "email", messengerEditForm.email, setFormErrors)}
-                                    />
-                                    <FieldError message={formErrors.email} />
-                                </div>
-
-                                <div>
-                                    <label className="nicLabel">Name (Local Language)</label>
-                                    <input
-                                        className="nicInput"
-                                        value={messengerEditForm.messenger_name_local_language}
-                                        onChange={(e) =>
-                                            setMessengerEditForm({
-                                                ...messengerEditForm,
-                                                messenger_name_local_language: e.target.value,
-                                            })
-                                        }
-                                        maxLength={100}
-                                    />
-                                </div>
-
                                 <div>
                                     <label className="nicLabel">Secondary Mobile</label>
                                     <input
@@ -1672,8 +1704,23 @@ export default function NetworkManagement() {
                                     />
                                     <FieldError message={formErrors.secondary_mobile} />
                                 </div>
-
                                 <div>
+                                    <label className="nicLabel">Email <span className="required">*</span></label>
+                                    <input
+                                        className="nicInput"
+                                        value={messengerEditForm.email}
+                                        onChange={(e) =>
+                                            setMessengerEditForm({
+                                                ...messengerEditForm,
+                                                email: e.target.value,
+                                            })
+                                        }
+                                        onBlur={() => validateField(messengerSchema, "email", messengerEditForm.email, setFormErrors)}
+                                    />
+                                    <FieldError message={formErrors.email} />
+                                </div>
+
+                                {/* <div>
                                     <label className="nicLabel">Designation</label>
                                     <input
                                         className="nicInput"
@@ -1688,8 +1735,21 @@ export default function NetworkManagement() {
                                         onBlur={() => validateField(messengerSchema, "designation", messengerEditForm.designation, setFormErrors)}
                                     />
                                     <FieldError message={formErrors.designation} />
-                                </div>
-
+                                </div> */}
+                                    <div>
+                                        <label className="nicLabel">Address</label>
+                                        <input
+                                            className="nicInput"
+                                            value={messengerEditForm.address}
+                                            onChange={(e) =>
+                                                setMessengerEditForm({
+                                                    ...messengerEditForm,
+                                                    address: e.target.value,
+                                                })
+                                            }
+                                            maxLength={100}
+                                        />
+                                    </div>
                                 <div>
                                     <label className="nicLabel">Remarks</label>
                                     <textarea

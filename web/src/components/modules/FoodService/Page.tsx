@@ -85,6 +85,7 @@ type GuestWithButler = {
 
   room_id?: string | null;
   designation_name?: string | null;
+  department?: string | null;
   organization?: string | null;
 
   foodItems: Record<
@@ -131,8 +132,6 @@ export function FoodService() {
     sortOrder: "desc",
     status: "Entered" as const,
   });
-
-
 
   /* ---------------- TAB STATE ---------------- */
   const [activeTab, setActiveTab] =
@@ -193,6 +192,7 @@ export function FoodService() {
     butler_name_local_language: "",
     butler_mobile: "",
     butler_alternate_mobile: "",
+    butler_email: "",
     shift: "",
     address: "",
     remarks: "",
@@ -468,6 +468,7 @@ export function FoodService() {
       butler_name_local_language: "",
       butler_mobile: "",
       butler_alternate_mobile: "",
+      butler_email: "",
       shift: "",
       address: "",
       remarks: "",
@@ -485,6 +486,7 @@ export function FoodService() {
       butler_alternate_mobile: butler.butler_alternate_mobile
         ? String(butler.butler_alternate_mobile)
         : "",
+      butler_email: butler.butler_email ?? "",
       shift: butler.shift,
       address: butler.address ?? "",
       remarks: butler.remarks ?? "",
@@ -502,6 +504,7 @@ export function FoodService() {
       butler_alternate_mobile: butler.butler_alternate_mobile
         ? String(butler.butler_alternate_mobile)
         : "",
+      butler_email: butler.butler_email ?? "",
       shift: butler.shift,
       address: butler.address ?? "",
       remarks: butler.remarks ?? "",
@@ -605,6 +608,25 @@ export function FoodService() {
       accessor: "guest_name",
       sortable: true,
       sortKey: "guest_name",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.guest_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest_name_local_language}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Mobile",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.guest_mobile}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest_alternate_mobile}
+          </p>
+        </>
+      ),
     },
     {
       header: "Designation",
@@ -612,6 +634,26 @@ export function FoodService() {
       emptyFallback: "—",
       sortable: true,
       sortKey: "designation_name",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.designation_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.department} {'|'} {row.organization}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Companions",
+      accessor: "companions",
+      emptyFallback: "—",
+      sortable: true,
+      sortKey: "companions",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.companions}</p>
+        </>
+      ),
     },
     {
       header: "Room",
@@ -619,11 +661,43 @@ export function FoodService() {
       emptyFallback: "—",
       sortable: true,
       sortKey: "room_number",
+      render: (row) => {
+        if (!row.room_number && !row.room_name) {
+          return <span className="text-gray-400">—</span>;
+        }
+
+        return (
+          <>
+            <p className="font-medium text-sm text-[#00247D]">
+              {row.room_number || "—"}
+            </p>
+            <p className="text-xs text-gray-500">
+              {row.room_name || ""}
+            </p>
+          </>
+        );
+      },
     },
     {
       header: "Butler",
       accessor: "butler_name",
-      emptyFallback: "-",
+      emptyFallback: "—",
+      render: (row) => {
+        if (!row.room_number && !row.room_name) {
+          return <span className="text-gray-400">—</span>;
+        }
+
+        return (
+          <>
+            <p className="font-medium text-sm text-[#00247D]">
+              {row.butler_name_local_language || "—"}
+            </p>
+            <p className="text-xs text-gray-500">
+              {row.butler_mobile || ""}
+            </p>
+          </>
+        );
+      },
     },
 
     /* ACTIONS COLUMN */
@@ -664,8 +738,6 @@ export function FoodService() {
     },
   ];
 
-
-
   const butlerColumns: Column<Butler>[] = [
     // {
     //   header: "Butler ID",
@@ -678,6 +750,29 @@ export function FoodService() {
       accessor: "butler_name",
       sortable: true,
       sortKey: "butler_name",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.butler_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.butler_name_local_language}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Mobile",
+      render: (row) => (
+        <>
+          <p className="font-medium text-sm text-[#00247D]">{row.butler_mobile}</p>
+          <p className="text-xs text-gray-500">
+            {row.butler_alternate_mobile}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Email",
+      render: (row) => <p className="font-medium text-sm text-[#00247D]">{row.butler_email}</p>
     },
     {
       header: "Shift",
@@ -932,6 +1027,7 @@ export function FoodService() {
                   <p><strong>Local Name:</strong> {activeButler.butler_name_local_language || "—"}</p>
                   <p><strong>Mobile:</strong> {activeButler.butler_mobile}</p>
                   <p><strong>Alternate:</strong> {activeButler.butler_alternate_mobile || "—"}</p>
+                  <p><strong>Email:</strong> {activeButler.butler_email || "—"}</p>
                 </div>
 
                 <div className="viewCard">
@@ -1011,7 +1107,21 @@ export function FoodService() {
                     onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_alternate_mobile", e.currentTarget.value, setFormErrors)}
                   />
                 </div>
-
+                <div>
+                  <label>Email</label>
+                  <input
+                    className="nicInput"
+                    value={butlerForm.butler_email}
+                    onChange={(e) =>
+                      setButlerForm({
+                        ...butlerForm,
+                        butler_email: e.target.value,
+                      })
+                    }
+                    onBlur={(e) => validateSingleField(butlerManagementSchema, "butler_email", e.currentTarget.value, setFormErrors)}
+                    onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_email", e.currentTarget.value, setFormErrors)}
+                  />
+                </div>
                 <div>
                   <label>Shift <span className="required">*</span></label>
                   <select

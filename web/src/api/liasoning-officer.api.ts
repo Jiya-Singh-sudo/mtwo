@@ -8,6 +8,9 @@ export type PaginatedResponse<T> = {
 /* =========================
    GET (Data Table Version)
 ========================= */
+export async function getLiasoningOfficerById(id: string) {
+  return safeGet(`/liasoning-officer/${id}`);
+}
 
 export async function getLiasoningOfficers(params: {
   page: number;
@@ -33,7 +36,7 @@ export async function getLiasoningOfficers(params: {
 ========================= */
 
 export async function createLiasoningOfficer(payload: {
-  officer_id: string;
+  // officer_id: string;
   officer_name: string;
   officer_name_local_language?: string;
   mobile: string;
@@ -41,7 +44,7 @@ export async function createLiasoningOfficer(payload: {
   email?: string;
   role_id: string;
   department?: string;
-  designation?: string;
+  // designation?: string;
   is_active?: boolean;
 }) {
   return safePost('/liasoning-officer', payload);

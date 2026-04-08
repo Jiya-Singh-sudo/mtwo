@@ -4,6 +4,7 @@ import {
   ReportFormat,
   DashboardMetrics,
   GeneratedReport,
+  ReportJobResponse,
 } from '@/types/reports.types';
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -37,6 +38,11 @@ export async function generateReport(params: {
 
 export async function getReportHistory(): Promise<GeneratedReport[]> {
   const { data } = await api.get('/reports-pkg/history');
+  return data;
+}
+
+export async function getReportJobStatus(jobId: string): Promise<ReportJobResponse> {
+  const { data } = await api.get(`/reports-pkg/jobs/${jobId}`);
   return data;
 }
 // /**

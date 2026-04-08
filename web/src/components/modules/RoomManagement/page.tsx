@@ -729,17 +729,37 @@ export function RoomManagement() {
       sortKey: "room_no",
     },
     {
-      header: "Residence",
+      header: "Room Name",
       accessor: "roomName",
       sortable: true,
       sortKey: "room_name",
+    },
+    {
+      header: "Residence Type",
+      accessor: "residenceType",
+      sortable: true,
+      sortKey: "residence_type",
+      render: (row) => (
+        <>
+          <p>{row.residenceType}</p>
+          <p className="text-xs text-gray-500">
+            {row.buildingName}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: "Room Capacity",
+      accessor: "roomCapacity",
+      sortable: true,
+      sortKey: "room_capacity",
     },
     {
       header: "Status",
       sortable: true,
       sortKey: "status",
       render: (row) => {
-        const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+        const base = "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium";
         if (row.status === "Available") {
           return <span className={`${base} bg-green-100 text-green-800`}>Available</span>;
         }

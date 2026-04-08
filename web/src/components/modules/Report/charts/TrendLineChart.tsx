@@ -27,6 +27,7 @@ export function TrendLineChart({
 
     return (
         <div className="w-full" style={{ height: 256 }}>
+            <div className="mb-3 text-sm font-medium text-gray-700">{label}</div>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={safeData}>
                     <XAxis dataKey="date" />

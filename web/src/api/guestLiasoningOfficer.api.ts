@@ -8,6 +8,24 @@ export async function getGuestLiasoningOfficers(guestId: string) {
   return safeGet(`/guest-liasoning-officer/${guestId}`);
 }
 
+export async function getGuestOfficerTable(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      query.append(key, String(value));
+    }
+  });
+
+  return safeGet(`/guest-liasoning-officer/table?${query.toString()}`);
+}
+
 /* =========================
    ASSIGN OFFICER TO GUEST
 ========================= */

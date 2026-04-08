@@ -40,7 +40,11 @@ export const butlerManagementSchema = z
         (val) => !val || mobileRegex.test(val),
         { message: "Alternate mobile must be 10 digits" }
       ),
-
+    butler_email: z
+      .string()
+      .email("Enter a valid email address")
+      .optional(),
+      
     shift: z.enum(["Morning", "Evening", "Night", "Full-Day"]),
 
     address: z

@@ -21,6 +21,7 @@ import { SystemSettings } from '@/components/modules/SystemSettings/Page';
 import GuestTransportManagement from '@/components/modules/TransportManagement/Page';
 import FoodService from '@/components/modules/FoodService/Page';
 import ActivityLogPage from '@/components/modules/ActivityLog/Page';
+import OfficerManagement from '@/components/modules/OfficerManagement/Page';
 import NetworkManagement from '@/components/modules/NetworkManagement/Page';
 
 // Common
@@ -96,6 +97,15 @@ export default function AppRoutes() {
                 element={
                     <ProtectedRoute permission="network.view">
                         <NetworkManagement />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/officer-management"
+                element={
+                    <ProtectedRoute permission="network.view">
+                        <OfficerManagement />
                     </ProtectedRoute>
                 }
             />

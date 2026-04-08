@@ -9,6 +9,7 @@ export type Messenger = {
   primary_mobile: string;
   secondary_mobile?: string;
   email?: string;
+  address?: string;
   designation?: string;
   remarks?: string;
   is_active: boolean;
@@ -26,6 +27,7 @@ export type CreateMessengerPayload = {
   primary_mobile: string;
   secondary_mobile?: string;
   email?: string;
+  address?: string;
   designation?: string;
   remarks?: string;
 };

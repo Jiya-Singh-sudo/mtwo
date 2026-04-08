@@ -97,8 +97,36 @@ export interface GuestNetworkRow {
   remarks: string | null;
 }
 
+export interface GuestNetworkView {
+  guest_id: string;
+  guest_name: string;
+  guest_name_local_language: string | null;
+  guest_mobile: string | null;
+  guest_alternate_mobile: string | null;
+  guest_email: string | null;
+  designation_name: string | null;
+  organization: string | null;
+  department: string | null;
+  companions: number | null;
+
+  room_id: string | null;
+  room_no: string | null;
+  room_name: string | null;
+
+  provider_id: string | null;
+  username: string | null;
+  guest_network_id: string | null;
+  provider_name: string | null;
+  network_status: string | null;
+
+  remarks: string | null;
+
+  guest_messenger_id: string | null;
+  messenger_status: string | null;
+}
+
 export interface GuestNetworkTableResponse {
-  data: GuestNetworkRow[];
+  data: GuestNetworkView[];
   totalCount: number;
   stats: {
     total: number;

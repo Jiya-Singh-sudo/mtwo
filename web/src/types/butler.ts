@@ -6,6 +6,7 @@ export interface Butler {
 
   butler_mobile: number;
   butler_alternate_mobile?: number | null;
+  butler_email?: string | null;
   address?: string | null;
   remarks?: string | null;
 
@@ -28,6 +29,7 @@ export interface ButlerCreateDto {
 
   butler_mobile: number;
   butler_alternate_mobile?: number | null;
+  butler_email?: string | null;
 
   address?: string;
   remarks?: string;
@@ -41,6 +43,7 @@ export interface ButlerUpdateDto {
 
   butler_mobile?: number;
   butler_alternate_mobile?: number | null;
+  butler_email?: string | null;
 
   address?: string;
   remarks?: string;

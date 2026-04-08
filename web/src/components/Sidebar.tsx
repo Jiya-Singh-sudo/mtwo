@@ -9,6 +9,8 @@ import {
   BarChart3,
   // Settings,
   UserCog,
+  // UserRoundCog,
+  CircleUserRound,
   UtensilsCrossed
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -98,6 +100,15 @@ export function Sidebar() {
       path: '/network-management',
       permission: 'network.view',
     },
+
+    // {
+    //   id: 'officer-management',
+    //   label: 'Officer Management',
+    //   labelHi: 'अधिकारी प्रबंधन',
+    //   icon: CircleUserRound,
+    //   path: '/officer-management',
+    //   permission: 'network.view',
+    // },
 /*
     {
       id: 'duty-roster',

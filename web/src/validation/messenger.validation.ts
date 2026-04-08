@@ -52,6 +52,13 @@ export const messengerSchema = z
       .max(100, "Email too long")
       .optional(),
 
+    address: z
+      .string()
+      .trim()
+      .max(200, "Address too long")
+      .regex(safeTextRegex, "Invalid characters in address")
+      .optional(),
+
     designation: z
       .string()
       .trim()

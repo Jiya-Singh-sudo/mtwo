@@ -439,8 +439,15 @@ export function VehicleManagement() {
       sortKey: 'vehicle_name',
     },
     {
-      header: 'Model',
+      header: 'Model | Color',
       accessor: 'model',
+      render: (row) => (
+        <>
+          <p>
+            {row.model} {'|'} {row.color}
+          </p>
+        </>
+      ),
     },
     {
       header: 'Manufacturing',
@@ -493,22 +500,46 @@ export function VehicleManagement() {
       accessor: 'driver_name',
       sortable: true,
       sortKey: 'driver_name',
-    },
-    {
-      header: 'Name (Local)',
-      accessor: 'driver_name_ll',
+      render: (row) => (
+        <>
+          <p>{row.driver_name}</p>
+          <p className="text-xs text-gray-500">
+            {row.driver_name_ll}
+          </p>
+        </>
+      ),
     },
     {
       header: 'Contact',
       accessor: 'driver_contact',
       sortable: true,
       sortKey: 'driver_contact',
+      render: (row) => (
+        <>
+          <p>{row.driver_contact}</p>
+          <p className="text-xs text-gray-500">
+            {row.driver_alternate_contact}
+          </p>
+        </>
+      ),
     },
     {
       header: 'License',
       accessor: 'driver_license',
       sortable: true,
       sortKey: 'driver_license',
+      render: (row) => (
+        <>
+          <p>{row.driver_license}</p>
+          <p className="text-xs text-gray-500">
+            {row.license_expiry_date}
+          </p>
+        </>
+      ),
+    },
+    {
+      header: 'Email',
+      accessor: 'driver_mail',
     },
     {
       header: 'Address',
