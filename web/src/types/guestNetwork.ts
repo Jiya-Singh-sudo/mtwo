@@ -111,7 +111,7 @@ export interface GuestNetworkView {
 
   room_id: string | null;
   room_no: string | null;
-  room_name: string | null;
+  building_name: string | null;
 
   provider_id: string | null;
   username: string | null;

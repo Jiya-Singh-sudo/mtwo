@@ -24,7 +24,7 @@ export type GuestFoodTableRow = {
   delivery_status?: string;
 
   room_number?: string;
-  room_name?: string; // keeping just in case
+  building_name?: string; // keeping just in case
   room_id?: string; // keeping just in case
   food_name?: string;
 

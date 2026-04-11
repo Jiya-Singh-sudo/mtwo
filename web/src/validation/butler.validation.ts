@@ -5,7 +5,7 @@ import { z } from "zod";
 ====================================================== */
 
 const MAX_NAME_LENGTH = 100;
-const MAX_ADDRESS_LENGTH = 250;
+// const MAX_ADDRESS_LENGTH = 250;
 const MAX_REMARKS_LENGTH = 500;
 
 const nameRegex = /^[A-Za-z .]*$/;
@@ -40,18 +40,18 @@ export const butlerManagementSchema = z
         (val) => !val || mobileRegex.test(val),
         { message: "Alternate mobile must be 10 digits" }
       ),
-    butler_email: z
-      .string()
-      .email("Enter a valid email address")
-      .optional(),
+    // butler_email: z
+    //   .string()
+    //   .email("Enter a valid email address")
+    //   .optional(),
       
     shift: z.enum(["Morning", "Evening", "Night", "Full-Day"]),
 
-    address: z
-      .string()
-      .max(MAX_ADDRESS_LENGTH, "Address too long")
-      .regex(safeTextRegex, "Invalid characters in address")
-      .optional(),
+    // address: z
+    //   .string()
+    //   .max(MAX_ADDRESS_LENGTH, "Address too long")
+    //   .regex(safeTextRegex, "Invalid characters in address")
+    //   .optional(),
 
     remarks: z
       .string()

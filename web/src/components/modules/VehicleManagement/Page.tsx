@@ -41,8 +41,8 @@ interface Driver {
   driver_alternate_contact?: string;
   driver_license: string;
   license_expiry_date?: string;
-  driver_mail: string;
-  address?: string;
+  // driver_mail: string;
+  // address?: string;
   is_active: boolean;
   inserted_at: string;
   inserted_by: string;
@@ -193,18 +193,18 @@ export function VehicleManagement() {
     driver_contact: string;
     driver_alternate_contact?: string;
     driver_license: string;
-    address?: string;
+    // address?: string;
     license_expiry_date?: string;
-    driver_mail: string;
+    // driver_mail: string;
   }>({
     driver_name: '',
     driver_name_ll: '',
     driver_contact: '',
     driver_alternate_contact: '',
     driver_license: '',
-    address: '',
+    // address: '',
     license_expiry_date: '',
-    driver_mail: '',
+    // driver_mail: '',
   });
 
   // const [assignDriver, setAssignDriver] = useState('');
@@ -307,8 +307,8 @@ export function VehicleManagement() {
         driver_contact: driverFormData.driver_contact,
         driver_alternate_contact: driverFormData.driver_alternate_contact,
         driver_license: driverFormData.driver_license,
-        address: driverFormData.address,
-        driver_mail: driverFormData.driver_mail,
+        // address: driverFormData.address,
+        // driver_mail: driverFormData.driver_mail,
         license_expiry_date: driverFormData.license_expiry_date,
       };
 
@@ -334,7 +334,7 @@ export function VehicleManagement() {
         driver_contact: driverFormData.driver_contact,
         driver_alternate_contact: driverFormData.driver_alternate_contact,
         driver_license: driverFormData.driver_license,
-        address: driverFormData.address ?? undefined,
+        // address: driverFormData.address ?? undefined,
         license_expiry_date: driverFormData.license_expiry_date,
       };
       await updateDriver(selectedDriver.driver_id, payload);
@@ -400,8 +400,8 @@ export function VehicleManagement() {
       driver_contact: driver.driver_contact,
       driver_alternate_contact: driver.driver_alternate_contact,
       driver_license: driver.driver_license,
-      address: driver.address,
-      driver_mail: driver.driver_mail,
+      // address: driver.address,
+      // driver_mail: driver.driver_mail,
       license_expiry_date: driver.license_expiry_date,
     });
     setShowEditDriver(true);
@@ -419,8 +419,8 @@ export function VehicleManagement() {
       driver_contact: '',
       driver_alternate_contact: undefined,
       driver_license: '',
-      address: undefined,
-      driver_mail: '',
+      // address: undefined,
+      // driver_mail: '',
       license_expiry_date: '',
     });
   };
@@ -537,14 +537,14 @@ export function VehicleManagement() {
         </>
       ),
     },
-    {
-      header: 'Email',
-      accessor: 'driver_mail',
-    },
-    {
-      header: 'Address',
-      accessor: 'address',
-    },
+    // {
+    //   header: 'Email',
+    //   accessor: 'driver_mail',
+    // },
+    // {
+    //   header: 'Address',
+    //   accessor: 'address',
+    // },
     {
       header: 'Actions',
       render: (row: Driver) => (
@@ -1191,7 +1191,7 @@ export function VehicleManagement() {
                   <FieldError message={formErrors.driver_name} />
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="nicLabel">Full Name (Local)</label>
                   <input
                     className="nicInput"
@@ -1206,7 +1206,7 @@ export function VehicleManagement() {
                     placeholder="Enter full name in local language"
                   />
                   <FieldError message={formErrors.driver_name_local} />
-                </div>
+                </div> */}
 
                 <div>
                   <label className="nicLabel">
@@ -1273,7 +1273,7 @@ export function VehicleManagement() {
                   <FieldError message={formErrors.license_number} />
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="nicLabel">Address</label>
                   <input
                     className="nicInput"
@@ -1288,7 +1288,7 @@ export function VehicleManagement() {
                     onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                   <FieldError message={formErrors.address} />
-                </div>
+                </div> */}
                 <div>
                   <label className="nicLabel">
                     License Expiry Date <span className="nicRequired">*</span>
@@ -1320,7 +1320,7 @@ export function VehicleManagement() {
                   )} */}
                   <FieldError message={formErrors.license_expiry_date} />
                 </div>
-                <div>
+                {/* <div>
                   <label className="nicLabel">
                     Email <span className="nicRequired">*</span>
                   </label>
@@ -1333,7 +1333,7 @@ export function VehicleManagement() {
                       setDirty(true);
                     }}
                   />
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -1409,7 +1409,7 @@ export function VehicleManagement() {
                   <FieldError message={formErrors.driver_name} />
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="nicLabel">Full Name (Local)</label>
                   <input
                     className="nicInput"
@@ -1423,7 +1423,7 @@ export function VehicleManagement() {
                     onKeyUp={() => validateSingleField(driverSchema, "driver_name", driverFormData.driver_name_ll, setFormErrors)}
                   />
                   <FieldError message={formErrors.driver_name_ll} />
-                </div>
+                </div> */}
 
                 <div>
                   <label className="nicLabel">
@@ -1482,7 +1482,7 @@ export function VehicleManagement() {
                   <FieldError message={formErrors.driver_license} />
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="nicLabel">Address</label>
                   <input
                     className="nicInput"
@@ -1496,7 +1496,7 @@ export function VehicleManagement() {
                     onKeyUp={() => validateSingleField(driverSchema, "address", driverFormData.address, setFormErrors)}
                   />
                   <FieldError message={formErrors.address} />
-                </div>
+                </div> */}
                 <div>
                   <label className="nicLabel">
                     License Expiry Date <span className="nicRequired">*</span>
@@ -1711,7 +1711,7 @@ export function VehicleManagement() {
                       ? new Date(viewDriver.license_expiry_date).toLocaleDateString()
                       : "—"}
                   </p>
-                  <p><b>Address:</b> {viewDriver.address || "—"}</p>
+                  {/* <p><b>Address:</b> {viewDriver.address || "—"}</p> */}
                 </div>
 
               </div>

@@ -37,11 +37,11 @@ export const liasoningOfficerCreateSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  email: z
-    .string()
-    .email("Invalid email")
-    .optional()
-    .or(z.literal("")),
+  // email: z
+  //   .string()
+  //   .email("Invalid email")
+  //   .optional()
+  //   .or(z.literal("")),
 
   role_id: z
     .string()
@@ -49,11 +49,11 @@ export const liasoningOfficerCreateSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  address: z
-    .string()
-    .min(1, "Address is required")
-    .optional()
-    .or(z.literal("")),
+  // address: z
+  //   .string()
+  //   .min(1, "Address is required")
+  //   .optional()
+  //   .or(z.literal("")),
 
   department: z
     .string()

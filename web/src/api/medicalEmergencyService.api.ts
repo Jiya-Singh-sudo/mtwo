@@ -40,8 +40,8 @@ export async function createMedicalEmergencyService(payload: {
   service_type: string;
   mobile: string;
   alternate_mobile?: string;
-  email?: string;
-  address_line?: string;
+  // email?: string;
+  // address_line?: string;
   distance_from_guest_house?: string;
   is_active?: boolean;
 }) {
@@ -60,8 +60,8 @@ export async function updateMedicalEmergencyService(
     service_type: string;
     mobile: string;
     alternate_mobile: string;
-    email: string;
-    address_line: string;
+    // email: string;
+    // address_line: string;
     distance_from_guest_house: string;
     is_active: boolean;
   }>

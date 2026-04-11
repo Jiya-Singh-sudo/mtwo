@@ -96,9 +96,9 @@ export default function OfficerManagement() {
     officer_name_local_language: "",
     mobile: "",
     alternate_mobile: "",
-    email: "",
+    // email: "",
     role_id: "",
-    address: "",
+    // address: "",
     department: "",
     });
     const liaisonTable = useTableQuery({
@@ -143,8 +143,8 @@ export default function OfficerManagement() {
         service_provider_name: "",
         mobile: "",
         alternate_mobile: "",
-        email: "",
-        address_line: "",
+        // email: "",
+        // address_line: "",
     });
     const [editMedicalOfficer, setEditMedicalOfficer] = useState<any>(null);
     const [medicalEditForm, setMedicalEditForm] = useState<any>({});
@@ -185,9 +185,9 @@ export default function OfficerManagement() {
         officer_name_local_language: "",
         mobile: "",
         alternate_mobile: "",
-        email: "",
+        // email: "",
         role_id: "",
-        address: "",
+        // address: "",
         department: "",
     });
 
@@ -201,8 +201,8 @@ export default function OfficerManagement() {
         service_provider_name: editMedicalOfficer.service_provider_name,
         mobile: editMedicalOfficer.mobile,
         alternate_mobile: editMedicalOfficer.alternate_mobile,
-        email: editMedicalOfficer.email,
-        address_line: editMedicalOfficer.address_line,
+        // email: editMedicalOfficer.email,
+        // address_line: editMedicalOfficer.address_line,
         });
     }
     }, [editMedicalOfficer]);
@@ -352,8 +352,8 @@ export default function OfficerManagement() {
         service_provider_name: "",
         mobile: "",
         alternate_mobile: "",
-        email: "",
-        address_line: "",
+        // email: "",
+        // address_line: "",
         });
 
         loadMedicalOfficers();
@@ -544,10 +544,10 @@ export default function OfficerManagement() {
         </>
       ),
     },
-    {
-        header: "Email",
-        render: (row) => row.email || "—",
-    },
+    // {
+    //     header: "Email",
+    //     render: (row) => row.email || "—",
+    // },
     {
         header: "Status",
         render: (row) => {
@@ -603,10 +603,10 @@ export default function OfficerManagement() {
                 officer_name_local_language: row.full_name_local_language || "",
                 mobile: row.mobile || "",
                 alternate_mobile: row.alternate_mobile || "",
-                email: row.email || "",
+                // email: row.email || "",
                 role_id: row.role_id || "",
                 department: "",
-                address: "",
+                // address: "",
                 });
             }}
             >
@@ -647,10 +647,10 @@ export default function OfficerManagement() {
         header: "Mobile",
         accessor: "mobile",
     },
-    {
-        header: "Email",
-        render: (row) => row.email || "—",
-    },
+    // {
+    //     header: "Email",
+    //     render: (row) => row.email || "—",
+    // },
     {
         header: "Status",
         render: (row) => {
@@ -842,9 +842,9 @@ export default function OfficerManagement() {
                                         officer_name_local_language: "",
                                         mobile: "",
                                         alternate_mobile: "",
-                                        email: "",
+                                        // email: "",
                                         role_id: "",
-                                        address: "",
+                                        // address: "",
                                         department: "",
                                     });
                                     }}
@@ -1068,14 +1068,14 @@ export default function OfficerManagement() {
                         <h4>Basic Info</h4>
                             <p><b>Name:</b> {viewLiaisoningOfficer.officer_name}</p>
                             <p><b>Local Language Name:</b> {viewLiaisoningOfficer.officer_name_local_language || "—"}</p>
-                            <p><b>Email:</b> {viewLiaisoningOfficer.email || "—"}</p>
+                            {/* <p><b>Email:</b> {viewLiaisoningOfficer.email || "—"}</p> */}
                     </div>
 
                     <div className="detailSection">
                         <h4>Additional Info</h4>
                             <p><b>Mobile:</b> {viewLiaisoningOfficer.mobile || "—"}</p>
                             <p><b>Alternate Mobile:</b> {viewLiaisoningOfficer.alternate_mobile || "—"}</p>
-                            <p><b>Address:</b> {viewLiaisoningOfficer.address || "—"}</p>
+                            {/* <p><b>Address:</b> {viewLiaisoningOfficer.address || "—"}</p> */}
                             <p><b>Department:</b> {viewLiaisoningOfficer.department || "—"}</p>
                     </div>
 
@@ -1125,7 +1125,7 @@ export default function OfficerManagement() {
                                     <h4>Basic Info</h4>
                                     <p><b>Name:</b> {viewMedicalOfficer.service_provider_name}</p>
                                     <p><b>Mobile:</b> {viewMedicalOfficer.mobile}</p>
-                                    <p><b>Email:</b> {viewMedicalOfficer.email || "—"}</p>
+                                    {/* <p><b>Email:</b> {viewMedicalOfficer.email || "—"}</p> */}
                                 </div>
 
                             </div>
@@ -1281,7 +1281,7 @@ export default function OfficerManagement() {
                                         )}
                                     </div>
 
-                                    <div>
+                                    {/* <div>
                                         <label className="nicLabel">Email</label>
                                         <input
                                             className="nicInput"
@@ -1296,7 +1296,7 @@ export default function OfficerManagement() {
                                         {formErrors.email && (
                                             <FieldError message={formErrors.email} />
                                         )}
-                                    </div>
+                                    </div> */}
 
                                     {/* <div>
                                         <label className="nicLabel">Secondary Mobile</label>
@@ -1436,7 +1436,7 @@ export default function OfficerManagement() {
                                         />
                                         <FieldError message={formErrors.alternate_mobile} />
                                     </div>
-                                    <div>
+                                    {/* <div>
                                         <label className="nicLabel">Email</label>
                                         <input
                                         type="email"
@@ -1456,8 +1456,8 @@ export default function OfficerManagement() {
                                         }
                                         />
                                         <FieldError message={formErrors.email} />
-                                    </div>
-                                    <div>
+                                    </div> */}
+                                    {/* <div>
                                         <label className="nicLabel">Address</label>
                                         <input
                                         type="text"
@@ -1477,7 +1477,7 @@ export default function OfficerManagement() {
                                         // }
                                         />
                                         <FieldError message={formErrors.address} />
-                                    </div>
+                                    </div> */}
                                     <div>
                                     <label className="nicLabel">
                                         Role ID <span className="required">*</span>
@@ -1523,7 +1523,7 @@ export default function OfficerManagement() {
                                             officer_name_local_language?: string;
                                             mobile: string;
                                             alternate_mobile?: string;
-                                            email?: string;
+                                            // email?: string;
                                             role_id: string;
                                             department?: string;
                                             is_active?: boolean;
@@ -1538,7 +1538,7 @@ export default function OfficerManagement() {
                                                 officer_name_local_language: string;
                                                 mobile: string;
                                                 alternate_mobile: string;
-                                                email: string;
+                                                // email: string;
                                                 role_id: string;
                                                 department: string;
                                                 designation: string;
@@ -1624,7 +1624,7 @@ export default function OfficerManagement() {
                                     <FieldError message={formErrors.mobile} />
                                 </div>
 
-                                <div>
+                                {/* <div>
                                     <label className="nicLabel">Email <span className="required">*</span></label>
                                     <input
                                         className="nicInput"
@@ -1638,7 +1638,7 @@ export default function OfficerManagement() {
                                         onBlur={() => validateField(medicalEmergencyUpdateSchema, "email", medicalEditForm.email, setFormErrors)}
                                     />
                                     <FieldError message={formErrors.email} />
-                                </div>
+                                </div> */}
 
                                 <div>
                                     <label className="nicLabel">Secondary Mobile</label>

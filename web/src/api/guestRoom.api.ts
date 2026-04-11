@@ -17,9 +17,9 @@ export async function getRoomOverview(): Promise<RoomOverview[]> {
   return res.data.map((r: any) => ({
     roomId: r.room_id,
     roomNo: r.room_no,
-    roomName: r.room_name,
+    // roomName: r.room_name,
     residenceType: r.residence_type,
-    capacity: r.room_capacity,
+    // capacity: r.room_capacity,
     status: r.room_status,
 
     guestRoomId: r.guest_room_id,

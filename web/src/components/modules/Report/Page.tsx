@@ -23,17 +23,22 @@ export function Reports() {
       showError('Please select start and end dates');
       return;
     }
+    // console.log("VIEW RESPONSE:", response);
+    let response;
 
-    const response = await generateSectionReport({
-      section: selectedSection,
-      rangeType: globalRange,
-      format: exportFormat,
-      startDate: globalRange === 'Custom Range' ? startDate : undefined,
-      endDate: globalRange === 'Custom Range' ? endDate : undefined,
-      language,
-    });
-    console.log("VIEW RESPONSE:", response);
-
+    try {
+        const response = await generateSectionReport({
+          section: selectedSection,
+          rangeType: globalRange,
+          format: exportFormat,
+          startDate: globalRange === 'Custom Range' ? startDate : undefined,
+          endDate: globalRange === 'Custom Range' ? endDate : undefined,
+          language,
+        });
+      console.log("VIEW RESPONSE:", response);
+    } catch (err) {
+      console.error("ERROR:", err);
+    }
     if (exportFormat === 'VIEW') {
       setViewData(response);  // create state
     } else {
@@ -280,7 +285,7 @@ export function Reports() {
       </div> */}
 
       {/* Recent Reports Table */}
-      {/* <div className="bg-white border border-gray-200 rounded-sm shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-sm shadow-sm">
         <div className="border-b border-gray-200 px-6 py-4 bg-gray-50">
           <h3 className="text-[#00247D] font-semibold">Recently Generated Reports</h3>
         </div>
@@ -332,7 +337,7 @@ export function Reports() {
             </tbody>
           </table>
         </div>
-      </div> */}
+      </div>
     </div>
   );
 }

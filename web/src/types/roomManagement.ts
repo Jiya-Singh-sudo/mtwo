@@ -1,18 +1,20 @@
 export type RoomRow = {
   roomId: string;
   roomNo: string;
-  roomName?: string;
+  // roomName?: string;
   buildingName?: string;
   residenceType?: string;
-  roomType?: string;
+  // roomType?: string;
   roomCategory?: string;
-  roomCapacity?: number;
+  // roomCapacity?: number;
   status: "Available" | "Occupied";
 
   guest?: {
     guestRoomId: string;
     guestId: string;
     guestName: string;
+    guestNameLL?: string;
+    companions?: string;
     checkInDate?: string;
     checkOutDate?: string;
   } | null;
@@ -31,11 +33,11 @@ export type RoomRow = {
 export type EditRoomFullPayload = {
   // room fields
   room_no?: string;
-  room_name?: string;
+  // room_name?: string;
   building_name?: string;
   residence_type?: string;
-  room_type?: string;
-  room_capacity?: number;
+  // room_type?: string;
+  // room_capacity?: number;
   room_category?: string;
   status?: "Available" | "Occupied";
 

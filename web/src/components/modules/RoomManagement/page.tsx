@@ -24,14 +24,20 @@ import { housekeepingCreateEditSchema, roomBoyAssignmentSchema, roomCreateEditSc
 import { normalizeDateOnly, formatDateOnlyDDMMYYYY } from "@/utils/dateTime";
 /* ================= BACKEND-MATCHING TYPES ================= */
 
+type RoomBoyFormType = {
+  hk_name: string;
+  hk_contact: string;
+  hk_alternate_contact?: string;
+};
+
 /* Matches DB / API response (snake_case, flat structure) */
 type RoomFormState = {
   room_no: string;
-  room_name: string;
+  // room_name: string;
   residence_type: string;
   building_name: string;
-  room_type: string;
-  room_capacity: number;
+  // room_type: string;
+  // room_capacity: number;
   room_category: string;
   status: "Available" | "Occupied";
 };
@@ -102,21 +108,21 @@ export function RoomManagement() {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [roomForm, setRoomForm] = useState<RoomFormState>({
     room_no: "",
-    room_name: "",
+    // room_name: "",
     residence_type: "",
     building_name: "",
-    room_type: "",
-    room_capacity: 1,
+    // room_type: "",
+    // room_capacity: 1,
     room_category: "",
     status: "Available",
   });
   const [editRoomForm, setEditRoomForm] = useState<RoomFormState>({
     room_no: "",
-    room_name: "",
+    // room_name: "",
     residence_type: "",
     building_name: "",
-    room_type: "",
-    room_capacity: 1,
+    // room_type: "",
+    // room_capacity: 1,
     room_category: "",
     status: "Available",
   });
@@ -146,11 +152,10 @@ export function RoomManagement() {
   const [deleteRoomBoyError, setDeleteRoomBoyError] = useState<string | null>(null);
 
   // Room boy create/edit form (HousekeepingCreateDto)
-  const [roomBoyForm, setRoomBoyForm] = useState<HousekeepingCreateDto>({
+  const [roomBoyForm, setRoomBoyForm] = useState<RoomBoyFormType>({
     hk_name: "",
     hk_contact: "",
     hk_alternate_contact: "",
-    address: "",
   });
 
   /* ================= LOAD DATA ================= */
@@ -326,11 +331,11 @@ export function RoomManagement() {
     setEditRoom(room);
     setEditRoomForm({
       room_no: room.roomNo,
-      room_name: room.roomName ?? "",
+      // room_name: room.roomName ?? "",
       residence_type: room.residenceType ?? "",
       building_name: room.buildingName ?? "",
-      room_type: room.roomType ?? "",
-      room_capacity: room.roomCapacity ?? 1,
+      // room_type: room.roomType ?? "",
+      // room_capacity: room.roomCapacity ?? 1,
       room_category: room.roomCategory ?? "",
       status: room.status,
     });
@@ -354,12 +359,12 @@ export function RoomManagement() {
       const payload: EditRoomFullPayload = {
         // ROOM
         room_no: editRoomForm.room_no,
-        room_name: editRoomForm.room_name || undefined,
+        // room_name: editRoomForm.room_name || undefined,
         building_name: editRoomForm.building_name || undefined,
         residence_type: editRoomForm.residence_type || undefined,
-        room_type: editRoomForm.room_type || undefined,
+        // room_type: editRoomForm.room_type || undefined,
         room_category: editRoomForm.room_category || undefined,
-        room_capacity: editRoomForm.room_capacity || undefined,
+        // room_capacity: editRoomForm.room_capacity || undefined,
         status: editRoomForm.status,
 
         // GUEST (unchanged in this modal for now, implied from editRoom ref)
@@ -546,7 +551,14 @@ export function RoomManagement() {
   /* ================= ROOM BOY CRUD ================= */
   const handleAddRoomBoy = async () => {
     try {
-      await createHousekeeping(roomBoyForm);
+      // await createHousekeeping(roomBoyForm);
+      await createHousekeeping({
+        hk_name: roomBoyForm.hk_name,
+        hk_contact: Number(roomBoyForm.hk_contact),
+        hk_alternate_contact: roomBoyForm.hk_alternate_contact
+          ? Number(roomBoyForm.hk_alternate_contact)
+          : undefined,
+      });
       await loadRoomBoys();
       setShowAddRoomBoy(false);
       resetRoomBoyForm();
@@ -560,9 +572,12 @@ export function RoomManagement() {
 
     const payload: HousekeepingUpdateDto = {
       hk_name: roomBoyForm.hk_name,
-      hk_contact: roomBoyForm.hk_contact,
-      hk_alternate_contact: roomBoyForm.hk_alternate_contact,
-      address: roomBoyForm.address,
+      hk_contact: roomBoyForm.hk_contact
+        ? Number(roomBoyForm.hk_contact)
+        : undefined,
+      hk_alternate_contact: roomBoyForm.hk_alternate_contact
+        ? Number(roomBoyForm.hk_alternate_contact)
+        : undefined,
     };
 
     await updateHousekeeping(selectedRoomBoy.hk_id, payload);
@@ -607,7 +622,6 @@ export function RoomManagement() {
       hk_name: "",
       hk_contact: "",
       hk_alternate_contact: "",
-      address: "",
     });
   };
 
@@ -615,9 +629,10 @@ export function RoomManagement() {
     setSelectedRoomBoy(rb);
     setRoomBoyForm({
       hk_name: rb.hk_name,
-      hk_contact: rb.hk_contact,
-      hk_alternate_contact: rb.hk_alternate_contact || "",
-      address: rb.address || "",
+      hk_contact: rb.hk_contact.toString(),
+      hk_alternate_contact: rb.hk_alternate_contact
+        ? rb.hk_alternate_contact.toString()
+        : "",
     });
     setShowEditRoomBoy(true);
   };
@@ -695,11 +710,11 @@ export function RoomManagement() {
     setShowAddRoom(false);
     setRoomForm({
       room_no: "",
-      room_name: "",
+      // room_name: "",
       residence_type: "",
       building_name: "",
-      room_type: "",
-      room_capacity: 1,
+      // room_type: "",
+      // room_capacity: 1,
       room_category: "",
       status: "Available",
     });
@@ -709,11 +724,11 @@ export function RoomManagement() {
   function openAddRoom() {
     setRoomForm({
       room_no: "",
-      room_name: "",
+      // room_name: "",
       residence_type: "",
       building_name: "",
-      room_type: "",
-      room_capacity: 1,
+      // room_type: "",
+      // room_capacity: 1,
       room_category: "",
       status: "Available",
     });
@@ -728,32 +743,38 @@ export function RoomManagement() {
       sortable: true,
       sortKey: "room_no",
     },
+    // {
+    //   header: "Room Name",
+    //   accessor: "roomName",
+    //   sortable: true,
+    //   sortKey: "room_name",
+    // },
     {
-      header: "Room Name",
-      accessor: "roomName",
+      header: "Building Name",
+      accessor: "buildingName",
       sortable: true,
-      sortKey: "room_name",
-    },
-    {
-      header: "Residence Type",
-      accessor: "residenceType",
-      sortable: true,
-      sortKey: "residence_type",
+      sortKey: "building_name",
       render: (row) => (
         <>
-          <p>{row.residenceType}</p>
+          <p>{row.buildingName}</p>
           <p className="text-xs text-gray-500">
-            {row.buildingName}
+            {row.residenceType}
           </p>
         </>
       ),
     },
     {
-      header: "Room Capacity",
-      accessor: "roomCapacity",
+      header: "Room Category",
+      accessor: "roomCategory",
       sortable: true,
-      sortKey: "room_capacity",
+      sortKey: "room_category",
     },
+    // {
+    //   header: "Room Capacity",
+    //   accessor: "roomCapacity",
+    //   sortable: true,
+    //   sortKey: "room_capacity",
+    // },
     {
       header: "Status",
       sortable: true,
@@ -768,7 +789,15 @@ export function RoomManagement() {
     },
     {
       header: "Guest",
-      render: (row) => row.guest?.guestName || "—",
+      // render: (row) => row.guest?.guestName || "—",
+      render: (row) => (
+        <>
+          <p>{row.guest?.guestName || "—"}</p>
+          <p className="text-xs text-gray-500">
+            {row.guest?.companions}
+          </p>
+        </>
+      ),
     },
     {
       header: "Room Boy",
@@ -842,12 +871,12 @@ export function RoomManagement() {
       sortable: true,
     },
 
-    {
-      header: "Address",
-      accessor: "address",
-      sortable: true,
-      sortKey: "address",
-    },
+    // {
+    //   header: "Address",
+    //   accessor: "address",
+    //   sortable: true,
+    //   sortKey: "address",
+    // },
     {
       header: "Actions",
       render: (rb) => (
@@ -1358,7 +1387,7 @@ export function RoomManagement() {
                 </div>
 
                 {/* Room Name */}
-                <div>
+                {/* <div>
                   <label>Room Name <span className="required">*</span></label>
                   <input
                     className="nicInput"
@@ -1370,7 +1399,7 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "room_name", editRoomForm.room_name, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_name", editRoomForm.room_name, setFormErrors)}
                   />
-                  {/* <p className="errorText">{formErrors.room_name}</p> */}
+                  <p className="errorText">{formErrors.room_name}</p>
                   {formErrors.room_name && (
                     <div className="fieldError">
                       <XCircle size={14} />
@@ -1378,7 +1407,7 @@ export function RoomManagement() {
                     </div>
                   )}
 
-                </div>
+                </div> */}
 
                 {/* Building */}
                 <div>
@@ -1427,7 +1456,7 @@ export function RoomManagement() {
                 </div>
 
                 {/* Room Type */}
-                <div>
+                {/* <div>
                   <label>Room Type <span className="required">*</span></label>
                   <input
                     className="nicInput"
@@ -1439,15 +1468,14 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "room_type", editRoomForm.room_type, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_type", editRoomForm.room_type, setFormErrors)}
                   />
-                  {/* <p className="errorText">{formErrors.room_type}</p> */}
+                  <p className="errorText">{formErrors.room_type}</p>
                   {formErrors.room_type && (
                     <div className="fieldError">
                       <XCircle size={14} />
                       <span>{formErrors.room_type}</span>
                     </div>
                   )}
-
-                </div>
+                </div> */}
 
                 {/* Room Category */}
                 <div>
@@ -1473,7 +1501,7 @@ export function RoomManagement() {
                 </div>
 
                 {/* Capacity */}
-                <div>
+                {/* <div>
                   <label>Capacity <span className="required">*</span></label>
                   <input
                     type="number"
@@ -1490,7 +1518,7 @@ export function RoomManagement() {
                     onBlur={() => validateField(roomCreateEditSchema, "room_capacity", editRoomForm.room_capacity, setFormErrors)}
                     onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", editRoomForm.room_capacity, setFormErrors)}
                   />
-                  {/* <p className="errorText">{formErrors.room_capacity}</p> */}
+                  <p className="errorText">{formErrors.room_capacity}</p>
                   {formErrors.room_capacity && (
                     <div className="fieldError">
                       <XCircle size={14} />
@@ -1498,7 +1526,7 @@ export function RoomManagement() {
                     </div>
                   )}
 
-                </div>
+                </div> */}
 
                 {/* Status */}
                 <div>
@@ -1681,7 +1709,7 @@ export function RoomManagement() {
 
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label>Room Name <span className="required">*</span></label>
                     <input
                       className="nicInput"
@@ -1694,7 +1722,7 @@ export function RoomManagement() {
                       onKeyUp={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                       onBlur={() => validateField(roomCreateEditSchema, "room_name", roomForm.room_name, setFormErrors)}
                     />
-                    {/* <p className="errorText">{formErrors.room_name}</p> */}
+                    <p className="errorText">{formErrors.room_name}</p>
                     {formErrors.room_name && (
                       <div className="fieldError">
                         <XCircle size={14} />
@@ -1702,7 +1730,7 @@ export function RoomManagement() {
                       </div>
                     )}
 
-                  </div>
+                  </div> */}
 
                   <div>
                     <label>Building Name</label>
@@ -1750,7 +1778,7 @@ export function RoomManagement() {
 
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label>Room Type<span className="required">*</span></label>
                     <input
                       className="nicInput"
@@ -1763,7 +1791,7 @@ export function RoomManagement() {
                       onBlur={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                       onKeyUp={() => validateField(roomCreateEditSchema, "room_type", roomForm.room_type, setFormErrors)}
                     />
-                    {/* <p className="errorText">{formErrors.room_type}</p> */}
+                    <p className="errorText">{formErrors.room_type}</p>
                     {formErrors.room_type && (
                       <div className="fieldError">
                         <XCircle size={14} />
@@ -1771,9 +1799,9 @@ export function RoomManagement() {
                       </div>
                     )}
 
-                  </div>
+                  </div> */}
 
-                  <div>
+                  {/* <div>
                     <label>Room Capacity<span className="required">*</span></label>
                     <input
                       type="number"
@@ -1791,7 +1819,7 @@ export function RoomManagement() {
                       onBlur={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                       onKeyUp={() => validateField(roomCreateEditSchema, "room_capacity", roomForm.room_capacity, setFormErrors)}
                     />
-                    {/* <p className="errorText">{formErrors.room_capacity}</p> */}
+                    <p className="errorText">{formErrors.room_capacity}</p>
                     {formErrors.room_capacity && (
                       <div className="fieldError">
                         <XCircle size={14} />
@@ -1799,7 +1827,7 @@ export function RoomManagement() {
                       </div>
                     )}
 
-                  </div>
+                  </div> */}
 
                   <div className="fullWidth">
                     <label>Room Category <span className="required">*</span></label>
@@ -2018,12 +2046,12 @@ export function RoomManagement() {
                   <div className="detailSection">
                     <h4>Room Information</h4>
                     <p><b>Room No:</b> {viewRoom.roomNo}</p>
-                    <p><b>Room Name:</b> {viewRoom.roomName || "—"}</p>
+                    {/* <p><b>Room Name:</b> {viewRoom.roomName || "—"}</p> */}
                     <p><b>Building:</b> {viewRoom.buildingName || "—"}</p>
                     <p><b>Residence Type:</b> {viewRoom.residenceType || "—"}</p>
-                    <p><b>Room Type:</b> {viewRoom.roomType || "—"}</p>
+                    {/* <p><b>Room Type:</b> {viewRoom.roomType || "—"}</p> */}
                     <p><b>Room Category:</b> {viewRoom.roomCategory || "—"}</p>
-                    <p><b>Capacity:</b> {viewRoom.roomCapacity ?? "—"}</p>
+                    {/* <p><b>Capacity:</b> {viewRoom.roomCapacity ?? "—"}</p> */}
                     <p><b>Status:</b> {viewRoom.status}</p>
                   </div>
 
@@ -2158,6 +2186,7 @@ export function RoomManagement() {
                     </label>
                     <input
                       className="nicInput"
+                      type="number"
                       value={roomBoyForm.hk_contact}
                       onChange={(e) =>
                         setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
@@ -2182,6 +2211,7 @@ export function RoomManagement() {
                     <label className="nicLabel">Alternate Contact</label>
                     <input
                       className="nicInput"
+                      type="number"
                       value={roomBoyForm.hk_alternate_contact || ""}
                       onChange={(e) =>
                         setRoomBoyForm({
@@ -2195,7 +2225,7 @@ export function RoomManagement() {
 
 
                   {/* Address */}
-                  <div className="fullWidth">
+                  {/* <div className="fullWidth">
                     <label className="nicLabel">Address<span className="required">*</span></label>
                     <textarea
                       className="nicInput"
@@ -2206,7 +2236,7 @@ export function RoomManagement() {
                       }
                       maxLength={300}
                     />
-                  </div>
+                  </div> */}
 
                 </div>
               </div>
@@ -2308,6 +2338,7 @@ export function RoomManagement() {
                     </label>
                     <input
                       className="nicInput"
+                      type="number"
                       value={roomBoyForm.hk_contact}
                       onChange={(e) =>
                         setRoomBoyForm({ ...roomBoyForm, hk_contact: e.target.value })
@@ -2332,6 +2363,7 @@ export function RoomManagement() {
                     <label className="nicLabel">Alternate Contact</label>
                     <input
                       className="nicInput"
+                      type="number"
                       value={roomBoyForm.hk_alternate_contact || ""}
                       onChange={(e) =>
                         setRoomBoyForm({
@@ -2345,7 +2377,7 @@ export function RoomManagement() {
 
 
                   {/* Address */}
-                  <div className="fullWidth">
+                  {/* <div className="fullWidth">
                     <label className="nicLabel">Address<span className="required">*</span></label>
                     <textarea
                       className="nicInput"
@@ -2356,7 +2388,7 @@ export function RoomManagement() {
                       }
                       maxLength={300}
                     />
-                  </div>
+                  </div> */}
 
                 </div>
               </div>
@@ -2408,10 +2440,10 @@ export function RoomManagement() {
                     <p><b>Alt Contact:</b> {viewRoomBoy.hk_alternate_contact || "—"}</p>
                   </div>
 
-                  <div className="detailSection">
+                  {/* <div className="detailSection">
                     <h4>Address</h4>
                     <p>{viewRoomBoy.address || "—"}</p>
-                  </div>
+                  </div> */}
 
                 </div>
               </div>

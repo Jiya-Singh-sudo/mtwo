@@ -35,11 +35,11 @@ export const roomCreateEditSchema = z.object({
     .max(MAX_ROOM_NO_LENGTH, "Room number too long")
     .regex(roomNoRegex, "Only letters, numbers and hyphens allowed"),
 
-  room_name: z
-    .string()
-    .min(1, "Room name is required")
-    .max(MAX_TEXT_LENGTH, "Room name too long")
-    .regex(safeTextRegex, "Invalid characters in room name"),
+  // room_name: z
+  //   .string()
+  //   .min(1, "Room name is required")
+  //   .max(MAX_TEXT_LENGTH, "Room name too long")
+  //   .regex(safeTextRegex, "Invalid characters in room name"),
 
   building_name: z
     .string()
@@ -52,22 +52,22 @@ export const roomCreateEditSchema = z.object({
     .min(1, "Residence type is required")
     .max(MAX_TEXT_LENGTH, "Residence type too long"),
 
-  room_type: z
-    .string()
-    .min(1, "Room type is required")
-    .max(MAX_TEXT_LENGTH, "Room type too long"),
+  // room_type: z
+  //   .string()
+  //   .min(1, "Room type is required")
+  //   .max(MAX_TEXT_LENGTH, "Room type too long"),
 
   room_category: z
     .string()
     .min(1, "Room category is required")
     .max(MAX_TEXT_LENGTH, "Room category too long"),
 
-  room_capacity: z
-    .coerce
-    .number()
-    .int("Capacity must be a whole number")
-    .min(1, "Minimum capacity is 1")
-    .max(MAX_ROOM_CAPACITY, "Capacity exceeds allowed limit"),
+  // room_capacity: z
+  //   .coerce
+  //   .number()
+  //   .int("Capacity must be a whole number")
+  //   .min(1, "Minimum capacity is 1")
+  //   .max(MAX_ROOM_CAPACITY, "Capacity exceeds allowed limit"),
 
   status: z.enum(["Available", "Occupied"]),
 });
@@ -134,11 +134,11 @@ export const housekeepingCreateEditSchema = z.object({
       { message: "Alternate contact must be 10 digits" }
     ),
 
-  address: z
-    .string()
-    .max(250, "Address too long")
-    .regex(safeTextRegex, "Invalid characters in address")
-    .optional(),
+  // address: z
+  //   .string()
+  //   .max(250, "Address too long")
+  //   .regex(safeTextRegex, "Invalid characters in address")
+  //   .optional(),
 });
 
 /* ======================================================

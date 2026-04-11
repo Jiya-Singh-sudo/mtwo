@@ -45,19 +45,19 @@ export const messengerSchema = z
         { message: "Secondary mobile must be 10 digits" }
       ),
 
-    email: z
-      .string()
-      .trim()
-      .email("Invalid email address")
-      .max(100, "Email too long")
-      .optional(),
+    // email: z
+    //   .string()
+    //   .trim()
+    //   .email("Invalid email address")
+    //   .max(100, "Email too long")
+    //   .optional(),
 
-    address: z
-      .string()
-      .trim()
-      .max(200, "Address too long")
-      .regex(safeTextRegex, "Invalid characters in address")
-      .optional(),
+    // address: z
+    //   .string()
+    //   .trim()
+    //   .max(200, "Address too long")
+    //   .regex(safeTextRegex, "Invalid characters in address")
+    //   .optional(),
 
     designation: z
       .string()

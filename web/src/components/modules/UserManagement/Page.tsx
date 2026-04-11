@@ -26,7 +26,7 @@ interface User {
   alternate_mobile?: string;
   email?: string;
   // last_login?: string;
-  address?: string;
+  // address?: string;
 }
 
 /* ======================================================
@@ -55,7 +55,7 @@ export default function UserManagement() {
     alternate_mobile: "",
     email: "",
     password: "",
-    address: "",
+    // address: "",
   });
 
   const [roles, setRoles] = useState<Role[]>([]);
@@ -77,7 +77,7 @@ export default function UserManagement() {
       alternate_mobile: "",
       email: "",
       password: "",
-      address: "",
+      // address: "",
     });
 
   const validate = (isEdit = false) => {
@@ -129,7 +129,7 @@ export default function UserManagement() {
           primary_mobile: u.primary_mobile ?? "",
           alternate_mobile: u.alternate_mobile ?? "",
           email: u.email ?? "",
-          address: u.address ?? "",
+          // address: u.address ?? "",
         }));
 
         setUsers(mapped);
@@ -197,7 +197,7 @@ export default function UserManagement() {
       email: form.email.trim(),
       primary_mobile: form.primary_mobile.trim() !== "" ? Number(form.primary_mobile.trim()) : undefined,
       alternate_mobile: form.alternate_mobile.trim() !== "" ? Number(form.alternate_mobile.trim()) : undefined,
-      address: form.address || undefined,
+      // address: form.address || undefined,
     };
 
     try {
@@ -221,7 +221,7 @@ export default function UserManagement() {
       email: form.email.trim(),
       primary_mobile: form.primary_mobile.trim() !== "" ? Number(form.primary_mobile.trim()) : undefined,
       alternate_mobile: form.alternate_mobile.trim() !== "" ? Number(form.alternate_mobile.trim()) : undefined,
-      address: form.address || undefined,
+      // address: form.address || undefined,
     };
 
     try {
@@ -323,7 +323,7 @@ export default function UserManagement() {
                   alternate_mobile: row.alternate_mobile ?? "",
                   email: row.email ?? "",
                   password: "",
-                  address: row.address ?? "",
+                  // address: row.address ?? "",
                 });
                 setIsEditOpen(true);
               }}
@@ -560,7 +560,7 @@ export default function UserManagement() {
                 </select>
                 <FieldError message={formErrors.role_id} />
               </div>
-              <div>
+              {/* <div>
                 <label>Address</label>
                 <input
                   className="nicInput"
@@ -573,7 +573,7 @@ export default function UserManagement() {
                   }
                 />
                 <FieldError message={formErrors.address} />
-              </div>
+              </div> */}
             </div>
 
 

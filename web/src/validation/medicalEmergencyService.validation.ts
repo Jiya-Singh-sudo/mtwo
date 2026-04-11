@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const NAME_REGEX = /^[A-Za-z .]*$/;
 const MOBILE_REGEX = /^[6-9]\d{9}$/;
-const TEXT_REGEX = /^[A-Za-z0-9 .,/()-]*$/;
+// const TEXT_REGEX = /^[A-Za-z0-9 .,/()-]*$/;
 
 /* ================= CREATE SCHEMA ================= */
 
@@ -37,18 +37,18 @@ export const medicalEmergencyCreateSchema = z
       .optional()
       .or(z.literal("")),
 
-    email: z
-      .string()
-      .email("Invalid email address")
-      .optional()
-      .or(z.literal("")),
+    // email: z
+    //   .string()
+    //   .email("Invalid email address")
+    //   .optional()
+    //   .or(z.literal("")),
 
-    address_line: z
-      .string()
-      .max(250, "Address too long")
-      .regex(TEXT_REGEX, "Invalid characters")
-      .optional()
-      .or(z.literal("")),
+    // address_line: z
+    //   .string()
+    //   .max(250, "Address too long")
+    //   .regex(TEXT_REGEX, "Invalid characters")
+    //   .optional()
+    //   .or(z.literal("")),
 
     distance_from_guest_house: z
       .string()

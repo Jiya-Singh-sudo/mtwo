@@ -799,7 +799,7 @@ function GuestTransportManagement() {
               <div className="flex gap-1">
                 <button
                   className="icon-btn text-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                  disabled={locked}
+                  disabled={locked || !guest.requires_driver}
                   title={vehicle ? "Edit Vehicle" : "Assign Vehicle"}
                   onClick={() => {
                     // console.log("LOCKED:", locked, "STATUS:", guest.inout_status);

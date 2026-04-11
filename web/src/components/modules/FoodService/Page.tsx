@@ -186,16 +186,17 @@ export function FoodService() {
   const [butlerMode, setButlerMode] = useState<ButlerMode>("add");
   const [activeButler, setActiveButler] = useState<Butler | null>(null);
   const [deleteButler, setDeleteButler] = useState<Butler | null>(null);
+  const [selectedButlerId, setSelectedButlerId] = useState<string>("");
 
   const [butlerForm, setButlerForm] = useState({
     butler_name: "",
     butler_name_local_language: "",
     butler_mobile: "",
     butler_alternate_mobile: "",
-    butler_email: "",
-    shift: "",
-    address: "",
-    remarks: "",
+    // butler_email: "",
+    // shift: "",
+    // address: "",
+    // remarks: "",
   });
 
 
@@ -468,10 +469,10 @@ export function FoodService() {
       butler_name_local_language: "",
       butler_mobile: "",
       butler_alternate_mobile: "",
-      butler_email: "",
-      shift: "",
-      address: "",
-      remarks: "",
+      // butler_email: "",
+      // shift: "",
+      // address: "",
+      // remarks: "",
     });
     setButlerModalOpen(true);
   }
@@ -486,10 +487,10 @@ export function FoodService() {
       butler_alternate_mobile: butler.butler_alternate_mobile
         ? String(butler.butler_alternate_mobile)
         : "",
-      butler_email: butler.butler_email ?? "",
-      shift: butler.shift,
-      address: butler.address ?? "",
-      remarks: butler.remarks ?? "",
+      // butler_email: butler.butler_email ?? "",
+      // shift: butler.shift,
+      // address: butler.address ?? "",
+      // remarks: butler.remarks ?? "",
     });
     setButlerModalOpen(true);
   }
@@ -504,19 +505,19 @@ export function FoodService() {
       butler_alternate_mobile: butler.butler_alternate_mobile
         ? String(butler.butler_alternate_mobile)
         : "",
-      butler_email: butler.butler_email ?? "",
-      shift: butler.shift,
-      address: butler.address ?? "",
-      remarks: butler.remarks ?? "",
+      // butler_email: butler.butler_email ?? "",
+      // shift: butler.shift,
+      // address: butler.address ?? "",
+      // remarks: butler.remarks ?? "",
     });
     setButlerModalOpen(true);
   }
 
   async function saveButler() {
-    if (!butlerForm.shift) {
-      showError("Please select shift");
-      return;
-    }
+    // if (!butlerForm.shift) {
+    //   showError("Please select shift");
+    //   return;
+    // }
 
     if (!/^\d+$/.test(butlerForm.butler_mobile)) {
       showError("Mobile number must be numeric");
@@ -534,14 +535,14 @@ export function FoodService() {
           ? Number(butlerForm.butler_alternate_mobile)
           : undefined,
 
-        shift: butlerForm.shift as
-          | "Morning"
-          | "Evening"
-          | "Night"
-          | "Full-Day",
+        // shift: butlerForm.shift as
+        //   | "Morning"
+        //   | "Evening"
+        //   | "Night"
+        //   | "Full-Day",
 
-        address: butlerForm.address || undefined,
-        remarks: butlerForm.remarks || undefined,
+        // address: butlerForm.address || undefined,
+        // remarks: butlerForm.remarks || undefined,
       };
 
       if (butlerMode === "add") {
@@ -662,7 +663,7 @@ export function FoodService() {
       sortable: true,
       sortKey: "room_number",
       render: (row) => {
-        if (!row.room_number && !row.room_name) {
+        if (!row.room_number && !row.building_name) {
           return <span className="text-gray-400">—</span>;
         }
 
@@ -672,7 +673,7 @@ export function FoodService() {
               {row.room_number || "—"}
             </p>
             <p className="text-xs text-gray-500">
-              {row.room_name || ""}
+              {row.building_name || ""}
             </p>
           </>
         );
@@ -683,7 +684,7 @@ export function FoodService() {
       accessor: "butler_name",
       emptyFallback: "—",
       render: (row) => {
-        if (!row.room_number && !row.room_name) {
+        if (!row.room_number && !row.building_name) {
           return <span className="text-gray-400">—</span>;
         }
 
@@ -770,16 +771,16 @@ export function FoodService() {
         </>
       ),
     },
-    {
-      header: "Email",
-      render: (row) => <p className="font-medium text-sm text-[#00247D]">{row.butler_email}</p>
-    },
-    {
-      header: "Shift",
-      accessor: "shift",
-      sortable: true,
-      sortKey: "shift",
-    },
+    // {
+    //   header: "Email",
+    //   render: (row) => <p className="font-medium text-sm text-[#00247D]">{row.butler_email}</p>
+    // },
+    // {
+    //   header: "Shift",
+    //   accessor: "shift",
+    //   sortable: true,
+    //   sortKey: "shift",
+    // },
     {
       header: "Status",
       sortable: true,
@@ -1027,12 +1028,12 @@ export function FoodService() {
                   <p><strong>Local Name:</strong> {activeButler.butler_name_local_language || "—"}</p>
                   <p><strong>Mobile:</strong> {activeButler.butler_mobile}</p>
                   <p><strong>Alternate:</strong> {activeButler.butler_alternate_mobile || "—"}</p>
-                  <p><strong>Email:</strong> {activeButler.butler_email || "—"}</p>
+                  {/* <p><strong>Email:</strong> {activeButler.butler_email || "—"}</p> */}
                 </div>
 
                 <div className="viewCard">
                   <h4>Work Details</h4>
-                  <p><strong>Shift:</strong> {activeButler.shift}</p>
+                  {/* <p><strong>Shift:</strong> {activeButler.shift}</p> */}
                   <p>
                     <strong>Status:</strong>{" "}
                     <span className={`statusPill ${activeButler.is_active ? "active" : "inactive"}`}>
@@ -1043,8 +1044,8 @@ export function FoodService() {
 
                 <div className="viewCard full">
                   <h4>Other</h4>
-                  <p><strong>Address:</strong> {activeButler.address || "—"}</p>
-                  <p><strong>Remarks:</strong> {activeButler.remarks || "—"}</p>
+                  {/* <p><strong>Address:</strong> {activeButler.address || "—"}</p> */}
+                  {/* <p><strong>Remarks:</strong> {activeButler.remarks || "—"}</p> */}
                 </div>
               </div>
             )}
@@ -1107,7 +1108,7 @@ export function FoodService() {
                     onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_alternate_mobile", e.currentTarget.value, setFormErrors)}
                   />
                 </div>
-                <div>
+                {/* <div>
                   <label>Email</label>
                   <input
                     className="nicInput"
@@ -1121,8 +1122,8 @@ export function FoodService() {
                     onBlur={(e) => validateSingleField(butlerManagementSchema, "butler_email", e.currentTarget.value, setFormErrors)}
                     onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_email", e.currentTarget.value, setFormErrors)}
                   />
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <label>Shift <span className="required">*</span></label>
                   <select
                     className="nicInput"
@@ -1142,9 +1143,9 @@ export function FoodService() {
                     <option value="Night">Night</option>
                     <option value="Full-Day">Full-Day</option>
                   </select>
-                </div>
+                </div> */}
 
-                <div className="fullWidth">
+                {/* <div className="fullWidth">
                   <label>Address</label>
                   <textarea
                     className="nicInput"
@@ -1156,21 +1157,9 @@ export function FoodService() {
                     onBlur={(e) => validateSingleField(butlerManagementSchema, "address", e.currentTarget.value, setFormErrors)}
                     onKeyUp={(e) => validateSingleField(butlerManagementSchema, "address", e.currentTarget.value, setFormErrors)}
                   />
-                </div>
+                </div> */}
 
-                <div className="fullWidth">
-                  <label>Remarks</label>
-                  <textarea
-                    className="nicInput"
-                    rows={2}
-                    value={butlerForm.remarks}
-                    onChange={(e) =>
-                      setButlerForm({ ...butlerForm, remarks: e.target.value })
-                    }
-                    onBlur={(e) => validateSingleField(butlerManagementSchema, "remarks", e.currentTarget.value, setFormErrors)}
-                    onKeyUp={(e) => validateSingleField(butlerManagementSchema, "remarks", e.currentTarget.value, setFormErrors)}
-                  />
-                </div>
+
               </div>
             )}
 
@@ -1249,21 +1238,12 @@ export function FoodService() {
             <div className="modalGuestInfo">
               <strong>{activeGuestForEdit.guest_name}</strong>
             </div>
-
+            <div className="fullWidth">
             <select
               className="nicInput"
               defaultValue=""
               onChange={(e) => {
-                const val = e.target.value;
-                if (!val) return;
-
-                handleAssignButler(
-                  activeGuestForEdit.guest_id,
-                  activeGuestForEdit.room_id,
-                  val
-                );
-
-                setButlerAssignModalOpen(false);
+                setSelectedButlerId(e.target.value);
               }}
             >
               <option value="">Select Butler</option>
@@ -1273,6 +1253,52 @@ export function FoodService() {
                 </option>
               ))}
             </select>
+            </div>
+                {/* <div className="fullWidth">
+                  <label>Remarks</label>
+                  <textarea
+                    className="nicInput"
+                    rows={2}
+                    value={butlerForm.remarks}
+                    onChange={(e) =>
+                      setButlerForm({ ...butlerForm, remarks: e.target.value })
+                    }
+                    onBlur={(e) => validateSingleField(butlerManagementSchema, "remarks", e.currentTarget.value, setFormErrors)}
+                    onKeyUp={(e) => validateSingleField(butlerManagementSchema, "remarks", e.currentTarget.value, setFormErrors)}
+                  />
+                </div> */}
+            <div className="nicModalActions">
+              <button className="cancelBtn" onClick={() => setButlerAssignModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="saveBtn"
+                onClick={async () => {
+                  if (!selectedButlerId) {
+                    showError("Please select a butler");
+                    return;
+                  }
+
+                  try {
+                    await handleAssignButler(
+                      activeGuestForEdit.guest_id,
+                      activeGuestForEdit.room_id,
+                      selectedButlerId,
+                      // butlerForm.remarks // ✅ send remarks
+                    );
+
+                    setButlerAssignModalOpen(false);
+                    setSelectedButlerId("");
+                    setButlerForm({ ...butlerForm});
+
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+              >
+                Assign Butler
+              </button>
+            </div>  
           </div>
         </div>
       )}
