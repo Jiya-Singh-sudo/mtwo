@@ -18,6 +18,6 @@ export class CreateButlerDto {
   // @IsString()
   // remarks?: string;
   
-  @IsIn(["Morning", "Evening", "Night", "Full-Day"])
-  shift: "Morning" | "Evening" | "Night" | "Full-Day";
+  // @IsIn(["Morning", "Evening", "Night", "Full-Day"])
+  // shift: "Morning" | "Evening" | "Night" | "Full-Day";
 }

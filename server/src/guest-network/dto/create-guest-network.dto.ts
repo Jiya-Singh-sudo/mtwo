@@ -12,7 +12,7 @@ export class CreateGuestNetworkDto {
   guest_id: string;
 
   @IsString()
-  @Matches(/^N[0-9]+$/)
+  // @Matches(/^N[0-9]+$/)
   provider_id: string;
 
   @IsString()

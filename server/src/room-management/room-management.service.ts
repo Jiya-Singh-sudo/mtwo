@@ -4,6 +4,7 @@ import { EditRoomFullDto } from './dto/editFullRoom.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { GuestRoomService } from 'src/guest-room/guest-room.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { sql } from 'generated/prisma/internal/prismaNamespace';
 const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
   building_name: 'r.building_name',
@@ -212,6 +213,7 @@ export class RoomManagementService {
 
         io.entry_date,
         io.exit_date,
+        io.companions,
 
         gh.guest_hk_id,
         hk.hk_id,
@@ -748,7 +750,63 @@ export class RoomManagementService {
   }
 
   async findCheckedInGuestsWithoutRoom() {
-    const sql = `
+    // const sql = `
+    //   SELECT
+    //     io.guest_id,
+    //     g.guest_name,
+
+    //     md.designation_name,
+    //     gd.department,
+
+    //     io.entry_date,
+    //     io.exit_date,
+    //     io.rooms_required,
+    //     io.companions,
+
+    //   FROM t_guest_inout io
+
+    //   JOIN m_guest g
+    //     ON g.guest_id = io.guest_id
+    //     AND g.is_active = TRUE
+
+    //   LEFT JOIN t_guest_designation gd
+    //     ON gd.guest_id = io.guest_id
+    //     AND gd.is_current = TRUE
+    //     AND gd.is_active = TRUE
+
+    //   LEFT JOIN m_guest_designation md
+    //     ON md.designation_id = gd.designation_id
+    //     AND md.is_active = TRUE
+
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.guest_id = io.guest_id
+    //     AND gr.is_active = TRUE
+
+    //   LEFT JOIN m_rooms r
+    //     ON r.room_id = gr.room_id
+
+    //   WHERE io.is_active = TRUE
+    //     AND io.entry_date <= CURRENT_DATE
+
+    //   GROUP BY
+    //     io.guest_id,
+    //     g.guest_name,
+    //     md.designation_name,
+    //     gd.department,
+    //     io.entry_date,
+    //     io.exit_date,
+    //     io.rooms_required,
+    //     io.companions
+
+    //   HAVING
+    //     COUNT(gr.guest_room_id) < io.rooms_required
+    //     OR
+    //     COALESCE(SUM(r.room_capacity), 0) < (1 + COALESCE(io.companions, 0))
+
+    //   ORDER BY io.entry_date DESC;
+    // `;
+    const sql =`
+    WITH base AS (
       SELECT
         io.guest_id,
         g.guest_name,
@@ -758,10 +816,9 @@ export class RoomManagementService {
 
         io.entry_date,
         io.exit_date,
-        io.rooms_required,
         io.companions,
 
-        COUNT(gr.guest_room_id) AS allocated_rooms
+        gr.guest_room_id
 
       FROM t_guest_inout io
 
@@ -769,10 +826,15 @@ export class RoomManagementService {
         ON g.guest_id = io.guest_id
         AND g.is_active = TRUE
 
-      LEFT JOIN t_guest_designation gd
-        ON gd.guest_id = io.guest_id
-        AND gd.is_current = TRUE
-        AND gd.is_active = TRUE
+      -- ✅ latest designation
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM t_guest_designation
+        WHERE guest_id = io.guest_id
+          AND is_active = TRUE
+        ORDER BY is_current DESC, updated_at DESC NULLS LAST
+        LIMIT 1
+      ) gd ON TRUE
 
       LEFT JOIN m_guest_designation md
         ON md.designation_id = gd.designation_id
@@ -782,30 +844,47 @@ export class RoomManagementService {
         ON gr.guest_id = io.guest_id
         AND gr.is_active = TRUE
 
-      LEFT JOIN m_rooms r
-        ON r.room_id = gr.room_id
-
       WHERE io.is_active = TRUE
-        AND io.exit_date >= CURRENT_DATE
+        AND (
+          -- ✅ Arriving
+          io.entry_date >= CURRENT_DATE
 
-      GROUP BY
-        io.guest_id,
-        g.guest_name,
-        md.designation_name,
-        gd.department,
-        io.entry_date,
-        io.exit_date,
-        io.rooms_required,
-        io.companions
+          OR
 
-      HAVING
-        COUNT(gr.guest_room_id) < io.rooms_required
-        OR
-        COALESCE(SUM(r.room_capacity), 0) < (1 + COALESCE(io.companions, 0))
+          -- ✅ Already checked-in (inside)
+          (io.entry_date <= CURRENT_DATE AND io.exit_date >= CURRENT_DATE)
+        )
+    )
 
-      ORDER BY io.entry_date DESC;
+    SELECT
+      guest_id,
+      guest_name,
+      designation_name,
+      department,
+      entry_date,
+      exit_date,
+      companions,
+
+      -- ✅ useful debug/UI fields
+      COUNT(guest_room_id) AS rooms_assigned,
+      (1 + COALESCE(companions, 0)) AS total_people
+
+    FROM base
+
+    GROUP BY
+      guest_id,
+      guest_name,
+      designation_name,
+      department,
+      entry_date,
+      exit_date,
+      companions
+
+    HAVING
+      COUNT(guest_room_id) = 0
+
+    ORDER BY entry_date DESC;
     `;
-
     const res = await this.db.query(sql);
     return res.rows;
   }

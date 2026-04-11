@@ -18,9 +18,9 @@ export class UpdateButlerDto {
   // @IsOptional()
   // @IsString()
   // remarks?: string;
-  @IsOptional()
-  @IsIn(["Morning", "Evening", "Night", "Full-Day"])
-  shift?: "Morning" | "Evening" | "Night" | "Full-Day";
+  // @IsOptional()
+  // @IsIn(["Morning", "Evening", "Night", "Full-Day"])
+  // shift?: "Morning" | "Evening" | "Night" | "Full-Day";
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;

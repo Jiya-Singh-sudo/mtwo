@@ -391,9 +391,9 @@ export class GuestNetworkService {
         throw new ConflictException('Invalid guest ID format');
       }
 
-      if (!/^N\d+$/.test(dto.provider_id)) {
-        throw new ConflictException('Invalid provider ID format');
-      }
+      // if (!/^N\d+$/.test(dto.provider_id)) {
+      //   throw new ConflictException('Invalid provider ID format');
+      // }
       // Validate provider exists & active
       const provider = await client.query(
         `SELECT 1 FROM m_wifi_provider

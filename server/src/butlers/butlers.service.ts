@@ -241,10 +241,10 @@ export class ButlersService {
       // if (dto.remarks && dto.remarks.length > 255) {
       //   throw new ConflictException('Remarks cannot exceed 255 characters');
       // }
-      const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
-      if (!allowedShifts.includes(dto.shift)) {
-        throw new ConflictException('Invalid shift');
-      }
+      // const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+      // if (!allowedShifts.includes(dto.shift)) {
+      //   throw new ConflictException('Invalid shift');
+      // }
       // 1️⃣ Insert into m_staff
       await client.query(`
         INSERT INTO m_staff (
@@ -275,18 +275,17 @@ export class ButlersService {
         INSERT INTO m_butler (
           butler_id,
           staff_id,
-          shift,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,true,NOW(),$4,$5)
+        VALUES ($1,$2,true,NOW(),$3,$4)
         RETURNING *;
       `, [
         butlerId,
         staffId,
-        dto.shift,
+        // dto.shift,
         // dto.remarks ?? null,
         user,
         ip
@@ -364,12 +363,12 @@ export class ButlersService {
           throw new ConflictException('Mobile already exists');
         }
       }
-      if (dto.shift) {
-        const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
-        if (!allowedShifts.includes(dto.shift)) {
-          throw new ConflictException('Invalid shift');
-        }
-      }
+      // if (dto.shift) {
+      //   const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
+      //   if (!allowedShifts.includes(dto.shift)) {
+      //     throw new ConflictException('Invalid shift');
+      //   }
+      // }
       // if (dto.remarks && dto.remarks.length > 255) {
       //   throw new ConflictException('Remarks cannot exceed 255 characters');
       // }
@@ -410,15 +409,14 @@ export class ButlersService {
       // 2️⃣ Update m_butler
       const res = await client.query(`
         UPDATE m_butler SET
-          shift = $1,
-          is_active = $2,
+          is_active = $1,
           updated_at = NOW(),
-          updated_by = $3,
-          updated_ip = $4
-        WHERE butler_id = $5
+          updated_by = $2,
+          updated_ip = $3
+        WHERE butler_id = $4
         RETURNING *;
       `, [
-        dto.shift ?? existing.shift,
+        // dto.shift ?? existing.shift,
         dto.is_active ?? existing.is_active,
         user,
         ip,
@@ -444,8 +442,10 @@ export class ButlersService {
       const existingRes = await client.query(`
         SELECT b.staff_id, b.is_active, s.is_active
         FROM m_butler b
-        FROM m_staff s
-        WHERE b.butler_id = $1 AND b.is_active = true AND s.ia_active = true
+        JOIN m_staff s ON s.staff_id = b.staff_id
+        WHERE b.butler_id = $1 
+          AND b.is_active = true 
+          AND s.is_active = true
         FOR UPDATE
       `, [id]);
       if (!existingRes.rowCount) {

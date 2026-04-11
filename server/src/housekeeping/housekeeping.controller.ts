@@ -28,7 +28,16 @@ export class HousekeepingController {
       sortOrder,
     });
   }
-
+  @Get('options')
+  getActiveOptions() {
+    return this.service.findAll({
+      page: 1,
+      limit: 100,
+      sortBy: 'hk_name',
+      sortOrder: 'asc',
+      status: 'active', // 🔥 FORCE ACTIVE ONLY
+    });
+  }
 
   @Post()
   create(@Body() dto: CreateHousekeepingDto, @Req() req: any) {

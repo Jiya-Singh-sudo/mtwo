@@ -76,10 +76,10 @@ export class RoomsService {
       if (dto.building_name && dto.building_name.length > 100) {
         throw new BadRequestException('Building name is too long');
       }
-      const allowedResidenceTypes = ['Hostel', 'GuestHouse', 'Hotel'];
+      // const allowedResidenceTypes = ['Hostel', 'GuestHouse', 'Hotel'];
 
-      if (dto.residence_type && !allowedResidenceTypes.includes(dto.residence_type)) {
-        throw new BadRequestException('Invalid residence type');
+      if (dto.residence_type && dto.residence_type.length > 100) {
+        throw new BadRequestException('Residence type is too long');
       }
       const allowedRoomTypes = ['Single', 'Double', 'Suite', 'Dorm'];
       // if (dto.room_type && !allowedRoomTypes.includes(dto.room_type)) {

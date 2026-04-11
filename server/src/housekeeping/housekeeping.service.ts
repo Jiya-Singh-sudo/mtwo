@@ -39,7 +39,6 @@ export class HousekeepingService {
   }) {
     const SORT_MAP: Record<string, string> = {
       hk_name: 's.full_name',
-      shift: 'hk.shift',
       hk_contact: 's.primary_mobile',
     };
     if (!Number.isInteger(page) || page <= 0) {

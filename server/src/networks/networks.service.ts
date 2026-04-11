@@ -181,9 +181,9 @@ export class NetworksService {
   }
 
   async findOneById(id: string) {
-    if (!/^N\d+$/.test(id)) {
-      throw new BadRequestException('Invalid provider ID format');
-    }
+    // if (!/^N\d+$/.test(id)) {
+    //   throw new BadRequestException('Invalid provider ID format');
+    // }
     const sql = `SELECT * FROM m_wifi_provider WHERE provider_id = $1`;
     const res = await this.db.query(sql, [id]);
     if (!res.rowCount) {
@@ -320,9 +320,9 @@ export class NetworksService {
 
   async update(id: string, dto: UpdateNetworkDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
-      if (!/^N\d+$/.test(id)) {
-        throw new BadRequestException('Invalid provider ID format');
-      }
+      // if (!/^N\d+$/.test(id)) {
+      //   throw new BadRequestException('Invalid provider ID format');
+      // }
       if (dto.is_active !== undefined && typeof dto.is_active !== 'boolean') {
         throw new BadRequestException('Invalid is_active value');
       }
@@ -504,9 +504,9 @@ export class NetworksService {
 
   async softDelete(id: string, user: string, ip: string) {
    return this.db.transaction(async (client) => {
-      if (!/^N\d+$/.test(id)) {
-        throw new NotFoundException('Invalid provider ID format');
-      }
+      // if (!/^N\d+$/.test(id)) {
+      //   throw new NotFoundException('Invalid provider ID format');
+      // }
       const existingRes = await client.query(
         `SELECT * FROM m_wifi_provider WHERE provider_id = $1 AND is_active = true FOR UPDATE`,
         [id],

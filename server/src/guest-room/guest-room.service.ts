@@ -246,9 +246,9 @@ export class GuestRoomService {
         }
         const today = new Date();
         today.setHours(0,0,0,0);
-        if (new Date(dto.check_in_date) < today) {
-          throw new BadRequestException('Check-in Date cannot be in the past');
-        }
+        // if (new Date(dto.check_in_date) < today) {
+        //   throw new BadRequestException('Check-in Date cannot be in the past');
+        // }
         if (dto.remarks && dto.remarks.length > 500) {
           throw new BadRequestException('Remarks too long');
         }
