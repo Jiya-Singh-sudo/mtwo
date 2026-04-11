@@ -1,4 +1,4 @@
-import { IsString, IsOptional, Matches, MaxLength, IsEmail, IsBoolean,} from 'class-validator';
+import { IsString, IsOptional, Matches, MaxLength, IsBoolean,} from 'class-validator';
 
 export class UpdateMessengerDto {
   @IsOptional()
@@ -19,19 +19,19 @@ export class UpdateMessengerDto {
   @Matches(/^[6-9]\d{9}$/)
   secondary_mobile?: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(50)
   designation?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  remarks?: string;
+  // @IsOptional()
+  // @IsString()
+  // @MaxLength(500)
+  // remarks?: string;
 
   @IsOptional()
   @IsBoolean()

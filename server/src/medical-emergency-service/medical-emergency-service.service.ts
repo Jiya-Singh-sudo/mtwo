@@ -49,23 +49,19 @@ export class MedicalEmergencyServiceService {
             full_name_local_language,
             primary_mobile,
             alternate_mobile,
-            email,
-            address,
             designation,
             is_active,
             inserted_at,
             inserted_by,
             inserted_ip
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,'Medical Service',TRUE,NOW(),$8,$9)
+          VALUES ($1,$2,$3,$4,$5,'Medical Service',TRUE,NOW(),$6,$7)
         `, [
           staffId,
           dto.service_provider_name,
           dto.service_provider_name_local_language ?? null,
           dto.mobile ?? null,
           dto.alternate_mobile ?? null,
-          dto.email ?? null,
-          dto.address_line ?? null,
           user,
           ip
         ]);
@@ -171,8 +167,6 @@ export class MedicalEmergencyServiceService {
         s.full_name_local_language,
         s.primary_mobile AS mobile,
         s.alternate_mobile,
-        s.email,
-        s.address AS address_line,
         mes.is_active,
         mes.inserted_at
       FROM m_medical_emergency_service mes
@@ -229,19 +223,15 @@ export class MedicalEmergencyServiceService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          email = $5,
-          address = $6,
           updated_at = NOW(),
-          updated_by = $7,
-          updated_ip = $8
-        WHERE staff_id = $9
+          updated_by = $5,
+          updated_ip = $6
+        WHERE staff_id = $7
       `, [
         dto.service_provider_name ?? existing.full_name,
         dto.service_provider_name_local_language ?? existing.full_name_local_language,
         dto.mobile ?? existing.primary_mobile,
         dto.alternate_mobile ?? existing.alternate_mobile,
-        dto.email ?? existing.email,
-        dto.address_line ?? existing.address,
         user,
         ip,
         existing.staff_id

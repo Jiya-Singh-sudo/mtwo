@@ -106,7 +106,7 @@ export class GuestMessengerService {
 
         io.room_id,
         r.room_no,
-        r.room_name,
+        r.building_name,
         io.entry_date,
         io.entry_time,
         io.exit_date,
@@ -506,7 +506,6 @@ export class GuestMessengerService {
         s.full_name_local_language,
         s.primary_mobile,
         s.alternate_mobile AS secondary_mobile,
-        s.email,
         s.designation,
         gm.assignment_date,
         gm.remarks,

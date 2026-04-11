@@ -1,6 +1,6 @@
 import {
   IsString,
-  IsEmail,
+  // IsEmail,
   IsOptional,
   IsDateString,
 } from 'class-validator';
@@ -23,13 +23,13 @@ export class CreateDriverDto {
   @IsString()
   driver_license: string;
 
-  @IsOptional()
-  @IsEmail()
-  driver_mail: string;
+  // @IsOptional()
+  // @IsEmail()
+  // driver_mail: string;
 
-  @IsString()
-  @IsOptional()
-  address?: string;
+  // @IsString()
+  // @IsOptional()
+  // address?: string;
 
   @IsOptional()
   @IsDateString()

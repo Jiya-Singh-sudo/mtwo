@@ -1,11 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 
 export const logout = async () => {
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
-    await AsyncStorage.removeItem('user');
+    try {
+        await SecureStore.deleteItemAsync('accessToken');
+        await SecureStore.deleteItemAsync('refreshToken');
+        await SecureStore.deleteItemAsync('user');
+    } catch {
+        // ignore storage failures
+    }   
     
     // Use expo-router to redirect to login
-    router.replace('/login/LoginScreen');
+    router.replace('/login');
 };

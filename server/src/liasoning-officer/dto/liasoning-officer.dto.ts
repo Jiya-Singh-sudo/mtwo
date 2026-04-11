@@ -1,6 +1,6 @@
 // server/src/modules/liasoning-officer/dto/liasoning-officer.dto.ts
 
-import { IsString, IsOptional, IsBoolean, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsBoolean} from 'class-validator';
 
 export class CreateLiasoningOfficerDto {
   @IsString()
@@ -20,13 +20,13 @@ export class CreateLiasoningOfficerDto {
   @IsString()
   alternate_mobile?: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 
   @IsString()
   role_id: string;
@@ -61,13 +61,13 @@ export class UpdateLiasoningOfficerDto {
   @IsString()
   alternate_mobile?: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 
   @IsOptional()
   @IsString()

@@ -20,12 +20,12 @@ export type LoginResponse = {
 export async function loginApi(
     username: string,
     password: string,
-    recaptchaToken: string
+    recaptchaToken?: string
 ): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/auth/login', {
+    const response = await apiClient.post<LoginResponse>('/auth/loginM', {
         username,
         password,
-        recaptchaToken,
+        ...(recaptchaToken ? { recaptchaToken } : {}),
     });
 
   return response.data;

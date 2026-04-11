@@ -6,7 +6,7 @@ import { GuestRoomService } from 'src/guest-room/guest-room.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
-  room_name: 'r.room_name',
+  building_name: 'r.building_name',
   status: 'r.status',
   guest_name: 'g.guest_name',
   hk_name: 's.full_name',
@@ -80,7 +80,7 @@ export class RoomManagementService {
       whereParts.push(`
         (
           r.room_no ILIKE $${idx}
-          OR r.room_name ILIKE $${idx}
+          OR r.building_name ILIKE $${idx}
           OR g.guest_name ILIKE $${idx}
         )
       `);
@@ -191,12 +191,9 @@ export class RoomManagementService {
       SELECT
         r.room_id,
         r.room_no,
-        r.room_name,
         r.building_name,
         r.residence_type,
-        r.room_type,
         r.room_category,
-        r.room_capacity,
         r.status,
 
         g.guest_id,
@@ -281,12 +278,9 @@ export class RoomManagementService {
       data: rows.map((r) => ({
         roomId: r.room_id,
         roomNo: r.room_no,
-        roomName: r.room_name,
-        roomType: r.room_type,
         buildingName: r.building_name,
         residenceType: r.residence_type,
         roomCategory: r.room_category,
-        roomCapacity: r.room_capacity,
         status: r.status,
 
         guest: r.guest_id
@@ -352,9 +346,9 @@ export class RoomManagementService {
           throw new BadRequestException('Invalid room no format');
         }
 
-        if (dto.room_name && dto.room_name.length > 100) {
-          throw new BadRequestException('Room name too long');
-        }
+        // if (dto.room_name && dto.room_name.length > 100) {
+        //   throw new BadRequestException('Room name too long');
+        // }
 
         if (dto.building_name && dto.building_name.length > 100) {
           throw new BadRequestException('Building name too long');
@@ -363,15 +357,15 @@ export class RoomManagementService {
         if (dto.room_category && dto.room_category.length > 100) {
           throw new BadRequestException('Room category too long');
         }
-        if (dto.room_capacity !== undefined) {
-          if (!Number.isInteger(dto.room_capacity)) {
-            throw new BadRequestException('Invalid room capacity');
-          }
+        // if (dto.room_capacity !== undefined) {
+        //   if (!Number.isInteger(dto.room_capacity)) {
+        //     throw new BadRequestException('Invalid room capacity');
+        //   }
 
-          if (dto.room_capacity < 1 || dto.room_capacity > 20) {
-            throw new BadRequestException('Room capacity out of range');
-          }
-        }
+        //   if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+        //     throw new BadRequestException('Room capacity out of range');
+        //   }
+        // }
         const allowedRoomStatuses = ['Available', 'Occupied', 'Maintenance', 'Reserved'];
 
         if (dto.status && !allowedRoomStatuses.includes(dto.status)) {
@@ -419,15 +413,15 @@ export class RoomManagementService {
         const activeGuestCount = activeGuestRes.rowCount;
         /* ================= VALIDATIONS ================= */
         // 1️⃣ Capacity must always be >= 1
-        if (
-          dto.room_capacity !== undefined &&
-          activeGuestCount > 0 &&
-          dto.room_capacity < room.room_capacity
-        ) {
-          throw new BadRequestException(
-            'Room capacity must be at least 1'
-          );
-        }
+        // if (
+        //   dto.room_capacity !== undefined &&
+        //   activeGuestCount > 0 &&
+        //   dto.room_capacity < room.room_capacity
+        // ) {
+        //   throw new BadRequestException(
+        //     'Room capacity must be at least 1'
+        //   );
+        // }
         // 2️⃣ If room has active guest, restrict critical changes
         if (activeGuestCount > 0) {
           if (dto.room_no && dto.room_no !== room.room_no) {
@@ -436,20 +430,20 @@ export class RoomManagementService {
             );
           }
 
-          if (dto.room_type && dto.room_type !== room.room_type) {
-            throw new BadRequestException(
-              'Room type cannot be changed while room is occupied'
-            );
-          }
+          // if (dto.room_type && dto.room_type !== room.room_type) {
+          //   throw new BadRequestException(
+          //     'Room type cannot be changed while room is occupied'
+          //   );
+          // }
 
-          if (
-            dto.room_capacity !== undefined &&
-            dto.room_capacity < activeGuestCount
-          ) {
-            throw new BadRequestException(
-              `Room capacity cannot be less than current occupancy (${activeGuestCount})`
-            );
-          }
+          // if (
+          //   dto.room_capacity !== undefined &&
+          //   dto.room_capacity < activeGuestCount
+          // ) {
+          //   throw new BadRequestException(
+          //     `Room capacity cannot be less than current occupancy (${activeGuestCount})`
+          //   );
+          // }
 
           if (dto.status === 'Available') {
             throw new BadRequestException(
@@ -522,25 +516,19 @@ export class RoomManagementService {
           `
           UPDATE m_rooms SET
             room_no = COALESCE($1, room_no),
-            room_name = COALESCE($2, room_name),
-            building_name = COALESCE($3, building_name),
-            residence_type = COALESCE($4, residence_type),
-            room_type = COALESCE($5, room_type),
-            room_capacity = COALESCE($6, room_capacity),
-            room_category = COALESCE($7, room_category),
-            status = COALESCE($8, status),
+            building_name = COALESCE($2, building_name),
+            residence_type = COALESCE($3, residence_type),
+            room_category = COALESCE($4, room_category),
+            status = COALESCE($5, status),
             updated_at = NOW(),
-            updated_by = $9,
-            updated_ip = $10
-          WHERE room_id = $11
+            updated_by = $6,
+            updated_ip = $7
+          WHERE room_id = $8
           `,
           [
             dto.room_no,
-            dto.room_name,
             dto.building_name,
             dto.residence_type,
-            dto.room_type,
-            dto.room_capacity,
             dto.room_category,
             dto.status,
             user,
@@ -773,8 +761,7 @@ export class RoomManagementService {
         io.rooms_required,
         io.companions,
 
-        COUNT(gr.guest_room_id) AS allocated_rooms,
-        COALESCE(SUM(r.room_capacity), 0) AS allocated_capacity
+        COUNT(gr.guest_room_id) AS allocated_rooms
 
       FROM t_guest_inout io
 

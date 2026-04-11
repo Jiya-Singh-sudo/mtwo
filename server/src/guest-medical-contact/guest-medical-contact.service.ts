@@ -222,7 +222,6 @@ export class GuestMedicalContactService {
         st.full_name,
         s.primary_mobile,
         s.alternate_mobile,
-        s.email,
 
       FROM t_guest_medical_contact gmc
 

@@ -27,11 +27,11 @@ export class UpdateHousekeepingDto {
   // })
   hk_alternate_contact?: string;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value?.trim())
-  @MaxLength(255, { message: 'Address is too long' })
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // @Transform(({ value }) => value?.trim())
+  // @MaxLength(255, { message: 'Address is too long' })
+  // address?: string;
 
   // @IsOptional()
   // @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {

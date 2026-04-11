@@ -45,8 +45,7 @@ export class NotificationScheduler {
         SELECT 
           u.user_id,
           s.full_name,
-          s.primary_mobile,
-          s.email
+          s.primary_mobile
         FROM m_user u
         JOIN m_staff s ON s.staff_id = u.staff_id
         WHERE u.is_active = TRUE

@@ -10,6 +10,9 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getActiveGuests,
@@ -61,6 +64,10 @@ export default function GuestManagementScreen() {
   const [search, setSearch] = useState('');
   const [entryDateFrom, setEntryDateFrom] = useState('');
   const [entryDateTo, setEntryDateTo] = useState('');
+  const [showEntryDatePicker, setShowEntryDatePicker] = useState(false);
+  const [showExitDatePicker, setShowExitDatePicker] = useState(false);
+  const [showEntryTimePicker, setShowEntryTimePicker] = useState(false);
+  const [showExitTimePicker, setShowExitTimePicker] = useState(false);
 
   // Modals
   const [showViewModal, setShowViewModal] = useState(false);
@@ -96,8 +103,14 @@ export default function GuestManagementScreen() {
 
   const isLockedStatus = (s: string) => s === 'Exited' || s === 'Cancelled';
 
-  useEffect(() => { loadGuests(); }, [page, status, search, entryDateFrom, entryDateTo]);
-  useEffect(() => { loadDesignations(); }, []);
+  useEffect(() => {
+    loadGuests();
+  }, [page, status, search, entryDateFrom, entryDateTo]);
+
+  useEffect(() => {
+    loadDesignations();
+    loadStats(); 
+  }, []);
 
   const loadDesignations = async () => {
     try {
@@ -107,7 +120,20 @@ export default function GuestManagementScreen() {
       console.error('Failed to load designations', err);
     }
   };
+  const loadStats = async () => {
+    try {
+      const res = await getActiveGuests({
+        page: 1,
+        limit: 1,
+        // ❌ DO NOT SEND status / filters
+      });
 
+      setStatusCounts(res.statusCounts || {});
+      setTotalCount(res.totalCount || 0);
+    } catch (error) {
+      console.error('Failed to load stats', error);
+    }
+  };
   const loadGuests = async () => {
     setLoading(true);
     try {
@@ -120,8 +146,8 @@ export default function GuestManagementScreen() {
         entryDateTo: entryDateTo || undefined,
       });
       setGuests(res.data || []);
-      setTotalCount(res.totalCount || 0);
-      setStatusCounts(res.statusCounts || {});
+      // setTotalCount(res.totalCount || 0);
+      // setStatusCounts(res.statusCounts || {});
     } catch (error) {
       console.error('Failed to load guests', error);
       Alert.alert('Error', 'Could not load guest data');
@@ -134,6 +160,7 @@ export default function GuestManagementScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadGuests();
+    loadStats();
   }, []);
 
   const handleSave = async () => {
@@ -276,7 +303,7 @@ export default function GuestManagementScreen() {
 
   // ─── render ────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { flex: 1 }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -428,7 +455,12 @@ export default function GuestManagementScreen() {
         footer={<Button title="Close" variant="outline" onPress={() => setShowViewModal(false)} />}
       >
         {selectedGuest && (
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 1 }}
+        >
             <SectionCard title="Basic Information" icon="person-outline">
               <DetailRow label="Full Name" value={selectedGuest.guest_name} />
               <DetailRow label="Local Name" value={selectedGuest.guest_name_local_language} />
@@ -471,8 +503,14 @@ export default function GuestManagementScreen() {
           </View>
         }
       >
-        <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}>
-
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+          contentContainerStyle={{ paddingBottom: 5}}
+        >
+        {/* <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}> */}
           {/* Section: Guest Info */}
           <SectionCard title="Guest Information" icon="person-outline">
             <Input
@@ -480,11 +518,7 @@ export default function GuestManagementScreen() {
               value={form.guest_name}
               onChangeText={v => setForm({ ...form, guest_name: v })}
             />
-            <Input
-              label="Local Language Name"
-              value={form.guest_name_local}
-              onChangeText={v => setForm({ ...form, guest_name_local: v })}
-            />
+
             <View style={styles.row}>
               <Input
                 label="Mobile *"
@@ -530,7 +564,11 @@ export default function GuestManagementScreen() {
               />
               {showDesignationDropdown && (
                 <View style={styles.dropdown}>
-                  <ScrollView nestedScrollEnabled style={{ maxHeight: 150 }}>
+                  <ScrollView
+                    nestedScrollEnabled={true}
+                    keyboardShouldPersistTaps="handled"
+                    style={{ maxHeight: 200 }}
+                  >
                     {designations
                       .filter(d => d.designation_name.toLowerCase().includes(designationSearch.toLowerCase()))
                       .map((d, idx) => (
@@ -593,36 +631,42 @@ export default function GuestManagementScreen() {
           {/* Section: Visit Details */}
           <SectionCard title="Visit Details" icon="calendar-outline">
             <View style={styles.row}>
-              <Input
-                label="Entry Date"
-                placeholder="YYYY-MM-DD"
-                value={form.entry_date}
-                onChangeText={v => setForm({ ...form, entry_date: v })}
-                containerStyle={{ flex: 1 }}
-              />
-              <Input
-                label="Entry Time"
-                placeholder="HH:mm"
-                value={form.entry_time}
-                onChangeText={v => setForm({ ...form, entry_time: v })}
-                containerStyle={{ flex: 1 }}
-              />
+<TouchableOpacity onPress={() => setShowEntryDatePicker(true)} style={{ flex: 1 }}>
+  <Input
+    label="Entry Date"
+    value={form.entry_date}
+    editable={false}
+  />
+</TouchableOpacity>
+
+
+<TouchableOpacity onPress={() => setShowEntryTimePicker(true)} style={{ flex: 1 }}>
+  <Input
+    label="Entry Time"
+    value={form.entry_time}
+    editable={false}
+  />
+</TouchableOpacity>
+
             </View>
             <View style={styles.row}>
-              <Input
-                label="Exit Date"
-                placeholder="YYYY-MM-DD"
-                value={form.exit_date}
-                onChangeText={v => setForm({ ...form, exit_date: v })}
-                containerStyle={{ flex: 1 }}
-              />
-              <Input
-                label="Exit Time"
-                placeholder="HH:mm"
-                value={form.exit_time}
-                onChangeText={v => setForm({ ...form, exit_time: v })}
-                containerStyle={{ flex: 1 }}
-              />
+<TouchableOpacity onPress={() => setShowExitDatePicker(true)} style={{ flex: 1 }}>
+  <Input
+    label="Exit Date"
+    value={form.exit_date}
+    editable={false}
+    // pointerEvents="none"
+  />
+</TouchableOpacity>
+
+<TouchableOpacity onPress={() => setShowExitTimePicker(true)} style={{ flex: 1 }}>
+  <Input
+    label="Exit Time"
+    value={form.exit_time}
+    editable={false}
+  />
+</TouchableOpacity>
+
             </View>
             <View style={styles.row}>
               <Input
@@ -654,9 +698,69 @@ export default function GuestManagementScreen() {
               onChangeText={v => setForm({ ...form, purpose: v })}
             />
           </SectionCard>
-
-          <View style={{ height: 80 }} />
+{showEntryDatePicker && (
+  <DateTimePicker
+    value={form.entry_date ? new Date(form.entry_date) : new Date()}
+    mode="date"
+    display="default"
+    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {  
+      setShowEntryDatePicker(false);
+      if (selectedDate) {
+        setForm({
+          ...form,
+          entry_date: selectedDate.toISOString().split('T')[0],
+        });
+      }
+    }}
+  />
+)}
+{showEntryTimePicker && (
+  <DateTimePicker
+    value={new Date()}
+    mode="time"
+    is24Hour
+    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+      setShowEntryTimePicker(false);
+      if (selectedDate) {
+        const time = selectedDate.toTimeString().slice(0, 5);
+        setForm({ ...form, entry_time: time });
+      }
+    }}
+  />
+)}
+{showExitDatePicker && (
+  <DateTimePicker
+    value={form.exit_date ? new Date(form.exit_date) : new Date()}
+    mode="date"
+    display="default"
+    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+      setShowExitDatePicker(false);
+      if (selectedDate) {
+        setForm({
+          ...form,
+          exit_date: selectedDate.toISOString().split('T')[0],
+        });
+      }
+    }}
+  />
+)}
+{showExitTimePicker && (
+  <DateTimePicker
+    value={new Date()}
+    mode="time"
+    is24Hour
+    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+      setShowExitTimePicker(false);
+      if (selectedDate) {
+        const time = selectedDate.toTimeString().slice(0, 5);
+        setForm({ ...form, exit_time: time });
+      }
+    }}
+  />
+)}
+          {/* <View style={{ height: 80 }} /> */}
         </ScrollView>
+
       </Modal>
     </View>
   );
@@ -951,6 +1055,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     padding: spacing.md,
     borderRadius: 14,
+    overflow: 'visible',
   },
   sectionHeader: {
     flexDirection: 'row',

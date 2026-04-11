@@ -588,7 +588,7 @@ export class GuestFoodService {
 
         gr.room_id,
         r.room_no,
-        r.room_name,
+        r.building_name,
 
         md.designation_name,
         md.designation_name_local_language,

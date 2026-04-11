@@ -72,9 +72,7 @@ export class RoomsService {
       if (!/^[A-Z0-9\-]+$/.test(normalizedRoomNo)) {
         throw new BadRequestException('Invalid room number format');
       }
-      if (dto.room_name && dto.room_name.length > 100) {
-        throw new BadRequestException('Room name is too long');
-      }
+
       if (dto.building_name && dto.building_name.length > 100) {
         throw new BadRequestException('Building name is too long');
       }
@@ -84,18 +82,18 @@ export class RoomsService {
         throw new BadRequestException('Invalid residence type');
       }
       const allowedRoomTypes = ['Single', 'Double', 'Suite', 'Dorm'];
-      if (dto.room_type && !allowedRoomTypes.includes(dto.room_type)) {
-        throw new BadRequestException('Invalid room type');
-      }
-      if (dto.room_capacity !== undefined) {
-        if (!Number.isInteger(dto.room_capacity)) {
-          throw new BadRequestException('Invalid room capacity');
-        }
+      // if (dto.room_type && !allowedRoomTypes.includes(dto.room_type)) {
+      //   throw new BadRequestException('Invalid room type');
+      // }
+      // if (dto.room_capacity !== undefined) {
+      //   if (!Number.isInteger(dto.room_capacity)) {
+      //     throw new BadRequestException('Invalid room capacity');
+      //   }
 
-        if (dto.room_capacity < 1 || dto.room_capacity > 20) {
-          throw new BadRequestException('Room capacity is out of range');
-        }
-      }
+      //   if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+      //     throw new BadRequestException('Room capacity is out of range');
+      //   }
+      // }
       if (dto.room_category && dto.room_category.length > 100) {
         throw new BadRequestException('Room category is too long');
       }
@@ -127,29 +125,23 @@ export class RoomsService {
           INSERT INTO m_rooms (
             room_id,
             room_no,
-            room_name,
             building_name,
             residence_type,
-            room_type,
-            room_capacity,
             room_category,
             status,
             is_active,
             inserted_at, inserted_by, inserted_ip,
             updated_at, updated_by, updated_ip
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),$10,$11,NULL,NULL,NULL)
+          VALUES ($1,$2,$3,$4,$5,$6,true,NOW(),$7,$8,NULL,NULL,NULL)
           RETURNING *;
         `;
 
         const params = [
           roomId,
           dto.room_no,
-          dto.room_name ?? null,
           dto.building_name ?? null,
           dto.residence_type ?? null,
-          dto.room_type ?? null,
-          dto.room_capacity ?? null,
           dto.room_category ?? null,
           dto.status,
           user,
@@ -199,8 +191,8 @@ export class RoomsService {
       );
       const activeGuestCount = activeGuestRes.rowCount;
       const nextRoomNo = dto.room_no ?? existing.room_no;
-      const nextRoomType = dto.room_type ?? existing.room_type;
-      const nextCapacity = dto.room_capacity ?? existing.room_capacity;
+      // const nextRoomType = dto.room_type ?? existing.room_type;
+      // const nextCapacity = dto.room_capacity ?? existing.room_capacity;
       const nextIsActive = dto.is_active ?? existing.is_active;
       if (dto.room_no && dto.room_no !== existing.room_no) {
         const duplicate = await client.query(
@@ -221,15 +213,15 @@ export class RoomsService {
           );
         }
       }
-      if (dto.room_capacity !== undefined) {
-        if (!Number.isInteger(dto.room_capacity)) {
-          throw new BadRequestException('INVALID_ROOM_CAPACITY');
-        }
+      // if (dto.room_capacity !== undefined) {
+      //   if (!Number.isInteger(dto.room_capacity)) {
+      //     throw new BadRequestException('INVALID_ROOM_CAPACITY');
+      //   }
 
-        if (dto.room_capacity < 1 || dto.room_capacity > 20) {
-          throw new BadRequestException('ROOM_CAPACITY_OUT_OF_RANGE');
-        }
-      }
+      //   if (dto.room_capacity < 1 || dto.room_capacity > 20) {
+      //     throw new BadRequestException('ROOM_CAPACITY_OUT_OF_RANGE');
+      //   }
+      // }
       if (dto.status) {
         const allowedStatus = ['Available', 'Maintenance', 'Reserved', 'Occupied'];
 
@@ -237,9 +229,9 @@ export class RoomsService {
           throw new BadRequestException('INVALID_ROOM_STATUS');
         }
       }
-      if (dto.room_name && dto.room_name.length > 100) {
-        throw new BadRequestException('ROOM_NAME_TOO_LONG');
-      }
+      // if (dto.room_name && dto.room_name.length > 100) {
+      //   throw new BadRequestException('ROOM_NAME_TOO_LONG');
+      // }
 
       if (dto.building_name && dto.building_name.length > 100) {
         throw new BadRequestException('BUILDING_NAME_TOO_LONG');
@@ -253,18 +245,18 @@ export class RoomsService {
           );
         }
 
-        if (nextRoomType !== existing.room_type) {
-          throw new BadRequestException(
-            'Room type cannot be changed while the room is occupied'
-          );
-        }
+        // if (nextRoomType !== existing.room_type) {
+        //   throw new BadRequestException(
+        //     'Room type cannot be changed while the room is occupied'
+        //   );
+        // }
 
-        // 2️⃣ Capacity must not drop below current occupancy
-        if (nextCapacity < activeGuestCount) {
-          throw new BadRequestException(
-            `Room capacity cannot be less than current occupancy (${activeGuestCount})`
-          );
-        }
+        // // 2️⃣ Capacity must not drop below current occupancy
+        // if (nextCapacity < activeGuestCount) {
+        //   throw new BadRequestException(
+        //     `Room capacity cannot be less than current occupancy (${activeGuestCount})`
+        //   );
+        // }
 
         // 3️⃣ Occupied room cannot be deactivated
         if (nextIsActive === false) {
@@ -277,28 +269,22 @@ export class RoomsService {
       const sql = `
         UPDATE m_rooms SET
           room_no = $1,
-          room_name = $2,
-          building_name = $3,
-          residence_type = $4,
-          room_type = $5,
-          room_capacity = $6,
-          room_category = $7,
-          status = $8,
-          is_active = $9,
+          building_name = $2,
+          residence_type = $3,
+          room_category = $4,
+          status = $5,
+          is_active = $6,
           updated_at = NOW(),
-          updated_by = $10,
-          updated_ip = $11
-        WHERE room_id = $12
+          updated_by = $7,
+          updated_ip = $8
+        WHERE room_id = $9
         RETURNING *;
       `;
 
       const params = [
         nextRoomNo,
-        dto.room_name ?? existing.room_name,
         dto.building_name ?? existing.building_name,
         dto.residence_type ?? existing.residence_type,
-        nextRoomType,
-        nextCapacity,
         dto.room_category ?? existing.room_category,
         dto.status ?? existing.status,
         nextIsActive,

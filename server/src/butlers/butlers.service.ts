@@ -96,9 +96,6 @@ export class ButlersService {
         b.is_active,
         s.primary_mobile AS butler_mobile,
         s.alternate_mobile AS butler_alternate_mobile,
-        s.email AS butler_email,
-        s.address,
-        b.remarks,
         b.shift,
         b.inserted_at,
         b.inserted_by,
@@ -150,9 +147,7 @@ export class ButlersService {
             s.full_name_local_language,
             s.primary_mobile,
             s.alternate_mobile,
-            s.address,
             b.shift,
-            b.remarks,
             b.is_active
           FROM m_butler b
           JOIN m_staff s ON s.staff_id = b.staff_id
@@ -164,9 +159,7 @@ export class ButlersService {
             s.full_name_local_language,
             s.primary_mobile,
             s.alternate_mobile,
-            s.address,
             b.shift,
-            b.remarks,
             b.is_active
           FROM m_butler b
           JOIN m_staff s ON s.staff_id = b.staff_id
@@ -187,14 +180,12 @@ export class ButlersService {
             SELECT 
               b.butler_id,
               b.shift,
-              b.remarks,
               b.is_active,
               s.staff_id,
               s.full_name,
               s.full_name_local_language,
               s.primary_mobile,
               s.alternate_mobile,
-              s.address
             FROM m_butler b
             JOIN m_staff s ON s.staff_id = b.staff_id
             WHERE b.butler_id = $1
@@ -244,12 +235,12 @@ export class ButlersService {
           throw new ConflictException('Mobile already exists');
         }
       }
-      if (dto.address && dto.address.length > 255) {
-        throw new ConflictException('Address cannot exceed 255 characters');
-      }
-      if (dto.remarks && dto.remarks.length > 255) {
-        throw new ConflictException('Remarks cannot exceed 255 characters');
-      }
+      // if (dto.address && dto.address.length > 255) {
+      //   throw new ConflictException('Address cannot exceed 255 characters');
+      // }
+      // if (dto.remarks && dto.remarks.length > 255) {
+      //   throw new ConflictException('Remarks cannot exceed 255 characters');
+      // }
       const allowedShifts = ['Morning', 'Evening', 'Night', 'Full Day'];
       if (!allowedShifts.includes(dto.shift)) {
         throw new ConflictException('Invalid shift');
@@ -262,21 +253,19 @@ export class ButlersService {
           full_name_local_language,
           primary_mobile,
           alternate_mobile,
-          address,
           designation,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,'Butler',true,NOW(),$7,$8)
+        VALUES ($1,$2,$3,$4,$5,'Butler',true,NOW(),$6,$7)
       `, [
         staffId,
         dto.butler_name,
         butler_name_local_language,
         dto.butler_mobile ?? null,
         dto.butler_alternate_mobile ?? null,
-        dto.address ?? null,
         user,
         ip
       ]);
@@ -287,19 +276,18 @@ export class ButlersService {
           butler_id,
           staff_id,
           shift,
-          remarks,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,true,NOW(),$5,$6)
+        VALUES ($1,$2,$3,true,NOW(),$4,$5)
         RETURNING *;
       `, [
         butlerId,
         staffId,
         dto.shift,
-        dto.remarks ?? null,
+        // dto.remarks ?? null,
         user,
         ip
       ]);
@@ -382,9 +370,9 @@ export class ButlersService {
           throw new ConflictException('Invalid shift');
         }
       }
-      if (dto.remarks && dto.remarks.length > 255) {
-        throw new ConflictException('Remarks cannot exceed 255 characters');
-      }
+      // if (dto.remarks && dto.remarks.length > 255) {
+      //   throw new ConflictException('Remarks cannot exceed 255 characters');
+      // }
       if (dto.is_active === true && existing.is_active === false) {
         const duplicate = await client.query(`
           SELECT 1 FROM m_butler 
@@ -405,17 +393,15 @@ export class ButlersService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          address = $5,
           updated_at = NOW(),
-          updated_by = $6,
-          updated_ip = $7
-        WHERE staff_id = $8
+          updated_by = $5,
+          updated_ip = $6
+        WHERE staff_id = $7
       `, [
         updatedName,
         updatedLocal,
         dto.butler_mobile ?? existing.primary_mobile,
         dto.butler_alternate_mobile ?? existing.alternate_mobile,
-        dto.address ?? existing.address,
         user,
         ip,
         existing.staff_id
@@ -425,16 +411,14 @@ export class ButlersService {
       const res = await client.query(`
         UPDATE m_butler SET
           shift = $1,
-          remarks = $2,
-          is_active = $3,
+          is_active = $2,
           updated_at = NOW(),
-          updated_by = $4,
-          updated_ip = $5
-        WHERE butler_id = $6
+          updated_by = $3,
+          updated_ip = $4
+        WHERE butler_id = $5
         RETURNING *;
       `, [
         dto.shift ?? existing.shift,
-        dto.remarks ?? existing.remarks,
         dto.is_active ?? existing.is_active,
         user,
         ip,

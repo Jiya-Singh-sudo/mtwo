@@ -11,12 +11,12 @@ export class CreateButlerDto {
   @IsOptional()
   @IsNumber()
   butler_alternate_mobile?: string; // validated by backend regex
-  @IsOptional()
-  @IsString()
-  address?: string;
-  @IsOptional()
-  @IsString()
-  remarks?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
+  // @IsOptional()
+  // @IsString()
+  // remarks?: string;
   
   @IsIn(["Morning", "Evening", "Night", "Full-Day"])
   shift: "Morning" | "Evening" | "Night" | "Full-Day";

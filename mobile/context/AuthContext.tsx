@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import api from '@/api/apiClient';
 import { loginApi, logoutApi } from '@/api/authentication/auth.api';
 
@@ -25,10 +25,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const secureStoreAvailable = async () => {
+    try {
+      return await SecureStore.isAvailableAsync();
+    } catch {
+      return false;
+    }
+  };
+
+  const getStoredValue = async (key: string) => {
+    if (!(await secureStoreAvailable())) return null;
+
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const setStoredValue = async (key: string, value: string) => {
+    if (!(await secureStoreAvailable())) return;
+
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const deleteStoredValue = async (key: string) => {
+    if (!(await secureStoreAvailable())) return;
+
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // ignore storage failures
+    }
+  };
+
   useEffect(() => {
     const loadStoredUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem('user');
+        const storedUser = await getStoredValue('user');
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
@@ -59,21 +97,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (
     username: string,
     password: string,
-    recaptchaToken: string
+    // recaptchaToken: string
   ) => {
-    const res = await loginApi(username, password, recaptchaToken);
+    const res = await loginApi(username, password);
 
     const { accessToken, refreshToken, payload } = res;
 
-    await AsyncStorage.setItem('accessToken', accessToken);
-    await AsyncStorage.setItem('refreshToken', refreshToken);
-    await AsyncStorage.setItem('user', JSON.stringify(payload));
+    await setStoredValue('accessToken', accessToken);
+    await setStoredValue('refreshToken', refreshToken);
+    await setStoredValue('user', JSON.stringify(payload));
 
     setUser(payload);
   }
 
   const logout = async () => {
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const refreshToken = await getStoredValue('refreshToken');
 
     if (refreshToken) {
       try {
@@ -83,9 +121,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
-    await AsyncStorage.removeItem('user');
+    await deleteStoredValue('accessToken');
+    await deleteStoredValue('refreshToken');
+    await deleteStoredValue('user');
 
     setUser(null);
   };

@@ -114,8 +114,7 @@ export class UsersService {
         u.role_id, 
         s.primary_mobile, 
         s.alternate_mobile, 
-        s.email,
-        s.address,
+        u.email,
         u.last_login, 
         u.is_active, 
         u.inserted_at, 
@@ -166,8 +165,7 @@ export class UsersService {
         s.full_name_local_language,
         s.primary_mobile,
         s.alternate_mobile,
-        s.email,
-        s.address,
+        u.email,
 
         u.inserted_at,
         u.inserted_by,
@@ -202,14 +200,12 @@ export class UsersService {
           full_name_local_language,
           primary_mobile,
           alternate_mobile,
-          email,
-          address,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW(),$8,$9)
+        VALUES ($1,$2,$3,$4,$5,true,NOW(),$6,$7)
       `, [
         staff_id,
         dto.full_name,
@@ -217,7 +213,6 @@ export class UsersService {
         dto.primary_mobile ?? null,
         dto.alternate_mobile ?? null,
         dto.email ?? null,
-        dto.address ?? null,
         user,
         ip
       ]);
@@ -231,13 +226,14 @@ export class UsersService {
           role_id,
           staff_id,
           password,
+          email,
           last_login,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,NULL,true,NOW(),$6,$7)
+        VALUES ($1,$2,$3,$4,$5,$6,NULL,true,NOW(),$7,$8)
         RETURNING *;
       `;
       const params = [
@@ -245,7 +241,8 @@ export class UsersService {
         normalizedUsername,                    // $2
         dto.role_id,                     // $3
         staff_id,                         // $4
-        hashed,                          // $5
+        hashed,
+        dto.email ?? null,                          // $5
         user,                            // $6
         ip,                              // $7
       ];
@@ -396,17 +393,15 @@ export class UsersService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          email = $5,
           updated_at = NOW(),
-          updated_by = $6,
-          updated_ip = $7
-        WHERE staff_id = $8
+          updated_by = $5,
+          updated_ip = $6
+        WHERE staff_id = $7
       `, [
         updatedFullName,
         updatedLocal,
         dto.primary_mobile ?? existing.primary_mobile,
         dto.alternate_mobile ?? existing.alternate_mobile,
-        dto.email ?? existing.email,
         user,
         ip,
         existing.staff_id
@@ -417,11 +412,12 @@ export class UsersService {
           username = $1,
           role_id = $2,
           password = $3,
-          is_active = $4,
+          email = $4,
+          is_active = $5,
           updated_at = NOW(),
-          updated_by = $5,
-          updated_ip = $6
-        WHERE user_id = $7
+          updated_by = $6,
+          updated_ip = $7
+        WHERE user_id = $8
         RETURNING *;
       `;
 
@@ -431,6 +427,7 @@ export class UsersService {
           : existing.username,
         dto.role_id ?? existing.role_id,
         passwordHash,
+        dto.email ?? existing.email,
         dto.is_active ?? existing.is_active,
         user,
         ip,
@@ -550,8 +547,7 @@ export class UsersService {
         s.full_name_local_language,
         s.primary_mobile AS user_mobile,
         s.alternate_mobile AS user_alternate_mobile,
-        s.email,
-        s.address;
+        u.email,
     `;
     const res = await this.db.query(updSql, [ip, existing.user_id, normalizedUsername]);
     // return user without password

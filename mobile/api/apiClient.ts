@@ -1,9 +1,17 @@
 // api/apiClient.ts
 
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from 'expo-secure-store';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "";
+
+const getSecureToken = async () => {
+  try {
+    return await SecureStore.getItemAsync("accessToken");
+  } catch {
+    return null;
+  }
+};
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +26,7 @@ export const api = axios.create({
  */
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem("accessToken");
+    const token = await getSecureToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -37,8 +45,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem("accessToken");
-      await AsyncStorage.removeItem("user");
+      await SecureStore.deleteItemAsync("accessToken");
+      await SecureStore.deleteItemAsync("user");
     }
 
     return Promise.reject(error);

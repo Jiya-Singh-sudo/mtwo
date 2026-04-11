@@ -119,8 +119,6 @@ export class DriversService {
         s.full_name_local_language,
         s.primary_mobile AS driver_contact,
         s.alternate_mobile AS driver_alternate_mobile,
-        s.email AS driver_mail,
-        s.address,
         s.designation,
         d.driver_license,
         d.license_expiry_date,
@@ -160,7 +158,6 @@ export class DriversService {
         s.primary_mobile AS driver_contact,
         s.alternate_mobile AS driver_alternate_mobile,
         d.driver_license,
-        s.email AS driver_mail,
         d.license_expiry_date
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
@@ -189,8 +186,6 @@ export class DriversService {
       s.primary_mobile AS driver_contact,
       s.alternate_mobile AS driver_alternate_mobile,
       d.driver_license,
-      s.address,
-      s.email AS driver_mail,
       d.license_expiry_date,
       d.is_active,
       s.is_active AS staff_is_active,
@@ -276,13 +271,13 @@ export class DriversService {
       if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
         throw new BadRequestException('Invalid alternate contact');
       }
-      if (dto.driver_mail) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // if (dto.driver_mail) {
+      //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!emailRegex.test(dto.driver_mail)) {
-          throw new BadRequestException('Invalid email');
-        }
-      }
+      //   if (!emailRegex.test(dto.driver_mail)) {
+      //     throw new BadRequestException('Invalid email');
+      //   }
+      // }
       if (!license) {
         throw new BadRequestException('Driver license is required');
       }
@@ -320,23 +315,19 @@ export class DriversService {
           full_name_local_language,
           primary_mobile,
           alternate_mobile,
-          email,
-          address,
           designation,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,'Driver',true,NOW(),$8,$9)
+        VALUES ($1,$2,$3,$4,$5,'Driver',true,NOW(),$6,$7)
       `, [
         staffId,
         driverName,
         driver_name_local_language,
         dto.driver_contact ?? null,
         dto.driver_alternate_contact ?? null,
-        dto.driver_mail ?? null,
-        dto.address ?? null,
         user,
         ip
       ]);
@@ -555,13 +546,13 @@ export class DriversService {
       if (dto.driver_alternate_contact && !mobileRegex.test(dto.driver_alternate_contact)) {
         throw new BadRequestException('Invalid alternate contact');
       }
-      if (dto.driver_mail) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // if (dto.driver_mail) {
+      //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!emailRegex.test(dto.driver_mail)) {
-          throw new BadRequestException('Invalid email');
-        }
-      }
+      //   // if (!emailRegex.test(dto.driver_mail)) {
+      //   //   throw new BadRequestException('Invalid email');
+      //   // }
+      // }
       const existingRes = await client.query(
         `
         SELECT d.*, s.*
@@ -625,19 +616,15 @@ export class DriversService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          email = $5,
-          address = $6,
           updated_at = NOW(),
-          updated_by = $7,
-          updated_ip = $8
-        WHERE staff_id = $9
+          updated_by = $5,
+          updated_ip = $6
+        WHERE staff_id = $7
       `, [
         updatedName ?? existing.driver_name,
         driver_name_local_language,
         dto.driver_contact ?? existing.driver_contact,
         dto.driver_alternate_contact ?? existing.driver_alternate_mobile,
-        dto.driver_mail ?? existing.driver_mail,
-        dto.address ?? existing.address,
         user,
         ip,
         existing.staff_id,

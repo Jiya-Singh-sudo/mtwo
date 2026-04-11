@@ -72,7 +72,6 @@ export class HousekeepingService {
       s.full_name_local_language,
       s.primary_mobile AS hk_contact,
       s.alternate_mobile AS hk_alternate_contact,
-      s.address,
       hk.is_active
     `;
 
@@ -174,8 +173,7 @@ export class HousekeepingService {
         s.full_name,
         s.full_name_local_language,
         s.primary_mobile,
-        s.alternate_mobile,
-        s.address
+        s.alternate_mobile
       FROM m_housekeeping hk
       JOIN m_staff s ON s.staff_id = hk.staff_id
       WHERE hk.hk_id = $1 AND hk.is_active = true AND s.is_active = true`,
@@ -207,9 +205,9 @@ export class HousekeepingService {
           throw new BadRequestException('Invalid alternate contact number');
         }
       }
-      if (dto.address && dto.address.length > 255) {
-        throw new BadRequestException('Invalid address');
-      }
+      // if (dto.address && dto.address.length > 255) {
+      //   throw new BadRequestException('Invalid address');
+      // }
       // 1️⃣ Prevent duplicate housekeeping name (case-insensitive)
       const existingByName = await client.query(
         `
@@ -266,21 +264,19 @@ export class HousekeepingService {
           full_name_local_language,
           primary_mobile,
           alternate_mobile,
-          address,
           designation,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,'Housekeeping',true,NOW(),$7,$8)
+        VALUES ($1,$2,$3,$4,$5,'Housekeeping',true,NOW(),$6,$7)
       `, [
         staffId,
         dto.hk_name,
         local,
         dto.hk_contact,
         dto.hk_alternate_contact ?? null,
-        dto.address ?? null,
         user,
         ip
       ]);
@@ -310,7 +306,6 @@ export class HousekeepingService {
         s.full_name_local_language,
         s.primary_mobile AS hk_contact,
         s.alternate_mobile AS hk_alternate_contact,
-        s.address,
         hk.is_active
       FROM m_housekeeping hk
       JOIN m_staff s ON s.staff_id = hk.staff_id
@@ -446,18 +441,16 @@ export class HousekeepingService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          address = $5,
           updated_at = NOW(),
-          updated_by = $6,
-          updated_ip = $7
-        WHERE staff_id = $8
+          updated_by = $5,
+          updated_ip = $6
+        WHERE staff_id = $7
         `,
         [
           cleanedName,
           hk_name_local_language,
           dto.hk_contact ?? existing.primary_mobile,
           dto.hk_alternate_contact ?? existing.alternate_mobile,
-          dto.address ?? existing.address,
           user,
           ip,
           existing.staff_id,
@@ -490,7 +483,6 @@ export class HousekeepingService {
           s.full_name_local_language,
           s.primary_mobile AS hk_contact,
           s.alternate_mobile AS hk_alternate_contact,
-          s.address,
           hk.is_active
         FROM m_housekeeping hk
         JOIN m_staff s ON s.staff_id = hk.staff_id

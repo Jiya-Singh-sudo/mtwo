@@ -22,11 +22,11 @@ export class CreateHousekeepingDto {
   // })
   hk_alternate_contact?: string;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value?.trim())
-  @MaxLength(255, { message: 'Address is too long' })
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // @Transform(({ value }) => value?.trim())
+  // @MaxLength(255, { message: 'Address is too long' })
+  // address?: string;
 
   // @IsIn(['Morning', 'Evening', 'Night', 'Full-Day'], {
   //   message: 'Invalid shift value',

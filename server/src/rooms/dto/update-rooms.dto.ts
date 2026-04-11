@@ -13,9 +13,9 @@ export class UpdateRoomDto {
   @IsString()
   room_no?: string;
 
-  @IsOptional()
-  @IsString()
-  room_name?: string;
+  // @IsOptional()
+  // @IsString()
+  // room_name?: string;
 
   @IsOptional()
   @IsString()
@@ -25,15 +25,15 @@ export class UpdateRoomDto {
   @IsString()
   residence_type?: string;
 
-  @IsOptional()
-  @IsString()
-  room_type?: string;
+  // @IsOptional()
+  // @IsString()
+  // room_type?: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  room_capacity?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // @Min(1)
+  // room_capacity?: number;
 
   @IsOptional()
   @IsString()

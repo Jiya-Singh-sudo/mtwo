@@ -1,6 +1,6 @@
 import {
   IsString,
-  IsEmail,
+  // IsEmail,
   IsOptional,
   IsBoolean,
   IsDateString,
@@ -28,13 +28,13 @@ export class UpdateDriverDto {
   @IsString()
   driver_license?: string;
 
-  @IsOptional()
-  @IsEmail()
-  driver_mail?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // driver_mail?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 
   @IsOptional()
   @Transform(({ value }) => {

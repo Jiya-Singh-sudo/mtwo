@@ -84,7 +84,7 @@ export default function RoomManagementScreen() {
 
   // Boy Form
   const [boyForm, setBoyForm] = useState({
-    hk_name: '', hk_name_local: '', hk_contact: '', hk_alternate_contact: '', address: '',
+    hk_name: '', hk_contact: '', hk_alternate_contact: '', address: '',
   });
 
   // ─── data loading ────────────────────────────────────────────────────────────
@@ -164,15 +164,21 @@ export default function RoomManagementScreen() {
     setLoading(true);
     try {
       const payload = {
-        hk_name: boyForm.hk_name, hk_name_local_language: boyForm.hk_name_local,
+        hk_name: boyForm.hk_name, 
         hk_contact: boyForm.hk_contact, hk_alternate_contact: boyForm.hk_alternate_contact,
         address: boyForm.address,
       };
       if (selectedBoy) { await updateHousekeeping(selectedBoy.hk_id, payload); Alert.alert('Success', 'Member updated'); }
       else { await createHousekeeping(payload); Alert.alert('Success', 'Member added'); }
       setShowAddBoy(false); setShowEditBoy(false); loadRoomBoys(); loadInitialData();
-    } catch { Alert.alert('Error', 'Operation failed'); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      console.log(err?.response?.data);
+      const msg = err?.response?.data?.message;
+      Alert.alert(
+        'Error',
+        Array.isArray(msg) ? msg.join(', ') : msg || 'Operation failed'
+      );
+    } finally { setLoading(false); }
   };
 
   const handleDeleteBoy = async (id: string) => {
@@ -249,13 +255,13 @@ export default function RoomManagementScreen() {
 
   const openEditBoyForm = (b: any) => {
     setSelectedBoy(b);
-    setBoyForm({ hk_name: b.hk_name, hk_name_local: b.hk_name_local_language || '', hk_contact: b.hk_contact, hk_alternate_contact: b.hk_alternate_contact || '', address: b.address || '' });
+    setBoyForm({ hk_name: b.hk_name, hk_contact: b.hk_contact, hk_alternate_contact: b.hk_alternate_contact || '', address: b.address || '' });
     setShowEditBoy(true);
   };
 
   const openAddBoyForm = () => {
     setSelectedBoy(null);
-    setBoyForm({ hk_name: '', hk_name_local: '', hk_contact: '', hk_alternate_contact: '', address: '' });
+    setBoyForm({ hk_name: '', hk_contact: '', hk_alternate_contact: '', address: '' });
     setShowAddBoy(true);
   };
 
@@ -591,7 +597,7 @@ export default function RoomManagementScreen() {
       <Modal
         visible={showAddBoy || showEditBoy}
         onClose={() => { setShowAddBoy(false); setShowEditBoy(false); }}
-        title={showAddBoy ? 'Add Team Member' : 'Edit Team Member'}
+        title={showAddBoy ? 'Add Room Boy' : 'Edit Room Boy'}
         footer={
           <View style={{ flexDirection: 'row', gap: spacing.md, width: '100%' }}>
             <Button title="Cancel" variant="outline" style={{ flex: 1 }} onPress={() => { setShowAddBoy(false); setShowEditBoy(false); }} />
@@ -600,10 +606,10 @@ export default function RoomManagementScreen() {
         }
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.45 }} keyboardShouldPersistTaps="handled">
             <SectionCard title="Personal Info" icon="person-outline">
               <Input label="Full Name *" value={boyForm.hk_name} onChangeText={v => setBoyForm({ ...boyForm, hk_name: v })} />
-              <Input label="Local Name" value={boyForm.hk_name_local} onChangeText={v => setBoyForm({ ...boyForm, hk_name_local: v })} />
+              {/* <Input label="Local Name" value={boyForm.hk_name_local} onChangeText={v => setBoyForm({ ...boyForm, hk_name_local: v })} /> */}
             </SectionCard>
 
             <SectionCard title="Contact" icon="call-outline">

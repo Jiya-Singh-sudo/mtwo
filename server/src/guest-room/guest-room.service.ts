@@ -52,11 +52,8 @@ export class GuestRoomService {
         SELECT
           r.room_id,
           r.room_no,
-          r.room_name,
           r.building_name,
           r.residence_type,
-          r.room_capacity,
-          r.room_type,
           r.room_category,
           r.status AS room_status,
 
@@ -258,7 +255,7 @@ export class GuestRoomService {
 
         const roomRes = await trx.query(
           `
-          SELECT room_capacity, status, is_active
+          SELECT status, is_active
           FROM m_rooms
           WHERE room_id = $1
           AND is_active = TRUE
@@ -315,42 +312,42 @@ export class GuestRoomService {
         const totalPeople = 1 + (companions ?? 0);
 
         // 🔒 Fetch already allocated rooms with capacity
-        const allocatedRoomsRes = await trx.query(`
-          SELECT r.room_capacity
-          FROM t_guest_room gr
-          JOIN m_rooms r ON r.room_id = gr.room_id
-          WHERE gr.guest_id = $1
-            AND gr.is_active = TRUE
-          FOR UPDATE
-        `, [dto.guest_id]);
+        // const allocatedRoomsRes = await trx.query(`
+        //   SELECT r.room_capacity
+        //   FROM t_guest_room gr
+        //   JOIN m_rooms r ON r.room_id = gr.room_id
+        //   WHERE gr.guest_id = $1
+        //     AND gr.is_active = TRUE
+        //   FOR UPDATE
+        // `, [dto.guest_id]);
 
-        const currentRoomCount = allocatedRoomsRes.rowCount;
+        // const currentRoomCount = allocatedRoomsRes.rowCount;
 
-        const currentTotalCapacity = allocatedRoomsRes.rows.reduce(
-          (sum, r) => sum + Number(r.room_capacity),
-          0
-        );
-        const newRoomCount = currentRoomCount + 1;
-        const newTotalCapacity = currentTotalCapacity + Number(room.room_capacity);
+        // const currentTotalCapacity = allocatedRoomsRes.rows.reduce(
+        //   (sum, r) => sum + Number(r.room_capacity),
+        //   0
+        // );
+        // const newRoomCount = currentRoomCount + 1;
+        // const newTotalCapacity = currentTotalCapacity + Number(room.room_capacity);
         // 🚨 Rule 1: Never exceed rooms_required
-        if (newRoomCount > rooms_required) {
-          throw new BadRequestException(
-            `Guest cannot be allocated more than ${rooms_required} rooms`
-          );
-        }
+        // if (newRoomCount > rooms_required) {
+        //   throw new BadRequestException(
+        //     `Guest cannot be allocated more than ${rooms_required} rooms`
+        //   );
+        // }
         // 🚨 Rule 2: If this is the FINAL required room,
         // total capacity must satisfy total people
-        if (
-          newRoomCount === rooms_required &&
-          newTotalCapacity < totalPeople
-        ) {
-          throw new BadRequestException(
-            `Total room capacity (${newTotalCapacity}) is insufficient for ${totalPeople} people`
-          );
-        }
-        if (occupancyRes.rows[0].count >= room.room_capacity) {
-          throw new BadRequestException('Room has reached maximum capacity');
-        }
+        // if (
+        //   newRoomCount === rooms_required &&
+        //   newTotalCapacity < totalPeople
+        // ) {
+        //   throw new BadRequestException(
+        //     `Total room capacity (${newTotalCapacity}) is insufficient for ${totalPeople} people`
+        //   );
+        // }
+        // if (occupancyRes.rows[0].count >= room.room_capacity) {
+        //   throw new BadRequestException('Room has reached maximum capacity');
+        // }
 
         if (!room.is_active) {
           throw new BadRequestException('Cannot assign guest to inactive room');

@@ -44,7 +44,7 @@ export class MessengerService {
       const name = dto.messenger_name?.trim();
       const primaryMobile = dto.primary_mobile?.trim();
       const secondaryMobile = dto.secondary_mobile?.trim() || null;
-      const email = dto.email?.trim() || null;
+      // const email = dto.email?.trim() || null;
       if (!name) {
         throw new BadRequestException('Messenger name is required');
       }
@@ -71,15 +71,15 @@ export class MessengerService {
       if (secondaryMobile && !/^\d{10}$/.test(secondaryMobile)) {
         throw new BadRequestException('Secondary mobile must be 10 digits');
       }
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new BadRequestException('Invalid email format');
-      }
+      // if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      //   throw new BadRequestException('Invalid email format');
+      // }
       if (dto.designation && dto.designation.length > 100) {
         throw new BadRequestException('Designation cannot exceed 100 characters');
       }
-      if (dto.remarks && dto.remarks.length > 255) {
-        throw new BadRequestException('Remarks cannot exceed 255 characters');
-      }
+      // if (dto.remarks && dto.remarks.length > 255) {
+      //   throw new BadRequestException('Remarks cannot exceed 255 characters');
+      // }
       const messenger_id = await this.generateMessengerId(client);
       const staff_id = await this.generateStaffId(client);
       const messenger_name_local_language = transliterateToDevanagari(dto.messenger_name);
@@ -95,20 +95,20 @@ export class MessengerService {
           `Mobile '${primaryMobile}' already exists`
         );
       }
-      if (email) {
-        const emailExists = await client.query(`
-          SELECT 1 FROM m_staff
-          WHERE email = $1
-          AND is_active = true
-          LIMIT 1
-        `, [email]);
+      // if (email) {
+      //   const emailExists = await client.query(`
+      //     SELECT 1 FROM m_staff
+      //     WHERE email = $1
+      //     AND is_active = true
+      //     LIMIT 1
+      //   `, [email]);
 
-        if (emailExists.rowCount > 0) {
-          throw new BadRequestException(
-            `Email '${email}' already exists`
-          );
-        }
-      }
+      //   if (emailExists.rowCount > 0) {
+      //     throw new BadRequestException(
+      //       `Email '${email}' already exists`
+      //     );
+      //   }
+      // }
       // 1️⃣ Create staff record
       await client.query(`
         INSERT INTO m_staff (
@@ -117,21 +117,19 @@ export class MessengerService {
           full_name_local_language,
           primary_mobile,
           alternate_mobile,
-          email,
           designation,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW(),$8,$9)
+        VALUES ($1,$2,$3,$4,$5,$6,true,NOW(),$7,$8)
       `, [
         staff_id,
         dto.messenger_name,
         messenger_name_local_language,
         dto.primary_mobile ?? null,
         dto.secondary_mobile ?? null,
-        dto.email ?? null,
         dto.designation ?? null,
         user,
         ip
@@ -142,18 +140,16 @@ export class MessengerService {
         INSERT INTO m_messenger (
           messenger_id,
           staff_id,
-          remarks,
           is_active,
           inserted_at,
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,true,NOW(),$4,$5)
+        VALUES ($1,$2,true,NOW(),$3,$4)
         RETURNING *
       `, [
         messenger_id,
         staff_id,
-        dto.remarks ?? null,
         user,
         ip
       ]);
@@ -175,7 +171,7 @@ export class MessengerService {
       const name = dto.messenger_name?.trim();
       const primaryMobile = dto.primary_mobile?.trim();
       const secondaryMobile = dto.secondary_mobile?.trim() || null;
-      const email = dto.email?.trim() || null;
+      // const email = dto.email?.trim() || null;
       if (dto.messenger_name) {
         if (!name) {
           throw new BadRequestException('Messenger name cannot be empty');
@@ -190,15 +186,15 @@ export class MessengerService {
       if (secondaryMobile && !/^\d{10}$/.test(secondaryMobile)) {
         throw new BadRequestException('Secondary mobile must be 10 digits');
       }
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new BadRequestException('Invalid email format');
-      }
+      // if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      //   throw new BadRequestException('Invalid email format');
+      // }
       if (primaryMobile && secondaryMobile && primaryMobile === secondaryMobile) {
         throw new BadRequestException('Primary and secondary mobile cannot be the same');
       }
-      if (dto.remarks && dto.remarks.length > 255) {
-        throw new BadRequestException('Remarks cannot exceed 255 characters');
-      }
+      // if (dto.remarks && dto.remarks.length > 255) {
+      //   throw new BadRequestException('Remarks cannot exceed 255 characters');
+      // }
       if (!/^M\d+$/.test(id)) {
         throw new BadRequestException('Invalid messenger ID format');
       }
@@ -247,23 +243,23 @@ export class MessengerService {
           );
         }
       }
-      if (email) {
-        const emailExists = await client.query(`
-          SELECT 1
-          FROM m_staff s
-          INNER JOIN m_messenger m ON m.staff_id = s.staff_id
-          WHERE s.email = $1
-            AND m.messenger_id <> $2
-            AND s.is_active = true
-          LIMIT 1
-        `, [email, id]);
+      // if (email) {
+      //   const emailExists = await client.query(`
+      //     SELECT 1
+      //     FROM m_staff s
+      //     INNER JOIN m_messenger m ON m.staff_id = s.staff_id
+      //     WHERE s.email = $1
+      //       AND m.messenger_id <> $2
+      //       AND s.is_active = true
+      //     LIMIT 1
+      //   `, [email, id]);
 
-        if (emailExists.rowCount > 0) {
-          throw new BadRequestException(
-            `Email '${email}' already exists`
-          );
-        }
-      }
+      //   if (emailExists.rowCount > 0) {
+      //     throw new BadRequestException(
+      //       `Email '${email}' already exists`
+      //     );
+      //   }
+      // }
       const updatedName = dto.messenger_name ?? existing.full_name;
       const updatedLocal =
         dto.messenger_name
@@ -277,18 +273,16 @@ export class MessengerService {
           full_name_local_language = $2,
           primary_mobile = $3,
           alternate_mobile = $4,
-          email = $5,
-          designation = $6,
+          designation = $5,
           updated_at = NOW(),
-          updated_by = $7,
-          updated_ip = $8
-        WHERE staff_id = $9
+          updated_by = $6,
+          updated_ip = $7
+        WHERE staff_id = $8
       `, [
         updatedName,
         updatedLocal,
         dto.primary_mobile ?? existing.primary_mobile,
         dto.secondary_mobile ?? existing.alternate_mobile,
-        dto.email ?? existing.email,
         dto.designation ?? existing.designation,
         user,
         ip,
@@ -298,15 +292,13 @@ export class MessengerService {
       // 2️⃣ Update messenger
       const res = await client.query(`
         UPDATE m_messenger SET
-          remarks = $1,
-          is_active = $2,
+          is_active = $1,
           updated_at = NOW(),
-          updated_by = $3,
-          updated_ip = $4
-        WHERE messenger_id = $5
+          updated_by = $2,
+          updated_ip = $3
+        WHERE messenger_id = $4
         RETURNING *
       `, [
-        dto.remarks ?? existing.remarks,
         dto.is_active ?? existing.is_active,
         user,
         ip,
@@ -465,7 +457,6 @@ export class MessengerService {
         (
           s.full_name ILIKE $${params.length}
           OR s.primary_mobile ILIKE $${params.length}
-          OR s.email ILIKE $${params.length}
         )
       `);
     }
@@ -481,10 +472,7 @@ export class MessengerService {
           s.full_name_local_language AS messenger_name_local_language,
           s.primary_mobile,
           s.alternate_mobile AS secondary_mobile,
-          s.email,
           s.designation,
-          m.remarks,
-          s.address,
           m.is_active
         FROM m_messenger m
         LEFT JOIN m_staff s ON s.staff_id = m.staff_id

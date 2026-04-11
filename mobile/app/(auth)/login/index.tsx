@@ -7,9 +7,9 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    SafeAreaView,
     TouchableOpacity
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';

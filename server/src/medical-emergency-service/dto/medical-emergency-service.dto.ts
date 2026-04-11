@@ -1,6 +1,6 @@
 // server/src/modules/medical-emergency-service/dto/medical-emergency-service.dto.ts
 
-import { IsString, IsOptional, IsBoolean, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsBoolean} from 'class-validator';
 
 export class CreateMedicalEmergencyServiceDto {
   @IsString()
@@ -23,13 +23,13 @@ export class CreateMedicalEmergencyServiceDto {
   @IsString()
   alternate_mobile?: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
-  @IsOptional()
-  @IsString()
-  address_line?: string;
+  // @IsOptional()
+  // @IsString()
+  // address_line?: string;
 
   @IsOptional()
   @IsString()
@@ -61,13 +61,13 @@ export class UpdateMedicalEmergencyServiceDto {
   @IsString()
   alternate_mobile?: string;
 
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  // @IsOptional()
+  // @IsEmail()
+  // email?: string;
 
-  @IsOptional()
-  @IsString()
-  address_line?: string;
+  // @IsOptional()
+  // @IsString()
+  // address_line?: string;
 
   @IsOptional()
   @IsString()

@@ -24,8 +24,6 @@ export class LiasoningOfficerService {
         s.full_name_local_language AS officer_name_local_language,
         s.primary_mobile AS mobile,
         s.alternate_mobile,
-        s.email,
-        s.address
 
         FROM m_liasoning_officer lo
         LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
@@ -59,23 +57,19 @@ export class LiasoningOfficerService {
                 full_name_local_language,
                 primary_mobile,
                 alternate_mobile,
-                email,
-                address,
                 designation,
                 is_active,
                 inserted_at,
                 inserted_by,
                 inserted_ip
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,'Liasoning Officer',true,NOW(),$8,$9)
+            VALUES ($1,$2,$3,$4,$5,'Liasoning Officer',true,NOW(),$6,$7)
             `, [
             staffId,
             dto.officer_name,
             dto.officer_name_local_language,
             dto.mobile ?? null,
             dto.alternate_mobile ?? null,
-            dto.email ?? null,
-            dto.address ?? null,
             userId,
             ip
             ]);
@@ -129,8 +123,6 @@ export class LiasoningOfficerService {
                 s.full_name_local_language,
                 s.primary_mobile AS mobile,
                 s.alternate_mobile,
-                s.email,
-                s.address,
                 lo.role_id,
                 lo.is_active
                 FROM m_liasoning_officer lo
@@ -166,19 +158,15 @@ export class LiasoningOfficerService {
                 full_name_local_language = $2,
                 primary_mobile = $3,
                 alternate_mobile = $4,
-                email = $5,
-                address = $6,
                 updated_at = NOW(),
-                updated_by = $7,
-                updated_ip = $8
-            WHERE staff_id = $9
+                updated_by = $5,
+                updated_ip = $6
+            WHERE staff_id = $7
             `, [
             dto.officer_name ?? existing.full_name,
             dto.officer_name_local_language ?? existing.full_name_local_language,
             dto.mobile ?? existing.primary_mobile,
             dto.alternate_mobile ?? existing.alternate_mobile,
-            dto.email ?? existing.email,
-            dto.address ?? existing.address,
             userId,
             ip,
             existing.staff_id
@@ -189,7 +177,6 @@ export class LiasoningOfficerService {
             'officer_name_local_language',
             'mobile',
             'alternate_mobile',
-            'email',
             'role_id',
             'department',
             'designation',
@@ -294,7 +281,6 @@ export class LiasoningOfficerService {
             (
                 s.full_name ILIKE $${idx}
                 OR s.primary_mobile ILIKE $${idx}
-                OR s.email ILIKE $${idx}
                 OR lo.officer_id ILIKE $${idx}
             )
         `);
@@ -339,7 +325,6 @@ export class LiasoningOfficerService {
             s.full_name_local_language,
             s.primary_mobile AS mobile,
             s.alternate_mobile,
-            s.email,
             lo.role_id,
             lo.is_active,
             lo.inserted_at
