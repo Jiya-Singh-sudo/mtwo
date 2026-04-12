@@ -123,6 +123,7 @@ export class DriverDutyService {
         );
 
         const duty = res.rows[0];
+        await this.notifyDriverAfterAssignment(dto.driver_id);
 
         // ===== WEEKLY OFF RULE =====
         if (dto.is_week_off && dto.repeat_weekly) {
@@ -160,7 +161,80 @@ export class DriverDutyService {
       }
     });
   }
+  private async notifyDriverAfterAssignment(driverId: string) {
 
+    const res = await this.db.query(`
+      SELECT
+        dd.driver_id,
+        dd.duty_date,
+        dd.shift,
+        dd.duty_in_time,
+        dd.duty_out_time,
+
+        s.full_name,
+        s.primary_mobile
+
+      FROM t_driver_duty dd
+      JOIN m_driver d ON dd.driver_id = d.driver_id
+      JOIN m_staff s ON d.staff_id = s.staff_id
+
+      WHERE dd.driver_id = $1
+        AND dd.is_active = TRUE
+      ORDER BY dd.inserted_at DESC
+      LIMIT 1
+    `, [driverId]);
+
+    const duty = res.rows[0];
+    if (!duty) return;
+
+    // ❌ Skip if weekly off
+    const weekOffRes = await this.db.query(`
+      SELECT 1
+      FROM t_driver_week_off
+      WHERE 
+        driver_id = $1
+        AND is_active = TRUE
+        AND weekday = EXTRACT(DOW FROM $2::date)
+    `, [driverId, duty.duty_date]);
+
+    if (weekOffRes.rowCount > 0) return;
+
+    // ⏱️ Delay 30 mins
+    setTimeout(async () => {
+
+      const message = `
+  🚘 Driver Duty Assigned
+
+  Hello ${duty.full_name},
+
+  You have been assigned a duty.
+
+  📅 Date: ${duty.duty_date}
+  🕒 Shift: ${duty.shift}
+  ⏰ Time: ${duty.duty_in_time} - ${duty.duty_out_time}
+
+  Please report on time.
+
+  Thank you.
+      `;
+
+      await this.db.query(`
+        INSERT INTO notifications (
+          notification_type,
+          recipient_type,
+          recipient_contact,
+          message
+        )
+        VALUES ($1, $2, $3, $4)
+      `, [
+        'DRIVER_DUTY_ASSIGNED',
+        'USER',
+        duty.primary_mobile,
+        message
+      ]);
+
+    }, 30 * 60 * 1000);
+  }
   async update(dutyId: string, dto: UpdateDriverDutyDto, user: string, ip: string) {
     return this.db.transaction(async (client) => {
       if (!/^DD\d+$/.test(dutyId)) {
