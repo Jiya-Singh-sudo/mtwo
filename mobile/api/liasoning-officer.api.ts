@@ -38,7 +38,7 @@ export async function createLiasoningOfficer(payload: {
   officer_name_local_language?: string;
   mobile: string;
   alternate_mobile?: string;
-  email?: string;
+  // email?: string;
   role_id: string;
   department?: string;
   designation?: string;
@@ -58,7 +58,7 @@ export async function updateLiasoningOfficer(
     officer_name_local_language: string;
     mobile: string;
     alternate_mobile: string;
-    email: string;
+    // email: string;
     role_id: string;
     department: string;
     designation: string;

@@ -34,7 +34,7 @@ export async function createDriver(payload: {
   driver_contact: string;
   driver_alternate_contact?: string;
   driver_license?: string;
-  address?: string;
+  // address?: string;
 }) {
   const res = await api.post("/drivers", payload);
   return res.data;
@@ -49,7 +49,7 @@ export async function updateDriver(
     driver_contact: string;
     driver_alternate_contact?: string;
     driver_license?: string;
-    address?: string;
+    // address?: string;
     is_active?: boolean;
   }
 ) {

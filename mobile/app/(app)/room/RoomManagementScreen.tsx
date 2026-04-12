@@ -71,8 +71,8 @@ export default function RoomManagementScreen() {
 
   // Room Form
   const [roomForm, setRoomForm] = useState({
-    room_no: '', room_name: '', residence_type: '', building_name: '',
-    room_type: '', room_capacity: 1, room_category: '', status: 'Available',
+    room_no: '', residence_type: '', building_name: '',
+    room_category: '', status: 'Available',
   });
 
   // Assignment states
@@ -84,7 +84,7 @@ export default function RoomManagementScreen() {
 
   // Boy Form
   const [boyForm, setBoyForm] = useState({
-    hk_name: '', hk_contact: '', hk_alternate_contact: '', address: '',
+    hk_name: '', hk_contact: '', hk_alternate_contact: '',
   });
 
   // ─── data loading ────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ export default function RoomManagementScreen() {
       const payload = {
         hk_name: boyForm.hk_name, 
         hk_contact: boyForm.hk_contact, hk_alternate_contact: boyForm.hk_alternate_contact,
-        address: boyForm.address,
+        // address: boyForm.address,
       };
       if (selectedBoy) { await updateHousekeeping(selectedBoy.hk_id, payload); Alert.alert('Success', 'Member updated'); }
       else { await createHousekeeping(payload); Alert.alert('Success', 'Member added'); }
@@ -240,28 +240,27 @@ export default function RoomManagementScreen() {
   const openEditRoomForm = (r: any) => {
     setSelectedRoom(r);
     setRoomForm({
-      room_no: r.roomNo, room_name: r.roomName || '', residence_type: r.residenceType || '',
-      building_name: r.buildingName || '', room_type: r.roomType || '',
-      room_capacity: r.roomCapacity || 1, room_category: r.roomCategory || '', status: r.status,
+      room_no: r.roomNo, residence_type: r.residenceType || '',
+      building_name: r.buildingName || '', room_category: r.roomCategory || '', status: r.status,
     });
     setShowEditRoom(true);
   };
 
   const openAddRoomForm = () => {
     setSelectedRoom(null);
-    setRoomForm({ room_no: '', room_name: '', residence_type: '', building_name: '', room_type: '', room_capacity: 1, room_category: '', status: 'Available' });
+    setRoomForm({ room_no: '',  residence_type: '', building_name: '', room_category: '', status: 'Available' });
     setShowAddRoom(true);
   };
 
   const openEditBoyForm = (b: any) => {
     setSelectedBoy(b);
-    setBoyForm({ hk_name: b.hk_name, hk_contact: b.hk_contact, hk_alternate_contact: b.hk_alternate_contact || '', address: b.address || '' });
+    setBoyForm({ hk_name: b.hk_name, hk_contact: b.hk_contact, hk_alternate_contact: b.hk_alternate_contact || ''});
     setShowEditBoy(true);
   };
 
   const openAddBoyForm = () => {
     setSelectedBoy(null);
-    setBoyForm({ hk_name: '', hk_contact: '', hk_alternate_contact: '', address: '' });
+    setBoyForm({ hk_name: '', hk_contact: '', hk_alternate_contact: ''});
     setShowAddBoy(true);
   };
 
@@ -484,16 +483,13 @@ export default function RoomManagementScreen() {
             <SectionCard title="Room Info" icon="bed-outline">
               <View style={styles.formRow}>
                 <Input label="Room No *" value={roomForm.room_no} onChangeText={v => setRoomForm({ ...roomForm, room_no: v })} containerStyle={{ flex: 1 }} />
-                <Input label="Capacity" value={String(roomForm.room_capacity)} keyboardType="numeric" onChangeText={v => setRoomForm({ ...roomForm, room_capacity: parseInt(v) || 0 })} containerStyle={{ flex: 1 }} />
               </View>
-              <Input label="Residence Name" value={roomForm.room_name} onChangeText={v => setRoomForm({ ...roomForm, room_name: v })} />
+              <Input label="Building" value={roomForm.building_name} onChangeText={v => setRoomForm({ ...roomForm, building_name: v })} containerStyle={{ flex: 1 }} />
               <Input label="Residence Type" value={roomForm.residence_type} onChangeText={v => setRoomForm({ ...roomForm, residence_type: v })} />
             </SectionCard>
 
             <SectionCard title="Building Details" icon="business-outline">
               <View style={styles.formRow}>
-                <Input label="Building" value={roomForm.building_name} onChangeText={v => setRoomForm({ ...roomForm, building_name: v })} containerStyle={{ flex: 1 }} />
-                <Input label="Room Type" value={roomForm.room_type} onChangeText={v => setRoomForm({ ...roomForm, room_type: v })} containerStyle={{ flex: 1 }} />
               </View>
             </SectionCard>
             <View style={{ height: 60 }} />
@@ -617,7 +613,7 @@ export default function RoomManagementScreen() {
                 <Input label="Contact *" keyboardType="phone-pad" value={boyForm.hk_contact} onChangeText={v => setBoyForm({ ...boyForm, hk_contact: v })} containerStyle={{ flex: 1 }} />
                 <Input label="Alt Contact" keyboardType="phone-pad" value={boyForm.hk_alternate_contact} onChangeText={v => setBoyForm({ ...boyForm, hk_alternate_contact: v })} containerStyle={{ flex: 1 }} />
               </View>
-              <Input label="Address" value={boyForm.address} onChangeText={v => setBoyForm({ ...boyForm, address: v })} multiline />
+              {/* <Input label="Address" value={boyForm.address} onChangeText={v => setBoyForm({ ...boyForm, address: v })} multiline /> */}
             </SectionCard>
             <View style={{ height: 60 }} />
           </ScrollView>
@@ -685,8 +681,9 @@ function BoyCard({ boy: b, onEdit, onDelete }: any) {
 
       <View style={styles.infoGrid}>
         <InfoChip icon="call-outline" label={b.hk_contact || '—'} />
+        {b.hk_contact_2 ? <InfoChip icon="call-outline" label={b.hk_contact_2} /> : null}
         {b.hk_alternate_contact ? <InfoChip icon="call-outline" label={b.hk_alternate_contact} /> : null}
-        {b.address ? <InfoChip icon="location-outline" label={b.address} /> : null}
+        {/* {b.address ? <InfoChip icon="location-outline" label={b.address} /> : null} */}
       </View>
 
       <View style={styles.cardActions}>

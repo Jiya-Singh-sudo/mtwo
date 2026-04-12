@@ -8,7 +8,7 @@ export type Messenger = {
   messenger_name_local_language?: string;
   primary_mobile: string;
   secondary_mobile?: string;
-  email?: string;
+  // email?: string;
   designation?: string;
   remarks?: string;
   is_active: boolean;
@@ -25,7 +25,7 @@ export type CreateMessengerPayload = {
   messenger_name_local_language?: string;
   primary_mobile: string;
   secondary_mobile?: string;
-  email?: string;
+  // email?: string;
   designation?: string;
   remarks?: string;
 };

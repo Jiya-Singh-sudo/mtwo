@@ -7,7 +7,7 @@ export interface Housekeeping {
   hk_contact: string;
   hk_alternate_contact?: string | null;
 
-  address?: string | null;
+  // address?: string | null;
 
   is_active: boolean;
 
@@ -26,7 +26,7 @@ export interface HousekeepingCreateDto {
   hk_contact: string;
   hk_alternate_contact?: string;
 
-  address?: string;
+  // address?: string;
 }
 
 export interface HousekeepingUpdateDto {
@@ -35,7 +35,7 @@ export interface HousekeepingUpdateDto {
   hk_contact?: string;
   hk_alternate_contact?: string;
 
-  address?: string;
+  // address?: string;
 
   is_active?: boolean;
 }

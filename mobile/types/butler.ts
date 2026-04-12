@@ -6,8 +6,8 @@ export interface Butler {
 
   butler_mobile: number;
   butler_alternate_mobile?: number | null;
-  address?: string | null;
-  remarks?: string | null;
+  // address?: string | null;
+  // remarks?: string | null;
 
   shift: "Morning" | "Evening" | "Night" | "Full-Day";
 
@@ -29,8 +29,8 @@ export interface ButlerCreateDto {
   butler_mobile: number;
   butler_alternate_mobile?: number | null;
 
-  address?: string;
-  remarks?: string;
+  // address?: string;
+  // remarks?: string;
 
   shift: "Morning" | "Evening" | "Night" | "Full-Day";
 }
@@ -42,8 +42,8 @@ export interface ButlerUpdateDto {
   butler_mobile?: number;
   butler_alternate_mobile?: number | null;
 
-  address?: string;
-  remarks?: string;
+  // address?: string;
+  // remarks?: string;
 
   shift?: "Morning" | "Evening" | "Night" | "Full-Day";
 
