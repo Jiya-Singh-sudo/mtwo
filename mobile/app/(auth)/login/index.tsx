@@ -51,7 +51,7 @@ export default function LoginScreen() {
 
     try {
         await login(username, password, captchaToken);
-        router.replace('/');
+        router.push('/');
     } catch (error) {
         setErrors({ general: 'Invalid username or password' });
     } finally {

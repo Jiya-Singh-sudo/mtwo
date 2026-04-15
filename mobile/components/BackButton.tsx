@@ -1,5 +1,5 @@
 import { Pressable, Text, StyleSheet } from "react-native";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/theme/colors";
 
@@ -7,13 +7,16 @@ type Props = {
   fallback?: string;
 };
 
-export default function BackButton({ fallback = "/(drawer)" }: Props) {
+export default function BackButton({ fallback = "/(app)/_tabs" }: Props) {
+  const router = useRouter(); // ✅ correct
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace(fallback as any);
     }
+    console.log("canGoBack:", router.canGoBack());
   };
 
   return (

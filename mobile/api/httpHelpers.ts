@@ -1,4 +1,4 @@
-// web/src/api/httpHelpers.ts
+// mobile/src/api/httpHelpers.ts
 
 // Use environment variable or fallback
 const BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';

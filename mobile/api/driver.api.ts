@@ -14,7 +14,7 @@ export function getDriversTable(params: {
   search?: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
-  status?: 'ACTIVE' | 'INACTIVE';
+  status?: 'active' | 'inactive' | 'all';
 }) {
   return api.get('/drivers/table', { params })
     .then(res => res.data);

@@ -20,7 +20,7 @@ export async function getActiveGuests(params: {
   sortOrder?: 'asc' | 'desc';
   entryDateFrom?: string;
   entryDateTo?: string;
-}) {
+}): Promise<PaginatedResponse<any>> {
   const query = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {

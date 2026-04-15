@@ -54,14 +54,18 @@ export async function softDeleteHousekeeping(
 export async function getHkShiftEnum() {
   return safeGet<{ enum_value: string }[]>("/enums/hk_shift_enum");
 }
-export async function getRoomBoyOptions() {
-  const res = await getActiveHousekeeping({
-    page: 1,
-    limit: 1000, // dropdown needs all
-  });
+// export async function getRoomBoyOptions() {
+//   const res = await getActiveHousekeeping({
+//     page: 1,
+//     limit: 1000, // dropdown needs all
+//   });
 
-  return res.data.map((hk:any) => ({
-    hk_id: hk.hk_id,
-    hk_name: hk.hk_name,
-  }));
+//   return res.data.map((hk:any) => ({
+//     hk_id: hk.hk_id,
+//     hk_name: hk.hk_name,
+//   }));
+// }
+export async function getRoomBoyOptions() {
+  const res = await api.get("/housekeeping/options");
+  return res.data.data;
 }

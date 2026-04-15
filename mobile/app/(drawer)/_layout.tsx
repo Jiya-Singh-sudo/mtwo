@@ -66,6 +66,18 @@ export default function DrawerLayout() {
       />
 
       <Drawer.Screen
+        name="vehicle"
+        options={{
+          title: "Vehicle Management",
+          drawerLabel: "Vehicle Management",
+          drawerIcon: ({ color }: { color: string }) => (
+            <Ionicons name="car-sport-outline" size={22} color={color} />
+          ),
+          drawerItemStyle: { display: hasPermission('vehicle.view') ? 'flex' : 'none' }
+        }}
+      />
+
+      <Drawer.Screen
         name="transport"
         options={{
           title: "Transport Management",

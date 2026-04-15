@@ -4,10 +4,8 @@ export interface Housekeeping {
   hk_name: string;
   hk_name_local_language?: string | null;
 
-  hk_contact: string;
-  hk_alternate_contact?: string | null;
-
-  // address?: string | null;
+  hk_contact: number;
+  hk_alternate_contact?: number | null;
 
   is_active: boolean;
 
@@ -23,19 +21,16 @@ export interface Housekeeping {
 export interface HousekeepingCreateDto {
   hk_name: string;
 
-  hk_contact: string;
-  hk_alternate_contact?: string;
+  hk_contact: number;
+  hk_alternate_contact?: number;
 
-  // address?: string;
 }
 
 export interface HousekeepingUpdateDto {
   hk_name?: string;
 
-  hk_contact?: string;
-  hk_alternate_contact?: string;
-
-  // address?: string;
+  hk_contact?: number;
+  hk_alternate_contact?: number;
 
   is_active?: boolean;
 }

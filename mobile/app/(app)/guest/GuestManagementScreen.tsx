@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Stack } from 'expo-router';
 import {
   View,
   Text,
@@ -9,7 +10,9 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
+  FlatList,
 } from 'react-native';
+import { PageContainer } from '@/components/ui/Premium';
 import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
@@ -31,7 +34,14 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { formatDate, formatTime, toDateInputValue } from '@/utils/dateTime';
-import Header from '@/components/Header';
+import PageHeader from '@/components/ui/PageHeader';
+import AppHeader from '@/components/ui/AppHeader';
+// import StatChipRow from '@/components/StatChipRow';
+// import GuestCard from '@/components/GuestCard';
+// import SectionCard from '@/components/SectionCard';
+// import DetailRow from '@/components/DetailRow';
+// import InfoChip from '@/components/InfoChip';
+// import ActionButton from '@/components/ActionButton';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +65,9 @@ const statusColor: Record<string, string> = {
 // ─── main component ───────────────────────────────────────────────────────────
 export default function GuestManagementScreen() {
   const [guests, setGuests] = useState<any[]>([]);
+  const [designationSearch, setDesignationSearch] = useState('');
+  const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
+  const [designations, setDesignations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
@@ -74,8 +87,126 @@ export default function GuestManagementScreen() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [isEdit, setIsEdit] = useState(false);
+const statCards: any[] = [
+  { label: 'All', key: 'All', icon: 'list-outline', color: colors.primary, bg: colors.primaryBg },
+  { label: 'Inside', key: 'Inside', icon: 'home-outline', color: '#3B82F6', bg: '#EFF6FF' },
+  { label: 'Upcoming', key: 'Scheduled', icon: 'time-outline', color: '#EAB308', bg: '#FEF9C3' },
+  { label: 'Entered', key: 'Entered', icon: 'enter-outline', color: '#22C55E', bg: '#F0FDF4' },
+  { label: 'Exited', key: 'Exited', icon: 'exit-outline', color: '#6B7280', bg: '#F3F4F6' },
+];
+const handleCancelVisit = async (id: string) => {
+  try {
+    await cancelGuestInOut(id);
+    Alert.alert('Success', 'Visit cancelled');
+    loadGuests();
+  } catch {
+    Alert.alert('Error', 'Cancellation failed');
+  }
+};
+const handleDeleteGuest = async (id: string) => {
+  try {
+    await softDeleteGuest(id);
+    Alert.alert('Success', 'Guest removed');
+    loadGuests();
+  } catch {
+    Alert.alert('Error', 'Delete failed');
+  }
+};
+const handleSubmit = async () => {
+  try {
+    setLoading(true);
 
+    const payload = {
+      guest: {
+        guest_name: form.guest_name,
+        guest_mobile: form.guest_mobile,
+        guest_alternate_mobile: form.guest_alternate_mobile,
+        guest_address: form.guest_address,
+        guest_email: form.guest_email,
+      },
+      designation: {
+        designation_id: form.designation_id || undefined,
+        designation_name: form.designation_name,
+        department: form.department,
+        organization: form.organization,
+        office_location: form.office_location,
+      },
+      inout: {
+        entry_date: form.entry_date,
+        entry_time: form.entry_time,
+        exit_date: form.exit_date || null,
+        exit_time: form.exit_time || null,
+        purpose: form.purpose,
+        companions: Number(form.companions),
+        requires_driver: form.requires_driver,
+      },
+    };
+
+    if (isEdit && selectedGuest) {
+      await updateGuest(selectedGuest.guest_id, payload.guest);
+    } else {
+      await createGuest(payload); // ✅ NOW CORRECT
+    }
+
+    Alert.alert('Success', 'Saved successfully');
+    setShowFormModal(false);
+    loadGuests();
+  } catch (err: any) {
+    Alert.alert('Error', err?.message || 'Failed');
+  } finally {
+    setLoading(false);
+  }
+};  
   // Form State
+const openForm = (g?: any) => {
+  if (g) {
+    setIsEdit(true);
+    setSelectedGuest(g);
+    setForm({
+      guest_name: g.guest_name || '',
+      guest_name_local: g.guest_name_local_language || '',
+      guest_mobile: g.guest_mobile || '',
+      guest_alternate_mobile: g.guest_alternate_mobile || '',
+      guest_address: g.guest_address || '',
+      guest_email: g.email || '',
+      designation_id: g.designation_id || '',
+      designation_name: g.designation_name || '',
+      department: g.department || '',
+      organization: g.organization || '',
+      office_location: g.office_location || '',
+      entry_date: g.entry_date || '',
+      entry_time: g.entry_time || '',
+      exit_date: g.exit_date || '',
+      exit_time: g.exit_time || '',
+      companions: g.companions || 0,
+      requires_driver: g.requires_driver || false,
+      purpose: g.purpose || '',
+    });
+  } else {
+    setIsEdit(false);
+    setForm({
+      guest_name: '',
+      guest_name_local: '',
+      guest_mobile: '',
+      guest_alternate_mobile: '',
+      guest_address: '',
+      guest_email: '',
+      designation_id: '',
+      designation_name: '',
+      department: '',
+      organization: '',
+      office_location: '',
+      entry_date: '',
+      entry_time: '',
+      exit_date: '',
+      exit_time: '',
+      companions: 0,
+      requires_driver: false,
+      purpose: '',
+    });
+  }
+  setShowFormModal(true);
+};
   const [form, setForm] = useState({
     guest_name: '',
     guest_name_local: '',
@@ -96,674 +227,576 @@ export default function GuestManagementScreen() {
     requires_driver: false,
     purpose: '',
   });
+const onRefresh = async () => {
+  setRefreshing(true);
+  await loadGuests();
+  setRefreshing(false);
+};
 
-  const [designations, setDesignations] = useState<any[]>([]);
-  const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
-  const [designationSearch, setDesignationSearch] = useState('');
+const loadGuests = async () => {
+  try {
+    setLoading(true);
 
-  const isLockedStatus = (s: string) => s === 'Exited' || s === 'Cancelled';
+    const res: any = await getActiveGuests({   // ✅ FORCE TYPE HERE
+      page,
+      limit: 10,
+      search: search || undefined,
+      status: status !== 'All' ? status : undefined,
+      entryDateFrom,
+      entryDateTo,
+    });
 
-  useEffect(() => {
-    loadGuests();
-  }, [page, status, search, entryDateFrom, entryDateTo]);
+    setGuests(res.data || []);
+    setTotalCount(res.totalCount || 0);
+    setStatusCounts(res.statusCounts || {});
 
-  useEffect(() => {
-    loadDesignations();
-    loadStats(); 
-  }, []);
-
+  } catch (err) {
+    Alert.alert('Error', 'Failed to load guests');
+  } finally {
+    setLoading(false);
+  }
+};
+useEffect(() => {
+  loadGuests();
+}, [page, status, search, entryDateFrom, entryDateTo]);
+useEffect(() => {
   const loadDesignations = async () => {
-    try {
-      const data = await getActiveDesignationList();
-      setDesignations(data || []);
-    } catch (err) {
-      console.error('Failed to load designations', err);
-    }
+    const res = await getActiveDesignationList();
+    setDesignations(res?.data || []);
   };
-  const loadStats = async () => {
-    try {
-      const res = await getActiveGuests({
-        page: 1,
-        limit: 1,
-        // ❌ DO NOT SEND status / filters
-      });
+  loadDesignations();
+}, []);
+const isLockedStatus = (status: string) => {
+  return status === 'Exited' || status === 'Cancelled';
+};
+      return (
+        
+        <PageContainer>
+            {/* <AppHeader title="Guest Management" /> */}
 
-      setStatusCounts(res.statusCounts || {});
-      setTotalCount(res.totalCount || 0);
-    } catch (error) {
-      console.error('Failed to load stats', error);
-    }
-  };
-  const loadGuests = async () => {
-    setLoading(true);
-    try {
-      const res = await getActiveGuests({
-        page,
-        limit: 10,
-        status: status !== 'All' ? status : undefined,
-        search: search || undefined,
-        entryDateFrom: entryDateFrom || undefined,
-        entryDateTo: entryDateTo || undefined,
-      });
-      setGuests(res.data || []);
-      // setTotalCount(res.totalCount || 0);
-      // setStatusCounts(res.statusCounts || {});
-    } catch (error) {
-      console.error('Failed to load guests', error);
-      Alert.alert('Error', 'Could not load guest data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadGuests();
-    loadStats();
-  }, []);
+          {/* <Header
+            title="Guest Management"
+            subtitle="Administrative control for all visitor credentials"
+            fallback="/(app)/_tabs"
+          /> */}
 
-  const handleSave = async () => {
-    if (!form.guest_name || !form.guest_mobile) {
-      Alert.alert('Validation', 'Name and Mobile are required.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const payload = {
-        guest: {
-          guest_name: form.guest_name,
-          guest_name_local_language: form.guest_name_local,
-          guest_mobile: form.guest_mobile,
-          guest_alternate_mobile: form.guest_alternate_mobile,
-          guest_address: form.guest_address,
-          email: form.guest_email,
-        },
-        designation: {
-          designation_id: form.designation_id || undefined,
-          designation_name: form.designation_name,
-          department: form.department,
-          organization: form.organization,
-          office_location: form.office_location,
-        },
-        inout: {
-          entry_date: form.entry_date,
-          entry_time: form.entry_time,
-          exit_date: form.exit_date || null,
-          exit_time: form.exit_time || null,
-          purpose: form.purpose,
-          companions: Number(form.companions),
-          requires_driver: form.requires_driver,
-        },
-      };
+          <FlatList
+            data={guests}
+            // keyExtractor={(item) => item.guest_id}
+            keyExtractor={(item, index) => item.guest_id || index.toString()}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
 
-      if (isEdit && selectedGuest) {
-        await updateGuest(selectedGuest.guest_id, payload.guest);
-        if (selectedGuest.gd_id) {
-          await updateGuestDesignation(selectedGuest.gd_id, payload.designation);
-        } else {
-          await createGuestDesignation({ guest_id: selectedGuest.guest_id, ...payload.designation });
-        }
-        if (selectedGuest.inout_id) {
-          await updateGuestInOut(selectedGuest.inout_id, payload.inout);
-        }
-        Alert.alert('Success', 'Guest profile updated');
-      } else {
-        await createGuest(payload);
-        Alert.alert('Success', 'Guest registered successfully');
-      }
-      setShowFormModal(false);
-      loadGuests();
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Operation failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+            ListHeaderComponent={
+              <>
+                {/* <PageHeader
+                  title="Guest Management"
+                  subtitle="Administrative control for all visitor credentials"
+                  fallback="/(app)/_tabs"
+                /> */}
 
-  const handleCancelVisit = async (inoutId: string) => {
-    try {
-      await cancelGuestInOut(inoutId);
-      Alert.alert('Success', 'Visit cancelled');
-      loadGuests();
-    } catch {
-      Alert.alert('Error', 'Cancellation failed');
-    }
-  };
-
-  const handleDeleteGuest = async (id: string) => {
-    try {
-      await softDeleteGuest(id);
-      Alert.alert('Success', 'Guest removed');
-      loadGuests();
-    } catch {
-      Alert.alert('Error', 'Deactivation failed');
-    }
-  };
-
-  const openForm = (g?: any) => {
-    if (g) {
-      setIsEdit(true);
-      setSelectedGuest(g);
-      setForm({
-        guest_name: g.guest_name || '',
-        guest_name_local: g.guest_name_local_language || '',
-        guest_mobile: g.guest_mobile || '',
-        guest_alternate_mobile: g.guest_alternate_mobile || '',
-        guest_address: g.guest_address || '',
-        guest_email: g.email || '',
-        designation_id: g.designation_id || '',
-        designation_name: g.designation_name || '',
-        department: g.department || '',
-        organization: g.organization || '',
-        office_location: g.office_location || '',
-        entry_date: g.entry_date ? toDateInputValue(g.entry_date) : '',
-        entry_time: g.entry_time || '',
-        exit_date: g.exit_date ? toDateInputValue(g.exit_date) : '',
-        exit_time: g.exit_time || '',
-        companions: g.companions || 0,
-        requires_driver: g.requires_driver || false,
-        purpose: g.purpose || '',
-      });
-      setDesignationSearch(g.designation_name || '');
-    } else {
-      setIsEdit(false);
-      setForm({
-        guest_name: '',
-        guest_name_local: '',
-        guest_mobile: '',
-        guest_alternate_mobile: '',
-        guest_address: '',
-        guest_email: '',
-        designation_id: '',
-        designation_name: '',
-        department: '',
-        organization: '',
-        office_location: '',
-        entry_date: new Date().toISOString().split('T')[0],
-        entry_time: '10:00',
-        exit_date: '',
-        exit_time: '',
-        companions: 0,
-        requires_driver: false,
-        purpose: '',
-      });
-      setDesignationSearch('');
-    }
-    setShowFormModal(true);
-  };
-
-  const statCards = [
-    { label: 'All', key: 'All', icon: 'list-outline', color: colors.primary, bg: colors.primaryBg },
-    { label: 'Inside', key: 'Inside', icon: 'home-outline', color: '#3B82F6', bg: '#EFF6FF' },
-    { label: 'Upcoming', key: 'Scheduled', icon: 'time-outline', color: '#EAB308', bg: '#FEF9C3' },
-    { label: 'Entered', key: 'Entered', icon: 'enter-outline', color: '#22C55E', bg: '#F0FDF4' },
-    { label: 'Exited', key: 'Exited', icon: 'exit-outline', color: '#6B7280', bg: '#F3F4F6' },
-  ];
-
-  // ─── render ────────────────────────────────────────────────────────────────
-  return (
-    <View style={[styles.container, { flex: 1 }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <Header
-          title="Guest Management"
-          subtitle="Administrative control for all visitor credentials"
-          fallback="/(drawer)/guest"
-        />
-
-        {/* ── Toolbar ── */}
-        <View style={styles.toolbar}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={18} color={colors.muted} style={{ marginRight: 6 }} />
-            <Input
-              placeholder="Search guests..."
-              value={search}
-              onChangeText={setSearch}
-              containerStyle={{ marginBottom: 0, flex: 1 }}
-              inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }}
-            />
-          </View>
-          <TouchableOpacity style={styles.addBtn} onPress={() => openForm()}>
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>New</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Date filters ── */}
-        <View style={styles.filterBar}>
-          <Input
-            placeholder="From: YYYY-MM-DD"
-            value={entryDateFrom}
-            onChangeText={setEntryDateFrom}
-            containerStyle={{ flex: 1, marginBottom: 0 }}
-            inputStyle={{ height: 36, fontSize: 12 }}
-          />
-          <Input
-            placeholder="To: YYYY-MM-DD"
-            value={entryDateTo}
-            onChangeText={setEntryDateTo}
-            containerStyle={{ flex: 1, marginBottom: 0 }}
-            inputStyle={{ height: 36, fontSize: 12 }}
-          />
-          {(entryDateFrom || entryDateTo) && (
-            <TouchableOpacity
-              onPress={() => { setEntryDateFrom(''); setEntryDateTo(''); }}
-              style={{ padding: 4 }}
-            >
-              <Ionicons name="close-circle" size={20} color={colors.muted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Stat chips ── */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsRow}>
-          {statCards.map((card) => {
-            const active = status === card.key;
-            return (
-              <TouchableOpacity
-                key={card.key}
-                onPress={() => setStatus(card.key)}
-                activeOpacity={0.8}
-                style={[styles.statChip, active && { backgroundColor: card.color }]}
-              >
-                <View style={[styles.statIconWrap, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : card.bg }]}>
-                  <Ionicons name={card.icon as any} size={18} color={active ? '#fff' : card.color} />
+                {/* ── Toolbar ── */}
+                <View style={styles.toolbar}>
+                  <View style={styles.searchBox}>
+                    <Ionicons name="search-outline" size={18} color={colors.muted} style={{ marginRight: 6 }} />
+                    <Input
+                      placeholder="Search guests..."
+                      value={search}
+                      onChangeText={setSearch}
+                      containerStyle={{ marginBottom: 0, flex: 1 }}
+                      inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }}
+                    />
+                  </View>
+                  <TouchableOpacity style={styles.addBtn} onPress={() => openForm()}>
+                    <Ionicons name="add" size={18} color="#fff" />
+                    <Text style={styles.addBtnText}>New</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={[styles.statValue, active && { color: '#fff' }]}>
-                  {statusCounts[card.key] ?? 0}
-                </Text>
-                <Text style={[styles.statLabel, active && { color: 'rgba(255,255,255,0.85)' }]}>
-                  {card.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
 
-        {/* ── Total count ── */}
-        <View style={styles.resultMeta}>
-          <Text style={styles.resultText}>
-            {loading ? 'Loading...' : `${totalCount} guests found`}
-          </Text>
-        </View>
-
-        {/* ── Guest card list ── */}
-        {loading && guests.length === 0 ? (
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-        ) : guests.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={colors.muted} />
-            <Text style={styles.emptyText}>No guests found</Text>
-            <Text style={styles.emptySubText}>Try adjusting your filters</Text>
-          </View>
-        ) : (
-          guests.map((g) => (
-            <GuestCard
-              key={g.guest_id}
-              guest={g}
-              onView={() => { setSelectedGuest(g); setShowViewModal(true); }}
-              onEdit={() => openForm(g)}
-              onCancel={() =>
-                Alert.alert('Cancel Visit', `Cancel ${g.guest_name}'s visit?`, [
-                  { text: 'No', style: 'cancel' },
-                  { text: 'Yes, Cancel', style: 'destructive', onPress: () => handleCancelVisit(g.inout_id) },
-                ])
-              }
-              onDelete={() =>
-                Alert.alert('Remove Guest', `Remove ${g.guest_name}?`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: () => handleDeleteGuest(g.guest_id) },
-                ])
-              }
-              locked={isLockedStatus(g.inout_status)}
-            />
-          ))
-        )}
-
-        {/* ── Pagination ── */}
-        {guests.length > 0 && (
-          <View style={styles.pagination}>
-            <Button
-              title="← Prev"
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onPress={() => setPage(page - 1)}
-            />
-            <Text style={styles.pageText}>Page {page}</Text>
-            <Button
-              title="Next →"
-              variant="outline"
-              size="sm"
-              disabled={guests.length < 10}
-              onPress={() => setPage(page + 1)}
-            />
-          </View>
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      {/* ── View Modal ── */}
-      <Modal
-        visible={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        title="Guest Profile"
-        footer={<Button title="Close" variant="outline" onPress={() => setShowViewModal(false)} />}
-      >
-        {selectedGuest && (
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={true}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 1 }}
-        >
-            <SectionCard title="Basic Information" icon="person-outline">
-              <DetailRow label="Full Name" value={selectedGuest.guest_name} />
-              <DetailRow label="Local Name" value={selectedGuest.guest_name_local_language} />
-              <DetailRow label="Mobile" value={selectedGuest.guest_mobile} />
-              <DetailRow label="Alt Mobile" value={selectedGuest.guest_alternate_mobile} />
-              <DetailRow label="Email" value={selectedGuest.email} />
-              <DetailRow label="Address" value={selectedGuest.guest_address} />
-            </SectionCard>
-
-            <SectionCard title="Designation" icon="briefcase-outline">
-              <DetailRow label="Designation" value={selectedGuest.designation_name} />
-              <DetailRow label="Department" value={selectedGuest.department} />
-              <DetailRow label="Organization" value={selectedGuest.organization} />
-              <DetailRow label="Office" value={selectedGuest.office_location} />
-            </SectionCard>
-
-            <SectionCard title="Visit Details" icon="calendar-outline">
-              <DetailRow label="Status" value={selectedGuest.inout_status} highlight />
-              <DetailRow label="Entry Date" value={formatDate(selectedGuest.entry_date)} />
-              <DetailRow label="Entry Time" value={formatTime(selectedGuest.entry_time)} />
-              <DetailRow label="Exit Date" value={formatDate(selectedGuest.exit_date)} />
-              <DetailRow label="Exit Time" value={formatTime(selectedGuest.exit_time)} />
-              <DetailRow label="Purpose" value={selectedGuest.purpose} />
-              <DetailRow label="Companions" value={String(selectedGuest.companions || 0)} />
-              <DetailRow label="Driver Required" value={selectedGuest.requires_driver ? 'Yes' : 'No'} />
-            </SectionCard>
-          </ScrollView>
-        )}
-      </Modal>
-
-      {/* ── Form Modal ── */}
-      <Modal
-        visible={showFormModal}
-        onClose={() => setShowFormModal(false)}
-        title={isEdit ? 'Update Guest' : 'Register New Guest'}
-        footer={
-          <View style={{ flexDirection: 'row', gap: spacing.md, width: '100%' }}>
-            <Button title="Cancel" variant="outline" style={{ flex: 1 }} onPress={() => setShowFormModal(false)} />
-            <Button title={isEdit ? 'Update' : 'Register'} style={{ flex: 1 }} onPress={handleSave} loading={loading} />
-          </View>
-        }
-      >
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={true}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={true}
-          contentContainerStyle={{ paddingBottom: 5}}
-        >
-        {/* <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}> */}
-          {/* Section: Guest Info */}
-          <SectionCard title="Guest Information" icon="person-outline">
-            <Input
-              label="Full Name *"
-              value={form.guest_name}
-              onChangeText={v => setForm({ ...form, guest_name: v })}
-            />
-
-            <View style={styles.row}>
-              <Input
-                label="Mobile *"
-                keyboardType="phone-pad"
-                value={form.guest_mobile}
-                onChangeText={v => setForm({ ...form, guest_mobile: v })}
-                containerStyle={{ flex: 1 }}
-              />
-              <Input
-                label="Alt Mobile"
-                keyboardType="phone-pad"
-                value={form.guest_alternate_mobile}
-                onChangeText={v => setForm({ ...form, guest_alternate_mobile: v })}
-                containerStyle={{ flex: 1 }}
-              />
-            </View>
-            <Input
-              label="Work Email"
-              keyboardType="email-address"
-              value={form.guest_email}
-              onChangeText={v => setForm({ ...form, guest_email: v })}
-            />
-            <Input
-              label="Address"
-              value={form.guest_address}
-              onChangeText={v => setForm({ ...form, guest_address: v })}
-              multiline
-            />
-          </SectionCard>
-
-          {/* Section: Designation */}
-          <SectionCard title="Designation" icon="briefcase-outline">
-            <View style={{ position: 'relative', zIndex: 100 }}>
-              <Input
-                label="Search / Add Designation"
-                value={designationSearch}
-                onChangeText={v => {
-                  setDesignationSearch(v);
-                  setForm({ ...form, designation_name: v, designation_id: '' });
-                  setShowDesignationDropdown(true);
-                }}
-                onFocus={() => setShowDesignationDropdown(true)}
-              />
-              {showDesignationDropdown && (
-                <View style={styles.dropdown}>
-                  <ScrollView
-                    nestedScrollEnabled={true}
-                    keyboardShouldPersistTaps="handled"
-                    style={{ maxHeight: 200 }}
-                  >
-                    {designations
-                      .filter(d => d.designation_name.toLowerCase().includes(designationSearch.toLowerCase()))
-                      .map((d, idx) => (
-                        <TouchableOpacity
-                          key={d.designation_id || idx}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setDesignationSearch(d.designation_name);
-                            setForm({
-                              ...form,
-                              designation_id: d.designation_id,
-                              designation_name: d.designation_name,
-                              department: d.department || form.department,
-                              organization: d.organization || form.organization,
-                              office_location: d.office_location || form.office_location,
-                            });
-                            setShowDesignationDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{d.designation_name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    {designationSearch !== '' &&
-                      !designations.some(d => d.designation_name.toLowerCase() === designationSearch.toLowerCase()) && (
-                        <TouchableOpacity
-                          style={styles.dropdownItem}
-                          onPress={() => setShowDesignationDropdown(false)}
-                        >
-                          <Text style={[styles.dropdownItemText, { color: colors.primary }]}>
-                            + Add New: "{designationSearch}"
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                  </ScrollView>
+                {/* ── Date filters ── */}
+                <View style={styles.filterBar}>
+                  <Input
+                    placeholder="From: YYYY-MM-DD"
+                    value={entryDateFrom}
+                    onChangeText={setEntryDateFrom}
+                    containerStyle={{ flex: 1, marginBottom: 0 }}
+                    inputStyle={{ height: 36, fontSize: 12 }}
+                  />
+                  <Input
+                    placeholder="To: YYYY-MM-DD"
+                    value={entryDateTo}
+                    onChangeText={setEntryDateTo}
+                    containerStyle={{ flex: 1, marginBottom: 0 }}
+                    inputStyle={{ height: 36, fontSize: 12 }}
+                  />
+                  {(entryDateFrom || entryDateTo) && (
+                    <TouchableOpacity
+                      onPress={() => { setEntryDateFrom(''); setEntryDateTo(''); }}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.muted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
-              )}
-            </View>
 
-            <Input
-              label="Organization"
-              value={form.organization}
-              onChangeText={v => setForm({ ...form, organization: v })}
-            />
-            <View style={styles.row}>
-              <Input
-                label="Department"
-                value={form.department}
-                onChangeText={v => setForm({ ...form, department: v })}
-                containerStyle={{ flex: 1 }}
+                {/* ── Stat chips ── */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsRow}>
+                  {statCards.map((card:any) => {
+                    const active = status === card.key;
+                    return (
+                      <TouchableOpacity
+                        key={card.key}
+                        onPress={() => setStatus(card.key)}
+                        activeOpacity={0.8}
+                        style={[styles.statChip, active && { backgroundColor: card.color }]}
+                      >
+                        <View style={[styles.statIconWrap, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : card.bg }]}>
+                          <Ionicons name={card.icon as any} size={18} color={active ? '#fff' : card.color} />
+                        </View>
+                        <Text style={[styles.statValue, active && { color: '#fff' }]}>
+                          {statusCounts[card.key] ?? 0}
+                        </Text>
+                        <Text style={[styles.statLabel, active && { color: 'rgba(255,255,255,0.85)' }]}>
+                          {card.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* ── Total count ── */}
+                <View style={styles.resultMeta}>
+                  <Text style={styles.resultText}>
+                    {loading ? 'Loading...' : `${totalCount} guests found`}
+                  </Text>
+                </View>
+              </>
+            }
+            renderItem={({ item: g }) => (
+              <GuestCard
+                guest={g}
+                onView={() => { setSelectedGuest(g); setShowViewModal(true); }}
+                onEdit={() => openForm(g)}
+                onCancel={() =>
+                  Alert.alert('Cancel Visit', `Cancel ${g.guest_name}'s visit?`, [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Yes, Cancel', style: 'destructive', onPress: () => handleCancelVisit(g.inout_id) },
+                  ])
+                }
+                onDelete={() =>
+                  Alert.alert('Remove Guest', `Remove ${g.guest_name}?`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: () => handleDeleteGuest(g.guest_id) },
+                  ])
+                }
+                locked={isLockedStatus(g.inout_status)}
               />
-              <Input
-                label="Office Location"
-                value={form.office_location}
-                onChangeText={v => setForm({ ...form, office_location: v })}
-                containerStyle={{ flex: 1 }}
-              />
-            </View>
-          </SectionCard>
+            )}
 
-          {/* Section: Visit Details */}
-          <SectionCard title="Visit Details" icon="calendar-outline">
-            <View style={styles.row}>
-<TouchableOpacity onPress={() => setShowEntryDatePicker(true)} style={{ flex: 1 }}>
-  <Input
-    label="Entry Date"
-    value={form.entry_date}
-    editable={false}
-  />
-</TouchableOpacity>
+            ListEmptyComponent={!loading ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="people-outline" size={48} color={colors.muted} />
+                <Text style={styles.emptyText}>No guests found</Text>
+                <Text style={styles.emptySubText}>Try adjusting your filters</Text>
+              </View>
+            ) : null}
 
-
-<TouchableOpacity onPress={() => setShowEntryTimePicker(true)} style={{ flex: 1 }}>
-  <Input
-    label="Entry Time"
-    value={form.entry_time}
-    editable={false}
-  />
-</TouchableOpacity>
-
-            </View>
-            <View style={styles.row}>
-<TouchableOpacity onPress={() => setShowExitDatePicker(true)} style={{ flex: 1 }}>
-  <Input
-    label="Exit Date"
-    value={form.exit_date}
-    editable={false}
-    // pointerEvents="none"
-  />
-</TouchableOpacity>
-
-<TouchableOpacity onPress={() => setShowExitTimePicker(true)} style={{ flex: 1 }}>
-  <Input
-    label="Exit Time"
-    value={form.exit_time}
-    editable={false}
-  />
-</TouchableOpacity>
-
-            </View>
-            <View style={styles.row}>
-              <Input
-                label="Companions"
-                keyboardType="numeric"
-                value={String(form.companions)}
-                onChangeText={v => setForm({ ...form, companions: parseInt(v) || 0 })}
-                containerStyle={{ flex: 1, marginBottom: 0 }}
-              />
-              <TouchableOpacity
-                style={[styles.driverToggle, form.requires_driver && styles.driverToggleActive]}
-                onPress={() => setForm({ ...form, requires_driver: !form.requires_driver })}
-              >
-                <Ionicons
-                  name={form.requires_driver ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color={form.requires_driver ? colors.primary : colors.muted}
+            ListFooterComponent={guests.length > 0 ? (
+              <View style={styles.pagination}>
+                <Button
+                  title="← Prev"
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onPress={() => setPage(page - 1)}
                 />
-                <Text style={[styles.driverToggleLabel, form.requires_driver && { color: colors.primary }]}>
-                  Driver Required
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <Input
-              label="Purpose of Visit"
-              multiline
-              numberOfLines={3}
-              value={form.purpose}
-              onChangeText={v => setForm({ ...form, purpose: v })}
-            />
-          </SectionCard>
-{showEntryDatePicker && (
-  <DateTimePicker
-    value={form.entry_date ? new Date(form.entry_date) : new Date()}
-    mode="date"
-    display="default"
-    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {  
-      setShowEntryDatePicker(false);
-      if (selectedDate) {
-        setForm({
-          ...form,
-          entry_date: selectedDate.toISOString().split('T')[0],
-        });
-      }
-    }}
-  />
-)}
-{showEntryTimePicker && (
-  <DateTimePicker
-    value={new Date()}
-    mode="time"
-    is24Hour
-    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
-      setShowEntryTimePicker(false);
-      if (selectedDate) {
-        const time = selectedDate.toTimeString().slice(0, 5);
-        setForm({ ...form, entry_time: time });
-      }
-    }}
-  />
-)}
-{showExitDatePicker && (
-  <DateTimePicker
-    value={form.exit_date ? new Date(form.exit_date) : new Date()}
-    mode="date"
-    display="default"
-    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
-      setShowExitDatePicker(false);
-      if (selectedDate) {
-        setForm({
-          ...form,
-          exit_date: selectedDate.toISOString().split('T')[0],
-        });
-      }
-    }}
-  />
-)}
-{showExitTimePicker && (
-  <DateTimePicker
-    value={new Date()}
-    mode="time"
-    is24Hour
-    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
-      setShowExitTimePicker(false);
-      if (selectedDate) {
-        const time = selectedDate.toTimeString().slice(0, 5);
-        setForm({ ...form, exit_time: time });
-      }
-    }}
-  />
-)}
-          {/* <View style={{ height: 80 }} /> */}
-        </ScrollView>
+                <Text style={styles.pageText}>Page {page}</Text>
+                <Button
+                  title="Next →"
+                  variant="outline"
+                  size="sm"
+                  disabled={guests.length < 10}
+                  onPress={() => setPage(page + 1)}
+                />
+              </View>
+            ) : null}
+/>
+            {/* ── Guest card list ──
+            {loading && guests.length === 0 ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+            ) : guests.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="people-outline" size={48} color={colors.muted} />
+                <Text style={styles.emptyText}>No guests found</Text>
+                <Text style={styles.emptySubText}>Try adjusting your filters</Text>
+              </View>
+            ) : (
+              guests.map((g) => (
+                <GuestCard
+                  key={g.guest_id}
+                  guest={g}
+                  onView={() => { setSelectedGuest(g); setShowViewModal(true); }}
+                  onEdit={() => openForm(g)}
+                  onCancel={() =>
+                    Alert.alert('Cancel Visit', `Cancel ${g.guest_name}'s visit?`, [
+                      { text: 'No', style: 'cancel' },
+                      { text: 'Yes, Cancel', style: 'destructive', onPress: () => handleCancelVisit(g.inout_id) },
+                    ])
+                  }
+                  onDelete={() =>
+                    Alert.alert('Remove Guest', `Remove ${g.guest_name}?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => handleDeleteGuest(g.guest_id) },
+                    ])
+                  }
+                  locked={isLockedStatus(g.inout_status)}
+                />
+              ))
+            )}
 
-      </Modal>
-    </View>
-  );
+            ── Pagination ──
+            {guests.length > 0 && (
+              <View style={styles.pagination}>
+                <Button
+                  title="← Prev"
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onPress={() => setPage(page - 1)}
+                />
+                <Text style={styles.pageText}>Page {page}</Text>
+                <Button
+                  title="Next →"
+                  variant="outline"
+                  size="sm"
+                  disabled={guests.length < 10}
+                  onPress={() => setPage(page + 1)}
+                />
+              </View>
+            )}
+
+            <View style={{ height: 40 }} />
+          </ScrollView> */}
+
+          {/* ── View Modal ── */}
+          <Modal
+            visible={showViewModal}
+            onClose={() => setShowViewModal(false)}
+            title="Guest Profile"
+            footer={<Button title="Close" variant="outline" onPress={() => setShowViewModal(false)} />}
+          >
+            {selectedGuest && (
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 1 }}
+              >
+                <SectionCard title="Basic Information" icon="person-outline">
+                  <DetailRow label="Full Name" value={selectedGuest.guest_name} />
+                  <DetailRow label="Local Name" value={selectedGuest.guest_name_local_language} />
+                  <DetailRow label="Mobile" value={selectedGuest.guest_mobile} />
+                  <DetailRow label="Alt Mobile" value={selectedGuest.guest_alternate_mobile} />
+                  <DetailRow label="Email" value={selectedGuest.email} />
+                  <DetailRow label="Address" value={selectedGuest.guest_address} />
+                </SectionCard>
+
+                <SectionCard title="Designation" icon="briefcase-outline">
+                  <DetailRow label="Designation" value={selectedGuest.designation_name} />
+                  <DetailRow label="Department" value={selectedGuest.department} />
+                  <DetailRow label="Organization" value={selectedGuest.organization} />
+                  <DetailRow label="Office" value={selectedGuest.office_location} />
+                </SectionCard>
+
+                <SectionCard title="Visit Details" icon="calendar-outline">
+                  <DetailRow label="Status" value={selectedGuest.inout_status} highlight />
+                  <DetailRow label="Entry Date" value={formatDate(selectedGuest.entry_date)} />
+                  <DetailRow label="Entry Time" value={formatTime(selectedGuest.entry_time)} />
+                  <DetailRow label="Exit Date" value={formatDate(selectedGuest.exit_date)} />
+                  <DetailRow label="Exit Time" value={formatTime(selectedGuest.exit_time)} />
+                  <DetailRow label="Purpose" value={selectedGuest.purpose} />
+                  <DetailRow label="Companions" value={String(selectedGuest.companions || 0)} />
+                  <DetailRow label="Driver Required" value={selectedGuest.requires_driver ? 'Yes' : 'No'} />
+                </SectionCard>
+              </ScrollView>
+            )}
+          </Modal>
+
+          {/* ── Form Modal ── */}
+          <Modal
+            visible={showFormModal}
+            onClose={() => setShowFormModal(false)}
+            title={isEdit ? 'Update Guest' : 'Register New Guest'}
+            footer={
+              <View style={{ flexDirection: 'row', gap: spacing.md, width: '100%' }}>
+                <Button title="Cancel" variant="outline" style={{ flex: 1 }} onPress={() => setShowFormModal(false)} />
+                <Button title={isEdit ? 'Update' : 'Register'} style={{ flex: 1 }} onPress={handleSubmit} loading={loading} />
+              </View>
+            }
+          >
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 5 }}
+            >
+              {/* <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}> */}
+                {/* Section: Guest Info */}
+                <SectionCard title="Guest Information" icon="person-outline">
+                  <Input
+                    label="Full Name *"
+                    value={form.guest_name}
+                    onChangeText={v => setForm({ ...form, guest_name: v })}
+                  />
+
+                  <View style={styles.row}>
+                    <Input
+                      label="Mobile *"
+                      keyboardType="phone-pad"
+                      value={form.guest_mobile}
+                      onChangeText={v => setForm({ ...form, guest_mobile: v })}
+                      containerStyle={{ flex: 1 }}
+                    />
+                    <Input
+                      label="Alt Mobile"
+                      keyboardType="phone-pad"
+                      value={form.guest_alternate_mobile}
+                      onChangeText={v => setForm({ ...form, guest_alternate_mobile: v })}
+                      containerStyle={{ flex: 1 }}
+                    />
+                  </View>
+                  <Input
+                    label="Work Email"
+                    keyboardType="email-address"
+                    value={form.guest_email}
+                    onChangeText={v => setForm({ ...form, guest_email: v })}
+                  />
+                  <Input
+                    label="Address"
+                    value={form.guest_address}
+                    onChangeText={v => setForm({ ...form, guest_address: v })}
+                    multiline
+                  />
+                </SectionCard>
+
+                {/* Section: Designation */}
+                <SectionCard title="Designation" icon="briefcase-outline">
+                  <View style={{ position: 'relative', zIndex: 100 }}>
+                    <Input
+                      label="Search / Add Designation"
+                      value={designationSearch}
+                      onChangeText={v => {
+                        setDesignationSearch(v);
+                        setForm({ ...form, designation_name: v, designation_id: '' });
+                        setShowDesignationDropdown(true);
+                      }}
+                      onFocus={() => setShowDesignationDropdown(true)}
+                    />
+                    {showDesignationDropdown && (
+                      <View style={styles.dropdown}>
+                        <ScrollView
+                          nestedScrollEnabled={true}
+                          keyboardShouldPersistTaps="handled"
+                          style={{ maxHeight: 200 }}
+                        >
+                          {designations
+                            .filter(d => d.designation_name.toLowerCase().includes(designationSearch.toLowerCase()))
+                            .map((d, idx) => (
+                              <TouchableOpacity
+                                key={d.designation_id || idx}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                  setDesignationSearch(d.designation_name);
+                                  setForm({
+                                    ...form,
+                                    designation_id: d.designation_id,
+                                    designation_name: d.designation_name,
+                                    department: d.department || form.department,
+                                    organization: d.organization || form.organization,
+                                    office_location: d.office_location || form.office_location,
+                                  });
+                                  setShowDesignationDropdown(false);
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{d.designation_name}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          {designationSearch !== '' &&
+                            !designations.some(d => d.designation_name.toLowerCase() === designationSearch.toLowerCase()) && (
+                              <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => setShowDesignationDropdown(false)}
+                              >
+                                <Text style={[styles.dropdownItemText, { color: colors.primary }]}>
+                                  + Add New: "{designationSearch}"
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  <Input
+                    label="Organization"
+                    value={form.organization}
+                    onChangeText={v => setForm({ ...form, organization: v })}
+                  />
+                  <View style={styles.row}>
+                    <Input
+                      label="Department"
+                      value={form.department}
+                      onChangeText={v => setForm({ ...form, department: v })}
+                      containerStyle={{ flex: 1 }}
+                    />
+                    <Input
+                      label="Office Location"
+                      value={form.office_location}
+                      onChangeText={v => setForm({ ...form, office_location: v })}
+                      containerStyle={{ flex: 1 }}
+                    />
+                  </View>
+                </SectionCard>
+
+                {/* Section: Visit Details */}
+                <SectionCard title="Visit Details" icon="calendar-outline">
+                  <View style={styles.row}>
+                    <TouchableOpacity onPress={() => setShowEntryDatePicker(true)} style={{ flex: 1 }}>
+                      <Input
+                        label="Entry Date"
+                        value={form.entry_date}
+                        editable={false}
+                      />
+                    </TouchableOpacity>
+
+
+                    <TouchableOpacity onPress={() => setShowEntryTimePicker(true)} style={{ flex: 1 }}>
+                      <Input
+                        label="Entry Time"
+                        value={form.entry_time}
+                        editable={false}
+                      />
+                    </TouchableOpacity>
+
+                  </View>
+                  <View style={styles.row}>
+                    <TouchableOpacity onPress={() => setShowExitDatePicker(true)} style={{ flex: 1 }}>
+                      <Input
+                        label="Exit Date"
+                        value={form.exit_date}
+                        editable={false}
+                        // pointerEvents="none"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => setShowExitTimePicker(true)} style={{ flex: 1 }}>
+                      <Input
+                        label="Exit Time"
+                        value={form.exit_time}
+                        editable={false}
+                      />
+                    </TouchableOpacity>
+
+                  </View>
+                  <View style={styles.row}>
+                    <Input
+                      label="Companions"
+                      keyboardType="numeric"
+                      value={String(form.companions)}
+                      onChangeText={v => setForm({ ...form, companions: parseInt(v) || 0 })}
+                      containerStyle={{ flex: 1, marginBottom: 0 }}
+                    />
+                    <TouchableOpacity
+                      style={[styles.driverToggle, form.requires_driver && styles.driverToggleActive]}
+                      onPress={() => setForm({ ...form, requires_driver: !form.requires_driver })}
+                    >
+                      <Ionicons
+                        name={form.requires_driver ? 'checkbox' : 'square-outline'}
+                        size={20}
+                        color={form.requires_driver ? colors.primary : colors.muted}
+                      />
+                      <Text style={[styles.driverToggleLabel, form.requires_driver && { color: colors.primary }]}>
+                        Driver Required
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Input
+                    label="Purpose of Visit"
+                    multiline
+                    numberOfLines={3}
+                    value={form.purpose}
+                    onChangeText={v => setForm({ ...form, purpose: v })}
+                  />
+                </SectionCard>
+                {showEntryDatePicker && (
+                  <DateTimePicker
+                    value={form.entry_date ? new Date(form.entry_date) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {  
+                      setShowEntryDatePicker(false);
+                      if (selectedDate) {
+                        setForm({
+                          ...form,
+                          entry_date: selectedDate.toISOString().split('T')[0],
+                        });
+                      }
+                    }}
+                  />
+                )}
+                {showEntryTimePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="time"
+                    is24Hour
+                    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                      setShowEntryTimePicker(false);
+                      if (selectedDate) {
+                        const time = selectedDate.toTimeString().slice(0, 5);
+                        setForm({ ...form, entry_time: time });
+                      }
+                    }}
+                  />
+                )}
+                {showExitDatePicker && (
+                  <DateTimePicker
+                    value={form.exit_date ? new Date(form.exit_date) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                      setShowExitDatePicker(false);
+                      if (selectedDate) {
+                        setForm({
+                          ...form,
+                          exit_date: selectedDate.toISOString().split('T')[0],
+                        });
+                      }
+                    }}
+                  />
+                )}
+                {showExitTimePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="time"
+                    is24Hour
+                    onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+                      setShowExitTimePicker(false);
+                      if (selectedDate) {
+                        const time = selectedDate.toTimeString().slice(0, 5);
+                        setForm({ ...form, exit_time: time });
+                      }
+                    }}
+                  />
+                )}
+                {/* <View style={{ height: 80 }} /> */}
+              </ScrollView>
+
+            </Modal>
+          </PageContainer>
+        );
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -875,81 +908,69 @@ function DetailRow({ label, value, highlight }: { label: string; value?: string;
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F6FA' },
-  scrollContent: { padding: spacing.lg },
+  scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
 
   // ── toolbar
   toolbar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.sm,
     marginBottom: spacing.md,
   },
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingLeft: spacing.sm,
-    height: 44,
+    backgroundColor: colors.lightGray,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    flex: 1,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   addBtnText: {
     color: '#fff',
+    marginLeft: spacing.sm,
     fontSize: 14,
-    fontWeight: '700',
   },
-
-  // ── filters
   filterBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
     marginBottom: spacing.md,
   },
-
-  // ── stat chips
-  statsRow: { marginBottom: spacing.md },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
   statChip: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    marginRight: 10,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 90,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginRight: spacing.sm,
   },
   statIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginBottom: spacing.xs,
   },
-  statValue: { fontSize: 18, fontWeight: '800', color: colors.text },
-  statLabel: { fontSize: 10, color: colors.muted, fontWeight: '600', marginTop: 1 },
-
-  // ── result meta
-  resultMeta: { marginBottom: spacing.sm },
-  resultText: { fontSize: 12, color: colors.muted, fontWeight: '500' },
-
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 14,
+  },
+  resultMeta: {
+    marginBottom: spacing.md,
+  },
+  resultText: {
+    fontSize: 14,
+    color: colors.muted,
+  },
   // ── empty
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 12 },

@@ -23,9 +23,9 @@ function InitialLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/login');
+      router.replace('/login'); // Forced logout should still use replace
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(drawer)');
+      router.push('/(drawer)'); // Use push so back button works after login
     }
   }, [isAuthenticated, segments, navigationState, isLoading]);
 
