@@ -103,15 +103,15 @@ private async notifyUsers(message: string, guest: any) {
   for (const user of users.rows) {
     if (!user.primary_mobile) continue;
 
-    await this.notificationsService.createNotification({
-      guestId: guest.guest_id,
-      inoutId: guest.inout_id,
-      notificationType: 'T_MINUS_24_ASSIGNMENT_ALERT',
-      recipientType: 'USER',
-      recipientContact: user.primary_mobile,
-      channel: 'WHATSAPP',
-      message
-    });
+    // await this.notificationsService.createNotification({
+    //   guestId: guest.guest_id,
+    //   inoutId: guest.inout_id,
+    //   notificationType: 'T_MINUS_24_ASSIGNMENT_ALERT',
+    //   recipientType: 'USER',
+    //   recipientContact: user.primary_mobile,
+    //   channel: 'WHATSAPP',
+    //   message
+    // });
   }
 }
     private async guestArrivalReminders() {
@@ -315,15 +315,15 @@ private async guestStayDetailsNotification() {
       details
     );
 
-    await this.notificationsService.createNotification({
-      guestId: guest.guest_id,
-      inoutId: guest.inout_id,
-      notificationType: 'T_MINUS_12_FULL_DETAILS',
-      recipientType: 'GUEST',
-      recipientContact: guest.guest_mobile,
-      channel: 'WHATSAPP',
-      message
-    });
+    // await this.notificationsService.createNotification({
+    //   guestId: guest.guest_id,
+    //   inoutId: guest.inout_id,
+    //   notificationType: 'T_MINUS_12_FULL_DETAILS',
+    //   recipientType: 'GUEST',
+    //   recipientContact: guest.guest_mobile,
+    //   channel: 'WHATSAPP',
+    //   message
+    // });
   }
 }
 
@@ -424,15 +424,15 @@ private async GarageNotification() {
     for (const user of garageUsers.rows) {
       if (!user.primary_mobile) continue;
 
-      await this.notificationsService.createNotification({
-        guestId: guest.guest_id,
-        inoutId: guest.inout_id,
-        notificationType: 'T_MINUS_3_GARAGE_ALERT',
-        recipientType: 'USER',
-        recipientContact: user.primary_mobile,
-        channel: 'WHATSAPP',
-        message
-      });
+      // await this.notificationsService.createNotification({
+      //   guestId: guest.guest_id,
+      //   inoutId: guest.inout_id,
+      //   notificationType: 'T_MINUS_3_GARAGE_ALERT',
+      //   recipientType: 'USER',
+      //   recipientContact: user.primary_mobile,
+      //   channel: 'WHATSAPP',
+      //   message
+      // });
     }
   }
 }
@@ -480,15 +480,15 @@ private async guestPickupNotification() {
       details
     );
 
-    await this.notificationsService.createNotification({
-      guestId: guest.guest_id,
-      inoutId: guest.inout_id,
-      notificationType: 'T_MINUS_2_PICKUP_DETAILS',
-      recipientType: 'GUEST',
-      recipientContact: guest.guest_mobile,
-      channel: 'WHATSAPP',
-      message
-    });
+    // await this.notificationsService.createNotification({
+    //   guestId: guest.guest_id,
+    //   inoutId: guest.inout_id,
+    //   notificationType: 'T_MINUS_2_PICKUP_DETAILS',
+    //   recipientType: 'GUEST',
+    //   recipientContact: guest.guest_mobile,
+    //   channel: 'WHATSAPP',
+    //   message
+    // });
   }
 }
 
@@ -596,15 +596,15 @@ private async staffDutyNotification() {
         `${guest.entry_date} ${guest.entry_time}`
       );
 
-      await this.notificationsService.createNotification({
-        guestId: guest.guest_id,
-        inoutId: guest.inout_id,
-        notificationType: 'T_MINUS_12_STAFF_DUTY',
-        recipientType: 'USER',
-        recipientContact: staff.primary_mobile,
-        channel: 'WHATSAPP',
-        message
-      });
+      // await this.notificationsService.createNotification({
+      //   guestId: guest.guest_id,
+      //   inoutId: guest.inout_id,
+      //   notificationType: 'T_MINUS_12_STAFF_DUTY',
+      //   recipientType: 'USER',
+      //   recipientContact: staff.primary_mobile,
+      //   channel: 'WHATSAPP',
+      //   message
+      // });
     }
   }
 }
@@ -685,15 +685,15 @@ private async driverPickupNotification() {
       details
     );
 
-    await this.notificationsService.createNotification({
-      guestId: guest.guest_id,
-      inoutId: guest.inout_id,
-      notificationType: 'T_MINUS_2_DRIVER_PICKUP',
-      recipientType: 'USER',
-      recipientContact: details.driver_contact,
-      channel: 'WHATSAPP',
-      message
-    });
+    // await this.notificationsService.createNotification({
+    //   guestId: guest.guest_id,
+    //   inoutId: guest.inout_id,
+    //   notificationType: 'T_MINUS_2_DRIVER_PICKUP',
+    //   recipientType: 'USER',
+    //   recipientContact: details.driver_contact,
+    //   channel: 'WHATSAPP',
+    //   message
+    // });
   }
 }
     private async checkAmenities(guestId: string) {
@@ -762,26 +762,26 @@ private async driverPickupNotification() {
           notificationType = 'T_MINUS_6_GUEST_NOTIFICATION';
         }
 
-        const templateRow = await this.notificationsService.getTemplate(
-          notificationType,
-          'WHATSAPP'
-        );
+        // const templateRow = await this.notificationsService.getTemplate(
+        //   notificationType,
+        //   'WHATSAPP'
+        // );
 
-        if (!templateRow) continue;
+        // if (!templateRow) continue;
 
-        const message = this.notificationsService.renderTemplate(
-          templateRow.template,
-          {
-            guest_name: guest.guest_name,
-            room: amenities.room ? 'Assigned' : 'Not assigned',
-            driver: amenities.driver ? 'Yes' : 'No',
-            butler: amenities.butler ? 'Assigned' : 'Not assigned',
-            messenger: amenities.messenger ? 'Assigned' : 'Not assigned',
-            network: amenities.network ? 'Assigned' : 'Not assigned',
-            liaison: amenities.liaison ? 'Assigned' : 'Not assigned',
-            medical: amenities.medical ? 'Assigned' : 'Not assigned'
-          }
-        );
+        // const message = this.notificationsService.renderTemplate(
+        //   templateRow.template,
+        //   {
+        //     guest_name: guest.guest_name,
+        //     room: amenities.room ? 'Assigned' : 'Not assigned',
+        //     driver: amenities.driver ? 'Yes' : 'No',
+        //     butler: amenities.butler ? 'Assigned' : 'Not assigned',
+        //     messenger: amenities.messenger ? 'Assigned' : 'Not assigned',
+        //     network: amenities.network ? 'Assigned' : 'Not assigned',
+        //     liaison: amenities.liaison ? 'Assigned' : 'Not assigned',
+        //     medical: amenities.medical ? 'Assigned' : 'Not assigned'
+        //   }
+        // );
 
         // await this.notificationsService.createNotification({
         //   guestId: guest.guest_id,

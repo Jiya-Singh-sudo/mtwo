@@ -665,7 +665,7 @@ export class DriversService {
         throw new BadRequestException('Invalid driver ID');
       }
       const existingRes = await client.query(
-        `SELECT d.*,s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE AND d.designation = 'Driver' FOR UPDATE`,
+        `SELECT d.*,s.* FROM m_driver d JOIN m_staff s ON s.staff_id = d.staff_id WHERE driver_id = $1 AND d.is_active = TRUE AND s.is_active = TRUE AND s.designation = 'Driver' FOR UPDATE`,
         [driver_id]
       );
       const existing = existingRes.rows[0];
