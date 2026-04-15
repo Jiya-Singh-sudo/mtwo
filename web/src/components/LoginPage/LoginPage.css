@@ -8,7 +8,24 @@
 .login-page *::after {
   box-sizing: border-box;
 }
+.nicPrimaryBtn {
+  height: 50px;
+  border-radius: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #2563eb, #1e3a8a);
+  color: #fff;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+}
 
+.nicPrimaryBtn:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 18px 35px rgba(37, 99, 235, 0.45);
+}
+
+.nicPrimaryBtn:active {
+  transform: scale(0.98);
+}
 
 .appWrapper {
   min-height: 100vh;
@@ -153,7 +170,7 @@
 
 .loginWrap {
   width: 45%;
-  background: linear-gradient(135deg, #f9fafb, #eff6ff);
+  background: linear-gradient(135deg, #f9fafb, hsl(214, 100%, 97%));
   display: flex;
   justify-content: center;
   align-items: center;

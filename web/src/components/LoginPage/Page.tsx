@@ -7,9 +7,9 @@ import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recapt
 import Carousel from '@/components/carousel/Carousel';
 
 // Carousel images - referenced from public folder via URL paths
-const carouselImage1 = '/e82231e517b6fec57efe9e3fe22b24d9f4bd1b33.png';
-const carouselImage2 = '/4d519aa914a9b25ad3459a587af5224ecd108d8a9.png';
-const carouselImage3 = '/7c146dfd37ee595fdc09e56ad998da5fa5abe1ce.png';
+const carouselImage1 = '/1st.jpeg';
+const carouselImage2 = '/2nd.jpeg';
+const carouselImage3 = '/3rd.jpeg';
 
 // Government emblems - referenced from public folder via URaL paths
 const ashokaEmblem = '/ashoka_emblem.png';

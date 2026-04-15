@@ -1058,6 +1058,7 @@ export function FoodService() {
                   <input
                     className="nicInput"
                     value={butlerForm.butler_name}
+                    maxLength={50}
                     onChange={(e) =>
                       setButlerForm({ ...butlerForm, butler_name: e.target.value })
                     }
@@ -1085,6 +1086,7 @@ export function FoodService() {
                   <input
                     className="nicInput"
                     value={butlerForm.butler_mobile}
+                    maxLength={10}
                     onChange={(e) =>
                       setButlerForm({ ...butlerForm, butler_mobile: e.target.value })
                     }
@@ -1098,6 +1100,7 @@ export function FoodService() {
                   <input
                     className="nicInput"
                     value={butlerForm.butler_alternate_mobile}
+                    maxLength={10 | 0}
                     onChange={(e) =>
                       setButlerForm({
                         ...butlerForm,
