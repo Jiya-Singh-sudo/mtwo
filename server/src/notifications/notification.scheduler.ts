@@ -345,8 +345,10 @@ private async getGarageUsers() {
 private async getDriverVehicleDetails(guestId: string) {
   const res = await this.db.query(`
     SELECT
-      v.vehicle_number,
-      v.vehicle_type,
+      v.vehicle_no,
+      v.vehicle_name,
+      v.model,
+      v.color,
 
       ds.full_name AS driver_name,
       ds.primary_mobile AS driver_contact,
@@ -364,7 +366,7 @@ private async getDriverVehicleDetails(guestId: string) {
     FROM m_guest g
 
     LEFT JOIN t_guest_vehicle gv ON g.guest_id = gv.guest_id
-    LEFT JOIN m_vehicle v ON gv.vehicle_id = v.vehicle_id
+    LEFT JOIN m_vehicle v ON gv.vehicle_no = v.vehicle_no
 
     LEFT JOIN t_guest_driver gd ON g.guest_id = gd.guest_id
     LEFT JOIN m_driver d ON gd.driver_id = d.driver_id

@@ -140,6 +140,30 @@ export class HousekeepingService {
     return { data: rows, totalCount: count };
   }
 
+  async getAvailableOptions() {
+    const query = `
+      SELECT 
+        hk.hk_id,
+        s.full_name AS hk_name
+      FROM m_housekeeping hk
+      JOIN m_staff s ON s.staff_id = hk.staff_id
+      WHERE hk.is_active = true AND s.is_active = true
+      AND NOT EXISTS (
+        SELECT 1
+        FROM t_guest_hk gh
+        WHERE gh.hk_id = hk.hk_id
+        AND gh.is_active = true
+      )
+      ORDER BY s.full_name ASC
+    `;
+
+    const result = await this.db.query(query);
+
+    return {
+      data: result,
+    };
+  }
+
   async findOneByName(name: string) {
     if (!name || !name.trim()) {
       throw new BadRequestException('Invalid name');
@@ -196,11 +220,11 @@ export class HousekeepingService {
       if (!dto.hk_contact) {
         throw new BadRequestException('Invalid contact number');
       }
-      if (!/^[6-9]\d{9}$/.test(dto.hk_contact)) {
+      if (!/^[6-9]\d{9}$/.test(String(dto.hk_contact))) {
         throw new BadRequestException('Invalid contact number');
       }
       if (dto.hk_alternate_contact) {
-        if (!/^[6-9]\d{9}$/.test(dto.hk_alternate_contact)) {
+        if (!/^[6-9]\d{9}$/.test(String(dto.hk_alternate_contact))) {
           throw new BadRequestException('Invalid alternate contact number');
         }
       }
@@ -338,10 +362,10 @@ export class HousekeepingService {
           throw new BadRequestException('Housekeeping Name Too Long');
         }
       }
-      if (dto.hk_contact && !/^[6-9]\d{9}$/.test(dto.hk_contact)) {
+      if (dto.hk_contact && !/^[6-9]\d{9}$/.test(String(dto.hk_contact))) {
         throw new BadRequestException('Invalid Contact Number');
       }
-      if (dto.hk_alternate_contact && !/^[6-9]\d{9}$/.test(dto.hk_alternate_contact)) {
+      if (dto.hk_alternate_contact && !/^[6-9]\d{9}$/.test(String(dto.hk_alternate_contact))) {
         throw new BadRequestException('Invalid Alternate Contact Number');
       }
       const existingRes = await client.query(

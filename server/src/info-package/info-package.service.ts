@@ -17,130 +17,264 @@ export class InfoPackageService {
     const page = Number(query.page || 1);
     const limit = Number(query.limit || 10);
     const offset = (page - 1) * limit;
+
     const search = `%${query.search || ''}%`;
+
+    const fromDate = query.fromDate || null;
+    const toDate = query.toDate || null;
+
     const dataSql = `
-    SELECT DISTINCT ON (g.guest_id)
-      g.guest_id,
-      g.guest_name,
-      md.designation_name,
-      r.room_no,
-      ti.entry_date AS arrival_date,
-      ti.exit_date  AS departure_date,
-      v.vehicle_no,
-      s.full_name AS driver_name
+      SELECT DISTINCT ON (g.guest_id)
+        g.guest_id,
+        g.guest_name,
+        md.designation_name,
+        r.room_no,
+        ti.entry_date AS arrival_date,
+        ti.exit_date AS departure_date,
+        v.vehicle_no,
+        s.full_name AS driver_name
 
-    FROM m_guest g
-    JOIN t_guest_inout ti
-      ON ti.guest_id = g.guest_id
-      AND ti.is_active IS TRUE
+      FROM m_guest g
 
-    LEFT JOIN t_guest_designation gd
-      ON gd.guest_id = g.guest_id
-      AND gd.is_active IS TRUE
-      AND gd.is_current IS TRUE
+      JOIN t_guest_inout ti
+        ON ti.guest_id = g.guest_id
 
-    LEFT JOIN m_guest_designation md
-      ON md.designation_id = gd.designation_id
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+        AND gd.is_active IS TRUE
+        AND gd.is_current IS TRUE
 
-    LEFT JOIN t_guest_room gr
-      ON gr.guest_id = g.guest_id
-      AND gr.is_active IS TRUE
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
 
-    LEFT JOIN m_rooms r
-      ON r.room_id = gr.room_id
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
 
-    LEFT JOIN t_guest_vehicle gv
-      ON gv.guest_id = g.guest_id
-      AND gv.is_active IS TRUE
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
 
-    LEFT JOIN t_guest_driver gdrv
-      ON gdrv.guest_id = g.guest_id
-      AND gdrv.is_active IS TRUE
+      LEFT JOIN t_guest_vehicle gv
+        ON gv.guest_id = g.guest_id
 
-    LEFT JOIN m_vehicle v
-      ON v.vehicle_no = gv.vehicle_no
+      LEFT JOIN m_vehicle v
+        ON v.vehicle_no = gv.vehicle_no
 
-    LEFT JOIN m_driver d
-      ON d.driver_id = gdrv.driver_id
+      LEFT JOIN t_guest_driver gdrv
+        ON gdrv.guest_id = g.guest_id
 
-    LEFT JOIN m_staff s
-      ON s.staff_id = d.staff_id
+      LEFT JOIN m_driver d
+        ON d.driver_id = gdrv.driver_id
 
-    WHERE
-      g.is_active IS TRUE
-      AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
-      AND (
-        g.guest_name ILIKE $1
-        OR r.room_no ILIKE $1
-        OR v.vehicle_no ILIKE $1
-      )
+      LEFT JOIN m_staff s
+        ON s.staff_id = d.staff_id
 
-    ORDER BY g.guest_id, ti.entry_date DESC
-    LIMIT $2 OFFSET $3;
+      WHERE
+        (
+          $2::date IS NULL
+          OR ti.entry_date::date >= $2::date
+        )
+
+        AND (
+          $3::date IS NULL
+          OR ti.entry_date::date <= $3::date
+        )
+
+        AND (
+          g.guest_name ILIKE $1
+          OR r.room_no ILIKE $1
+          OR v.vehicle_no ILIKE $1
+        )
+
+      ORDER BY g.guest_id, ti.entry_date DESC
+      LIMIT $4 OFFSET $5;
     `;
 
     const countSql = `
-    SELECT COUNT(DISTINCT g.guest_id) AS total
-    FROM m_guest g
+      SELECT COUNT(DISTINCT g.guest_id) AS total
 
-    JOIN t_guest_inout ti
-      ON ti.guest_id = g.guest_id
-      AND ti.is_active IS TRUE
+      FROM m_guest g
 
-    LEFT JOIN t_guest_designation gd
-      ON gd.guest_id = g.guest_id
-      AND gd.is_active IS TRUE
-      AND gd.is_current IS TRUE
+      JOIN t_guest_inout ti
+        ON ti.guest_id = g.guest_id
 
-    LEFT JOIN m_guest_designation md
-      ON md.designation_id = gd.designation_id
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+        AND gd.is_active IS TRUE
+        AND gd.is_current IS TRUE
 
-    LEFT JOIN t_guest_room gr
-      ON gr.guest_id = g.guest_id
-      AND gr.is_active IS TRUE
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
 
-    LEFT JOIN m_rooms r
-      ON r.room_id = gr.room_id
+      LEFT JOIN t_guest_room gr
+        ON gr.guest_id = g.guest_id
 
-    LEFT JOIN t_guest_vehicle gv
-      ON gv.guest_id = g.guest_id
-      AND gv.is_active IS TRUE
+      LEFT JOIN m_rooms r
+        ON r.room_id = gr.room_id
 
-    LEFT JOIN m_vehicle v
-      ON v.vehicle_no = gv.vehicle_no
+      LEFT JOIN t_guest_vehicle gv
+        ON gv.guest_id = g.guest_id
 
-    LEFT JOIN t_guest_driver gdrv
-      ON gdrv.guest_id = g.guest_id
-      AND gdrv.is_active IS TRUE
+      LEFT JOIN m_vehicle v
+        ON v.vehicle_no = gv.vehicle_no
 
-    WHERE
-      g.is_active IS TRUE
-      AND (
-        ti.entry_date BETWEEN
-          (CURRENT_DATE - INTERVAL '15 days')
-          AND
-          (CURRENT_DATE + INTERVAL '15 days')
-      )
-      AND (ti.exit_date IS NULL OR ti.exit_date >= CURRENT_DATE)
+      LEFT JOIN t_guest_driver gdrv
+        ON gdrv.guest_id = g.guest_id
 
-      AND (
-        g.guest_name ILIKE $1
-        OR r.room_no ILIKE $1
-        OR v.vehicle_no ILIKE $1
-      );
+      WHERE
+        (
+          $2::date IS NULL
+          OR ti.entry_date::date >= $2::date
+        )
+
+        AND (
+          $3::date IS NULL
+          OR ti.entry_date::date <= $3::date
+        )
+
+        AND (
+          g.guest_name ILIKE $1
+          OR r.room_no ILIKE $1
+          OR v.vehicle_no ILIKE $1
+        );
     `;
 
-    const dataResult = await this.db.query(dataSql, [search, limit, offset]);
-    const countResult = await this.db.query(countSql, [search]);
+    const dataResult = await this.db.query(
+      dataSql,
+      [search, fromDate, toDate, limit, offset],
+    );
+
+    const countResult = await this.db.query(
+      countSql,
+      [search, fromDate, toDate],
+    );
 
     return {
-      data: dataResult.rows,   // ✅ THIS IS THE KEY
+      data: dataResult.rows,
       total: Number(countResult.rows[0]?.total || 0),
       page,
       limit,
     };
-
   }
+
+  // async searchGuests(query: InfoPackageSearchDto) {
+  //   const page = Number(query.page || 1);
+  //   const limit = Number(query.limit || 10);
+  //   const offset = (page - 1) * limit;
+  //   const search = `%${query.search || ''}%`;
+  //   const dataSql = `
+  //   SELECT DISTINCT ON (g.guest_id)
+  //     g.guest_id,
+  //     g.guest_name,
+  //     md.designation_name,
+  //     r.room_no,
+  //     ti.entry_date AS arrival_date,
+  //     ti.exit_date  AS departure_date,
+  //     v.vehicle_no,
+  //     s.full_name AS driver_name
+
+  //   FROM m_guest g
+  //   JOIN t_guest_inout ti
+  //     ON ti.guest_id = g.guest_id
+
+  //   LEFT JOIN t_guest_designation gd
+  //     ON gd.guest_id = g.guest_id
+  //     AND gd.is_active IS TRUE
+  //     AND gd.is_current IS TRUE
+
+  //   LEFT JOIN m_guest_designation md
+  //     ON md.designation_id = gd.designation_id
+
+  //   LEFT JOIN t_guest_room gr
+  //     ON gr.guest_id = g.guest_id
+
+  //   LEFT JOIN m_rooms r
+  //     ON r.room_id = gr.room_id
+
+  //   LEFT JOIN t_guest_vehicle gv
+  //     ON gv.guest_id = g.guest_id
+
+  //   LEFT JOIN t_guest_driver gdrv
+  //     ON gdrv.guest_id = g.guest_id
+
+  //   LEFT JOIN m_vehicle v
+  //     ON v.vehicle_no = gv.vehicle_no
+
+  //   LEFT JOIN m_driver d
+  //     ON d.driver_id = gdrv.driver_id
+
+  //   LEFT JOIN m_staff s
+  //     ON s.staff_id = d.staff_id
+
+  //   WHERE
+  //      (
+  //       g.guest_name ILIKE $1
+  //       OR r.room_no ILIKE $1
+  //       OR v.vehicle_no ILIKE $1
+  //     )
+
+  //   ORDER BY g.guest_id, ti.entry_date DESC
+  //   LIMIT $2 OFFSET $3;
+  //   `;
+
+  //   const countSql = `
+  //   SELECT COUNT(DISTINCT g.guest_id) AS total
+  //   FROM m_guest g
+
+  //   JOIN t_guest_inout ti
+  //     ON ti.guest_id = g.guest_id
+
+  //   LEFT JOIN t_guest_designation gd
+  //     ON gd.guest_id = g.guest_id
+  //     AND gd.is_active IS TRUE
+  //     AND gd.is_current IS TRUE
+
+  //   LEFT JOIN m_guest_designation md
+  //     ON md.designation_id = gd.designation_id
+
+  //   LEFT JOIN t_guest_room gr
+  //     ON gr.guest_id = g.guest_id
+
+  //   LEFT JOIN m_rooms r
+  //     ON r.room_id = gr.room_id
+
+  //   LEFT JOIN t_guest_vehicle gv
+  //     ON gv.guest_id = g.guest_id
+
+  //   LEFT JOIN m_vehicle v
+  //     ON v.vehicle_no = gv.vehicle_no
+
+  //   LEFT JOIN t_guest_driver gdrv
+  //     ON gdrv.guest_id = g.guest_id
+
+  //   WHERE
+  //     (
+  //       $2::date IS NULL
+  //       OR ti.entry_date::date >= $2::date
+  //     )
+
+  //     AND (
+  //       $3::date IS NULL
+  //       OR ti.entry_date::date <= $3::date
+  //     )
+
+  //     AND (
+  //       g.guest_name ILIKE $1
+  //       OR r.room_no ILIKE $1
+  //       OR v.vehicle_no ILIKE $1
+  //     );
+  //   `;
+
+  //   const dataResult = await this.db.query(dataSql, [search, limit, offset]);
+  //   const countResult = await this.db.query(countSql, [search]);
+
+  //   return {
+  //     data: dataResult.rows,   // ✅ THIS IS THE KEY
+  //     total: Number(countResult.rows[0]?.total || 0),
+  //     page,
+  //     limit,
+  //   };
+
+  // }
 
   async getGuestInfo(guestId: string) {
     const sql = `
@@ -160,7 +294,7 @@ export class InfoPackageService {
           ti.status AS inout_status,
 
           r.room_no,
-          r.room_type,
+          r.building_name,
 
           v.vehicle_no,
           s.full_name AS driver_name,
@@ -171,7 +305,6 @@ export class InfoPackageService {
         -- active in/out (stay)
         JOIN t_guest_inout ti
           ON ti.guest_id = g.guest_id
-          AND ti.is_active IS TRUE
 
         -- current designation
         LEFT JOIN t_guest_designation gd
@@ -185,7 +318,6 @@ export class InfoPackageService {
         -- room
         LEFT JOIN t_guest_room gr
           ON gr.guest_id = g.guest_id
-          AND gr.is_active IS TRUE
 
         LEFT JOIN m_rooms r
           ON r.room_id = gr.room_id
@@ -193,7 +325,6 @@ export class InfoPackageService {
         -- vehicle
         LEFT JOIN t_guest_vehicle gveh
           ON gveh.guest_id = g.guest_id
-          AND gveh.is_active IS TRUE
 
         LEFT JOIN m_vehicle v
           ON v.vehicle_no = gveh.vehicle_no
@@ -201,7 +332,6 @@ export class InfoPackageService {
         -- driver
         LEFT JOIN t_guest_driver gdrv
           ON gdrv.guest_id = g.guest_id
-          AND gdrv.is_active IS TRUE
 
         LEFT JOIN m_driver d
           ON d.driver_id = gdrv.driver_id
@@ -210,7 +340,6 @@ export class InfoPackageService {
           ON s.staff_id = d.staff_id
         WHERE
           g.guest_id = $1
-          AND g.is_active IS TRUE
         ORDER BY ti.entry_date DESC
         LIMIT 1;
       `;
@@ -332,47 +461,4 @@ export class InfoPackageService {
     };
   }
 
-  // async sendWhatsapp(
-  //   guestId: string,
-  //   context?: { performedBy: string; ipAddress?: string },
-  // ) {
-  //   // 1️⃣ Get aggregated guest info
-  //   const data = await this.getGuestInfo(guestId);
-
-  //   // 2️⃣ Validate mobile number
-  //   if (!data.guest.mobile) {
-  //     throw new BadRequestException('Guest mobile number not available');
-  //   }
-
-  //   // 3️⃣ Generate PDF
-  //   const html = infoPackageTemplate(data);
-  //   const pdfBuffer = await generatePdfBuffer(html);
-
-  //   const fileName = `Guest_Info_${guestId}.pdf`;
-
-  //   // 4️⃣ Send WhatsApp document
-  //   const response = await sendWhatsappDocument({
-  //     to: data.guest.mobile,
-  //     caption: 'Guest Information Package',
-  //     fileName,
-  //     fileBuffer: pdfBuffer,
-  //   });
-
-  //   if (!response?.success) {
-  //     throw new BadRequestException('WhatsApp sending failed');
-  //   }
-
-  //   // 5️⃣ Audit log
-  //   await logInfoPackageAudit(this.db, {
-  //     guestId,
-  //     actionType: 'WHATSAPP_SENT',
-  //     performedBy: context?.performedBy || 'system',
-  //     ipAddress: context?.ipAddress,
-  //   });
-
-  //   return {
-  //     status: 'sent',
-  //     messageId: response.providerMessageId,
-  //   };
-  // }
 }

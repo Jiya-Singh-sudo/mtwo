@@ -8,6 +8,7 @@ export type RoomRow = {
   roomCategory?: string;
   // roomCapacity?: number;
   status: "Available" | "Occupied";
+  displayStatus?: "Available" | "Reserved" | "Occupied";
 
   guest?: {
     guestRoomId: string;

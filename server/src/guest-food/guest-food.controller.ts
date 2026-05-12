@@ -4,6 +4,7 @@ import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
 import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 import { getRequestContext } from "common/utlis/request-context.util";
+import { ValidationPipe } from "@nestjs/common";
 
 @Controller("guest-food")
 export class GuestFoodController {
@@ -31,12 +32,22 @@ export class GuestFoodController {
   getAll() {
     return this.service.findAll(false);
   }
-
   @Post()
-  create(@Body() dto: CreateGuestFoodDto, @Req() req: any) {
+  create(@Body() dto: any, @Req() req: any) {
     const { user, ip } = getRequestContext(req);
-    return this.service.create(dto, user, ip);
+
+    return this.service.create(
+      dto.meals,       // Record<string, string[]>
+      dto.guest_id,    // guest
+      user,
+      ip
+    );
   }
+  // @Post()
+  // create(@Body() dto: CreateGuestFoodDto, @Req() req: any) {
+  //   const { user, ip } = getRequestContext(req);
+  //   return this.service.create(dto, user, ip);
+  // }
 
   @Post("plan/day")
   createDayMealPlan(@Body() dto: { meals: Record<string, string[]> }, @Req() req: any) {

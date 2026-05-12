@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import Carousel from '@/components/carousel/Carousel';
+import { Link } from "react-router-dom";
 
 // Carousel images - referenced from public folder via URL paths
 const carouselImage1 = '/1st.jpeg';
@@ -103,7 +104,7 @@ export function LoginPage() {
         }
         return undefined;
     };
-
+    console.log("executeRecaptcha:", executeRecaptcha);
     // const validateCaptcha = (value: string) => {
     //     if (!value.trim()) {
     //         return 'CAPTCHA is required';
@@ -421,7 +422,13 @@ export function LoginPage() {
                                         className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors"
                                         disabled={isLoading}
                                     >
+                                        <Link
+                                        to="/forgot-password"
+                                        className="text-[#4267B2] hover:text-[#365899] hover:underline"
+                                        >
                                         Forgot Password?
+                                        </Link>
+                                        {/* Forgot Password? */}
                                     </button>
                                 </div>
                             </form>

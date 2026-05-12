@@ -8,7 +8,7 @@ const MAX_ROOM_NO_LENGTH = 20;
 const MAX_TEXT_LENGTH = 100;
 const MAX_REMARKS_LENGTH = 500;
 
-const MAX_ROOM_CAPACITY = 20;
+// const MAX_ROOM_CAPACITY = 20;
 
 const roomNoRegex = /^[A-Za-z0-9-]+$/;
 // const nameRegex = /^[A-Za-z .\-]*$/;

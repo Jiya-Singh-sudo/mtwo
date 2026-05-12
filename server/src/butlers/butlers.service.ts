@@ -105,6 +105,7 @@ export class ButlersService {
         b.updated_ip
       FROM m_butler b
       JOIN m_staff s ON s.staff_id = b.staff_id
+      WHERE b.is_active = TRUE AND s.is_active = TRUE
       ${whereSql}
       ORDER BY ${orderColumn} ${orderDir}
       LIMIT $${params.length + 1}

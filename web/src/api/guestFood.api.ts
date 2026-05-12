@@ -20,22 +20,39 @@ export const getTodayMealSchedule = async () => {
 export const createGuestFood = async (
   payload: {
     guest_id: string;
-    room_id?: string;
-    food_id: string;
-    meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
-    plan_date: string;
-    food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
-    remarks?: string;
+    meals: {
+      breakfast?: string[];
+      lunch?: string[];
+      highTea?: string[];
+      dinner?: string[];
+    };
   }
 ) => {
   const res = await apiClient.post("/guest-food", payload);
   return res.data;
 };
+// export const createGuestFood = async (
+//   payload: {
+//     guest_id: string;
+//     room_id?: string;
+//     butler_id?: string;
+//     food_id?: string[];
+//     food_name?: string;
+//     meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+//     plan_date: string;
+//     food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
+//     delivery_status?: string;
+//     remarks?: string;
+//   }
+// ) => {
+//   const res = await apiClient.post("/guest-food", payload);
+//   return res.data;
+// };
 
 export const updateGuestFood = async (
   guestFoodId: string,
   payload: {
-    food_id?: string;
+    food_id?: string[];
     food_stage?: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
     delivery_status?: string;
     remarks?: string;

@@ -30,4 +30,5 @@ export interface ActiveGuestRow {
   allocatedRooms?: number;
   rooms_required?: number;
   companions?: number;
+  request_doc_path?: string;
 }

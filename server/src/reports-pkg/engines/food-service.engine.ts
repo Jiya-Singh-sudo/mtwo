@@ -32,13 +32,10 @@ export class FoodServiceReportEngine {
 
         tgf.plan_date,
         tgf.meal_type,
-        tgf.food_stage,
-        tgf.delivery_status,
-        tgf.remarks,
 
         g.guest_name,
 
-        tgf.room_id,
+        gr.room_id,
 
         fi.food_name,
         fi.food_type,
@@ -68,6 +65,10 @@ export class FoodServiceReportEngine {
       LEFT JOIN m_staff s
         ON s.staff_id = b.staff_id
        AND s.is_active = true
+
+       LEFT JOIN t_guest_room gr
+        ON gr.guest_id = tgf.guest_id
+       AND gr.is_active = true
 
       WHERE tgf.is_active = true
         AND tgf.plan_date BETWEEN $1 AND $2

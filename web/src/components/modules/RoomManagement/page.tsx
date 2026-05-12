@@ -6,16 +6,16 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageToolbar } from "@/components/layout/PageToolbar";
 import "./RoomManagement.css";
-import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
+import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X, DoorOpen } from 'lucide-react';
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { StatCard } from "@/components/ui/StatCard";
 import { ZodError } from "zod";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping, getRoomBoyOptions } from "../../../api/housekeeping.api";
-import { createGuestRoom, updateGuestRoom } from "../../../api/guestRoom.api";
+import { createGuestRoom, updateGuestRoom, getRoomReservations } from "../../../api/guestRoom.api";
 import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
 import { createRoom } from "../../../api/rooms.api";
-import { getRoomManagementOverview, updateFullRoom, getAssignableGuests } from "../../../api/roomManagement.api";
-import type { Housekeeping, HousekeepingCreateDto, HousekeepingUpdateDto } from "../../../types/housekeeping";
+import { getRoomManagementOverview, updateFullRoom, getAssignableGuests, getRoomStatusCounts } from "../../../api/roomManagement.api";
+import type { Housekeeping, HousekeepingUpdateDto } from "../../../types/housekeeping";
 import { RoomRow, EditRoomFullPayload } from "@/types/roomManagement";
 import { ActiveGuestRow } from "@/types/guests";
 import { useTableQuery } from "@/hooks/useTableQuery";
@@ -77,6 +77,7 @@ export function RoomManagement() {
     total: 0,
     available: 0,
     occupied: 0,
+    reserved: 0,
     withGuest: 0,
     withHousekeeping: 0,
   });
@@ -84,6 +85,7 @@ export function RoomManagement() {
     | "ALL"
     | "AVAILABLE"
     | "OCCUPIED"
+    | "RESERVED"
     | "WITH_GUEST"
     | "WITH_HOUSEKEEPING";
 
@@ -133,6 +135,11 @@ export function RoomManagement() {
   // const [roomBoyErrors, setRoomBoyErrors] = useState<Record<string, string>>({});
   // const [assignmentErrors, setAssignmentErrors] = useState<Record<string, string>>({});
   // Assignment form (for assigning room boy to a room)
+  const [reservationRoom, setReservationRoom] = useState<RoomRow | null>(null);
+
+  const [roomReservations, setRoomReservations] = useState<any[]>([]);
+
+  const [loadingReservations, setLoadingReservations] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormType>({
     roomBoyId: "",
     // assignmentDate: "",
@@ -181,7 +188,11 @@ export function RoomManagement() {
     roomTable.query.search,
     roomTable.query.sortBy,
     roomTable.query.sortOrder,
+
     roomTable.query.status,
+    roomTable.query.withGuest,
+    roomTable.query.withHousekeeping,
+
     roomTable.query.entryDateFrom,
     roomTable.query.entryDateTo,
   ]);
@@ -195,22 +206,78 @@ export function RoomManagement() {
   //   loadRoomBoys();
   // }, []);
 
+  async function openReservationsModal(room: RoomRow) {
+    try {
+      setReservationRoom(room);
+      setLoadingReservations(true);
+
+      const data = await getRoomReservations(room.roomId);
+
+      setRoomReservations(data);
+    } catch (err: any) {
+      showError(
+        err?.response?.data?.message ||
+        "Failed to load reservations"
+      );
+    } finally {
+      setLoadingReservations(false);
+    }
+  }
+
   async function loadRooms() {
     try {
+      // const res = await getRoomManagementOverview({
+      //   page: roomTable.query.page,
+      //   limit: roomTable.query.limit,
+      //   search: roomTable.query.search,
+      //   sortBy: roomTable.query.sortBy,
+      //   sortOrder: roomTable.query.sortOrder,
+      //   status: roomTable.query.status === "Available" || roomTable.query.status === "Occupied" ? roomTable.query.status : undefined,
+      //   entryDateFrom: roomTable.query.entryDateFrom,
+      //   entryDateTo: roomTable.query.entryDateTo,
+      // }, { silent: true });
       const res = await getRoomManagementOverview({
         page: roomTable.query.page,
         limit: roomTable.query.limit,
         search: roomTable.query.search,
         sortBy: roomTable.query.sortBy,
         sortOrder: roomTable.query.sortOrder,
-        status: roomTable.query.status === "Available" || roomTable.query.status === "Occupied" ? roomTable.query.status : undefined,
+
+        status:
+          roomTable.query.status === "Available" ||
+          roomTable.query.status === "Occupied" ||
+          roomTable.query.status === "Reserved"
+            ? roomTable.query.status
+            : undefined,
+
+        withGuest: roomTable.query.withGuest,
+        withHousekeeping: roomTable.query.withHousekeeping,
+
         entryDateFrom: roomTable.query.entryDateFrom,
         entryDateTo: roomTable.query.entryDateTo,
-      }, { silent: true });
+      });
+      // const res = await getRoomManagementOverview({
+      //   page: roomTable.query.page,
+      //   limit: roomTable.query.limit,
+      //   search: roomTable.query.search,
+      //   sortBy: roomTable.query.sortBy,
+      //   sortOrder: roomTable.query.sortOrder,
 
+      //   status:
+      //     roomTable.query.status === "Available" ||
+      //     roomTable.query.status === "Occupied"
+      //       ? roomTable.query.status
+      //       : undefined,
+
+      //   // withGuest: roomTable.query.withGuest,
+      //   // withHousekeeping: roomTable.query.withHousekeeping,
+
+      //   entryDateFrom: roomTable.query.entryDateFrom,
+      //   entryDateTo: roomTable.query.entryDateTo,
+      // });
       setRooms(res.data);
       roomTable.setTotal(res.totalCount);
-      setRoomStats(res.stats);
+      // setRoomStats(res.stats);
 
     } catch (err) {
       console.error("Room load failed", err);
@@ -218,7 +285,22 @@ export function RoomManagement() {
       roomTable.setLoading(false);
     }
   }
+  async function loadRoomStats() {
+    try {
+      const stats = await getRoomStatusCounts();
 
+      setRoomStats({
+        total: stats.All,
+        available: stats.Available,
+        occupied: stats.Occupied,
+        reserved: stats.Reserved,
+        withGuest: stats.WithGuest,
+        withHousekeeping: stats.WithHousekeeping,
+      });
+    } catch (err) {
+      console.error("Failed to load room stats", err);
+    }
+  }
   async function loadRoomBoys() {
     try {
       const res = await getActiveHousekeeping({
@@ -235,50 +317,22 @@ export function RoomManagement() {
       hkTable.setLoading(false);
     }
   }
-
-  // async function loadRooms() {
-  //   try {
-  //     const data = await getRoomManagementOverview();
-  //     setRooms(data);
-
-  //     // Compute stats from loaded rooms
-  //     const stats = {
-  //       total: data.length,
-  //       available: 0,
-  //       occupied: 0,
-  //       withGuest: 0,
-  //       withHousekeeping: 0,
-  //     };
-
-  //     data.forEach((r: RoomRow) => {
-  //       if (r.status === "Available") stats.available++;
-  //       if (r.status === "Occupied") stats.occupied++;
-  //       if (r.guest) stats.withGuest++;
-  //       if (r.housekeeping) stats.withHousekeeping++;
-  //     });
-
-  //     setRoomStats(stats);
-  //   } catch (err) {
-  //     console.error("Failed to load room overview", err);
-  //   }
-  // }
-
+  useEffect(() => {
+    loadRoomStats();
+  }, []);
+ 
   async function loadRoomBoysAndShifts() {
     try {
-      const boys = await getRoomBoyOptions();
+      const res = await getRoomBoyOptions();
 
-      // setRoomBoyOptions(
-      //   boys.map((b: Housekeeping) => ({
-      //     id: b.hk_id,
-      //     name: b.hk_name,
-      //   }))
-      // );
       setRoomBoyOptions(
-        boys.map((hk: any) => ({
+        res.rows.map((hk: any) => ({
           id: hk.hk_id,
           name: hk.hk_name,
         }))
       );
+      console.log(roomBoyOptions);
+
     } catch (err) {
       // console.error("Failed to load room boys or shifts", err);
     }
@@ -636,24 +690,110 @@ export function RoomManagement() {
     });
     setShowEditRoomBoy(true);
   };
+function applyCardView(card: RoomCardFilter) {
+  setActiveCard(card);
 
-  function applyCardView(card: RoomCardFilter) {
-    setActiveCard(card);
+  roomTable.batchUpdate(prev => ({
+    ...prev,
+    page: 1,
 
-    roomTable.batchUpdate(prev => ({
-      ...prev,
-      page: 1,
-      status:
-        card === "AVAILABLE" ? "Available" :
-          card === "OCCUPIED" ? "Occupied" :
-            undefined,
-      sortBy:
-        card === "WITH_GUEST" ? "guest_name" :
-          card === "WITH_HOUSEKEEPING" ? "hk_name" :
-            "room_no",
-      sortOrder: "asc",
-    }));
-  }
+    status:
+      card === "AVAILABLE"
+        ? "Available"
+        : card === "OCCUPIED"
+        ? "Occupied"
+        : card === "RESERVED"
+        ? "Reserved"
+        : undefined,
+
+    withGuest:
+      card === "OCCUPIED" || card === "RESERVED"
+        ? true
+        : undefined,
+
+    withHousekeeping:
+      card === "WITH_HOUSEKEEPING"
+        ? true
+        : undefined,
+
+    sortBy: "room_no",
+    sortOrder: "asc",
+  }));
+}
+// function applyCardView(card: RoomCardFilter) {
+//   setActiveCard(card);
+
+//   roomTable.batchUpdate(prev => ({
+//     ...prev,
+//     page: 1,
+
+//     // STATUS FILTER
+//     status:
+//       card === "AVAILABLE"
+//         ? "Available"
+//         : card === "OCCUPIED"
+//         ? "Occupied"
+//         : card === "RESERVED"
+//         ? "Reserved"
+//         : undefined,
+
+//     // BOOLEAN FILTERS
+//     withGuest:
+//       card === "OCCUPIED" || card === "RESERVED"
+//         ? true
+//         : undefined,
+
+//     withHousekeeping:
+//       card === "WITH_HOUSEKEEPING"
+//         ? true
+//         : undefined,
+
+//     // NORMAL SORTING
+//     sortBy: "room_no",
+//     sortOrder: "asc",
+//   }));
+// }
+
+  // function applyCardView(card: RoomCardFilter) {
+  //   setActiveCard(card);
+
+  //   roomTable.batchUpdate(prev => ({
+  //     ...prev,
+  //     page: 1,
+
+  //     // ✅ STATUS FILTER
+  //     status:
+  //       card === "AVAILABLE" ? "Available" :
+  //       card === "OCCUPIED" ? "Occupied" :
+  //       card === "RESERVED" ? "Reserved" :
+  //       undefined,
+
+  //     // ✅ SORTING FIX (THIS IS THE KEY)
+  //     sortBy:
+  //       card === "WITH_GUEST" ? true : 
+  //       card === "WITH_HOUSEKEEPING" ? true :
+  //       undefined,
+
+  //     sortOrder: "asc",
+  //   }));
+  // }
+  // function applyCardView(card: RoomCardFilter) {
+  //   setActiveCard(card);
+
+  //   roomTable.batchUpdate(prev => ({
+  //     ...prev,
+  //     page: 1,
+  //     status:
+  //       card === "AVAILABLE" ? "Available" :
+  //         card === "OCCUPIED" ? "Occupied" :
+  //           undefined,
+  //     sortBy:
+  //       card === "WITH_GUEST" ? "guest_name" :
+  //         card === "WITH_HOUSEKEEPING" ? "hk_name" :
+  //           "room_no",
+  //     sortOrder: "asc",
+  //   }));
+  // }
 
   function validateField(
     schema: any,
@@ -780,15 +920,42 @@ export function RoomManagement() {
       sortable: true,
       sortKey: "status",
       render: (row) => {
-        const base = "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium";
-        if (row.status === "Available") {
-          return <span className={`${base} bg-green-100 text-green-800`}>Available</span>;
+        const status =
+          row.displayStatus ||
+          (row as any).display_status ||
+          "Available";
+
+        const base =
+          "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium";
+
+        switch (status) {
+          case "Occupied":
+            return (
+              <span className={`${base} bg-red-100 text-red-800`}>
+                Occupied
+              </span>
+            );
+
+          case "Reserved":
+            return (
+              <span className={`${base} bg-yellow-100 text-yellow-800`}>
+                Reserved
+              </span>
+            );
+
+          default:
+            return (
+              <span className={`${base} bg-green-100 text-green-800`}>
+                Available
+              </span>
+            );
         }
-        return <span className={`${base} bg-red-100 text-red-800`}>Occupied</span>;
-      },
+      }
     },
     {
       header: "Guest",
+      sortKey: "guestName", // ✅ ADD THIS
+      sortable: true,
       // render: (row) => row.guest?.guestName || "—",
       render: (row) => (
         <>
@@ -801,6 +968,8 @@ export function RoomManagement() {
     },
     {
       header: "Room Boy",
+      sortKey: "hk_name", // ✅ ADD THIS
+      sortable: true,
       render: (row) => row.housekeeping?.hkName || "—",
     },
     {
@@ -842,6 +1011,12 @@ export function RoomManagement() {
               <User />
             </button>
           )}
+          <button
+            className="tableActionBtn"
+            onClick={() => openReservationsModal(row)}
+          >
+            <DoorOpen />
+          </button>
         </div>
       ),
     },
@@ -1053,13 +1228,21 @@ export function RoomManagement() {
                 onClick={() => applyCardView("OCCUPIED")}
               />
               <StatCard
+                title="Reserved"
+                value={roomStats.reserved}
+                icon={UserCheck}
+                variant="orange"
+                active={activeCard === "RESERVED"}
+                onClick={() => applyCardView("RESERVED")}
+              />
+              {/* <StatCard
                 title="Guest Assigned"
                 value={roomStats.withGuest}
                 icon={UserCheck}
                 variant="indigo"
                 active={activeCard === "WITH_GUEST"}
                 onClick={() => applyCardView("WITH_GUEST")}
-              />
+              /> */}
               <StatCard
                 title="Housekeeping"
                 value={roomStats.withHousekeeping}
@@ -1341,6 +1524,70 @@ export function RoomManagement() {
         </div>
       )}
 
+      {reservationRoom && (
+        <div className="modalOverlay">
+          <div className="nicModal largeModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>
+                Reservations - {reservationRoom.roomNo}
+              </h2>
+
+              <button
+                className="closeBtn"
+                onClick={() => {
+                  setReservationRoom(null);
+                  setRoomReservations([]);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* BODY */}
+            <div className="nicModalBody">
+
+              {loadingReservations ? (
+                <p>Loading reservations...</p>
+              ) : roomReservations.length === 0 ? (
+                <p>No reservations found.</p>
+              ) : (
+                <table className="nicTable">
+                  <thead>
+                    <tr>
+                      <th>Guest</th>
+                      <th>Status</th>
+                      <th>Check-In</th>
+                      <th>Check-Out</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {roomReservations.map((r) => (
+                      <tr key={r.guest_room_id}>
+                        <td>{r.guest_name}</td>
+
+                        <td>{r.display_status}</td>
+
+                        <td>
+                          {formatDateOnlyDDMMYYYY(r.check_in_date)}
+                        </td>
+
+                        <td>
+                          {formatDateOnlyDDMMYYYY(r.check_out_date)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+      
       {editRoom && (
         <div className="modalOverlay">
           <div className="nicModal largeModal">
@@ -1557,7 +1804,7 @@ export function RoomManagement() {
                 </div>
 
                 {/* Guest */}
-                <div className="fullWidth">
+                {/* <div className="fullWidth">
                   <label>Guest <span className="required">*</span></label>
                   <select
                     className="nicInput"
@@ -1589,17 +1836,17 @@ export function RoomManagement() {
                     ))}
                   </select>
                   {/* <p className="errorText">{formErrors.guest}</p> */}
-                  {formErrors.guest_id && (
+                  {/* {formErrors.guest_id && (
                     <div className="fieldError">
                       <XCircle size={14} />
                       <span>{formErrors.guest_id}</span>
                     </div>
                   )}
 
-                </div>
+                </div>  */}
 
                 {/* Room Boy */}
-                <div className="fullWidth">
+                {/* <div className="fullWidth">
                   <label>Room Boy </label>
                   <select
                     className="nicInput"
@@ -1630,14 +1877,14 @@ export function RoomManagement() {
                     ))}
                   </select>
                   {/* <p className="errorText">{formErrors.room_boy}</p> */}
-                  {formErrors.room_boy && (
+                  {/* {formErrors.room_boy && (
                     <div className="fieldError">
                       <XCircle size={14} />
                       <span>{formErrors.room_boy}</span>
                     </div>
                   )}
 
-                </div>
+                </div>  */}
               </div>
 
             </div>

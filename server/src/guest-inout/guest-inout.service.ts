@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { CreateGuestInOutDto } from './dto/create-guest-inout.dto';
-import { UpdateGuestInoutDto } from './dto/update-guest-inout.dto';
+import { GuestInoutStatus, UpdateGuestInoutDto } from './dto/update-guest-inout.dto';
 import { todayISO, isBefore, isAfter } from '../../common/utlis/date-utlis';
 import { GuestFoodService } from 'src/guest-food/guest-food.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
@@ -97,7 +97,7 @@ export class GuestInoutService {
 
       // 🔍 Load existing row
       const existing = await client.query(
-        `SELECT entry_date FROM t_guest_inout WHERE inout_id = $1 FOR UPDATE`,
+        `SELECT entry_date, exit_date FROM t_guest_inout WHERE inout_id = $1 FOR UPDATE`,
         [inoutId]
       );
 
@@ -105,12 +105,16 @@ export class GuestInoutService {
         throw new BadRequestException('Invalid inout record');
       }
 
-      // ✅ NORMALIZED existing entry date
+      // ✅ NORMALIZED existing dates
       const existingEntryDate = existing.rows[0].entry_date
         ? new Date(existing.rows[0].entry_date).toISOString().split('T')[0]
         : null;
 
-      let status = dto.status ?? 'Entered';
+      const existingExitDate = existing.rows[0].exit_date
+        ? new Date(existing.rows[0].exit_date).toISOString().split('T')[0]
+        : null;
+
+      let status: GuestInoutStatus = dto.status ?? GuestInoutStatus.Entered;
 
       // ❌ Block back-dated entry ONLY if user actually changed it
       if (
@@ -121,14 +125,16 @@ export class GuestInoutService {
         throw new BadRequestException('Entry date cannot be in the past');
       }
 
-      // 📅 Auto Scheduled
-      if (dto.entry_date && isAfter(dto.entry_date, today)) {
-        status = 'Scheduled';
-      }
+      // 📅 Auto Scheduled/Exited (only if status not explicitly set)
+      const effectiveEntryDate = dto.entry_date ?? existingEntryDate;
+      const effectiveExitDate = dto.exit_date ?? existingExitDate;
 
-      // 🚪 Auto Exited
-      if (dto.exit_date && isBefore(dto.exit_date, today)) {
-        status = 'Exited';
+      if (!dto.status) {
+        if (effectiveExitDate && isBefore(effectiveExitDate, today)) {
+          status = GuestInoutStatus.Exited;
+        } else if (effectiveEntryDate && isAfter(effectiveEntryDate, today)) {
+          status = GuestInoutStatus.Scheduled;
+        }
       }
 
       // Apply DTO fields

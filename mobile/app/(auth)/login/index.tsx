@@ -113,7 +113,7 @@ export default function LoginScreen() {
                             />
                             <Recaptcha
                                 ref={recaptchaRef}
-                                siteKey="6Ld-lncsAAAAAOc1KQ3PBx7R4mILJ8bIrJ4qxErt"
+                                siteKey="6LcpIK0sAAAAAI4eD5w_uLTMTNUAX-MhZmsLEU2q"
                                 url="https://localhost"
                                 onExecute={handleRecaptchaVerify}
                             />

@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../gaurds/jwt/jwt.guard';
 import { PermissionsGuard } from '../gaurds/permissions/permissions.guard';
 import { Permissions } from '../decorators/permissions/permissions.decorator';
 import { getRequestContext } from 'common/utlis/request-context.util';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Controller('users')
 export class UsersController {
@@ -55,6 +56,16 @@ export class UsersController {
     const { user, ip } = getRequestContext(req);
     return this.service.resetPassword(dto, ip);
   }
+  @Post('verify-otp')
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Req() req: any,
+  ) {
+    const { ip } = getRequestContext(req);
+
+    return this.service.verifyOtp(dto, ip);
+  }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('user.update')
   // Update by username (frontend should pass username in URL)

@@ -5,16 +5,27 @@ import { Sidebar } from './components/Sidebar';
 import HeaderUserChip from './components/common/UserBadge';
 
 function Layout() {
-  const { isAuthenticated, user, logout } = useAuth();
-
+  // const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAuthLoading } = useAuth();
   // Show ONLY login routes when not authenticated
+
+  if (isAuthLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Restoring session...</p>
+        </div>
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <AppRoutes />;
   }
-
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
+      
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Government Header */}
         <header className="bg-white border-b border-gray-200">
@@ -25,7 +36,7 @@ function Layout() {
               <div className="flex items-center gap-4">
                 {/* Ashoka Emblem - Real Image */}
                 <img
-                  src={"./public/ashoka_emblem.png"}
+                  src={"/ashoka_emblem.png"}
                   alt="Government of India Emblem"
                   className="w-20 h-24 object-contain"
                 />
@@ -40,7 +51,7 @@ function Layout() {
               <div className="flex items-center gap-6">
                 {/* Maharashtra Government Seal - Real Image */}
                 <img
-                  src={"./public/maharashtra_seal.png"}
+                  src={"/maharashtra_seal.png"}
                   alt="Maharashtra Government Seal"
                   className="w-20 h-20 object-contain"
                 />

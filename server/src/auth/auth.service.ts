@@ -24,7 +24,7 @@ export class AuthService {
     private readonly activityLog: ActivityLogService,
   ) {
     // Token settings
-    this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
+    this.accessExpiresIn = process.env.JWT_ACCESS_EXPIRES_IN ?? '1hr';
     this.refreshExpiresDays = Number(process.env.JWT_REFRESH_EXPIRES_DAYS ?? 30);
     this.refreshTokenLength = Number(process.env.REFRESH_TOKEN_LENGTH ?? 64);
     this.refreshPepper = process.env.REFRESH_TOKEN_PEPPER ?? '';
@@ -176,7 +176,7 @@ export class AuthService {
     const secret = process.env.RECAPTCHA_SECRET_KEY;
 
     if (!secret) {
-      throw new Error('RECAPTCHA_SECRET_KEY not configured');
+      throw new Error('RECAPTCHA_SECRET_KEY not configurfed');
     }
 
     const response = await axios.post(
@@ -197,6 +197,7 @@ export class AuthService {
     return this.db.transaction(async (client) => {
       // 🔐 Step 1 — Verify reCAPTCHA FIRST
       const recaptchaResult = await this.verifyRecaptcha(dto.recaptchaToken);
+      console.log("RECAPTCHA RESULT:", recaptchaResult);
 
       if (!recaptchaResult.success) {
         throw new UnauthorizedException('reCAPTCHA validation failed');
@@ -281,7 +282,11 @@ export class AuthService {
         undefined,
         client
       );
-
+      // res.cookie("refreshToken", refreshToken, {
+      //   httpOnly: true,
+      //   secure: false, // true in production (HTTPS)
+      //   sameSite: "lax",
+      // });
       // ✅ Final response (frontend expects THIS shape)
       return {
         accessToken,
@@ -452,7 +457,7 @@ export class AuthService {
         role_id: user.role_id,
         permissions,
       };
-
+      console.log("Incoming refresh token:", receivedToken);
       const accessToken = this.signAccessToken(payload);
       await this.activityLog.log({
         message: 'Access token refreshed',

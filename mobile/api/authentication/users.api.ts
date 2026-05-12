@@ -70,6 +70,6 @@ export async function softDeleteUser(
 
 // LOGIN (backend hashes password, validates, updates last_login)
 export async function loginUser(data: UserLoginDto) {
-  const res = await api.post("/users/login", data);
+  const res = await api.post("/users/loginM", data);
   return res.data;
 }

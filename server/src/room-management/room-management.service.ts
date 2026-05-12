@@ -4,7 +4,8 @@ import { EditRoomFullDto } from './dto/editFullRoom.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { GuestRoomService } from 'src/guest-room/guest-room.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
-import { sql } from 'generated/prisma/internal/prismaNamespace';
+// import { sql } from 'generated/prisma/internal/prismaNamespace';
+
 const SORT_MAP: Record<string, string> = {
   room_no: 'r.room_no',
   building_name: 'r.building_name',
@@ -20,27 +21,188 @@ export class RoomManagementService {
     private readonly guestRoomService: GuestRoomService,
     private readonly activityLog: ActivityLogService
   ) { }
-
   /* ================= OVERVIEW ================= */
-  async getOverview({
-    page,
-    limit,
-    search,
-    sortBy,
-    sortOrder,
-    status,
-    entryDateFrom,
-    entryDateTo,
-  }: {
+  async getRoomStatusCounts() {
+    const sql = `
+      SELECT
+        COUNT(DISTINCT r.room_id)::int AS all,
+
+        COUNT(DISTINCT r.room_id)
+        FILTER (
+          WHERE (
+            CASE
+              WHEN gr.guest_room_id IS NULL THEN 'Available'
+
+              WHEN io.status = 'Entered'
+                AND CURRENT_DATE BETWEEN gr.check_in_date
+                                    AND COALESCE(gr.check_out_date, CURRENT_DATE)
+              THEN 'Occupied'
+
+              WHEN io.status = 'Scheduled'
+              THEN 'Reserved'
+
+              ELSE 'Available'
+            END
+          ) = 'Available'
+        )::int AS available,
+
+        COUNT(DISTINCT r.room_id)
+        FILTER (
+          WHERE (
+            CASE
+              WHEN gr.guest_room_id IS NULL THEN 'Available'
+
+              WHEN io.status = 'Entered'
+                AND CURRENT_DATE BETWEEN gr.check_in_date
+                                    AND COALESCE(gr.check_out_date, CURRENT_DATE)
+              THEN 'Occupied'
+
+              WHEN io.status = 'Scheduled'
+              THEN 'Reserved'
+
+              ELSE 'Available'
+            END
+          ) = 'Occupied'
+        )::int AS occupied,
+
+        COUNT(DISTINCT r.room_id)
+        FILTER (
+          WHERE (
+            CASE
+              WHEN io.status = 'Scheduled' THEN 'Reserved'
+              ELSE 'Other'
+            END
+          ) = 'Reserved'
+        )::int AS reserved,
+
+        COUNT(DISTINCT r.room_id)
+        FILTER (
+          WHERE gr.guest_room_id IS NOT NULL
+        )::int AS with_guest,
+
+        COUNT(DISTINCT r.room_id)
+        FILTER (
+          WHERE hk.hk_id IS NOT NULL
+        )::int AS with_housekeeping
+
+      FROM m_rooms r
+
+      LEFT JOIN LATERAL (
+        SELECT gr.*
+        FROM t_guest_room gr
+
+        WHERE gr.room_id = r.room_id
+          AND gr.is_active = TRUE
+          AND (
+            gr.check_out_date IS NULL
+            OR gr.check_out_date >= CURRENT_DATE
+          )
+
+        ORDER BY gr.check_in_date DESC
+        LIMIT 1
+      ) gr ON TRUE
+
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = gr.guest_id
+        AND io.is_active = TRUE
+
+      LEFT JOIN t_guest_hk ghk
+        ON ghk.guest_id = gr.guest_id
+        AND ghk.is_active = TRUE
+
+      LEFT JOIN m_housekeeping hk
+        ON hk.hk_id = ghk.hk_id
+        AND hk.is_active = TRUE
+
+      WHERE r.is_active = TRUE;
+    `;
+
+    const { rows } = await this.db.query(sql);
+
+    const r = rows[0];
+
+    return {
+      All: r.all,
+      Available: r.available,
+      Occupied: r.occupied,
+      Reserved: r.reserved,
+      WithGuest: r.with_guest,
+      WithHousekeeping: r.with_housekeeping,
+    };
+  }
+  // async getRoomStatusCounts() {
+  //   const sql = `
+  //     SELECT
+  //       COUNT(*)::int AS all,
+  //       COUNT(*) FILTER (WHERE r.status = 'Available')::int AS available,
+  //       COUNT(*) FILTER (WHERE r.status = 'Occupied')::int AS occupied,
+  //       COUNT(*) FILTER (WHERE g.guest_id IS NOT NULL)::int AS with_guest,
+  //       COUNT(*) FILTER (WHERE hk.hk_id IS NOT NULL)::int AS with_housekeeping
+  //     FROM m_rooms r
+  //     LEFT JOIN t_guest_room gr
+  //       ON gr.room_id = r.room_id
+  //       AND gr.is_active = TRUE
+  //     LEFT JOIN m_guest g
+  //       ON g.guest_id = gr.guest_id
+  //       AND g.is_active = TRUE
+  //     LEFT JOIN t_guest_hk ghk
+  //       ON g.guest_id = ghk.guest_id
+  //       AND ghk.is_active = TRUE
+  //     LEFT JOIN m_housekeeping hk
+  //       ON ghk.hk_id = hk.hk_id
+  //       AND hk.is_active = TRUE
+  //     LEFT JOIN m_staff s
+  //       ON hk.staff_id = s.staff_id
+  //       AND s.is_active = TRUE
+  //     WHERE r.is_active = TRUE;
+  //   `;
+
+  //   const { rows } = await this.db.query(sql);
+  //   const r = rows[0];
+
+  //   return {
+  //     All: r.all,
+  //     Available: r.available,
+  //     Occupied: r.occupied,
+  //     WithGuest: r.with_guest,
+  //     WithHousekeeping: r.with_housekeeping,
+  //   };
+  // }
+  /* ================= OVERVIEW ================= */
+  async getOverview(filters: {
     page: number;
     limit: number;
+
     search?: string;
+
     sortBy: string;
+
     sortOrder: 'asc' | 'desc';
-    status?: 'Available' | 'Occupied';
+
+    status?: 'Available' | 'Occupied' | 'Reserved';
+
+    withGuest?: boolean;
+
+    withHousekeeping?: boolean;
+
     entryDateFrom?: string;
+
     entryDateTo?: string;
   }) {
+    const {
+      page,
+      limit,
+      search,
+      sortBy,
+      sortOrder,
+
+      status,
+      withGuest,
+      withHousekeeping,
+
+      entryDateFrom,
+      entryDateTo,
+    } = filters;
     if (!Number.isInteger(page) || page <= 0) {
       throw new BadRequestException('Invalid page');
     }
@@ -53,8 +215,8 @@ export class RoomManagementService {
     const sortColumn = SORT_MAP[sortBy] ?? 'r.room_no';
     const order = sortOrder === 'desc' ? 'DESC' : 'ASC';
     const offset = (page - 1) * limit;
-    if (entryDateFrom === '') entryDateFrom = undefined;
-    if (entryDateTo === '') entryDateTo = undefined;
+    // if (entryDateFrom === '') entryDateFrom = undefined;
+    // if (entryDateTo === '') entryDateTo = undefined;
     /* ================= WHERE + PARAMS ================= */
     if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
       throw new BadRequestException('Invalid sort field');
@@ -62,7 +224,7 @@ export class RoomManagementService {
     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
       throw new BadRequestException('Invalid sort order');
     }
-    const allowedStatuses = ['Available', 'Occupied'];
+    const allowedStatuses = ['Available', 'Occupied', 'Reserved'];
     if (status && !allowedStatuses.includes(status)) {
       throw new BadRequestException('Invalid status');
     }
@@ -89,11 +251,40 @@ export class RoomManagementService {
       idx++;
     }
 
-    if (status) {
-      whereParts.push(`r.status = $${idx}`);
-      params.push(status);
-      idx++;
-    }
+    // if (status) {
+    //   whereParts.push(`r.status = $${idx}`);
+    //   params.push(status);
+    //   idx++;
+    // }
+if (withGuest === true) {
+  whereParts.push(`gr.guest_room_id IS NOT NULL`);
+}
+
+if (withHousekeeping === true) {
+  whereParts.push('gh.hk_id IS NOT NULL');
+}
+
+if (status === 'Available') {
+  whereParts.push(`gr.guest_room_id IS NULL`);
+}
+if (status === 'Occupied') {
+  whereParts.push(`
+    gr.guest_room_id IS NOT NULL
+    AND io.status = 'Entered'
+    AND CURRENT_DATE BETWEEN gr.check_in_date AND COALESCE(gr.check_out_date, CURRENT_DATE)
+  `);
+}
+if (status === 'Reserved') {
+  whereParts.push(`
+    gr.guest_room_id IS NOT NULL
+    AND io.status = 'Scheduled'
+  `);
+}
+
+// qb.orderBy(
+//   `room.${sortBy}`,
+//   sortOrder.toUpperCase() as 'ASC' | 'DESC'
+// );
     if (entryDateFrom && isNaN(Date.parse(entryDateFrom))) {
       throw new BadRequestException('Invalid entry date from');
     }
@@ -123,69 +314,162 @@ export class RoomManagementService {
     const whereSql = whereParts.length > 0 ? `AND ${whereParts.join(' AND ')}` : '';
 
     /* ================= COUNT ================= */
-    const countSql = `
-      SELECT COUNT(*)::int AS count
-      FROM m_rooms r
-      LEFT JOIN t_guest_room gr
-        ON gr.room_id = r.room_id AND gr.is_active = true
-      LEFT JOIN m_guest g
-        ON g.guest_id = gr.guest_id
-      LEFT JOIN t_guest_inout io
-        ON io.guest_id = g.guest_id
-        AND io.room_id = r.room_id
-        AND io.is_active = true
-        ${dateJoinSql}
-      WHERE r.is_active = true
-      ${whereSql}
-    `;
+const countSql = `
+  SELECT COUNT(*)::int AS count
+  FROM m_rooms r
+  LEFT JOIN t_guest_room gr
+    ON gr.room_id = r.room_id AND gr.is_active = true
+  LEFT JOIN m_guest g
+    ON g.guest_id = gr.guest_id
+  LEFT JOIN t_guest_inout io
+    ON io.guest_id = g.guest_id
+    AND io.is_active = true
+    ${dateJoinSql}
+  LEFT JOIN t_guest_hk gh
+    ON gh.guest_id = g.guest_id
+    AND gh.is_active = true
+  WHERE r.is_active = true
+  ${whereSql}
+`;
+//     const countSql = `
+//       SELECT COUNT(*)::int AS count
+// -- statsSql
+// FROM m_rooms r
+// LEFT JOIN t_guest_room gr
+//   ON gr.room_id = r.room_id AND gr.is_active = true
+// LEFT JOIN m_guest g
+//   ON g.guest_id = gr.guest_id
+// LEFT JOIN t_guest_inout io
+//   ON io.guest_id = g.guest_id
+//   AND io.room_id = r.room_id
+//   AND io.is_active = true
+//   ${dateJoinSql}
+// LEFT JOIN t_guest_hk gh          -- ← ADD THIS
+//   ON gh.guest_id = g.guest_id
+//   AND gh.is_active = true
+// WHERE r.is_active = true
+// ${whereSql}
+//     `;
 
     /* ================= STATS (filtered) ================= */
-    const statsSql = `
-      SELECT
-        COUNT(*) AS total,
+const statsSql = `
+  SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE r.status = 'Available') AS available,
+    COUNT(*) FILTER (WHERE r.status = 'Occupied') AS occupied,
+    COUNT(*) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM t_guest_room gr2
+        WHERE gr2.room_id = r.room_id AND gr2.is_active = true
+      )
+    ) AS with_guest,
+    COUNT(*) FILTER (
+      WHERE EXISTS (
+        SELECT 1 FROM t_guest_room gr2
+        JOIN t_guest_hk gh2
+          ON gh2.guest_id = gr2.guest_id AND gh2.is_active = TRUE
+        WHERE gr2.room_id = r.room_id AND gr2.is_active = TRUE
+      )
+    ) AS with_housekeeping
+  FROM m_rooms r
+  LEFT JOIN t_guest_room gr
+    ON gr.room_id = r.room_id AND gr.is_active = true
+  LEFT JOIN m_guest g
+    ON g.guest_id = gr.guest_id
+  LEFT JOIN t_guest_inout io
+    ON io.guest_id = g.guest_id
+    AND io.room_id = r.room_id
+    AND io.is_active = true
+    ${dateJoinSql}
+  LEFT JOIN t_guest_hk gh
+    ON gh.guest_id = g.guest_id
+    AND gh.is_active = true
+  WHERE r.is_active = true
+  ${whereSql}
+`;
+    // const statsSql = `
+    //   SELECT
+    //     COUNT(*) AS total,  
 
-        COUNT(*) FILTER (
-          WHERE r.status = 'Available'
-        ) AS available,
+    //     COUNT(*) FILTER (
+    //       WHERE r.status = 'Available'
+    //     ) AS available,
 
-        COUNT(*) FILTER (
-          WHERE r.status = 'Occupied'
-        ) AS occupied,
+    //     COUNT(*) FILTER (
+    //       WHERE r.status = 'Occupied'
+    //     ) AS occupied,
 
-        COUNT(*) FILTER (
-          WHERE EXISTS (
-            SELECT 1
-            FROM t_guest_room gr2
-            WHERE gr2.room_id = r.room_id
-            AND gr2.is_active = true
-          )
-        ) AS with_guest,
+    //     COUNT(*) FILTER (
+    //       WHERE EXISTS (
+    //         SELECT 1
+    //         FROM t_guest_room gr2
+    //         WHERE gr2.room_id = r.room_id
+    //         AND gr2.is_active = true
+    //       )
+    //     ) AS with_guest,
 
-        COUNT(*) FILTER (
-          WHERE EXISTS (
-            SELECT 1
-            FROM t_guest_room gr2
-            JOIN t_guest_hk gh2
-              ON gh2.guest_id = gr2.guest_id
-              AND gh2.is_active = TRUE
-            WHERE gr2.room_id = r.room_id
-              AND gr2.is_active = TRUE
-          )
-        ) AS with_housekeeping
+    //     COUNT(*) FILTER (
+    //       WHERE EXISTS (
+    //         SELECT 1
+    //         FROM t_guest_room gr2
+    //         JOIN t_guest_hk gh2
+    //           ON gh2.guest_id = gr2.guest_id
+    //           AND gh2.is_active = TRUE
+    //         WHERE gr2.room_id = r.room_id
+    //           AND gr2.is_active = TRUE
+    //       )
+    //     ) AS with_housekeeping
 
-      FROM m_rooms r
-      LEFT JOIN t_guest_room gr
-        ON gr.room_id = r.room_id AND gr.is_active = true
-      LEFT JOIN m_guest g
-        ON g.guest_id = gr.guest_id
-      LEFT JOIN t_guest_inout io
-        ON io.guest_id = g.guest_id
-        AND io.room_id = r.room_id
-        AND io.is_active = true
-        ${dateJoinSql}
-      WHERE r.is_active = true
-      ${whereSql}
+    //   FROM m_rooms r
+    //   LEFT JOIN t_guest_room gr
+    //     ON gr.room_id = r.room_id AND gr.is_active = true
+    //   LEFT JOIN m_guest g
+    //     ON g.guest_id = gr.guest_id
+    //   LEFT JOIN t_guest_inout io
+    //     ON io.guest_id = g.guest_id
+    //     AND io.room_id = r.room_id
+    //     AND io.is_active = true
+    //     ${dateJoinSql}
+    //   WHERE r.is_active = true
+    //   ${whereSql}
+    // `;
+
+let orderByClause = '';
+
+switch (sortBy) {
+  case 'room_no':
+    orderByClause = `r.room_no ${sortOrder}`;
+    break;
+
+  case 'building_name':
+    orderByClause = `r.building_name ${sortOrder}`;
+    break;
+
+  case 'room_category':
+    orderByClause = `r.room_category ${sortOrder}`;
+    break;
+
+  case 'status':
+    orderByClause = `r.status ${sortOrder}`;
+    break;
+
+  case 'guest_name':
+    orderByClause = `
+      CASE WHEN g.guest_name IS NULL THEN 1 ELSE 0 END,
+      g.guest_name ${sortOrder}
     `;
+    break;
+
+  case 'hk_name':
+    orderByClause = `
+      CASE WHEN s.full_name IS NULL THEN 1 ELSE 0 END,
+      s.full_name ${sortOrder}
+    `;
+    break;
+
+  default:
+    orderByClause = `r.room_no ASC`;
+}
 
     /* ================= DATA ================= */
     const dataSql = `
@@ -196,6 +480,18 @@ export class RoomManagementService {
         r.residence_type,
         r.room_category,
         r.status,
+        CASE
+          WHEN gr.guest_room_id IS NOT NULL
+              AND CURRENT_DATE BETWEEN gr.check_in_date
+                                  AND COALESCE(gr.check_out_date, CURRENT_DATE)
+          THEN 'Occupied'
+
+          WHEN gr.guest_room_id IS NOT NULL
+              AND CURRENT_DATE < gr.check_in_date
+          THEN 'Reserved'
+
+          ELSE 'Available'
+        END AS display_status,
 
         g.guest_id,
         g.guest_name,
@@ -214,10 +510,16 @@ export class RoomManagementService {
         io.entry_date,
         io.exit_date,
         io.companions,
+        io.status,
+
+io.status AS debug_io_status,
+gr.check_in_date AS debug_checkin,
+gr.check_out_date AS debug_checkout,
+gr.guest_room_id AS debug_guest_room_id,
 
         gh.guest_hk_id,
         hk.hk_id,
-        s.full_name,
+        s.full_name AS "hkName",
         s.full_name_local_language,
         hk.shift,
         gh.remarks,
@@ -243,8 +545,7 @@ export class RoomManagementService {
       AND md.is_active = true
 
       LEFT JOIN t_guest_inout io
-        ON io.guest_id = g.guest_id
-      AND io.room_id = r.room_id
+        ON io.guest_id = gr.guest_id
       AND io.is_active = true
       ${dateJoinSql}
 
@@ -262,9 +563,10 @@ export class RoomManagementService {
 
       WHERE r.is_active = true
       ${whereSql}
-      ORDER BY ${sortColumn} ${order}
+      ORDER BY ${orderByClause}
       LIMIT $${idx} OFFSET $${idx + 1}
     `;
+    console.log({ sortBy, sortOrder });
     const finalParams = [...params, ...dateParams];
     const dataParams = [...finalParams, limit, offset];
     // if (entryDateFrom) dataParams.push(entryDateFrom);
@@ -284,6 +586,7 @@ export class RoomManagementService {
         residenceType: r.residence_type,
         roomCategory: r.room_category,
         status: r.status,
+        displayStatus: r.display_status,
 
         guest: r.guest_id
           ? {
@@ -311,9 +614,9 @@ export class RoomManagementService {
           ? {
               guestHkId: r.guest_hk_id,
               hkId: r.hk_id,
-              hkName: r.full_name,
+              hkName: r.hkName,
               remarks: r.remarks,
-              status: r.status,
+              status: r.hk_status,
               isActive: true,
             }
           : null,
@@ -378,16 +681,30 @@ export class RoomManagementService {
             throw new BadRequestException('Invalid guest id');
           }
         }
-        const guestCheck = await client.query(`
-          SELECT 1
-          FROM t_guest_inout
-          WHERE guest_id = $1
-            AND is_active = TRUE
-        `, [dto.guest_id]);
+        // const guestCheck = await client.query(`
+        //   SELECT 1
+        //   FROM t_guest_inout
+        //   WHERE guest_id = $1
+        //     AND is_active = TRUE
+        // `, [dto.guest_id]);
 
-        if (!guestCheck.rowCount) {
-          throw new BadRequestException('Guest not active');
+        // if (!guestCheck.rowCount) {
+        //   throw new BadRequestException('Guest not active');
+        // }
+    
+        if (dto.guest_id !== undefined && dto.guest_id !== null) {
+          const guestCheck = await client.query(`
+            SELECT 1
+            FROM t_guest_inout
+            WHERE guest_id = $1
+              AND is_active = TRUE
+          `, [dto.guest_id]);
+
+          if (!guestCheck.rowCount) {
+            throw new BadRequestException('Guest not active');
+          }
         }
+
         if (dto.hk_id && !/^HK\d+$/.test(dto.hk_id)) {
           throw new BadRequestException('Invalid hk id');
         }
@@ -733,7 +1050,7 @@ export class RoomManagementService {
           ipAddress: ip,
         }, client);
         await this.activityLog.log({
-          message: 'Guest room assignemt updated',
+          message: 'Guest room assignment updated',
           module: 'GUEST-ROOM',
           action: 'UPDATE',
           referenceId: dto.guest_id,
@@ -750,61 +1067,6 @@ export class RoomManagementService {
   }
 
   async findCheckedInGuestsWithoutRoom() {
-    // const sql = `
-    //   SELECT
-    //     io.guest_id,
-    //     g.guest_name,
-
-    //     md.designation_name,
-    //     gd.department,
-
-    //     io.entry_date,
-    //     io.exit_date,
-    //     io.rooms_required,
-    //     io.companions,
-
-    //   FROM t_guest_inout io
-
-    //   JOIN m_guest g
-    //     ON g.guest_id = io.guest_id
-    //     AND g.is_active = TRUE
-
-    //   LEFT JOIN t_guest_designation gd
-    //     ON gd.guest_id = io.guest_id
-    //     AND gd.is_current = TRUE
-    //     AND gd.is_active = TRUE
-
-    //   LEFT JOIN m_guest_designation md
-    //     ON md.designation_id = gd.designation_id
-    //     AND md.is_active = TRUE
-
-    //   LEFT JOIN t_guest_room gr
-    //     ON gr.guest_id = io.guest_id
-    //     AND gr.is_active = TRUE
-
-    //   LEFT JOIN m_rooms r
-    //     ON r.room_id = gr.room_id
-
-    //   WHERE io.is_active = TRUE
-    //     AND io.entry_date <= CURRENT_DATE
-
-    //   GROUP BY
-    //     io.guest_id,
-    //     g.guest_name,
-    //     md.designation_name,
-    //     gd.department,
-    //     io.entry_date,
-    //     io.exit_date,
-    //     io.rooms_required,
-    //     io.companions
-
-    //   HAVING
-    //     COUNT(gr.guest_room_id) < io.rooms_required
-    //     OR
-    //     COALESCE(SUM(r.room_capacity), 0) < (1 + COALESCE(io.companions, 0))
-
-    //   ORDER BY io.entry_date DESC;
-    // `;
     const sql =`
     WITH base AS (
       SELECT
@@ -848,11 +1110,14 @@ export class RoomManagementService {
         AND (
           -- ✅ Arriving
           io.entry_date >= CURRENT_DATE
+          AND (io.status = 'Scheduled' OR io.status = 'Entered')
 
           OR
 
           -- ✅ Already checked-in (inside)
-          (io.entry_date <= CURRENT_DATE AND io.exit_date >= CURRENT_DATE)
+          (io.entry_date <= CURRENT_DATE 
+          AND io.exit_date >= CURRENT_DATE
+          AND io.status = 'Entered')
         )
     )
 

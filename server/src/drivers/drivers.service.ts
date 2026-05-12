@@ -126,6 +126,7 @@ export class DriversService {
         s.is_active AS staff_is_active
       FROM m_driver d
       JOIN m_staff s ON s.staff_id = d.staff_id
+      WHERE d.is_active = TRUE AND s.is_active = TRUE
       ${whereSql}
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${params.length + 1}

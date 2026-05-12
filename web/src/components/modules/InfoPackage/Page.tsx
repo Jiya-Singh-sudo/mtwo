@@ -39,7 +39,8 @@ export default function InfoPackage() {
   useEffect(() => {
     loadGuests();
   }, [page, limit, sortBy, sortOrder, debouncedSearch, fromDate, toDate]);
-  useEffect(() => {
+
+  useEffect(() => { 
     const t = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1); // reset pagination on search
@@ -47,7 +48,9 @@ export default function InfoPackage() {
 
     return () => clearTimeout(t);
   }, [search]);
-
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate]);
   async function loadGuests() {
     setLoading(true);
     try {
@@ -218,6 +221,11 @@ export default function InfoPackage() {
             setSortOrder(o);
           }}
         />
+        {!loading && guests.length === 0 && (
+          <div className="p-6 text-center text-gray-500">
+            No guests found for selected filters
+          </div>
+        )}
       </div>
 
       {/* ===== MODALS ===== */}

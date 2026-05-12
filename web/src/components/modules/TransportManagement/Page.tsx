@@ -1045,6 +1045,43 @@ function GuestTransportManagement() {
 
 
               <div className="nicForm">
+                <h4>Pickup Schedule</h4>
+
+                <input type="date" className="nicInput"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  value={driverForm.trip_date}
+                  onChange={(e) =>
+                    setDriverForm({
+                      ...driverForm,
+                      trip_date: e.target.value,
+                      driver_id: "", // ✅ RESET driver when date changes
+                    })
+                  }
+
+                  // onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                  onBlur={() => {
+                    if (hasBackendError) return;
+                    validateSingleField(
+                      assignDriverSchema,
+                      "trip_date",
+                      driverForm.trip_date,
+                      setFormErrors
+                    );
+                  }}
+                //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.trip_date} />
+                {/* <p className="errorText">{formErrors.trip_date}</p> */}
+
+                <TimePicker12h
+                  label="From Time"
+                  value={driverForm.start_time}
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, start_time: v })
+                  }
+                />
+               <hr />
                 <select
                   className="nicInput"
                   value={driverForm.driver_id}
@@ -1102,53 +1139,6 @@ function GuestTransportManagement() {
                   onKeyUp={() => validateSingleField(assignDriverSchema, "drop_location", driverForm.drop_location, setFormErrors)}
                 />
                 <FieldError message={formErrors.drop_location} />
-                {/* <p className="errorText">{formErrors.drop_location}</p> */}
-
-                <h4>Pickup Schedule</h4>
-
-                <input type="date" className="nicInput"
-                  min={assignWindow?.minDate}
-                  max={assignWindow?.maxDate}
-                  value={driverForm.trip_date}
-                  onChange={(e) =>
-                    setDriverForm({
-                      ...driverForm,
-                      trip_date: e.target.value,
-                      driver_id: "", // ✅ RESET driver when date changes
-                    })
-                  }
-
-                  // onBlur={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
-                  onBlur={() => {
-                    if (hasBackendError) return;
-                    validateSingleField(
-                      assignDriverSchema,
-                      "trip_date",
-                      driverForm.trip_date,
-                      setFormErrors
-                    );
-                  }}
-                //onKeyUp={() => validateSingleField(assignDriverSchema, "trip_date", driverForm.trip_date, setFormErrors)}
-                />
-                <FieldError message={formErrors.trip_date} />
-                {/* <p className="errorText">{formErrors.trip_date}</p> */}
-
-                <TimePicker12h
-                  label="From Time"
-                  value={driverForm.start_time}
-                  onChange={(v) =>
-                    setDriverForm({ ...driverForm, start_time: v })
-                  }
-                />
-                {/* <p className="errorText">{formErrors.pickup_time_from}</p> */}
-
-                {/* 
-              <TimePicker12h
-                label="To Time"
-                onChange={(v) => setDriverForm({ ...driverForm, end_time: v })}
-              /> */}
-                {/* <p className="errorText">{formErrors.vehicle_number}</p> 
-              <FieldError message={formErrors.end_time} />*/}
 
                 <hr />
 

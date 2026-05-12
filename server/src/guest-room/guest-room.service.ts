@@ -25,7 +25,7 @@ export class GuestRoomService {
           is_active = FALSE,
           check_out_date = COALESCE(gr.check_out_date, CURRENT_DATE),
           action_type = 'Room-Released',
-          action_description = 'Auto-release on guest exit',
+          action_description = 'Auto-release on guest exit'
         FROM t_guest_inout io
         WHERE
           gr.guest_id = io.guest_id
@@ -35,17 +35,17 @@ export class GuestRoomService {
       `);
 
       // 2️⃣ ALWAYS resync room status
-      await client.query(`
-        UPDATE m_rooms r
-        SET status = 'Available'
-        WHERE r.status = 'Occupied'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM t_guest_room gr
-            WHERE gr.room_id = r.room_id
-              AND gr.is_active = TRUE
-          )
-      `);
+      // await client.query(`
+      //   UPDATE m_rooms r
+      //   SET status = 'Available'
+      //   WHERE r.status = 'Occupied'
+      //     AND NOT EXISTS (
+      //       SELECT 1
+      //       FROM t_guest_room gr
+      //       WHERE gr.room_id = r.room_id
+      //         AND gr.is_active = TRUE
+      //     )
+      // `);
 
       // 2️⃣ Fetch room state snapshot
       const sql = `
@@ -55,8 +55,9 @@ export class GuestRoomService {
           r.building_name,
           r.residence_type,
           r.room_category,
-          r.status AS room_status,
-
+          
+          io.status,
+          
           gr.guest_room_id,
           gr.check_in_date::text  AS check_in_date,
           gr.check_out_date::text AS check_out_date,
@@ -72,18 +73,57 @@ export class GuestRoomService {
           md.designation_name_local_language,
           gd.department,
           gd.organization,
-          gd.is_current
+          gd.is_current,
+
+          CASE
+            WHEN gr.guest_room_id IS NULL THEN 'Available'
+
+            WHEN io.status = 'ENTERED'
+                AND CURRENT_DATE BETWEEN gr.check_in_date
+                                    AND COALESCE(gr.check_out_date, CURRENT_DATE)
+            THEN 'Occupied'
+
+            WHEN io.status = 'SCHEDULED'
+            THEN 'Reserved'
+
+            ELSE 'Available'
+          END AS display_status
 
         FROM m_rooms r
 
-        LEFT JOIN t_guest_room gr
-          ON gr.room_id = r.room_id
-        AND gr.is_active = TRUE
-        AND gr.check_out_date IS NULL
+        LEFT JOIN LATERAL (
+          SELECT
+            gr.*
+          FROM t_guest_room gr
+          LEFT JOIN t_guest_inout io2
+            ON io2.guest_id = gr.guest_id
+          AND io2.is_active = TRUE
+
+          WHERE gr.room_id = r.room_id
+            AND gr.is_active = TRUE
+            AND (
+              gr.check_out_date IS NULL
+              OR gr.check_out_date >= CURRENT_DATE
+            )
+
+          ORDER BY
+            CASE
+              WHEN io2.status = 'ENTERED' THEN 1
+              WHEN io2.status = 'SCHEDULED' THEN 2
+              ELSE 3
+            END,
+            gr.check_in_date ASC
+
+          LIMIT 1
+        ) gr ON TRUE
 
         LEFT JOIN m_guest g
           ON g.guest_id = gr.guest_id
         AND g.is_active = TRUE
+
+        LEFT JOIN t_guest_inout io
+          ON io.guest_id = gr.guest_id
+        AND io.is_active = TRUE
 
         LEFT JOIN t_guest_designation gd
           ON gd.guest_id = g.guest_id
@@ -104,6 +144,82 @@ export class GuestRoomService {
       }
     });
   }
+
+  async getRoomReservations(roomId: string) {
+    // if (!/^R\d+$/.test(guestRoomId)) {
+    //   throw new BadRequestException('Invalid Room ID');
+    // }
+
+    const sql = `
+      SELECT
+        gr.guest_room_id,
+
+        gr.check_in_date::text  AS check_in_date,
+        gr.check_out_date::text AS check_out_date,
+
+        gr.action_type,
+        gr.action_description,
+        gr.remarks,
+
+        g.guest_id,
+        g.guest_name,
+        g.guest_name_local_language,
+
+        io.status,
+
+        md.designation_name,
+        md.designation_name_local_language,
+
+        gd.department,
+        gd.organization,
+
+        CASE
+          WHEN io.status = 'Entered'
+              AND CURRENT_DATE BETWEEN gr.check_in_date
+                                  AND COALESCE(gr.check_out_date, CURRENT_DATE)
+          THEN 'Occupied'
+
+          WHEN io.status = 'Scheduled'
+          THEN 'Reserved'
+
+          ELSE 'Completed'
+        END AS display_status
+
+      FROM t_guest_room gr
+
+      LEFT JOIN m_guest g
+        ON g.guest_id = gr.guest_id
+      AND g.is_active = TRUE
+
+      LEFT JOIN t_guest_inout io
+        ON io.guest_id = gr.guest_id
+      AND io.is_active = TRUE
+
+      LEFT JOIN t_guest_designation gd
+        ON gd.guest_id = g.guest_id
+      AND gd.is_current = TRUE
+      AND gd.is_active = TRUE
+
+      LEFT JOIN m_guest_designation md
+        ON md.designation_id = gd.designation_id
+      AND md.is_active = TRUE
+
+      WHERE gr.room_id = $1
+        AND gr.is_active = TRUE
+        AND (
+          gr.check_out_date IS NULL
+          OR gr.check_out_date >= CURRENT_DATE
+        )
+
+      ORDER BY
+        gr.check_in_date ASC;
+    `;
+
+    const res = await this.db.query(sql, [roomId]);
+
+    return res.rows;
+  }
+
   async activeGuestsDropDown() {
     const sql = `
       SELECT
@@ -353,9 +469,9 @@ export class GuestRoomService {
           throw new BadRequestException('Cannot assign guest to inactive room');
         }
 
-        if (room.status !== 'Available') {
-          throw new BadRequestException('Room is not available');
-        }
+        // if (room.status !== 'Available') {
+        //   throw new BadRequestException('Room is not available');
+        // }
 
         // const capacityRes = await this.db.query(
         //   `
@@ -469,10 +585,10 @@ export class GuestRoomService {
         ]);
 
         // 5️⃣ Update room status
-        await trx.query(`
-          UPDATE m_rooms SET status = 'Occupied'
-          WHERE room_id = $1
-        `, [dto.room_id]);
+        // await trx.query(`
+        //   UPDATE m_rooms SET status = 'Occupied'
+        //   WHERE room_id = $1
+        // `, [dto.room_id]);
         
       await this.activityLog.log({
         message: 'Room assigned to guest',

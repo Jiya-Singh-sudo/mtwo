@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from "react";
-import { Plus, Eye, Edit, User, XCircle, Trash2, Wifi, Users, Router, ShieldAlert, CheckCircle, Smartphone } from "lucide-react";
+import { Plus, Eye, Edit, User, XCircle, Trash2, Wifi, Router, ShieldAlert, CheckCircle, Smartphone } from "lucide-react";
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { Button } from "@/components/ui/button";
 import { ZodError } from "zod";
@@ -169,25 +169,25 @@ export default function NetworkManagement() {
         hotspot: 0,
         leasedLine: 0,
     });
-    const [messengerStats, setMessengerStats] = useState({
-        total: 0,
-        active: 0,
-        inactive: 0,
-        assigned: 0,
-        unassigned: 0,
-    });
+    // const [messengerStats, setMessengerStats] = useState({
+    //     total: 0,
+    //     active: 0,
+    //     inactive: 0,
+    //     assigned: 0,
+    //     unassigned: 0,
+    // });
     function applyNetworkStatus(status: "all" | "active" | "inactive") {
         networkTable.setPage(1);
         networkTable.setStatus(status);
         networkTable.setNetworkType?.(undefined);
     }
-    function applyMessengerStatus(
-        status: 'all' | 'active' | 'inactive' | 'assigned' | 'unassigned'
-    ) {
-        messengerTable.setPage(1);
-        messengerTable.setStatus(status);
+    // function applyMessengerStatus(
+    //     status: 'all' | 'active' | 'inactive' | 'assigned' | 'unassigned'
+    // ) {
+    //     messengerTable.setPage(1);
+    //     messengerTable.setStatus(status);
 
-    }
+    // }
     const resetNetworkForm = () => {
         setNetworkForm({
             provider_name: "",
@@ -389,13 +389,13 @@ export default function NetworkManagement() {
 
             setMessengers(res?.data ?? []);
             setMessengerTotal(res?.totalCount ?? 0);
-            setMessengerStats(res?.stats ?? {
-                total: 0,
-                active: 0,
-                inactive: 0,
-                assigned: 0,
-                unassigned: 0,
-            });
+            // setMessengerStats(res?.stats ?? {
+            //     total: 0,
+            //     active: 0,
+            //     inactive: 0,
+            //     assigned: 0,
+            //     unassigned: 0,
+            // });
 
         } catch (err) {
             console.error("Messenger load failed:", err);
@@ -1029,34 +1029,34 @@ export default function NetworkManagement() {
                             }
                         />
                     }
-                    stats={
-                        <>
-                            <StatCard
-                                title="Total Messengers"
-                                value={messengerStats.total}
-                                icon={Users}
-                                variant="blue"
-                                active={!messengerTable.query.status || messengerTable.query.status === "all"}
-                                onClick={() => applyMessengerStatus("all")}
-                            />
-                            <StatCard
-                                title="Active"
-                                value={messengerStats.active}
-                                icon={CheckCircle}
-                                variant="green"
-                                active={messengerTable.query.status === "active"}
-                                onClick={() => applyMessengerStatus("active")}
-                            />
-                            <StatCard
-                                title="Offline"
-                                value={messengerStats.inactive}
-                                icon={XCircle}
-                                variant="red"
-                                active={messengerTable.query.status === "inactive"}
-                                onClick={() => applyMessengerStatus("inactive")}
-                            />
-                        </>
-                    }
+                    // stats={
+                    //     <>
+                    //         <StatCard
+                    //             title="Total Messengers"
+                    //             value={messengerStats.total}
+                    //             icon={Users}
+                    //             variant="blue"
+                    //             active={!messengerTable.query.status || messengerTable.query.status === "all"}
+                    //             onClick={() => applyMessengerStatus("all")}
+                    //         />
+                    //         <StatCard
+                    //             title="Active"
+                    //             value={messengerStats.active}
+                    //             icon={CheckCircle}
+                    //             variant="green"
+                    //             active={messengerTable.query.status === "active"}
+                    //             onClick={() => applyMessengerStatus("active")}
+                    //         />
+                    //         <StatCard
+                    //             title="Offline"
+                    //             value={messengerStats.inactive}
+                    //             icon={XCircle}
+                    //             variant="red"
+                    //             active={messengerTable.query.status === "inactive"}
+                    //             onClick={() => applyMessengerStatus("inactive")}
+                    //         />
+                    //     </>
+                    // }
                 >
                     {deleteError && (
                         <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">

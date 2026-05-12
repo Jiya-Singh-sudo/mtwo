@@ -19,6 +19,7 @@ export class HousekeepingController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy = 'hk_name',
     @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc',
+    @Query('status') status: 'all' | 'active' | 'inactive' = 'active',
   ) {
     return this.service.findAll({
       page: Number(page),
@@ -26,19 +27,23 @@ export class HousekeepingController {
       search,
       sortBy,
       sortOrder,
+      status,
     });
   }
+  // @Get('options')
+  // getActiveOptions() {
+  //   return this.service.findAll({
+  //     page: 1,
+  //     limit: 100,
+  //     sortBy: 'hk_name',
+  //     sortOrder: 'asc',
+  //     status: 'active', // 🔥 FORCE ACTIVE ONLY
+  //   });
+  // }
   @Get('options')
   getActiveOptions() {
-    return this.service.findAll({
-      page: 1,
-      limit: 100,
-      sortBy: 'hk_name',
-      sortOrder: 'asc',
-      status: 'active', // 🔥 FORCE ACTIVE ONLY
-    });
+    return this.service.getAvailableOptions();
   }
-
   @Post()
   create(@Body() dto: CreateHousekeepingDto, @Req() req: any) {
     const { user, ip } = getRequestContext(req);

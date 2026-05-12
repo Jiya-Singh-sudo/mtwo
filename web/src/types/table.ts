@@ -16,5 +16,7 @@ export type TableQuery = {
   foodStatus?: "SERVED" | "NOT_SERVED";
   specialRequest?: boolean;
 
-
+  // ✅ ADD THESE
+  withGuest?: boolean;
+  withHousekeeping?: boolean;
 }; 

@@ -48,7 +48,7 @@ export class UsersValidator {
 
   async validateRole(role_id: string, client: any) {
     const res = await client.query(
-      `SELECT 1 FROM m_role WHERE role_id = $1 AND is_active = true`,
+      `SELECT 1 FROM m_roles WHERE role_id = $1 AND is_active = true`,
       [role_id],
     );
 

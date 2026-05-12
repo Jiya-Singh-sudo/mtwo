@@ -52,8 +52,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     ThrottlerModule.forRoot([
       {
-        ttl: 60,        // time window in seconds
-        limit: 100,     // global fallback
+        ttl: 60000,        // time window in seconds
+        limit: 1000000,     // global fallback
       },
     ]),
     DatabaseModule,

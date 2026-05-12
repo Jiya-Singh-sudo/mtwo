@@ -18,16 +18,19 @@ import {
   getRoomManagementOverview,
   getAssignableGuests,
   updateFullRoom,
+  getRoomStatusCount,
 } from '@/api/roomManagement.api';
 import {
   getActiveHousekeeping,
   createHousekeeping,
   updateHousekeeping,
   softDeleteHousekeeping,
+  getRoomBoyOptions,
 } from '@/api/housekeeping.api';
 import { createGuestRoom, updateGuestRoom } from '@/api/guestRoom.api';
 import { assignRoomBoyToRoom, unassignRoomBoy } from '@/api/guestHousekeeping.api';
 import { createRoom } from '@/api/rooms.api';
+import { useMobileTableQuery } from '@/hooks/useMobileTableQuery';
 import { colors, spacing, typography } from '@/theme';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -35,6 +38,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Header from '@/components/Header';
+import { RoomCreateDto } from '@/types/rooms';
+import { formatDateDDMMYYYY } from '@/utils/dateTime';
 
 const { width } = Dimensions.get('window');
 
@@ -45,13 +50,28 @@ export default function RoomManagementScreen() {
   const [roomBoys, setRoomBoys] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [roomStats, setRoomStats] = useState<any>({});
+  const [roomStats, setRoomStats] = useState({
+    total: 0,
+    available: 0,
+    occupied: 0,
+    withGuest: 0,
+    withHousekeeping: 0,
+  });
 
   // Pagination/Filters
-  const [roomPage, setRoomPage] = useState(1);
-  const [boyPage, setBoyPage] = useState(1);
-  const [roomSearch, setRoomSearch] = useState('');
-  const [boySearch, setBoySearch] = useState('');
+  // const [roomPage, setRoomPage] = useState(1);
+  // const [boyPage, setBoyPage] = useState(1);
+  // const [roomSearch, setRoomSearch] = useState('');
+  // const [boySearch, setBoySearch] = useState('');
+  const roomTable = useMobileTableQuery({
+    sortBy: 'room_no',
+    sortOrder: 'asc',
+    limit: 10,
+  });
+
+  const boyTable = useMobileTableQuery({
+    sortBy: 'hk_name',
+  });
   const [activeCard, setActiveCard] = useState('ALL');
 
   // Modals
@@ -68,11 +88,15 @@ export default function RoomManagementScreen() {
   const [selectedBoy, setSelectedBoy] = useState<any>(null);
   const [assignableGuests, setAssignableGuests] = useState<any[]>([]);
   const [boyOptions, setBoyOptions] = useState<any[]>([]);
+  const [options, setOptions] = useState([]);
 
   // Room Form
-  const [roomForm, setRoomForm] = useState({
-    room_no: '', residence_type: '', building_name: '',
-    room_category: '', status: 'Available',
+  const [roomForm, setRoomForm] = useState<RoomCreateDto>({
+    room_no: '',
+    building_name: '',
+    residence_type: '',
+    room_category: '',
+    status: 'Available',
   });
 
   // Assignment states
@@ -88,57 +112,120 @@ export default function RoomManagementScreen() {
   });
 
   // ─── data loading ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    loadOptions();
+  }, []);
+
+  const loadOptions = async () => {
+    const data = await getRoomBoyOptions();
+    setOptions(data);
+  };
   useEffect(() => { loadInitialData(); }, []);
 
   const loadInitialData = async () => {
     try {
       const [guests, boys] = await Promise.all([
         getAssignableGuests(),
-        getActiveHousekeeping({ page: 1, limit: 100 }),
+        getRoomBoyOptions(),
       ]);
+      setBoyOptions(
+        boys.map((hk: any) => ({
+          hk_id: hk.value,
+          hk_name: hk.label,
+        }))
+      );
+      // setBoyOptions(
+      //   boys.map((hk: any) => ({
+      //     hk_id: hk.hk_id,
+      //     hk_name: hk.hk_name,
+      //   }))
+      // );
       setAssignableGuests(guests || []);
-      setBoyOptions(boys?.data || []);
+      // setBoyOptions(boys?.data || []);
     } catch (err) { console.error('Failed to load options', err); }
   };
+  const loadRoomStats = async () => {
+    try {
+      const stats = await getRoomStatusCounts();
 
+      setRoomStats({
+        total: stats.All,
+        available: stats.Available,
+        occupied: stats.Occupied,
+        withGuest: stats.WithGuest,
+        withHousekeeping: stats.WithHousekeeping,
+      });
+    } catch (err) {
+      console.error("Failed to load room stats", err);
+    }
+  };
   const loadRooms = async () => {
     setLoading(true);
     try {
       const res = await getRoomManagementOverview({
-        page: roomPage, limit: 10,
-        search: roomSearch || undefined,
-        status: activeCard === 'AVAILABLE' ? 'Available' : activeCard === 'OCCUPIED' ? 'Occupied' : undefined,
-        sortBy: activeCard === 'WITH_GUEST' ? 'guest_name' : activeCard === 'WITH_HOUSEKEEPING' ? 'hk_name' : 'room_no',
-        sortOrder: 'asc',
+        page: roomTable.query.page,
+        limit: roomTable.query.limit,
+        search: roomTable.query.search || undefined,
+        status: roomTable.query.status as any,
+        sortBy: roomTable.query.sortBy,
+        sortOrder: roomTable.query.sortOrder,
+        entryDateFrom: roomTable.query.entryDateFrom || undefined,
+        entryDateTo: roomTable.query.entryDateTo || undefined,
       });
+
       setRooms(res.data || []);
       setRoomStats(res.stats || {});
     } catch (error) {
       console.error('Failed to load rooms', error);
       Alert.alert('Error', 'Could not load room data');
-    } finally { setLoading(false); setRefreshing(false); }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   const loadRoomBoys = async () => {
     setLoading(true);
     try {
-      const res = await getActiveHousekeeping({ page: boyPage, limit: 10, search: boySearch || undefined });
+      const res = await getActiveHousekeeping({
+        page: boyTable.query.page,
+        limit: boyTable.query.limit,
+        search: boyTable.query.search || undefined,
+        sortBy: boyTable.query.sortBy,
+        sortOrder: boyTable.query.sortOrder,
+      });
+
       setRoomBoys(res.data || []);
     } catch (error) {
       console.error('Failed to load room boys', error);
       Alert.alert('Error', 'Could not load housekeeping data');
-    } finally { setLoading(false); setRefreshing(false); }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     if (activeTab === 'rooms') loadRooms(); else loadRoomBoys();
+    await Promise.all([
+      loadRooms(),
+      loadRoomStats(),
+    ]);
     loadInitialData();
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'rooms') loadRooms(); else loadRoomBoys();
-  }, [activeTab, roomPage, boyPage, roomSearch, boySearch, activeCard]);
+    loadRoomStats();
+  }, []);
+  useEffect(() => {
+    if (activeTab === 'rooms') loadRooms();
+    else loadRoomBoys();
+  }, [
+    activeTab,
+    roomTable.query,
+    boyTable.query,
+  ]);
 
   // ─── handlers ────────────────────────────────────────────────────────────────
   const handleSaveRoom = async () => {
@@ -155,7 +242,11 @@ export default function RoomManagementScreen() {
         await createRoom(roomForm as any);
         Alert.alert('Success', 'Room created');
       }
-      setShowAddRoom(false); setShowEditRoom(false); loadRooms();
+      setShowAddRoom(false); setShowEditRoom(false); 
+      await Promise.all([
+        loadRooms(),
+        loadRoomStats(),
+      ]);
     } catch { Alert.alert('Error', 'Failed to save room'); }
     finally { setLoading(false); }
   };
@@ -164,9 +255,13 @@ export default function RoomManagementScreen() {
     setLoading(true);
     try {
       const payload = {
-        hk_name: boyForm.hk_name, 
-        hk_contact: boyForm.hk_contact, hk_alternate_contact: boyForm.hk_alternate_contact,
-        // address: boyForm.address,
+        hk_name: boyForm.hk_name.trim(),
+
+        hk_contact: parseInt(boyForm.hk_contact, 10),
+
+        hk_alternate_contact: boyForm.hk_alternate_contact
+          ? parseInt(boyForm.hk_alternate_contact, 10)
+          : undefined,
       };
       if (selectedBoy) { await updateHousekeeping(selectedBoy.hk_id, payload); Alert.alert('Success', 'Member updated'); }
       else { await createHousekeeping(payload); Alert.alert('Success', 'Member added'); }
@@ -197,7 +292,11 @@ export default function RoomManagementScreen() {
         action_type: 'Room-Allocated', action_description: 'Assigned from mobile',
       });
       Alert.alert('Success', 'Guest assigned');
-      setShowAssignGuest(false); loadRooms();
+      setShowAssignGuest(false); 
+      await Promise.all([
+        loadRooms(),
+        loadRoomStats(),
+      ]);
       getAssignableGuests().then(setAssignableGuests);
     } catch { Alert.alert('Error', 'Assignment failed'); }
     finally { setLoading(false); }
@@ -209,7 +308,11 @@ export default function RoomManagementScreen() {
       { text: 'Vacate', style: 'destructive', onPress: async () => {
         try {
           await updateGuestRoom(guestRoomId, { is_active: false, action_type: 'Room-Released' });
-          Alert.alert('Success', 'Guest vacated'); loadRooms();
+          Alert.alert('Success', 'Guest vacated'); 
+          await Promise.all([
+            loadRooms(),
+            loadRoomStats(),
+          ]);
           getAssignableGuests().then(setAssignableGuests);
         } catch { Alert.alert('Error', 'Failed to vacate'); }
       }},
@@ -222,7 +325,11 @@ export default function RoomManagementScreen() {
     try {
       await assignRoomBoyToRoom({ room_id: selectedRoom.roomId, hk_id: selectedBoyId, remarks: assignmentRemarks });
       Alert.alert('Success', 'Housekeeping assigned');
-      setShowAssignBoy(false); loadRooms();
+      setShowAssignBoy(false); 
+      await Promise.all([
+        loadRooms(),
+        loadRoomStats(),
+      ]);
     } catch { Alert.alert('Error', 'Assignment failed'); }
     finally { setLoading(false); }
   };
@@ -231,7 +338,12 @@ export default function RoomManagementScreen() {
     Alert.alert('Unassign', 'Remove housekeeping from this room?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Unassign', style: 'destructive', onPress: async () => {
-        try { await unassignRoomBoy(guestHkId); Alert.alert('Success', 'Unassigned'); loadRooms(); }
+        try { await unassignRoomBoy(guestHkId); Alert.alert('Success', 'Unassigned'); 
+          await Promise.all([
+            loadRooms(),
+            loadRoomStats(),
+          ]);
+         }
         catch { Alert.alert('Error', 'Failed to unassign'); }
       }},
     ]);
@@ -254,7 +366,13 @@ export default function RoomManagementScreen() {
 
   const openEditBoyForm = (b: any) => {
     setSelectedBoy(b);
-    setBoyForm({ hk_name: b.hk_name, hk_contact: b.hk_contact, hk_alternate_contact: b.hk_alternate_contact || ''});
+    setBoyForm({ 
+      hk_name: b.hk_name, 
+      hk_contact: String(b.hk_contact),
+      hk_alternate_contact: b.hk_alternate_contact
+        ? String(b.hk_alternate_contact)
+        : '',
+    });
     setShowEditBoy(true);
   };
 
@@ -295,6 +413,13 @@ export default function RoomManagementScreen() {
       </View>
 
       {activeTab === 'rooms' ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <StatCard title="Total" value={roomStats.total} />
+          <StatCard title="Available" value={roomStats.available} />
+          <StatCard title="Occupied" value={roomStats.occupied} />
+          <StatCard title="Guest" value={roomStats.withGuest} />
+          <StatCard title="HK" value={roomStats.withHousekeeping} />
+        </View>
         <FlatList
           data={rooms}
           keyExtractor={(item) => item.roomId}
@@ -304,9 +429,17 @@ export default function RoomManagementScreen() {
               onView={() => { setSelectedRoom(r); setShowViewRoom(true); }}
               onEdit={() => openEditRoomForm(r)}
               onAssignGuest={() => { setSelectedRoom(r); setSelectedGuestId(''); setCheckInDate(''); setCheckOutDate(''); setShowAssignGuest(true); }}
-              onVacateGuest={() => vacateGuest(r.guest.guestRoomId)}
+              onVacateGuest={() => {
+                if (r.guest?.guestRoomId) {
+                  vacateGuest(r.guest.guestRoomId);
+                }
+              }}
               onAssignBoy={() => { setSelectedRoom(r); setSelectedBoyId(''); setAssignmentRemarks(''); setShowAssignBoy(true); }}
-              onUnassignBoy={() => handleUnassignBoy(r.housekeeping.guestHkId)}
+              onUnassignBoy={() => {
+                if (r.housekeeping?.guestHkId) {
+                  handleUnassignBoy(r.housekeeping.guestHkId);
+                }
+              }}
             />
           )}
           contentContainerStyle={styles.listContent}
@@ -323,7 +456,22 @@ export default function RoomManagementScreen() {
                   return (
                     <TouchableOpacity
                       key={chip.key}
-                      onPress={() => setActiveCard(chip.key)}
+                      onPress={() => {
+                        setActiveCard(chip.key);
+
+                        roomTable.batchUpdate(prev => ({
+                          ...prev,
+                          page: 1,
+                          status:
+                            chip.key === 'AVAILABLE' ? 'Available' :
+                            chip.key === 'OCCUPIED' ? 'Occupied' :
+                            undefined,
+                          sortBy:
+                            chip.key === 'WITH_GUEST' ? 'guest_name' :
+                            chip.key === 'WITH_HOUSEKEEPING' ? 'hk_name' :
+                            'room_no',
+                        }));
+                      }}
                       activeOpacity={0.8}
                       style={[styles.statChip, active && { backgroundColor: chip.color }]}
                     >
@@ -343,8 +491,8 @@ export default function RoomManagementScreen() {
                   <Ionicons name="search-outline" size={16} color={colors.muted} style={{ marginRight: 6 }} />
                   <Input
                     placeholder="Search rooms..."
-                    value={roomSearch}
-                    onChangeText={setRoomSearch}
+                    value={roomTable.searchInput}
+                    onChangeText={roomTable.setSearchInput}
                     containerStyle={{ marginBottom: 0, flex: 1 }}
                     inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }}
                   />
@@ -368,9 +516,9 @@ export default function RoomManagementScreen() {
           ListFooterComponent={
             rooms.length > 0 ? (
               <View style={styles.pagination}>
-                <Button title="← Prev" variant="outline" size="sm" disabled={roomPage === 1} onPress={() => setRoomPage(roomPage - 1)} />
-                <Text style={styles.pageText}>Page {roomPage}</Text>
-                <Button title="Next →" variant="outline" size="sm" disabled={rooms.length < 10} onPress={() => setRoomPage(roomPage + 1)} />
+                <Button title="← Prev" variant="outline" size="sm" disabled={roomTable.query.page === 1} onPress={() => roomTable.setPage(roomTable.query.page - 1)} />
+                <Text style={styles.pageText}>Page {roomTable.query.page}</Text>
+                <Button title="Next →" variant="outline" size="sm" disabled={rooms.length < 10} onPress={() => roomTable.setPage(roomTable.query.page + 1)} />
               </View>
             ) : null
           }
@@ -400,8 +548,8 @@ export default function RoomManagementScreen() {
                   <Ionicons name="search-outline" size={16} color={colors.muted} style={{ marginRight: 6 }} />
                   <Input
                     placeholder="Search by name..."
-                    value={boySearch}
-                    onChangeText={setBoySearch}
+                    value={boyTable.searchInput}
+                    onChangeText={boyTable.setSearchInput}
                     containerStyle={{ marginBottom: 0, flex: 1 }}
                     inputStyle={{ borderWidth: 0, height: 40, fontSize: 14, paddingHorizontal: 0 }}
                   />
@@ -425,9 +573,9 @@ export default function RoomManagementScreen() {
           ListFooterComponent={
             roomBoys.length > 0 ? (
               <View style={styles.pagination}>
-                <Button title="← Prev" variant="outline" size="sm" disabled={boyPage === 1} onPress={() => setBoyPage(boyPage - 1)} />
-                <Text style={styles.pageText}>Page {boyPage}</Text>
-                <Button title="Next →" variant="outline" size="sm" disabled={roomBoys.length < 10} onPress={() => setBoyPage(boyPage + 1)} />
+                <Button title="← Prev" variant="outline" size="sm" disabled={boyTable.query.page === 1} onPress={() => boyTable.setPage(boyTable.query.page - 1)} />
+                <Text style={styles.pageText}>Page {boyTable.query.page}</Text>
+                <Button title="Next →" variant="outline" size="sm" disabled={roomBoys.length < 10} onPress={() => boyTable.setPage(boyTable.query.page + 1)} />
               </View>
             ) : null
           }
@@ -447,20 +595,49 @@ export default function RoomManagementScreen() {
         footer={<Button title="Close" variant="outline" onPress={() => setShowViewRoom(false)} />}
       >
         {selectedRoom && (
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.65 }}>
-            <SectionCard title="Room Info" icon="bed-outline">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.75 }}>
+            {/* ROOM INFORMATION */}
+            <SectionCard title="Room Information" icon="bed-outline">
               <DetailRow label="Room No" value={selectedRoom.roomNo} highlight />
-              <DetailRow label="Residence" value={selectedRoom.roomName} />
-              <DetailRow label="Type" value={selectedRoom.roomType} />
-              <DetailRow label="Category" value={selectedRoom.roomCategory} />
-              <DetailRow label="Building" value={selectedRoom.buildingName} />
-              <DetailRow label="Capacity" value={String(selectedRoom.roomCapacity || '—')} />
+              <DetailRow label="Building" value={selectedRoom.buildingName || '—'} />
+              <DetailRow label="Residence Type" value={selectedRoom.residenceType || '—'} />
+              <DetailRow label="Room Category" value={selectedRoom.roomCategory || '—'} />
               <DetailRow label="Status" value={selectedRoom.status} />
             </SectionCard>
 
-            <SectionCard title="Occupancy" icon="person-outline">
-              <DetailRow label="Guest" value={selectedRoom.guest?.guestName || 'None'} />
-              <DetailRow label="Housekeeping" value={selectedRoom.housekeeping?.hkName || 'None'} />
+            {/* GUEST INFORMATION */}
+            <SectionCard title="Guest Information" icon="person-outline">
+              {selectedRoom.guest ? (
+                <>
+                  <DetailRow label="Guest Name" value={selectedRoom.guest.guestName} />
+                  <DetailRow
+                    label="Check-In"
+                    value={formatDateDDMMYYYY(selectedRoom.guest.checkInDate)}
+                  />
+                  <DetailRow
+                    label="Check-Out"
+                    value={formatDateDDMMYYYY(selectedRoom.guest.checkOutDate)}
+                  />
+                  {/* <DetailRow label="Status" value={selectedRoom.status} /> */}
+                </>
+              ) : (
+                <DetailRow label="Guest" value="— No guest assigned —" />
+              )}
+            </SectionCard>
+
+            {/* HOUSEKEEPING */}
+            <SectionCard title="Housekeeping" icon="people-outline">
+              {selectedRoom.housekeeping ? (
+                <>
+                  <DetailRow label="Room Boy" value={selectedRoom.housekeeping.hkName} />
+                  <DetailRow
+                    label="Assignment"
+                    value={selectedRoom.housekeeping.isActive ? "Assigned" : "Inactive"}
+                  />
+                </>
+              ) : (
+                <DetailRow label="Housekeeping" value="— Not assigned —" />
+              )}
             </SectionCard>
           </ScrollView>
         )}
@@ -479,19 +656,75 @@ export default function RoomManagementScreen() {
         }
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.45 }} keyboardShouldPersistTaps="handled">
             <SectionCard title="Room Info" icon="bed-outline">
-              <View style={styles.formRow}>
-                <Input label="Room No *" value={roomForm.room_no} onChangeText={v => setRoomForm({ ...roomForm, room_no: v })} containerStyle={{ flex: 1 }} />
-              </View>
-              <Input label="Building" value={roomForm.building_name} onChangeText={v => setRoomForm({ ...roomForm, building_name: v })} containerStyle={{ flex: 1 }} />
-              <Input label="Residence Type" value={roomForm.residence_type} onChangeText={v => setRoomForm({ ...roomForm, residence_type: v })} />
+
+              {/* Room No */}
+              <Input
+                label="Room Number *"
+                placeholder="e.g. GFD-101"
+                value={roomForm.room_no}
+                onChangeText={(v) => setRoomForm({ ...roomForm, room_no: v })}
+              />
+
+              {/* Building */}
+              <Input
+                label="Building Name"
+                placeholder="e.g. Jam Jalkar Bhavan"
+                value={roomForm.building_name}
+                onChangeText={(v) => setRoomForm({ ...roomForm, building_name: v })}
+              />
+
+              {/* Residence Type */}
+              <Input
+                label="Residence Type *"
+                placeholder="e.g. First Floor / Penthouse"
+                value={roomForm.residence_type}
+                onChangeText={(v) => setRoomForm({ ...roomForm, residence_type: v })}
+              />
+
+              {/* Room Category */}
+              <Input
+                label="Room Category *"
+                placeholder="e.g. Deluxe / Standard"
+                value={roomForm.room_category}
+                onChangeText={(v) => setRoomForm({ ...roomForm, room_category: v })}
+              />
+              {/* ✅ ADD THIS HERE */}
+              {/* <Text style={{ marginTop: 10, marginBottom: 6, fontWeight: '600' }}>
+                Status
+              </Text> */}
+
+              {/* <View style={{ flexDirection: 'row', gap: 10 }}>
+                {['Available', 'Occupied'].map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => setRoomForm({ ...roomForm, status: s as any })}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: roomForm.status === s ? colors.primary : colors.border,
+                      backgroundColor: roomForm.status === s ? colors.primary + '15' : '#fff',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{
+                      color: roomForm.status === s ? colors.primary : colors.text
+                    }}>
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View> */}
+
             </SectionCard>
 
-            <SectionCard title="Building Details" icon="business-outline">
+            {/* <SectionCard title="Building Details" icon="business-outline">
               <View style={styles.formRow}>
               </View>
-            </SectionCard>
+            </SectionCard> */}
             <View style={{ height: 60 }} />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -510,7 +743,7 @@ export default function RoomManagementScreen() {
         }
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.4 }} keyboardShouldPersistTaps="handled">
             <SectionCard title="Select Guest" icon="person-add-outline">
               <View style={styles.selectList}>
                 {assignableGuests.length === 0 && (
@@ -519,7 +752,12 @@ export default function RoomManagementScreen() {
                 {assignableGuests.map((g: any) => (
                   <TouchableOpacity
                     key={g.guest_id}
-                    onPress={() => setSelectedGuestId(g.guest_id)}
+                    onPress={() => {
+                      setSelectedGuestId(g.guest_id);
+
+                      setCheckInDate(g.entry_date || '');
+                      setCheckOutDate(g.exit_date || '');
+                    }}
                     style={[styles.selectItem, selectedGuestId === g.guest_id && styles.selectItemActive]}
                   >
                     <View style={styles.selectItemLeft}>
@@ -541,8 +779,8 @@ export default function RoomManagementScreen() {
 
             <SectionCard title="Stay Dates" icon="calendar-outline">
               <View style={styles.formRow}>
-                <Input label="Check-in" placeholder="YYYY-MM-DD" value={checkInDate} onChangeText={setCheckInDate} containerStyle={{ flex: 1 }} />
-                <Input label="Check-out" placeholder="YYYY-MM-DD" value={checkOutDate} onChangeText={setCheckOutDate} containerStyle={{ flex: 1 }} />
+                <Input label="Check-in" placeholder="YYYY-MM-DD" value={formatDateDDMMYYYY(checkInDate)} editable={false} onChangeText={setCheckInDate} containerStyle={{ flex: 1 }} />
+                <Input label="Check-out" placeholder="YYYY-MM-DD" value={formatDateDDMMYYYY(checkOutDate)} editable={false} onChangeText={setCheckOutDate} containerStyle={{ flex: 1 }} />
               </View>
             </SectionCard>
             <View style={{ height: 60 }} />
@@ -563,7 +801,7 @@ export default function RoomManagementScreen() {
         }
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.33 }} keyboardShouldPersistTaps="handled">
             <SectionCard title="Select Room Boy" icon="people-outline">
               <View style={styles.selectList}>
                 {boyOptions.map((b: any) => (
@@ -602,7 +840,7 @@ export default function RoomManagementScreen() {
         }
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.45 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.37 }} keyboardShouldPersistTaps="handled">
             <SectionCard title="Personal Info" icon="person-outline">
               <Input label="Full Name *" value={boyForm.hk_name} onChangeText={v => setBoyForm({ ...boyForm, hk_name: v })} />
               {/* <Input label="Local Name" value={boyForm.hk_name_local} onChangeText={v => setBoyForm({ ...boyForm, hk_name_local: v })} /> */}

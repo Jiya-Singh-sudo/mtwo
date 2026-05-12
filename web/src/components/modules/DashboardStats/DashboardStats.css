@@ -1,6 +1,54 @@
 /* ===============================
    DASHBOARD STATS – NIC STYLE
 ================================ */
+/* ===============================
+   TODAY OVERVIEW (BLUE SECTION)
+================================ */
+
+.today-overview {
+  background: linear-gradient(135deg, #0b3d91, #0a2e6e);
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+}
+
+.today-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.today-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.today-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.today-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffcc66; /* golden number like your screenshot */
+}
+
+.today-label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.today-footer {
+  margin-top: 12px;
+  font-size: 12px;
+  opacity: 0.8;
+}
 
 /* Headings */
 h2 {

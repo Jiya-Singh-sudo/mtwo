@@ -9,6 +9,8 @@ import * as crypto from 'crypto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 import { UsersValidator } from './users.validator';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import nodemailer from 'nodemailer';
 
 @Injectable()
 export class UsersService {
@@ -205,14 +207,13 @@ export class UsersService {
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,true,NOW(),$6,$7)
+        VALUES ($1,$2,$3,$4,$5,true,NOW(),$6, $7)
       `, [
         staff_id,
         dto.full_name,
         full_name_local_language,
         dto.primary_mobile ?? null,
         dto.alternate_mobile ?? null,
-        dto.email ?? null,
         user,
         ip
       ]);
@@ -233,7 +234,7 @@ export class UsersService {
           inserted_by,
           inserted_ip
         )
-        VALUES ($1,$2,$3,$4,$5,$6,NULL,true,NOW(),$7,$8)
+        VALUES ($1,$2,$3,$4,$5,$6,NULL,true,NOW(),$7, $8)
         RETURNING *;
       `;
       const params = [
@@ -262,20 +263,77 @@ export class UsersService {
       return created;
     });
   }
+  // SHA-256 for your password CHAR(64)
+  private sha256Hex(val: string): string{
+    return crypto.createHash('sha256').update(val,'utf8').digest('hex');
+  }
+  private transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+  // async forgotPassword(dto: ForgotPasswordDto, ip: string) {
+  //   const normalizedUsername = this.usersValidator.normalizeUsername(dto.email);
+  //   const user = await this.findOneByUsername(normalizedUsername);
+  //   if (!user) {
+  //     // IMPORTANT: do NOT reveal user existence
+  //     return { message: 'If the user exists, a reset link has been sent.' };
+  //   }
 
+  //   const token = this.generateResetToken();
+  //   const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  //   if (!user.is_active) {
+  //     return { message: 'If the user exists, a reset link has been sent.' };
+  //   }
+  //   const sql = `
+  //     UPDATE m_user
+  //     SET
+  //       reset_token = $1,
+  //       reset_token_expires = $2,
+  //       updated_at = $3,
+  //       updated_ip = $4
+  //     WHERE user_id = $5
+  //   `;
+
+  //   await this.db.query(sql, [
+  //     token,
+  //     expires,
+  //     new Date().toISOString(),
+  //     ip,
+  //     user.user_id,
+  //   ]);
+
+  //   // 🔌 Email hook (stub)
+  //   // await this.mailService.sendResetLink(user.email, token);
+
+  //   return { message: 'If the user exists, a reset link has been sent.' };
+  // }
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
-    const normalizedUsername = this.usersValidator.normalizeUsername(dto.username);
-    const user = await this.findOneByUsername(normalizedUsername);
-    if (!user) {
-      // IMPORTANT: do NOT reveal user existence
-      return { message: 'If the user exists, a reset link has been sent.' };
+    const normalizedUsername =
+      this.usersValidator.normalizeUsername(dto.email);
+
+    const user =
+      await this.findOneByUsername(normalizedUsername);
+
+    // Never reveal user existence
+    if (!user || !user.is_active) {
+      return {
+        message:
+          'If the user exists, a reset link has been sent.',
+      };
     }
 
+    // Generate secure reset token
     const token = this.generateResetToken();
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    if (!user.is_active) {
-      return { message: 'If the user exists, a reset link has been sent.' };
-    }
+
+    // Expiry: 15 minutes
+    const expires = new Date(
+      Date.now() + 15 * 60 * 1000
+    );
+
+    // Store token
     const sql = `
       UPDATE m_user
       SET
@@ -294,56 +352,161 @@ export class UsersService {
       user.user_id,
     ]);
 
-    // 🔌 Email hook (stub)
-    // await this.mailService.sendResetLink(user.email, token);
+    // Frontend reset URL
+    const resetUrl =
+      `${process.env.FRONTEND_URL}` +
+      `/reset-password?token=${token}`;
 
-    return { message: 'If the user exists, a reset link has been sent.' };
+    // Send Email
+    await this.transporter.sendMail({
+      from: process.env.MAIL_USER,
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>Password Reset</h2>
+
+          <p>Hello ${user.username},</p>
+
+          <p>
+            Click the button below to reset your password.
+          </p>
+
+          <a
+            href="${resetUrl}"
+            style="
+              display:inline-block;
+              padding:12px 24px;
+              background:#4267B2;
+              color:white;
+              text-decoration:none;
+              border-radius:6px;
+              margin-top:10px;
+            "
+          >
+            Reset Password
+          </a>
+
+          <p style="margin-top:20px;">
+            This link expires in 15 minutes.
+          </p>
+
+          <p>
+            If you did not request this,
+            please ignore this email.
+          </p>
+        </div>
+      `,
+    });
+
+    return {
+      message:
+        'If the user exists, a reset link has been sent.',
+    };
   }
   async resetPassword(dto: ResetPasswordDto, ip: string) {
-    return this.db.transaction(async (client) => {
-      const sql = `
-        SELECT user_id
-        FROM m_user
-        WHERE reset_token = $1
-          AND reset_token_expires > NOW()
-          AND is_active = true
-        FOR UPDATE
-      `;
-      const res = await client.query(sql, [dto.token]);
-      if (res.rows.length === 0) {
-        throw new BadRequestException('Invalid or expired reset token');
-      }
-      this.usersValidator.validatePasswordStrength(dto.new_password);
-      const userId = res.rows[0].user_id;
-      const existingUser = await client.query(
-        `SELECT password FROM m_user WHERE user_id = $1`,
-        [userId]
-      );
+    const { email, newPassword } = dto;
 
-      const newHashed = this.hashPassword(dto.new_password);
-      const oldHashed = existingUser.rows[0].password;
+    const hashedPassword =
+      this.sha256Hex(newPassword);
 
-      if (newHashed === oldHashed) {
-        throw new BadRequestException('New password cannot be same as old password');
-      }
-      const updateSql = `
-        UPDATE m_user SET
-          password = $1,
-          reset_token = NULL,
-          reset_token_expires = NULL,
-          updated_at = NOW(),
-          updated_ip = $2
-        WHERE user_id = $3
-      `;
+    await this.db.query(
+      `
+      UPDATE m_user
+      SET password = $1
+      WHERE email = $2
+      `,
+      [hashedPassword, email]
+    );
 
-      await client.query(updateSql, [
-        newHashed,
-        ip,
-        userId,
-      ]);
+    return {
+      message: 'Password reset successful',
+    };
+  }
+  // async resetPassword(dto: ResetPasswordDto, ip: string) {
+  //   return this.db.transaction(async (client) => {
+  //     const sql = `
+  //       SELECT user_id
+  //       FROM m_user
+  //       WHERE reset_token = $1
+  //         AND reset_token_expires > NOW()
+  //         AND is_active = true
+  //       FOR UPDATE
+  //     `;
+  //     const res = await client.query(sql, [dto.token]);
+  //     if (res.rows.length === 0) {
+  //       throw new BadRequestException('Invalid or expired reset token');
+  //     }
+  //     this.usersValidator.validatePasswordStrength(dto.new_password);
+  //     const userId = res.rows[0].user_id;
+  //     const existingUser = await client.query(
+  //       `SELECT password FROM m_user WHERE user_id = $1`,
+  //       [userId]
+  //     );
 
-      return { message: 'Password reset successfully' };
-    });
+  //     const newHashed = this.hashPassword(dto.new_password);
+  //     const oldHashed = existingUser.rows[0].password;
+
+  //     if (newHashed === oldHashed) {
+  //       throw new BadRequestException('New password cannot be same as old password');
+  //     }
+  //     const updateSql = `
+  //       UPDATE m_user SET
+  //         password = $1,
+  //         reset_token = NULL,
+  //         reset_token_expires = NULL,
+  //         updated_at = NOW(),
+  //         updated_ip = $2
+  //       WHERE user_id = $3
+  //     `;
+
+  //     await client.query(updateSql, [
+  //       newHashed,
+  //       ip,
+  //       userId,
+  //     ]);
+
+  //     return { message: 'Password reset successfully' };
+  //   });
+  // }
+  async verifyOtp(dto: VerifyOtpDto, ip: string) {
+    const { email, otp } = dto;
+
+    const result = await this.db.query(
+      `
+      SELECT *
+      FROM password_reset_otps
+      WHERE email = $1
+        AND otp = $2
+        AND verified = FALSE
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [email, otp]
+    );
+
+    if (!result.rows.length) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const row = result.rows[0];
+
+    if (new Date(row.expires_at) < new Date()) {
+      throw new BadRequestException('OTP expired');
+    }
+
+    await this.db.query(
+      `
+      UPDATE password_reset_otps
+      SET verified = TRUE
+      WHERE id = $1
+      `,
+      [row.id]
+    );
+
+    return {
+      verified: true,
+    };
   }
 
   async update(username: string, dto: UpdateUserDto, user: string, ip: string) {

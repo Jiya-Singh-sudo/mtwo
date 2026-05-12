@@ -262,7 +262,7 @@ useEffect(() => {
 useEffect(() => {
   const loadDesignations = async () => {
     const res = await getActiveDesignationList();
-    setDesignations(res?.data || []);
+    setDesignations(res?.data|| []);
   };
   loadDesignations();
 }, []);

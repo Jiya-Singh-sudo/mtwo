@@ -248,7 +248,7 @@ export default function TransportScreen() {
           <SectionCard title={`Available Vehicles (${vehicles.length})`} icon="car-sport-outline">
             {vehicles.length === 0 && <Text style={s.emptySelectText}>No available vehicles</Text>}
             {vehicles.map((v: any) => (
-              <TouchableOpacity key={v.vehicle_id} onPress={() => setSelectedVehicle(v.vehicle_no)}
+              <TouchableOpacity key={v.vehicle_no} onPress={() => setSelectedVehicle(v.vehicle_no)}
                 style={[s.selectItem, selectedVehicle === v.vehicle_no && s.selectItemActive]}>
                 <View style={s.selectItemLeft}>
                   <View style={[s.selectAvatar, selectedVehicle === v.vehicle_no && { backgroundColor: colors.primary }]}>

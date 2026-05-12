@@ -298,8 +298,18 @@
 }
 
 /* ================= MODAL ================= */
-
 .modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;   /* 🔥 change */
+  padding: 40px 0;           /* 🔥 add spacing */
+  overflow-y: auto;          /* 🔥 allow full scroll */
+  z-index: 50;
+}
+/* .modalOverlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
@@ -307,14 +317,33 @@
   align-items: center;
   justify-content: center;
   z-index: 50;
-}
-
+  
+} */
 .nicModal {
   background: #ffffff;
   width: 440px;
   border-radius: 8px;
   padding: 22px;
+
+  max-height: 90vh;      /* 🔥 slightly bigger */
+  overflow-y: auto;
+
+  display: flex;         /* 🔥 important */
+  flex-direction: column;
 }
+.modalBodyScroll {
+  overflow-y: auto;
+  max-height: 60vh;
+  padding-right: 6px;
+}
+/* .nicModal {
+  background: #ffffff;
+  width: 440px;
+  border-radius: 8px;
+  padding: 22px;
+  max-height: 80vh;
+  overflow-y: auto;
+} */
 
 
 .nicModalActions {

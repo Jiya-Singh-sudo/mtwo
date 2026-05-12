@@ -21,8 +21,11 @@ import { SystemSettings } from '@/components/modules/SystemSettings/Page';
 import GuestTransportManagement from '@/components/modules/TransportManagement/Page';
 import FoodService from '@/components/modules/FoodService/Page';
 import ActivityLogPage from '@/components/modules/ActivityLog/Page';
-import OfficerManagement from '@/components/modules/OfficerManagement/Page';
 import NetworkManagement from '@/components/modules/NetworkManagement/Page';
+import { OfficerManagement } from '@/components/modules/OfficerManagement/Page';
+import { ForgotPasswordPage } from '@/components/LoginPage/ForgotPasswordPage';
+import { VerifyOtpPage } from '@/components/LoginPage/VerifyOtpPage';
+import { ResetPasswordPage } from '@/components/LoginPage/ResetPasswordPage';
 
 // Common
 import Unauthorized from '@/components/common/Unauthorized';
@@ -32,6 +35,9 @@ export default function AppRoutes() {
         <Routes>
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/verify-otp" element={<VerifyOtpPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Default */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

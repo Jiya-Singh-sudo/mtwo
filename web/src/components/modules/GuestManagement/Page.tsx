@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, Eye, XCircle, BedDouble, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, XCircle, BedDouble, Check, X, FileText } from "lucide-react";
 import { useError } from "@/context/ErrorContext";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
@@ -50,6 +50,7 @@ type GuestForm = {
   status: string;
   requires_driver: boolean;
   no_of_companions: number;
+  // request_doc_path: string;
 };
 
 export function GuestManagement() {
@@ -97,7 +98,8 @@ export function GuestManagement() {
   type ModalMode = "add" | "edit" | null;
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
+  const [requestDoc, setRequestDoc] = useState<File | null>(null);
+  const [requestDocError, setRequestDocError] = useState<string>("");
   const [selectedGuest, setSelectedGuest] = useState<ActiveGuestRow | null>(null);
   const [designations, setDesignations] = useState<DesignationOption[]>([]);
   const [designationMode, setDesignationMode] = useState<"existing" | "other">("existing");
@@ -148,8 +150,8 @@ export function GuestManagement() {
   } = useTableQuery({
     sortBy: "entry_date",
     sortOrder: "desc",
-    entryDateFrom: today.toISOString().split("T")[0],
-    entryDateTo: today.toISOString().split("T")[0],
+    entryDateFrom: undefined,
+    entryDateTo: undefined,
   });
   // const guestTable = useTableQuery({
   //   prefix: "guest",
@@ -315,7 +317,21 @@ export function GuestManagement() {
           >
             <BedDouble className="w-4 h-4" />
           </button>
-
+      {/* 🔥 NEW: View PDF */}
+      {g.request_doc_path && (
+        <button
+          onClick={() =>
+            window.open(
+              `http://localhost:3000/${g.request_doc_path}`,
+              "_blank"
+            )
+          }
+          className="icon-btn text-indigo-600"
+          title="View Request Document"
+        >
+          <FileText className="w-4 h-4" />
+        </button>
+      )}
           {/* Delete */}
           <button
             onClick={() => {
@@ -476,13 +492,16 @@ export function GuestManagement() {
           // status: parsed.status,
           purpose: parsed.purpose || "Visit",
           companions: parsed.no_of_companions,
+          requires_driver: parsed.requires_driver,
         },
       };
 
       console.log("Payload being sent:", payload);
-      await createGuest(payload);
+      await createGuest(payload, requestDoc || undefined);
       setModalMode(null);
       setGuestForm(initialGuestForm);
+      setRequestDoc(null);
+      setRequestDocError("");
       await loadGuests();
       showSuccess("Guest added successfully!");
     } catch (err: any) {
@@ -713,6 +732,8 @@ export function GuestManagement() {
                 className="h-10 px-4 bg-[#00247D] text-white rounded-sm flex items-center gap-2 hover:bg-blue-900 whitespace-nowrap shrink-0"
                 onClick={() => {
                   setGuestForm(initialGuestForm);
+                  setRequestDoc(null);
+                  setRequestDocError("");
                   setDesignationSearch("");
                   setShowDesignationDropdown(false);
                   setDesignationMode("existing");
@@ -1442,7 +1463,44 @@ export function GuestManagement() {
                           Requires Driver
                         </label>
                       </div>
+                      <div className="fullWidth">
+                        <label>Request Doc (PDF, max 500KB)</label>
 
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="nicInput"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            if (file.type !== "application/pdf") {
+                              setRequestDocError("Only PDF files are allowed");
+                              setRequestDoc(null);
+                              return;
+                            }
+
+                            if (file.size > 500 * 1024) {
+                              setRequestDocError("File must be under 500KB");
+                              setRequestDoc(null);
+                              return;
+                            }
+
+                            setRequestDoc(file);
+                            setRequestDocError("");
+                          }}
+                        />
+
+                        {requestDocError && (
+                          <p className="errorText text-red-600 text-sm">{requestDocError}</p>
+                        )}
+
+                        {requestDoc && (
+                          <p className="text-green-600 text-sm">
+                            Uploaded: {requestDoc.name}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1838,7 +1896,22 @@ export function GuestManagement() {
                 }}>Cancel</button>
 
                 {modalMode === "add" ? (
-                  <button className="saveBtn" onClick={() => { handleAddGuest(); }}>
+                  <button className="saveBtn" onClick={() => { 
+                    handleAddGuest();
+                    // const formData = new FormData();
+
+                    // JSON parts
+                    // formData.append("guest", JSON.stringify(payload.guest));
+                    // formData.append("designation", JSON.stringify(payload.designation));
+                    // formData.append("inout", JSON.stringify(payload.inout));
+
+                    // // FILE
+                    // if (requestDoc) {
+                    //   formData.append("requestDoc", requestDoc);
+                    // }
+
+                    // await createGuest(formData);
+                   }}>
                     Add Guest
                   </button>
                 ) : (

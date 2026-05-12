@@ -83,6 +83,10 @@ export function useTableQuery(
         specialRequest: searchParams.get(key("specialRequest")) === "true"
             ? true
             : defaults?.specialRequest,
+            
+        // ✅ ADD DEFAULTS
+        withGuest: undefined,
+        withHousekeeping: undefined,
 
     }));
     const [total, setTotal] = useState(0);

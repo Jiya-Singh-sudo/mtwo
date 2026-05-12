@@ -18,7 +18,7 @@ export type GuestFoodTableRow = {
 
   guest_food_id?: string;
   guest_butler_id?: string;
-  food_id?: string;
+  food_id?: string[];
   meal_type?: 'Breakfast' | 'Lunch' | 'High Tea' | 'Dinner';
   food_stage?: 'PLANNED' | 'ORDERED' | 'DELIVERED' | 'CANCELLED';
   delivery_status?: string;
@@ -26,7 +26,7 @@ export type GuestFoodTableRow = {
   room_number?: string;
   building_name?: string; // keeping just in case
   room_id?: string; // keeping just in case
-  food_name?: string;
+  food_name?: string[];
 
   butler_name?: string;
   butler_name_local_language?: string;
@@ -67,21 +67,30 @@ export interface GuestFood {
 
 export interface GuestFoodCreateDto {
   guest_id: string;
-  room_id?: string;
-
-  food_id: string;
-  quantity?: number;
-  meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
-  plan_date: string;
-  food_stage: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
-
-  delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
-
-  order_datetime?: string;
-  delivered_datetime?: string;
-
-  remarks?: string;
+  meals: {
+    breakfast?: string[];
+    lunch?: string[];
+    highTea?: string[];
+    dinner?: string[];
+  };
 }
+// export interface GuestFoodCreateDto {
+//   guest_id: string;
+//   room_id?: string;
+
+//   food_id: string[];
+//   quantity?: number;
+//   meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";
+//   plan_date: string;
+//   food_stage: "PLANNED" | "ORDERED" | "DELIVERED" | "CANCELLED";
+
+//   delivery_status?: "Requested" | "Preparing" | "Ready" | "Delivered" | "Cancelled";
+
+//   order_datetime?: string;
+//   delivered_datetime?: string;
+
+//   remarks?: string;
+// }
 
 export interface GuestFoodUpdateDto {
   meal_type: "Breakfast" | "Lunch" | "High Tea" | "Dinner";

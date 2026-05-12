@@ -12,6 +12,10 @@ export class GuestRoomController {
   getOverview() {
     return this.service.getRoomOverview();
   }
+  @Get(':roomId/reservations')
+  getRoomReservations(@Param('roomId') roomId: string) {
+    return this.service.getRoomReservations(roomId);
+  }
 
   //Room Management page - active guests dropdown
   @Get('active-guests')

@@ -15,6 +15,7 @@ export async function getActiveHousekeeping(params?: {
       search: params?.search,
       sortBy: params?.sortBy ?? 'hk_name',
       sortOrder: params?.sortOrder ?? 'asc',
+      status: 'active', // 🔥 FORCE ACTIVE ONLY
     }
   });
   return res.data;
@@ -65,7 +66,22 @@ export async function getHkShiftEnum() {
 //     hk_name: hk.hk_name,
 //   }));
 // }
+// export async function getRoomBoyOptions() {
+//   const res = await api.get("/housekeeping/options");
+//   return res.data.data;
+// }
+// export async function getRoomBoyOptions() {
+//   const res = await api.get("/housekeeping/options");
+//   return res.data?.data ?? [];
+// }
+
 export async function getRoomBoyOptions() {
   const res = await api.get("/housekeeping/options");
-  return res.data.data;
+
+  const data = res.data?.data ?? [];
+
+  return data.map((hk: any) => ({
+    label: hk.hk_name,
+    value: hk.hk_id,
+  }));
 }

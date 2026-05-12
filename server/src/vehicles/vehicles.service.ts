@@ -95,7 +95,7 @@ export class VehiclesService {
       SELECT *
       FROM m_vehicle v
       ${whereSql}
-      ORDER BY ${sortColumn} ${sortOrder}
+      ORDER BY v.is_active DESC, ${sortColumn} ${sortOrder}
       LIMIT $${params.length + 1}
       OFFSET $${params.length + 2};
     `;

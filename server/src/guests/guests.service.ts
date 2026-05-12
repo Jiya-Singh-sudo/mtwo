@@ -90,7 +90,7 @@ export class GuestsService {
       requires_driver?: boolean;
       companions?: number;
     };
-  }, user: string, ip: string) {
+  }, user: string, ip: string, file?: Express.Multer.File) {
     // transaction start
     return this.db.transaction(async (client) => {
       const today = todayISO();
@@ -320,10 +320,12 @@ export class GuestsService {
         if (exitTs && exitTs <= entryTs) {
           throw new BadRequestException('Exit datetime must be after entry datetime');
         }
+        const filePath = file ? file.path : null;
+
         const insertIoSql = `
           INSERT INTO t_guest_inout
-            (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, rooms_required, requires_driver, companions, is_active, inserted_at, inserted_by, inserted_ip)
-          VALUES ($1,$2,$3,$4::DATE,$5,$6::DATE,$7,$8,$9,$10, $11, $12, $13, TRUE, NOW(), $14, $15)
+            (inout_id, guest_id, guest_inout, entry_date, entry_time, exit_date, exit_time, status, purpose, remarks, rooms_required, requires_driver, companions, is_active, inserted_at, inserted_by, inserted_ip, request_doc_path)
+          VALUES ($1,$2,$3,$4::DATE,$5,$6::DATE,$7,$8,$9,$10, $11, $12, $13, TRUE, NOW(), $14, $15, $16)
           RETURNING *;
         `;
 
@@ -338,25 +340,26 @@ export class GuestsService {
           status,
           payload.inout?.purpose || null,
           payload.inout?.remarks || null,
-          payload.inout?.rooms_required ?? 1, // ➕ ADD
-          payload.inout?.requires_driver ?? false, // ➕ ADD
-          payload.inout?.companions ?? 0, // ➕ ADD
+          payload.inout?.rooms_required ?? 1,
+          payload.inout?.requires_driver ?? false, 
+          payload.inout?.companions ?? 0,
           user,
-          ip
+          ip,
+          filePath
         ]);
         const insertedRow = ioRes.rows[0];
         const today = todayISO();
-        if (
-          insertedRow.status === 'Entered' &&
-          insertedRow.entry_date?.toISOString().split('T')[0] === today
-        ) {
-          await this.guestFoodService.propagateTodayPlanToGuest(
-            client,
-            insertedRow,
-            user,
-            ip
-          );
-        }
+        // if (
+        //   insertedRow.status === 'Entered' &&
+        //   insertedRow.entry_date?.toISOString().split('T')[0] === today
+        // ) {
+        //   await this.guestFoodService.propagateTodayPlanToGuest(
+        //     client,
+        //     insertedRow,
+        //     user,
+        //     ip
+        //   );
+        // }
         await this.activityLog.log({
           message: 'New Guest added',
           module: 'GUESTS',
@@ -397,7 +400,7 @@ export class GuestsService {
       } catch (err) {
         console.error('CREATE GUEST ERROR:', err);
         throw new BadRequestException(
-          err?.message || 'Guest creation failed'
+          (err as Error)?.message || 'Guest creation failed'
         );
       }
     });
@@ -767,7 +770,8 @@ export class GuestsService {
         io.status,
         io.rooms_required,
         io.requires_driver,
-        io.companions
+        io.companions,
+        io.request_doc_path 
 
       FROM m_guest g
       LEFT JOIN t_guest_inout io
@@ -892,19 +896,19 @@ export class GuestsService {
             throw new BadRequestException('Exit datetime must be after entry datetime');
           }
         }
-        const currentRoomsRes = await client.query(`
-        SELECT r.room_capacity
-        FROM t_guest_room gr
-        JOIN m_rooms r ON r.room_id = gr.room_id
-        WHERE gr.guest_id = $1
-          AND gr.is_active = TRUE
-      `, [existingInout.guest_id]);
+      //   const currentRoomsRes = await client.query(`
+      //   SELECT r.room_capacity
+      //   FROM t_guest_room gr
+      //   JOIN m_rooms r ON r.room_id = gr.room_id
+      //   WHERE gr.guest_id = $1
+      //     AND gr.is_active = TRUE
+      // `, [existingInout.guest_id]);
 
-        const currentRoomCount = currentRoomsRes.rowCount;
-        const currentTotalCapacity = currentRoomsRes.rows.reduce(
-          (sum, r) => sum + Number(r.room_capacity),
-          0
-        );
+        // const currentRoomCount = currentRoomsRes.rowCount;
+        // const currentTotalCapacity = currentRoomsRes.rows.reduce(
+        //   (sum, r) => sum + Number(r.room_capacity),
+        //   0
+        // );
         if (payload.status) {
           const currentStatus = existingInout.status;
 
@@ -923,19 +927,19 @@ export class GuestsService {
             );
           }
         }
-        const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
+        // const newRoomsRequired = payload.rooms_required ?? existingInout.rooms_required;
         const newCompanions = payload.companions ?? existingInout.companions;
         const totalPeople = 1 + newCompanions;
 
         // 🚨 Rule 1: cannot reduce rooms_required below already allocated rooms
-        if (newRoomsRequired < currentRoomCount) {
-          throw new BadRequestException(
-            `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
-          );
-        }
-        if (payload.rooms_required !== undefined && payload.rooms_required <= 0) {
-          throw new BadRequestException('Rooms required must be at least 1');
-        }
+        // if (newRoomsRequired < currentRoomCount) {
+        //   throw new BadRequestException(
+        //     `Rooms required cannot be less than already allocated rooms (${currentRoomCount})`
+        //   );
+        // }
+        // if (payload.rooms_required !== undefined && payload.rooms_required <= 0) {
+        //   throw new BadRequestException('Rooms required must be at least 1');
+        // }
 
         if (payload.companions !== undefined && payload.companions < 0) {
           throw new BadRequestException('Companions cannot be negative');
@@ -948,14 +952,14 @@ export class GuestsService {
           throw new BadRequestException('Invalid exit time format');
         }
         // 🚨 Rule 2: if allocation is already complete, capacity must still satisfy people
-        if (
-          currentRoomCount === newRoomsRequired &&
-          currentTotalCapacity < totalPeople
-        ) {
-          throw new BadRequestException(
-            `Current allocated room capacity (${currentTotalCapacity}) is insufficient for ${totalPeople} people`
-          );
-        }
+        // if (
+        //   currentRoomCount === newRoomsRequired &&
+        //   currentTotalCapacity < totalPeople
+        // ) {
+        //   throw new BadRequestException(
+        //     `Current allocated room capacity (${currentTotalCapacity}) is insufficient for ${totalPeople} people`
+        //   );
+        // }
 
         if (
           payload.entry_date &&
@@ -1132,14 +1136,16 @@ export class GuestsService {
     }
     return res.rows;
   }
-  private async cascadeGuestExit(
+  public async cascadeGuestExit(
     inoutId: string,
     trx = this.db,
     user: string,
     ip: string
   ) {
+    return this.db.transaction(async (client) => {
+
     // Get guest_id from inout
-    const inoutRes = await trx.query(
+    const inoutRes = await client.query(
       `SELECT guest_id FROM t_guest_inout WHERE inout_id = $1 FOR UPDATE`,
       [inoutId]
     );
@@ -1147,7 +1153,7 @@ export class GuestsService {
       throw new BadRequestException('Invalid inout record');
     }
     const guestId = inoutRes.rows[0].guest_id;
-    const guestRooms = await trx.query(
+    const guestRooms = await client.query(
       `
         SELECT guest_room_id, room_id
         FROM t_guest_room
@@ -1159,7 +1165,7 @@ export class GuestsService {
 
     for (const gr of guestRooms.rows) {
       // 1️⃣ Close guest-room assignment
-      await trx.query(
+      await client.query(
         `
           UPDATE t_guest_room
           SET
@@ -1176,7 +1182,7 @@ export class GuestsService {
       );
 
       // 2️⃣ Free the room
-      await trx.query(
+      await client.query(
         `
           UPDATE m_rooms
           SET status = 'Available',
@@ -1189,7 +1195,7 @@ export class GuestsService {
       );
 
       // 3️⃣ Cancel housekeeping
-      await trx.query(
+      await client.query(
         `
           UPDATE t_guest_hk
           SET
@@ -1207,7 +1213,7 @@ export class GuestsService {
 
     /* ================= HOUSEKEEPING ================= */
 
-    await trx.query(
+    await client.query(
       `
       UPDATE t_guest_hk
       SET is_active = FALSE,
@@ -1221,7 +1227,7 @@ export class GuestsService {
 
     /* ================= VEHICLES ================= */
 
-    await trx.query(
+    await client.query(
       `
       UPDATE t_guest_vehicle
       SET is_active = FALSE,
@@ -1235,7 +1241,7 @@ export class GuestsService {
 
     /* ================= DRIVERS ================= */
 
-    await trx.query(
+    await client.query(
       `
       UPDATE t_guest_driver
       SET is_active = FALSE,
@@ -1249,7 +1255,7 @@ export class GuestsService {
 
     /* ================= BUTLER ================= */
 
-    await trx.query(
+    await client.query(
       `
       UPDATE t_guest_butler
       SET is_active = FALSE,
@@ -1262,7 +1268,7 @@ export class GuestsService {
     );
     /* ================= FOOD ================= */
 
-    await trx.query(`
+    await client.query(`
       UPDATE t_guest_food
       SET is_active = FALSE,
           updated_at = NOW(),
@@ -1273,7 +1279,7 @@ export class GuestsService {
 
 
     /* ================= MESSENGER ================= */
-    await trx.query(`
+    await client.query(`
       UPDATE t_guest_messenger
       SET is_active = FALSE,
           updated_at = NOW(),
@@ -1284,7 +1290,7 @@ export class GuestsService {
 
     /* ================= NETWORK ================= */
 
-    await trx.query(`
+    await client.query(`
       UPDATE t_guest_network
       SET is_active = FALSE,
           network_status = 'Disconnected',
@@ -1296,7 +1302,7 @@ export class GuestsService {
 
 
     /* ================= LIAISONING OFFICER ================= */
-    await trx.query(`
+    await client.query(`
       UPDATE t_guest_liasoning_officer
       SET is_active = FALSE,
           assignment_end_date = CURRENT_DATE,
@@ -1307,7 +1313,7 @@ export class GuestsService {
     `, [guestId, user, ip]);
 
     /* ================= MEDICAL CONTACT ================= */
-    await trx.query(`
+    await client.query(`
       UPDATE t_guest_medical_contact
       SET is_active = FALSE,
           updated_at = NOW(),
@@ -1323,7 +1329,8 @@ export class GuestsService {
       referenceId: guestId,
       performedBy: user,
       ipAddress: ip,
-    }, trx);
+    }, client);
+    });
   }
   async getTransportConflictsForGuest(guestId: string) {
     const guestCheck = await this.db.query(

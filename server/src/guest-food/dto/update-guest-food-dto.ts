@@ -5,6 +5,7 @@ import {
   Min,
   IsIn,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -13,10 +14,13 @@ export class UpdateGuestFoodDto {
   @IsString()
   room_id?: string;
 
+  // @IsOptional()
+  // @IsString()
+  // food_id?: string[];
   @IsOptional()
-  @IsString()
-  food_id?: string;
-
+  @IsArray()
+  @IsString({ each: true })
+  food_id?: string[];
   // @IsOptional()
   // @Type(() => Number)
   // @IsInt()

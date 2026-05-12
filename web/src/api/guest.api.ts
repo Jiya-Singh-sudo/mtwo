@@ -32,9 +32,32 @@ export async function getActiveGuests(params: {
   return safeGet(`/guests/active?${query.toString()}`);
 }
 
-export async function createGuest(payload: { guest: any; designation?: any; inout?: any }) {
-  return safePost('/guests', payload);
+export async function createGuest(
+  payload: { guest: any; designation?: any; inout?: any },
+  file?: File
+) {
+  const formData = new FormData();
+
+  formData.append("guest", JSON.stringify(payload.guest));
+
+  if (payload.designation) {
+    formData.append("designation", JSON.stringify(payload.designation));
+  }
+
+  if (payload.inout) {
+    formData.append("inout", JSON.stringify(payload.inout));
+  }
+
+  if (file) {
+    formData.append("requestDoc", file);
+  }
+
+  return safePost('/guests', formData);
 }
+
+// export async function createGuest(payload: { guest: any; designation?: any; inout?: any }) {
+//   return safePost('/guests', payload);
+// }
 
 export async function updateGuest(id: number | string, payload: any) {
   return safePatch(`/guests/${id}`, payload);

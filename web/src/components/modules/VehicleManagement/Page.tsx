@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Edit, Trash2, Eye, Plus } from 'lucide-react';
-import { Car, Users, CheckCircle, AlertCircle } from "lucide-react";
+import { Car, CheckCircle, AlertCircle } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 // import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle, getVehicleStats } from '../../../api/vehicles.api';
-import { getDriversTable, createDriver, softDeleteDriver, updateDriver, getDriverStats } from '../../../api/driver.api';
+import { getDriversTable, createDriver, softDeleteDriver, updateDriver } from '../../../api/driver.api';
 import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
 import { useTableQuery } from '@/hooks/useTableQuery';
@@ -90,15 +90,15 @@ export function VehicleManagement() {
     limit: 10,
     status: undefined as 'ACTIVE' | 'INACTIVE' | undefined,
   });
-  const [driverStats, setDriverStats] = useState<{
-    total: number;
-    active: number;
-    inactive: number;
-  }>({
-    total: 0,
-    active: 0,
-    inactive: 0,
-  });
+  // const [driverStats, setDriverStats] = useState<{
+  //   total: number;
+  //   active: number;
+  //   inactive: number;
+  // }>({
+  //   total: 0,
+  //   active: 0,
+  //   inactive: 0,
+  // });
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const driverTable = useTableQuery({
@@ -162,14 +162,14 @@ export function VehicleManagement() {
     loadStats();
   }, []);
 
-  useEffect(() => {
-    async function loadDriverStats() {
-      const stats = await getDriverStats();
-      setDriverStats(stats);
-    }
+  // useEffect(() => {
+  //   async function loadDriverStats() {
+  //     const stats = await getDriverStats();
+  //     setDriverStats(stats);
+  //   }
 
-    loadDriverStats();
-  }, []);
+  //   loadDriverStats();
+  // }, []);
 
   const [vehicleFormData, setVehicleFormData] = useState<{
     vehicle_no: string;
@@ -740,48 +740,48 @@ export function VehicleManagement() {
               }
             />
           }
-          stats={
-            <>
-              {/* TOTAL DRIVERS = ALL */}
-              <StatCard
-                title="Total Drivers"
-                value={driverStats.total}
-                icon={Users}
-                variant="orange"
-                active={driverTable.query.status === undefined}
-                onClick={() => {
-                  driverTable.setStatus(undefined); // ALL
-                  driverTable.setPage(1);
-                }}
-              />
+          // stats={
+          //   <>
+          //     {/* TOTAL DRIVERS = ALL */}
+          //     <StatCard
+          //       title="Total Drivers"
+          //       value={driverStats.total}
+          //       icon={Users}
+          //       variant="orange"
+          //       active={driverTable.query.status === undefined}
+          //       onClick={() => {
+          //         driverTable.setStatus(undefined); // ALL
+          //         driverTable.setPage(1);
+          //       }}
+          //     />
 
-              {/* ACTIVE DRIVERS */}
-              <StatCard
-                title="Active Drivers"
-                value={driverStats.active}
-                icon={CheckCircle}
-                variant="green"
-                active={driverTable.query.status === "ACTIVE"}
-                onClick={() => {
-                  driverTable.setStatus('ACTIVE');
-                  driverTable.setPage(1);
-                }}
-              />
+          //     {/* ACTIVE DRIVERS */}
+          //     <StatCard
+          //       title="Active Drivers"
+          //       value={driverStats.active}
+          //       icon={CheckCircle}
+          //       variant="green"
+          //       active={driverTable.query.status === "ACTIVE"}
+          //       onClick={() => {
+          //         driverTable.setStatus('ACTIVE');
+          //         driverTable.setPage(1);
+          //       }}
+          //     />
 
-              {/* INACTIVE DRIVERS */}
-              <StatCard
-                title="Inactive Drivers"
-                value={driverStats.inactive}
-                icon={AlertCircle}
-                variant="red"
-                active={driverTable.query.status === "INACTIVE"}
-                onClick={() => {
-                  driverTable.setStatus('INACTIVE');
-                  driverTable.setPage(1);
-                }}
-              />
-            </>
-          }
+          //     {/* INACTIVE DRIVERS */}
+          //     <StatCard
+          //       title="Inactive Drivers"
+          //       value={driverStats.inactive}
+          //       icon={AlertCircle}
+          //       variant="red"
+          //       active={driverTable.query.status === "INACTIVE"}
+          //       onClick={() => {
+          //         driverTable.setStatus('INACTIVE');
+          //         driverTable.setPage(1);
+          //       }}
+          //     />
+          //   </>
+          // }
         >
           {/* Driver List Table */}
           <div className="bg-white border rounded-sm overflow-hidden">

@@ -13,11 +13,19 @@ export class InfoPackageSearchDto {
   @IsNumberString()
   limit?: string;
 
-  @IsOptional()
-  @IsString()
-  entryDateFrom?: string;
 
   @IsOptional()
   @IsString()
-  entryDateTo?: string;
+  fromDate?: string;
+
+  @IsOptional()
+  @IsString()
+  toDate?: string;
+  // @IsOptional()
+  // @IsString()
+  // entryDateFrom?: string;
+
+  // @IsOptional()
+  // @IsString()
+  // entryDateTo?: string;
 }

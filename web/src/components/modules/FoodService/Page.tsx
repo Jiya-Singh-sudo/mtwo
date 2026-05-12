@@ -143,15 +143,62 @@ export function FoodService() {
   const [foodRows, setFoodRows] = useState<GuestFoodTableRow[]>([]);
   const [butlerAssignModalOpen, setButlerAssignModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedBreakfast, setSelectedBreakfast] = useState<string[]>([]);
+  const [selectedLunch, setSelectedLunch] = useState<string[]>([]);
+  const [selectedHighTea, setSelectedHighTea] = useState<string[]>([]);
+  const [selectedDinner, setSelectedDinner] = useState<string[]>([]);
+  const [currentMealType, setCurrentMealType] = useState<"Breakfast" | "Lunch" | "High Tea" | "Dinner">("Dinner");
   // const [searchQuery, setSearchQuery] = useState("");
   // const [statsFilter, setStatsFilter] = useState<"ALL" | "SERVED" | "SPECIAL" | "MENU">("ALL");
+
+  const getMealKey = (mealType: typeof currentMealType): keyof DailyMealPlan => {
+    switch (mealType) {
+      case "Breakfast": return "breakfast";
+      case "Lunch": return "lunch";
+      case "High Tea": return "highTea";
+      case "Dinner": return "dinner";
+    }
+  };
+
+  const getMealType = (key: keyof DailyMealPlan): typeof currentMealType => {
+    switch (key) {
+      case "breakfast": return "Breakfast";
+      case "lunch": return "Lunch";
+      case "highTea": return "High Tea";
+      case "dinner": return "Dinner";
+    }
+  };
+
+  const addFoodToMeal = (meal: string, foodId: string) => {
+    if (meal === "Breakfast") {
+      setSelectedBreakfast(prev => [...prev, foodId]);
+    } else if (meal === "Lunch") {
+      setSelectedLunch(prev => [...prev, foodId]);
+    } else if (meal === "High Tea") {
+      setSelectedHighTea(prev => [...prev, foodId]);
+    } else if (meal === "Dinner") {
+      setSelectedDinner(prev => [...prev, foodId]);
+    }
+  };
+
+  const removeFoodFromMeal = (meal: string, foodId: string) => {
+    if (meal === "Breakfast") {
+      setSelectedBreakfast(prev => prev.filter(id => id !== foodId));
+    } else if (meal === "Lunch") {
+      setSelectedLunch(prev => prev.filter(id => id !== foodId));
+    } else if (meal === "High Tea") {
+      setSelectedHighTea(prev => prev.filter(id => id !== foodId));
+    } else if (meal === "Dinner") {
+      setSelectedDinner(prev => prev.filter(id => id !== foodId));
+    }
+  };
+
   const [dailyPlan, setDailyPlan] = useState<DailyMealPlan>({
     breakfast: [],
     lunch: [],
     highTea: [],
     dinner: [],
   });
-
 
   /* ---------------- DAILY MEAL PLAN (UI-ONLY, ONE FOR ALL GUESTS) ---------------- */
   const [foodItems, setFoodItems] = useState<any[]>([]);
@@ -165,6 +212,7 @@ export function FoodService() {
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<keyof DailyMealPlan>("breakfast");
   const [selectedFoodId, setSelectedFoodId] = useState<string>("");
+  
   const [newFoodName, setNewFoodName] = useState<string>("");
   const [newFoodType, setNewFoodType] = useState<
     "Veg" | "Non-Veg" | "Jain" | "Vegan" | "Egg"
@@ -430,12 +478,11 @@ export function FoodService() {
       const updated = await getActiveMeals();
       setFoodItems(updated);
     }
-
+    addFoodToMeal(currentMealType, selectedFoodId);
     setDailyPlan(prev => ({
       ...prev,
-      [selectedMeal]: [...prev[selectedMeal], finalFoodId],
+      [getMealKey(currentMealType)]: [...prev[getMealKey(currentMealType)], finalFoodId],
     }));
-
     setSelectedFoodId("");
     setNewFoodName("");
   }
@@ -1314,199 +1361,265 @@ export function FoodService() {
               <h2>{menuMode === "create" ? "Plan Today's Menu" : "Edit Menu & Butler"}</h2>
               <button onClick={() => setMenuModalOpen(false)}><X size={18} /></button>
             </div>
+            <div className="modalBodyScroll">
 
-            {/* Guest info in edit mode */}
-            {menuMode === "edit" && activeGuestForEdit && (
-              <div className="modalGuestInfo">
-                <strong>{activeGuestForEdit.guest_name}</strong>
-                <span> • Room {activeGuestForEdit.room_id ?? "N/A"}</span>
-              </div>
-            )}
-
-            <div className="nicFormGrid">
-              {/* Butler selector in edit mode */}
+              {/* Guest info in edit mode */}
               {menuMode === "edit" && activeGuestForEdit && (
-                <div className="fullWidth">
-                  <label>Assigned Butler</label>
-                  <select
-                    className="nicInput"
-                    value={activeGuestForEdit.butler?.id ?? ""}
-                    onChange={(e) => {
-                      const newButlerId = e.target.value;
-                      if (!newButlerId) return;
-                      handleAssignButler(
-                        activeGuestForEdit.guest_id,
-                        activeGuestForEdit.room_id,
-                        newButlerId
-                      );
-                    }}
-                  // onBlur={(e) => validateSingleField(butlerManagementSchema, "butler_id", e.target.value, setFormErrors)}
-                  // onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_id", e.target.value, setFormErrors)}
-                  >
-                    <option value="">Select Butler</option>
-                    {butlers.map((b) => (
-                      <option key={b.butler_id} value={b.butler_id}>
-                        {b.butler_name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="modalGuestInfo">
+                  <strong>{activeGuestForEdit.guest_name}</strong>
+                  <span> • Room {activeGuestForEdit.room_id ?? "N/A"}</span>
                 </div>
               )}
 
-              {/* Meal Type Selection */}
-              <div className="fullWidth">
-                <label>Meal *</label>
-                <select
-                  className="nicInput"
-                  value={selectedMeal}
-                  onChange={(e) => setSelectedMeal(e.target.value as keyof DailyMealPlan)}
-                //   onBlur={(e) => validateSingleField(guestFoodSchema, "meal", e.target.value, setFormErrors)}
-                //   onKeyUp={(e) => validateSingleField(guestFoodSchema, "meal", e.target.value, setFormErrors)}
-                >
-                  <option value="breakfast">Breakfast</option>
-                  <option value="lunch">Lunch</option>
-                  <option value="highTea">High Tea</option>
-                  <option value="dinner">Dinner</option>
-                </select>
-              </div>
-
-              {/* Add Menu Item */}
-              <div className="fullWidth">
-                <label>Add Menu Item</label>
-                <div className="menuInputRow">
-                  {/* <select
-                    className="nicInput"
-                    value={selectedFoodId}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedFoodId(val);
-
-                      if (val !== "__new__") {
-                        setNewFoodName("");
-                      }
-                    }}
-                  >
-                    <option value="">Select Food Item</option>
-                    {foodItems.map((f) => (
-                      <option key={f.food_id} value={f.food_id}>
-                        {f.food_name}
-                      </option>
-                    ))}
-                    
-                    <option value="__new__">+ Add New Item</option>
-                  </select> */}
-                  <Select
-                    options={foodOptions}
-                    value={
-                      foodOptions.find((o) => o.value === selectedFoodId) || null
-                    }
-                    onChange={(option) => {
-                      const val = option?.value || "";
-                      setSelectedFoodId(val);
-
-                      if (val !== "__new__") {
-                        setNewFoodName("");
-                      }
-                    }}
-                    placeholder="Search food item..."
-                    isSearchable
-                    className="w-full"
-                    styles={{
-                      control: (base) => ({
-                        ...base,
-                        minHeight: "40px",
-                        borderColor: "#d1d5db",
-                      }),
-                    }}
-                  />
-                  {selectedFoodId === "__new__" && (
-                    <>
-                      <input
-                        className="nicInput"
-                        placeholder="Enter new food name"
-                        value={newFoodName}
-                        onChange={(e) => setNewFoodName(e.target.value)}
-                      />
-
-                      <select
-                        className="nicInput"
-                        value={newFoodType}
-                        onChange={(e) => setNewFoodType(e.target.value as any)}
-                      >
-                        <option value="Veg">Veg</option>
-                        <option value="Non-Veg">Non-Veg</option>
-                        <option value="Jain">Jain</option>
-                        <option value="Vegan">Vegan</option>
-                        <option value="Egg">Egg</option>
-                      </select>
-                    </>
-                  )}
-
-                  <button
-                    className="addItemBtn"
-                    onClick={handleAddMenuItem}
-                    disabled={!selectedFoodId}
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Current Items for Selected Meal */}
-              <div className="fullWidth currentMenuPreview">
-                <label>{mealLabels[selectedMeal]} Items</label>
-                {dailyPlan[selectedMeal].length === 0 ? (
-                  <p className="emptyText">No items added yet</p>
-                ) : (
-                  <ul className="menuList">
-                    {dailyPlan[selectedMeal].map((item, i) => (
-                      <li key={i}>
-                        {foodItems.find(f => f.food_id === item)?.food_name}
-                        <button
-                          className="removeItemBtn"
-                          onClick={() => handleRemoveMenuItem(selectedMeal, i)}
-                          title="Remove"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+              <div className="nicFormGrid">
+                {/* Butler selector in edit mode */}
+                {menuMode === "edit" && activeGuestForEdit && (
+                  <div className="fullWidth">
+                    <label>Assigned Butler</label>
+                    <select
+                      className="nicInput"
+                      value={activeGuestForEdit.butler?.id ?? ""}
+                      onChange={(e) => {
+                        const newButlerId = e.target.value;
+                        if (!newButlerId) return;
+                        handleAssignButler(
+                          activeGuestForEdit.guest_id,
+                          activeGuestForEdit.room_id,
+                          newButlerId
+                        );
+                      }}
+                    // onBlur={(e) => validateSingleField(butlerManagementSchema, "butler_id", e.target.value, setFormErrors)}
+                    // onKeyUp={(e) => validateSingleField(butlerManagementSchema, "butler_id", e.target.value, setFormErrors)}
+                    >
+                      <option value="">Select Butler</option>
+                      {butlers.map((b) => (
+                        <option key={b.butler_id} value={b.butler_id}>
+                          {b.butler_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
-              </div>
 
-              {/* Summary of All Meals */}
-              <div className="fullWidth mealPlanOverview">
-                <label>Today's Plan Overview</label>
-                <div className="mealOverviewGrid">
-                  {(Object.entries(dailyPlan) as [keyof DailyMealPlan, string[]][]).map(
-                    ([meal, items]) => (
-                      <div
-                        key={meal}
-                        className={`mealOverviewItem ${meal === selectedMeal ? "active" : ""}`}
-                        onClick={() => setSelectedMeal(meal)}
-                      >
-                        <span className="mealLabel">{mealLabels[meal]}</span>
-                        <span className="itemCount">{items.length} items</span>
-                      </div>
-                    )
+                {/* Meal Type Selection */}
+                <div className="fullWidth">
+                  <label>Meal *</label>
+                  <div className="mealTabs">
+                    <button
+                      className={`mealTab ${currentMealType === "Breakfast" ? "active" : ""}`}
+                      onClick={() => setCurrentMealType("Breakfast")}
+                    >
+                      Breakfast
+                    </button>
+                    <button
+                      className={`mealTab ${currentMealType === "Lunch" ? "active" : ""}`}
+                      onClick={() => setCurrentMealType("Lunch")}
+                    >
+                      Lunch
+                    </button>
+                    <button
+                      className={`mealTab ${currentMealType === "High Tea" ? "active" : ""}`}
+                      onClick={() => setCurrentMealType("High Tea")}
+                    >
+                      High Tea
+                    </button>
+                    <button
+                      className={`mealTab ${currentMealType === "Dinner" ? "active" : ""}`}
+                      onClick={() => setCurrentMealType("Dinner")}
+                    >
+                      Dinner
+                    </button>
+                  </div>
+                </div> 
+
+                {/* Add Menu Item */}
+                <div className="fullWidth">
+                  <label>Add Menu Item</label>
+                  <div className="menuInputRow">
+                    {/* <select
+                      className="nicInput"
+                      value={selectedFoodId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedFoodId(val);
+
+                        if (val !== "__new__") {
+                          setNewFoodName("");
+                        }
+                      }}
+                    >
+                      <option value="">Select Food Item</option>
+                      {foodItems.map((f) => (
+                        <option key={f.food_id} value={f.food_id}>
+                          {f.food_name}
+                        </option>
+                      ))}
+                      
+                      <option value="__new__">+ Add New Item</option>
+                    </select> */}
+                    <Select
+                      options={foodOptions}
+                      value={
+                        foodOptions.find((o) => o.value === selectedFoodId) || null
+                      }
+                      onChange={(option) => {
+                        const val = option?.value || "";
+                        setSelectedFoodId(val);
+
+                        if (val !== "__new__") {
+                          setNewFoodName("");
+                        }
+                      }}
+                      placeholder="Search food item..."
+                      isSearchable
+                      className="w-full"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          minHeight: "40px",
+                          borderColor: "#d1d5db",
+                        }),
+                      }}
+                    />
+                    {selectedFoodId === "__new__" && (
+                      <>
+                        <input
+                          className="nicInput"
+                          placeholder="Enter new food name"
+                          value={newFoodName}
+                          onChange={(e) => setNewFoodName(e.target.value)}
+                        />
+
+                        <select
+                          className="nicInput"
+                          value={newFoodType}
+                          onChange={(e) => setNewFoodType(e.target.value as any)}
+                        >
+                          <option value="Veg">Veg</option>
+                          <option value="Non-Veg">Non-Veg</option>
+                          <option value="Jain">Jain</option>
+                          <option value="Vegan">Vegan</option>
+                          <option value="Egg">Egg</option>
+                        </select>
+                      </>
+                    )}
+
+                    <button
+                      className="addItemBtn"
+                      onClick={handleAddMenuItem}
+                      disabled={!selectedFoodId}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Current Items for Selected Meal */}
+                <div className="fullWidth currentMenuPreview">
+                  <label>{mealLabels[getMealKey(currentMealType)]} Items</label>
+                  {dailyPlan[getMealKey(currentMealType)].length === 0 ? (
+                    <p className="emptyText">No items added yet</p>
+                  ) : (
+                    <ul className="menuList">
+                      {dailyPlan[getMealKey(currentMealType)].map((item, i) => (
+                        <li key={i}>
+                          {foodItems.find(f => f.food_id === item)?.food_name}
+                          <button
+                            className="removeItemBtn"
+                            onClick={() => handleRemoveMenuItem(getMealKey(currentMealType), i)}
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-              </div>
 
-              {/* Remarks Box */}
-              <div className="fullWidth">
-                <label>Remarks</label>
-                <textarea
-                  className="nicInput"
-                  rows={2}
-                  value={menuRemarks}
-                  onChange={(e) => setMenuRemarks(e.target.value)}
-                  placeholder="Optional notes..."
-                />
+                {/* Summary of All Meals */}
+                <div className="fullWidth mealPlanOverview">
+                  <label>Today's Plan Overview</label>
+                  <div className="mealOverviewGrid">
+                    {(Object.entries(dailyPlan) as [keyof DailyMealPlan, string[]][]).map(
+                      ([meal, items]) => (
+                        <div
+                          key={meal}
+                          className={`mealOverviewItem ${meal === getMealKey(currentMealType) ? "active" : ""}`}
+                          onClick={() => setCurrentMealType(getMealType(meal))}
+                        >
+                          <span className="mealLabel">{mealLabels[meal]}</span>
+                          <span className="itemCount">{items.length} items</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* Meal Plan Overview */}
+                <div className="fullWidth mealPlanOverview">
+                  <h3>Meal Plan Overview</h3>
+                  <div className="mealGrid">
+                    <div className="mealCard">
+                      <h4>Breakfast</h4>
+                      <ul>
+                        {selectedBreakfast.map((id) => (
+                          <li key={id}>
+                            {foodItems.find(f => f.food_id === id)?.food_name || id}
+                            <button onClick={() => removeFoodFromMeal("Breakfast", id)}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mealCard">
+                      <h4>Lunch</h4>
+                      <ul>
+                        {selectedLunch.map((id) => (
+                          <li key={id}>
+                            {foodItems.find(f => f.food_id === id)?.food_name || id}
+                            <button onClick={() => removeFoodFromMeal("Lunch", id)}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mealCard">
+                      <h4>High Tea</h4>
+                      <ul>
+                        {selectedHighTea.map((id) => (
+                          <li key={id}>
+                            {foodItems.find(f => f.food_id === id)?.food_name || id}
+                            <button onClick={() => removeFoodFromMeal("High Tea", id)}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mealCard">
+                      <h4>Dinner</h4>
+                      <ul>
+                        {selectedDinner.map((id) => (
+                          <li key={id}>
+                            {foodItems.find(f => f.food_id === id)?.food_name || id}
+                            <button onClick={() => removeFoodFromMeal("Dinner", id)}>Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Remarks Box */}
+                <div className="fullWidth">
+                  <label>Remarks</label>
+                  <textarea
+                    className="nicInput"
+                    rows={2}
+                    value={menuRemarks}
+                    onChange={(e) => setMenuRemarks(e.target.value)}
+                    placeholder="Optional notes..."
+                  />
+                </div>
               </div>
             </div>
-
             <div className="nicModalActions">
               <button
                 className="saveBtn"
@@ -1555,18 +1668,18 @@ export function FoodService() {
 
                     for (const foodId of dailyPlan[selectedMeal]) {
                       const already = existing.find(
-                        e => e.food_id === foodId && e.meal_type === mealLabel
+                        e => e.food_id?.includes(foodId) && e.meal_type === mealLabel
                       );
 
                       if (!already?.guest_food_id) {
                         await createGuestFood({
-                          guest_id: activeGuestForEdit.guest_id,
-                          room_id: activeGuestForEdit.room_id ?? undefined,
-                          food_id: foodId,
-                          meal_type: mealLabel,
-                          plan_date: new Date().toISOString().split("T")[0],
-                          food_stage: "PLANNED",
-                          remarks: menuRemarks || undefined,
+                          guest_id: activeGuestForEdit?.guest_id,
+                          meals: {
+                            breakfast: selectedBreakfast,
+                            lunch: selectedLunch,
+                            highTea: selectedHighTea,
+                            dinner: selectedDinner
+                          }
                         });
                       }
                     }

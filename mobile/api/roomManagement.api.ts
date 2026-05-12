@@ -4,15 +4,17 @@ import type { RoomRow, EditRoomFullPayload } from '../types/roomManagement';
 type RoomOverviewResponse = {
   data: RoomRow[];
   totalCount: number;
-  stats: {
-    total: number;
-    available: number;
-    occupied: number;
-    withGuest: number;
-    withHousekeeping: number;
-  };
 };
-
+export async function getRoomStatusCounts(): Promise<{
+  All: number;
+  Available: number;
+  Occupied: number;
+  WithGuest: number;
+  WithHousekeeping: number;
+}> {
+  const res = await api.get("/room-management/status-counts");
+  return res.data;
+}
 export async function getRoomManagementOverview(
   params: {
     page: number;

@@ -18,14 +18,14 @@ export class UpdateHousekeepingDto {
   // @Matches(/^[6-9]\d{9}$/, {
   //   message: 'Contact number must be a valid 10-digit mobile number',
   // })
-  hk_contact?: string;
+  hk_contact?: number;
 
   @IsOptional()
   @IsInt()
   // @Matches(/^[6-9]\d{9}$/, {
   //   message: 'Alternate contact must be a valid 10-digit mobile number',
   // })
-  hk_alternate_contact?: string;
+  hk_alternate_contact?: number;
 
   // @IsOptional()
   // @IsString()

@@ -476,6 +476,7 @@ export class MessengerService {
           m.is_active
         FROM m_messenger m
         LEFT JOIN m_staff s ON s.staff_id = m.staff_id
+        WHERE m.is_active = TRUE AND s.is_active = TRUE
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder}
         LIMIT $${params.length + 1}
