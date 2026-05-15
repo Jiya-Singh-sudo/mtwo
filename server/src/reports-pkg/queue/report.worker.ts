@@ -7,6 +7,7 @@ import { GuestReportEngine } from '../engines/guest.engine';
 import { RoomReportEngine } from '../engines/room.engine';
 import { VehicleDriverReportEngine } from '../engines/vehicle-driver.engine';
 import { FoodServiceReportEngine } from '../engines/food-service.engine';
+import { OfficerReportEngine } from '../engines/officer.engine';
 import { DbClient } from '../interfaces/db-client.interface';
 
 /* Standalone Pool for worker (outside NestJS DI context) */
@@ -69,6 +70,10 @@ export const reportWorker = new Worker(
 
                 case reportCode.startsWith('FOOD_'):
                     data = await new FoodServiceReportEngine(db).run(reportCode, filters);
+                    break;
+
+                case reportCode.startsWith('_'):
+                    data = await new OfficerReportEngine(db).run(reportCode, filters);
                     break;
 
                 default:

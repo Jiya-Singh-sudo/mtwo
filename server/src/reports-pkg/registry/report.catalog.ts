@@ -126,4 +126,24 @@ export const REPORT_CATALOG = [
       },
     ],
   },
+  {
+    section: 'Officer Reports',
+    reports: [
+      {
+        code: ReportCode.OFFICER_DAILY_SUMMARY,
+        title: 'Daily Officer Summary',
+        description: 'Officer activities for today',
+      },
+      {
+        code: ReportCode.OFFICER_WEEKLY_SUMMARY,
+        title: 'Weekly Officer Summary',
+        description: 'Officer activities during the week',
+      },
+      {
+        code: ReportCode.OFFICER_MONTHLY_SUMMARY,
+        title: 'Monthly Officer Summary',
+        description: 'Officer activities during the month',
+      },
+    ],
+  },
 ];

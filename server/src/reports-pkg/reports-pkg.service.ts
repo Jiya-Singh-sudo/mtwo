@@ -28,6 +28,9 @@ import { DriverDutyReportEngine } from './engines/driver-duty.engine';
 import { exportDriverDutyExcel } from './exporters/driver-duty.excel.exporter';
 import { resolveDriverDutyReportCode } from './resolvers/driver-duty-report.resolver';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { resolveOfficerReportCode } from './resolvers/officer-report.resolver';
+import { OfficerReportEngine } from './engines/officer.engine';
+import { exportOfficerSummaryExcel } from './exporters/officer.excel.exporter';
 
 @Injectable()
 export class ReportsPkgService {
@@ -1102,6 +1105,183 @@ export class ReportsPkgService {
 
     return { filePath };
   }
+
+  // ================= OFFICER TRANSACTION =================
+
+  /**
+   * STEP 1:
+   * Normalize Officer Excel request
+   */
+  normalizeOfficerExcelRequest(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const reportCode = resolveOfficerReportCode(input.rangeType);
+
+    const { fromDate, toDate } = resolveDateRange(input.rangeType, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+
+    const normalizedRequest = {
+      reportCode,
+      fromDate,
+      toDate,
+      format: ReportFormat.EXCEL,
+    };
+
+    console.log('[Officer Excel Normalized]', normalizedRequest);
+
+    return normalizedRequest;
+  }
+
+  /**
+   * STEP 2:
+   * Fetch Officer transaction data for Excel
+   */
+  async fetchOfficerDataForExcel(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const normalized = this.normalizeOfficerExcelRequest(input);
+
+    const engine = new OfficerReportEngine(this.db);
+
+    const result = await engine.run(normalized.reportCode, {
+      fromDate: normalized.fromDate,
+      toDate: normalized.toDate,
+    });
+
+    const rows = Array.isArray(result) ? result : result?.rows ?? [];
+
+    console.log('[Officer Excel Rows]', rows.length);
+
+    return {
+      ...normalized,
+      rows,
+    };
+  }
+
+  /**
+   * STEP 3:
+   * Generate Officer Excel
+   */
+  async generateOfficerExcel(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const result = await this.fetchOfficerDataForExcel(input);
+
+    const filePath = await exportOfficerSummaryExcel({
+      rows: result.rows,
+      fromDate: result.fromDate,
+      toDate: result.toDate,
+    });
+
+    return { filePath };
+  }
+
+  /**
+   * ================= OFFICER PDF =================
+   *
+   * STEP 1:
+   * Normalize Officer PDF request
+   */
+  normalizeOfficerPdfRequest(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const reportCode = resolveOfficerReportCode(input.rangeType);
+
+    const { fromDate, toDate } = resolveDateRange(input.rangeType, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+
+    const normalizedRequest = {
+      reportCode,
+      fromDate,
+      toDate,
+      format: ReportFormat.PDF,
+    };
+
+    console.log('[Officer PDF Normalized]', normalizedRequest);
+
+    return normalizedRequest;
+  }
+
+  /**
+   * STEP 2:
+   * Fetch Officer transaction data for PDF
+   */
+  async fetchOfficerDataForPdf(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const normalized = this.normalizeOfficerPdfRequest(input);
+
+    const engine = new OfficerReportEngine(this.db);
+
+    const result = await engine.run(normalized.reportCode, {
+      fromDate: normalized.fromDate,
+      toDate: normalized.toDate,
+    });
+
+    const rows = Array.isArray(result) ? result : result?.rows ?? [];
+
+    console.log('[Officer PDF Rows]', rows.length);
+
+    return {
+      ...normalized,
+      rows,
+    };
+  }
+
+  /**
+   * STEP 3:
+   * Generate Officer PDF
+   */
+  async generateOfficerPdf(input: {
+    rangeType: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const result = await this.fetchOfficerDataForPdf(input);
+
+    const payload = {
+      meta: {
+        title: 'OFFICER TRANSACTION REPORT',
+        location: 'Raj Bhawan, Maharashtra',
+        reportId: `RB/GMS/OFFICER/${Date.now()}`,
+        fromDate: result.fromDate,
+        toDate: result.toDate,
+      },
+      rows: result.rows,
+    };
+
+    const templatePath = path.join(
+      process.cwd(),
+      'src',
+      'reports-pkg',
+      'templates',
+      'officer',
+      'officer-summary.hbs'
+    );
+
+    const filePath = await generatePdfFromTemplate({
+      templatePath,
+      outputFileName: `Officer_Transactions_${Date.now()}`,
+      payload,
+    });
+
+    return { filePath };
+  }
+
   // ================= DRIVER DUTY TRANSACTION =================
 
   /**
@@ -1262,49 +1442,7 @@ export class ReportsPkgService {
 
     return { filePath };
   }
-  // private sectionRegistry = {
-  //   guest: {
-  //     resolveCode: resolveGuestSummaryReportCode,
-  //     engine: GuestReportEngine,
-  //     excelExporter: exportGuestSummaryExcel,
-  //     templateFolder: 'guest-summary',
-  //   },
 
-  //   room: {
-  //     resolveCode: resolveRoomSummaryReportCode,
-  //     engine: RoomReportEngine,
-  //     excelExporter: exportRoomOccupancyExcel,
-  //     templateFolder: 'room',
-  //   },
-
-  //   vehicle: {
-  //     resolveCode: resolveVehicleDriverReportCode,
-  //     engine: VehicleDriverReportEngine,
-  //     excelExporter: exportVehicleDriverExcel,
-  //     templateFolder: 'vehicle-driver',
-  //   },
-
-  //   'driver-duty': {
-  //     resolveCode: resolveDriverDutyReportCode,
-  //     engine: DriverDutyReportEngine,
-  //     excelExporter: exportDriverDutyExcel,
-  //     templateFolder: 'driver-duty',
-  //   },
-
-  //   food: {
-  //     resolveCode: resolveFoodServiceReportCode,
-  //     engine: FoodServiceReportEngine,
-  //     excelExporter: exportFoodServiceExcel,
-  //     templateFolder: 'food-service',
-  //   },
-
-  //   network: {
-  //     resolveCode: resolveNetworkReportCode,
-  //     engine: NetworkReportEngine,
-  //     excelExporter: exportNetworkExcel,
-  //     templateFolder: 'network',
-  //   },
-  // };
   private sectionRegistry = {
     guest: {
       resolveCode: resolveGuestSummaryReportCode,
@@ -1353,9 +1491,16 @@ export class ReportsPkgService {
       templateFolder: 'network',
       templateFile: 'network-summary.hbs'
     },
+    officer: {
+      resolveCode: resolveOfficerReportCode,
+      engine: OfficerReportEngine,
+      excelExporter: exportOfficerSummaryExcel,
+      templateFolder: 'officer',
+      templateFile: 'officer-summary.hbs'
+    }
   };
   private getReportTitle(
-    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network',
+    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network' | 'officer',
     language: 'en' | 'mr' = 'en'
   ) {
     const titles = {
@@ -1383,6 +1528,10 @@ export class ReportsPkgService {
         en: 'NETWORK REPORT',
         mr: 'नेटवर्क अहवाल',
       },
+      officer: {
+        en: 'OFFICER DUTY REPORT',
+        mr: 'अधिकारी कर्तव्य अहवाल',
+      }
     };
 
     return titles[section]?.[language] ?? section.toUpperCase();
@@ -1404,7 +1553,7 @@ export class ReportsPkgService {
   }
 
   async generateReportGeneric(input: {
-    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network' | 'officer';
     rangeType: string;
     format: 'PDF' | 'EXCEL' | 'VIEW';
     startDate?: string;
@@ -1513,7 +1662,7 @@ export class ReportsPkgService {
 
   // ================= GENERIC VIEW (ALL REPORTS) =================
   async viewReport(input: {
-    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network';
+    section: 'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network' | 'officer';
     rangeType: string;
     startDate?: string;
     endDate?: string;
@@ -1564,6 +1713,12 @@ export class ReportsPkgService {
       case 'network':
         reportCode = resolveNetworkReportCode(input.rangeType);
         engine = new NetworkReportEngine(this.db);
+        break;
+
+      /* ---------- Officer ---------- */
+      case 'officer':
+        reportCode = resolveOfficerReportCode(input.rangeType);
+        engine = new OfficerReportEngine(this.db);
         break;
 
       default:

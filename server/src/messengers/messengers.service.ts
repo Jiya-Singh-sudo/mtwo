@@ -321,7 +321,7 @@ export class MessengerService {
     return this.db.transaction(async (client) => {
 
       const existingRes = await client.query(`
-        SELECT m.messenger_id, m.staff_id, s.full_name
+        SELECT m.messenger_id, m.staff_id, s.full_name, m.is_active, s.is_active
         FROM m_messenger m
         INNER JOIN m_staff s ON s.staff_id = m.staff_id
         WHERE m.messenger_id = $1 AND m.is_active = true AND s.is_active = true
@@ -418,7 +418,7 @@ export class MessengerService {
     const params: any[] = [];
 
     // status filters
-    if (query.status === 'active') {
+    if (query.status === 'active' || !query.status) {
       where.push('m.is_active = true AND s.is_active = true');
     }
 
@@ -476,7 +476,6 @@ export class MessengerService {
           m.is_active
         FROM m_messenger m
         LEFT JOIN m_staff s ON s.staff_id = m.staff_id
-        WHERE m.is_active = TRUE AND s.is_active = TRUE
         ${whereClause}
         ORDER BY ${sortColumn} ${sortOrder}
         LIMIT $${params.length + 1}

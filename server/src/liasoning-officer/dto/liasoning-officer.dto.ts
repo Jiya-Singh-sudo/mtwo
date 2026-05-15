@@ -3,8 +3,8 @@
 import { IsString, IsOptional, IsBoolean} from 'class-validator';
 
 export class CreateLiasoningOfficerDto {
-  @IsString()
-  officer_id: string;
+  // @IsString()
+  // officer_id: string;
 
   @IsString()
   officer_name: string;
@@ -28,12 +28,12 @@ export class CreateLiasoningOfficerDto {
   // @IsString()
   // address?: string;
 
-  @IsString()
-  role_id: string;
+  // @IsString()
+  // role_id: string;
 
-  @IsOptional()
-  @IsString()
-  department?: string;
+  // @IsOptional()
+  // @IsString()
+  // department?: string;
 
   @IsOptional()
   @IsString()
@@ -45,6 +45,10 @@ export class CreateLiasoningOfficerDto {
 }
 
 export class UpdateLiasoningOfficerDto {
+  @IsOptional()
+  @IsString()
+  officer_id: string;
+  
   @IsOptional()
   @IsString()
   officer_name?: string;
@@ -69,13 +73,13 @@ export class UpdateLiasoningOfficerDto {
   // @IsString()
   // address?: string;
 
-  @IsOptional()
-  @IsString()
-  role_id?: string;
+  // @IsOptional()
+  // @IsString()
+  // role_id?: string;
 
-  @IsOptional()
-  @IsString()
-  department?: string;
+  // @IsOptional()
+  // @IsString()
+  // department?: string;
 
   @IsOptional()
   @IsString()

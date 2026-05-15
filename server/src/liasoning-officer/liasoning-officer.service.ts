@@ -12,18 +12,48 @@ export class LiasoningOfficerService {
         `);
         return res.rows[0].id;
     }
+
+    async getActiveLiaisonOfficers() {
+        const query = `
+        SELECT
+            lo.officer_id,
+            lo.staff_id,
+
+            s.full_name,
+            s.full_name_local_language,
+            s.designation,
+            s.primary_mobile,
+            s.alternate_mobile,
+            s.email
+
+        FROM m_liasoning_officer lo
+
+        INNER JOIN m_staff s
+            ON lo.staff_id = s.staff_id
+
+        WHERE
+            lo.is_active = true
+            AND s.is_active = true
+
+        ORDER BY s.full_name ASC
+        `;
+
+        const result = await this.db.query(query);
+
+        return result.rows;
+    }
+
     async findOne(id: string) {
     const result = await this.db.query(
         `
         SELECT 
         lo.officer_id,
-        lo.role_id,
         lo.is_active,
 
         s.full_name AS officer_name,
         s.full_name_local_language AS officer_name_local_language,
         s.primary_mobile AS mobile,
-        s.alternate_mobile,
+        s.alternate_mobile
 
         FROM m_liasoning_officer lo
         LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
@@ -79,17 +109,15 @@ export class LiasoningOfficerService {
             INSERT INTO m_liasoning_officer (
                 officer_id,
                 staff_id,
-                role_id,
                 is_active,
                 inserted_at,
                 inserted_by,
                 inserted_ip
             )
-            VALUES ($1,$2,$3,true,NOW(),$4,$5)
+            VALUES ($1,$2,true,NOW(),$3,$4)
             `, [
             officerId,
             staffId,
-            dto.role_id,
             userId,
             ip
             ]);
@@ -123,12 +151,11 @@ export class LiasoningOfficerService {
                 s.full_name_local_language,
                 s.primary_mobile AS mobile,
                 s.alternate_mobile,
-                lo.role_id,
                 lo.is_active
                 FROM m_liasoning_officer lo
                 LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
-                WHERE lo.is_active = true
-                ORDER BY s.full_name
+                WHERE lo.is_active = true AND s.is_active = true AND s.designation = 'Liasoning Officer'
+                ORDER BY s.full_name ASC
             `
         );
         return result.rows;
@@ -177,8 +204,6 @@ export class LiasoningOfficerService {
             'officer_name_local_language',
             'mobile',
             'alternate_mobile',
-            'role_id',
-            'department',
             'designation',
             'is_active'
             ];
@@ -186,15 +211,13 @@ export class LiasoningOfficerService {
             const result = await trx.query(`
             UPDATE m_liasoning_officer
             SET
-                role_id = $1,
-                is_active = $2,
+                is_active = $1,
                 updated_at = NOW(),
-                updated_by = $3,
-                updated_ip = $4
-            WHERE officer_id = $5
+                updated_by = $2,
+                updated_ip = $3
+            WHERE officer_id = $4
             RETURNING *
             `, [
-            dto.role_id ?? existing.role_id,
             dto.is_active ?? existing.is_active,
             userId,
             ip,
@@ -325,11 +348,12 @@ export class LiasoningOfficerService {
             s.full_name_local_language,
             s.primary_mobile AS mobile,
             s.alternate_mobile,
-            lo.role_id,
             lo.is_active,
             lo.inserted_at
         FROM m_liasoning_officer lo
         LEFT JOIN m_staff s ON s.staff_id = lo.staff_id
+            AND s.is_active = TRUE
+            AND lo.is_active = TRUE
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY ${sortColumn} ${sortDirection}
         LIMIT $${idx} OFFSET $${idx + 1}

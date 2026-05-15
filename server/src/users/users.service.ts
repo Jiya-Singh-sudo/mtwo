@@ -10,10 +10,19 @@ import { ActivityLogService } from '../activity-log/activity-log.service';
 import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
 import { UsersValidator } from './users.validator';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
-import nodemailer from 'nodemailer';
+// import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class UsersService {
+  private transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
   constructor(
     private readonly db: DatabaseService,
     private readonly activityLog: ActivityLogService,
@@ -267,13 +276,7 @@ export class UsersService {
   private sha256Hex(val: string): string{
     return crypto.createHash('sha256').update(val,'utf8').digest('hex');
   }
-  private transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
+
   // async forgotPassword(dto: ForgotPasswordDto, ip: string) {
   //   const normalizedUsername = this.usersValidator.normalizeUsername(dto.email);
   //   const user = await this.findOneByUsername(normalizedUsername);
@@ -311,117 +314,155 @@ export class UsersService {
   //   return { message: 'If the user exists, a reset link has been sent.' };
   // }
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
-    const normalizedUsername =
-      this.usersValidator.normalizeUsername(dto.email);
+    try {
+      console.log("STEP 1");
 
-    const user =
-      await this.findOneByUsername(normalizedUsername);
+      // const normalizedUsername =
+      //   this.usersValidator.normalizeUsername(dto.email);
 
-    // Never reveal user existence
-    if (!user || !user.is_active) {
+      // console.log("STEP 2", normalizedUsername);
+
+      // const user =
+      //   await this.findOneByUsername(normalizedUsername);
+
+      // console.log("STEP 3", user);
+      const result = await this.db.query(
+        `
+        SELECT *
+        FROM m_user
+        WHERE email = $1
+        LIMIT 1
+        `,
+        [dto.email]
+      );
+
+      const user = result.rows[0];
+      console.log("STEP 2 USER:", user);
+      if (!user || !user.is_active) {
+        console.log("STEP 4 USER NOT FOUND");
+
+        return {
+          message:
+            'If the user exists, a reset link has been sent.',
+        };
+      }
+
+      // Generate OTP
+      const otp = Math.floor(
+        100000 + Math.random() * 900000
+      ).toString();
+
+      console.log("STEP 5 OTP:", otp);
+
+      const expires = new Date(
+        Date.now() + 10 * 60 * 1000
+      );
+
+      console.log("STEP 6");
+
+      const sql = `
+        UPDATE m_user
+        SET
+          reset_token = $1,
+          reset_token_expires = $2,
+          updated_at = $3,
+          updated_ip = $4
+        WHERE user_id = $5
+      `;
+
+      await this.db.query(sql, [
+        otp,
+        expires,
+        new Date().toISOString(),
+        ip,
+        user.user_id,
+      ]);
+
+      console.log("STEP 7 DB UPDATED");
+
+      console.log("EMAIL_USER:", process.env.EMAIL_USER);
+
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Password Reset OTP',
+        html: `
+          <h2>Password Reset OTP</h2>
+          <h1>${otp}</h1>
+        `,
+      });
+
+      console.log("STEP 8 EMAIL SENT");
+
       return {
         message:
           'If the user exists, a reset link has been sent.',
       };
+
+    } catch (err) {
+      console.error("FORGOT PASSWORD ERROR");
+      console.error(err);
+
+      throw err;
     }
-
-    // Generate secure reset token
-    const token = this.generateResetToken();
-
-    // Expiry: 15 minutes
-    const expires = new Date(
-      Date.now() + 15 * 60 * 1000
-    );
-
-    // Store token
-    const sql = `
-      UPDATE m_user
-      SET
-        reset_token = $1,
-        reset_token_expires = $2,
-        updated_at = $3,
-        updated_ip = $4
-      WHERE user_id = $5
-    `;
-
-    await this.db.query(sql, [
-      token,
-      expires,
-      new Date().toISOString(),
-      ip,
-      user.user_id,
-    ]);
-
-    // Frontend reset URL
-    const resetUrl =
-      `${process.env.FRONTEND_URL}` +
-      `/reset-password?token=${token}`;
-
-    // Send Email
-    await this.transporter.sendMail({
-      from: process.env.MAIL_USER,
-      to: user.email,
-      subject: 'Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>Password Reset</h2>
-
-          <p>Hello ${user.username},</p>
-
-          <p>
-            Click the button below to reset your password.
-          </p>
-
-          <a
-            href="${resetUrl}"
-            style="
-              display:inline-block;
-              padding:12px 24px;
-              background:#4267B2;
-              color:white;
-              text-decoration:none;
-              border-radius:6px;
-              margin-top:10px;
-            "
-          >
-            Reset Password
-          </a>
-
-          <p style="margin-top:20px;">
-            This link expires in 15 minutes.
-          </p>
-
-          <p>
-            If you did not request this,
-            please ignore this email.
-          </p>
-        </div>
-      `,
-    });
-
-    return {
-      message:
-        'If the user exists, a reset link has been sent.',
-    };
   }
   async resetPassword(dto: ResetPasswordDto, ip: string) {
-    const { email, newPassword } = dto;
+    try {
+      console.log("RESET SERVICE START", dto);
 
-    const hashedPassword =
-      this.sha256Hex(newPassword);
+      const { email, newPassword } = dto;
 
-    await this.db.query(
-      `
-      UPDATE m_user
-      SET password = $1
-      WHERE email = $2
-      `,
-      [hashedPassword, email]
-    );
+      const result = await this.db.query(
+        `
+        SELECT *
+        FROM m_user
+        WHERE email = $1
+        LIMIT 1
+        `,
+        [email]
+      );
 
-    return {
-      message: 'Password reset successful',
-    };
+      const user = result.rows[0];
+
+      console.log("RESET SERVICE STEP: found user", { userExists: !!user, email });
+
+      if (!user) {
+        throw new BadRequestException('Invalid email or reset workflow state');
+      }
+
+      const hashedPassword = this.sha256Hex(newPassword);
+
+      await this.db.query(
+        `
+        UPDATE m_user
+        SET
+          password = $1,
+          reset_token = NULL,
+          reset_token_expires = NULL,
+          updated_at = $2,
+          updated_ip = $3
+        WHERE user_id = $4
+        `,
+        [
+          hashedPassword,
+          new Date().toISOString(),
+          ip,
+          user.user_id,
+        ]
+      );
+
+      console.log("RESET SERVICE END", { user_id: user.user_id });
+
+      return {
+        message: 'Password reset successful',
+      };
+
+    } catch (err) {
+      console.error("RESET PASSWORD ERROR");
+      console.error(err);
+
+      throw err;
+    }
   }
   // async resetPassword(dto: ResetPasswordDto, ip: string) {
   //   return this.db.transaction(async (client) => {
@@ -475,34 +516,20 @@ export class UsersService {
     const result = await this.db.query(
       `
       SELECT *
-      FROM password_reset_otps
+      FROM m_user
       WHERE email = $1
-        AND otp = $2
-        AND verified = FALSE
-      ORDER BY created_at DESC
+        AND reset_token = $2
+        AND reset_token_expires > NOW()
       LIMIT 1
       `,
       [email, otp]
     );
 
     if (!result.rows.length) {
-      throw new BadRequestException('Invalid OTP');
+      throw new BadRequestException(
+        'Invalid or expired OTP'
+      );
     }
-
-    const row = result.rows[0];
-
-    if (new Date(row.expires_at) < new Date()) {
-      throw new BadRequestException('OTP expired');
-    }
-
-    await this.db.query(
-      `
-      UPDATE password_reset_otps
-      SET verified = TRUE
-      WHERE id = $1
-      `,
-      [row.id]
-    );
 
     return {
       verified: true,

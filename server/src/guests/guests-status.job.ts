@@ -51,6 +51,22 @@ export class GuestStatusJob implements OnModuleInit {
       WHERE is_active = TRUE
         AND assignment_date <= NOW();
     `);
+    // Mark assigned rooms as Occupied when guest enters
+    await this.db.query(`
+      UPDATE m_rooms r
+      SET
+        status = 'Occupied',
+        updated_at = NOW(),
+        updated_by = 'cron',
+        updated_ip = '127.0.0.1'
+      FROM t_guest_room gr
+      JOIN t_guest_inout io
+        ON io.guest_id = gr.guest_id
+      WHERE gr.room_id = r.room_id
+        AND gr.is_active = TRUE
+        AND io.is_active = TRUE
+        AND io.status IN ('Entered', 'Inside');
+    `);
     // console.log('Guest status cron executed at', new Date());
     // await this.db.query(`
     //   /* ================= Scheduled → Entered ================= */

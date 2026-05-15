@@ -784,7 +784,17 @@ export class GuestsService {
         ON md.designation_id = d.designation_id
 
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY ${sortColumn} ${sortDirection}
+
+      ORDER BY
+        CASE
+          WHEN io.status = 'Entered' THEN 1
+          WHEN io.status = 'Inside' THEN 2
+          WHEN io.status = 'Scheduled' THEN 3
+          WHEN io.status = 'Exited' THEN 4
+          WHEN io.status = 'Cancelled' THEN 5
+          ELSE 6
+        END,
+        ${sortColumn} ${sortDirection}
       LIMIT $${idx} OFFSET $${idx + 1};
     `;
 
@@ -1231,6 +1241,7 @@ export class GuestsService {
       `
       UPDATE t_guest_vehicle
       SET is_active = FALSE,
+          release_date = NOW(),
           updated_at = NOW(),
           updated_by = $2,
           updated_ip = $3
@@ -1305,7 +1316,7 @@ export class GuestsService {
     await client.query(`
       UPDATE t_guest_liasoning_officer
       SET is_active = FALSE,
-          assignment_end_date = CURRENT_DATE,
+          assignment_end_date = NOW(),
           updated_at = NOW(),
           updated_by = $2,
           updated_ip = $3

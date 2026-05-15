@@ -7,11 +7,12 @@ export enum ReportCodePrev {
   VEHICLE_USAGE = 'VEHICLE_USAGE',
   FOOD_ORDERS = 'FOOD_ORDERS',
   NETWORK_USAGE = 'NETWORK_USAGE',
+  OFFICER_DUTY = 'OFFICER_DUTY',
 }
 
 export class ReportPreviewDto {
   @IsEnum(ReportCodePrev)
-  reportCode: ReportCodePrev;
+  reportCode!: ReportCodePrev;
 
   @IsOptional()
   @IsString()

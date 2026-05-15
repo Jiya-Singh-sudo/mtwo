@@ -246,8 +246,8 @@ export class GuestLiasoningOfficerService {
           WHERE
             guest_id = $1
             AND is_active = TRUE
-            AND daterange(from_date, COALESCE(to_date, 'infinity'), '[]')
-                && daterange($2::date, COALESCE($3::date, 'infinity'), '[]')
+            AND tsrange(assignment_start_date, COALESCE(assignment_end_date, 'infinity'::timestamp), '[]')
+                && tsrange($2::timestamp, COALESCE($3::timestamp, 'infinity'::timestamp), '[]')
           FOR UPDATE
           LIMIT 1
           `,
@@ -264,11 +264,11 @@ export class GuestLiasoningOfficerService {
 
         const insertSql = `
           INSERT INTO t_guest_liasoning_officer (
-            glo_id,
+            guest_officer_id,
             guest_id,
             officer_id,
-            from_date,
-            to_date,
+            assignment_start_date,
+            assignment_end_date,
             duty_location,
             is_active,
             inserted_by,
@@ -309,11 +309,11 @@ export class GuestLiasoningOfficerService {
   async findByGuest(guestId: string) {
     const sql = `
       SELECT
-        glo.glo_id,
+        glo.guest_officer_id,
         glo.guest_id,
         glo.officer_id,
-        glo.from_date,
-        glo.to_date,
+        glo.assignment_start_date,
+        glo.assignment_end_date,
         glo.duty_location,
         glo.is_active,
         glo.inserted_at,
@@ -328,10 +328,10 @@ export class GuestLiasoningOfficerService {
 
       JOIN m_liasoning_officer o
         ON o.officer_id = glo.officer_id
-        AND is_Active = TRUE
+        AND o.is_active = TRUE
       LEFT JOIN m_staff s
         ON s.staff_id = o.staff_id
-        AND is_active = TRUE
+        AND s.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = glo.guest_id
@@ -343,7 +343,7 @@ export class GuestLiasoningOfficerService {
       AND md.is_active = TRUE
 
       WHERE glo.guest_id = $1
-      ORDER BY glo.from_date DESC
+      ORDER BY s.full_name, glo.assignment_start_date ASC
     `;
     const res = await this.db.query(sql, [guestId]);
     return res.rows;

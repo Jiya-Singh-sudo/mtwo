@@ -16,6 +16,9 @@ import { exportFoodServiceExcel } from "../exporters/food-service.excel.exporter
 import { resolveNetworkReportCode } from "../resolvers/network-report.resolver";
 import { NetworkReportEngine } from "../engines/network.engine";
 import { exportNetworkExcel } from "../exporters/network.excel.exporter";
+import { resolveOfficerReportCode } from "../resolvers/officer-report.resolver";
+import { OfficerReportEngine } from "../engines/officer.engine";
+import { exportOfficerSummaryExcel } from "../exporters/officer.excel.exporter";
 
 export const SectionRegistry = {
     guest: {
@@ -58,5 +61,11 @@ export const SectionRegistry = {
         engine: NetworkReportEngine,
         excelExporter: exportNetworkExcel,
         templateFolder: 'network',
+    },
+    officer: {
+        resolveCode: resolveOfficerReportCode,
+        engine: OfficerReportEngine,
+        excelExporter: exportOfficerSummaryExcel,
+        templateFolder: 'officer',
     },
 };

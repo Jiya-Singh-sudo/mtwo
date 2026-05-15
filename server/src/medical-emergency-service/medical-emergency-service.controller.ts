@@ -12,6 +12,12 @@ export class MedicalEmergencyServiceController {
     const { user, ip } = getRequestContext(req);
     return this.service.create(dto, user, ip);
   }
+  @Get('active')
+  async getActiveMedicalOfficers() {
+    return await this
+      .service
+      .getActiveMedicalOfficers();
+  }
 
   @Get()
   findAll(@Query() query: any) {

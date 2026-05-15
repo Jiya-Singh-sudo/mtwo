@@ -223,21 +223,21 @@ export class AuthService {
           ipAddress: ip,
         }, client);
 
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException(`Invalid credentials: ${dto.username}`);
       }
 
       const user = result.rows[0];
 
       if (user.password !== hashedPassword) {
         await this.activityLog.log({
-          message: `Invalid login attempt for username ${dto.username}`,
+          message: `Password mismatch for username ${dto.username}`,
           module: 'AUTH',
           action: 'LOGIN_FAILED',
           referenceId: dto.username,
           ipAddress: ip,
         }, client);
 
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException(`Password mismatch: ${dto.username}`);
       }
 
       // ✅ Update last login
@@ -341,7 +341,7 @@ export class AuthService {
           ipAddress: ip,
         }, client);
 
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException(`Invalid credentials: ${dto.username}`);
       }
 
       const user = result.rows[0];
@@ -349,14 +349,14 @@ export class AuthService {
       // 🔐 Password check
       if (user.password !== hashedPassword) {
         await this.activityLog.log({
-          message: `Invalid login attempt for username ${dto.username}`,
+          message: `Password mismatch for username ${dto.username}`,
           module: 'AUTH',
           action: 'LOGIN_FAILED',
           referenceId: dto.username,
           ipAddress: ip,
         }, client);
 
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException(`Password mismatch: ${dto.username}`);
       }
 
       // console.log('✅ LOGIN SUCCESS');
@@ -422,6 +422,7 @@ export class AuthService {
 
       if (row.is_revoked) {
         await this.revokeFamily(row.family_id, client);
+        await this.logout(receivedToken);
         throw new UnauthorizedException('Refresh token reuse detected');
       }
 

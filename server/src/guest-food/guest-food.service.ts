@@ -4,7 +4,6 @@ import { CreateGuestFoodDto } from "./dto/create-guest-food-dto";
 import { UpdateGuestFoodDto } from "./dto/update-guest-food-dto";
 import { GuestFoodTableQueryDto } from "./dto/guest-food-table.dto";
 import { ActivityLogService } from "src/activity-log/activity-log.service";
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class GuestFoodService {
@@ -145,8 +144,8 @@ export class GuestFoodService {
       if (!meals || Object.keys(meals).length === 0) {
         throw new BadRequestException('Meal plan cannot be empty');
       }
-      const guestFoodId = uuidv4();
       let insertCount = 0;
+      let lastGuestFoodId = '';
       const allowedMeals = ['breakfast', 'lunch', 'highTea', 'dinner'];
 
       for (const meal of Object.keys(meals)) {
@@ -168,30 +167,43 @@ export class GuestFoodService {
 
           let foodId = item;
 
-          // 🔧 1. CHECK IF FOOD EXISTS
+          // 🔧 1. CHECK IF ITEM IS AN EXISTING FOOD ID
           const foodCheck = await client.query(
             `SELECT food_id FROM m_food_items WHERE food_id = $1`,
             [item]
           );
 
-          // 🔧 2. IF NOT EXISTS → CREATE NEW FOOD
-          if (foodCheck.rowCount === 0) {
-            const newFood = await client.query(
-              `
-              INSERT INTO m_food_items (
-                food_name,
-                is_active,
-                inserted_at,
-                inserted_by,
-                inserted_ip
-              )
-              VALUES ($1, TRUE, NOW(), $2, $3)
-              RETURNING food_id
-              `,
-              [item, user, ip]   // here item is treated as food_name
+          if (foodCheck.rowCount > 0) {
+            foodId = foodCheck.rows[0].food_id;
+          } else {
+            // 🔧 2. MAYBE ITEM IS AN EXISTING FOOD NAME
+            const existingFood = await client.query(
+              `SELECT food_id FROM m_food_items WHERE LOWER(food_name) = LOWER($1) AND is_active = TRUE`,
+              [item]
             );
 
-            foodId = newFood.rows[0].food_id;
+            if (existingFood.rowCount > 0) {
+              foodId = existingFood.rows[0].food_id;
+            } else {
+              // 🔧 3. INSERT NEW FOOD ITEM FOR THIS NAME
+              const newFood = await client.query(
+                `
+                INSERT INTO m_food_items (
+                  food_name,
+                  food_type,
+                  is_active,
+                  inserted_at,
+                  inserted_by,
+                  inserted_ip
+                )
+                VALUES ($1, $2, TRUE, NOW(), $3, $4)
+                RETURNING food_id
+                `,
+                [item, 'Veg', user, ip]
+              );
+
+              foodId = newFood.rows[0].food_id;
+            }
           }
 
           // 🔧 3. CHECK DUPLICATE FOR THIS GUEST
@@ -213,6 +225,9 @@ export class GuestFoodService {
           }
 
           // 🔧 4. INSERT INTO GUEST FOOD
+          const guestFoodId = await this.generateId(client);
+          lastGuestFoodId = guestFoodId;
+
           await client.query(
             `
             INSERT INTO t_guest_food (
@@ -239,7 +254,7 @@ export class GuestFoodService {
         message: 'Guest meal (custom buffet selection) created',
         module: 'GUEST FOOD',
         action: 'CREATE',
-        referenceId: guestFoodId,
+        referenceId: lastGuestFoodId,
         performedBy: user,
         ipAddress: ip,
       }, client);

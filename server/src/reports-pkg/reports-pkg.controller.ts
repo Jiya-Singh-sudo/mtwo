@@ -67,7 +67,7 @@ export class ReportsPkgController {
         );
       }
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Guest Summary Excel Error:', error.message);
       throw new HttpException(
         error.message || 'Report generation failed',
@@ -98,7 +98,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Guest Summary PDF Error:', error);
 
       throw new HttpException(
@@ -142,7 +142,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Room Excel Error:', error.message);
 
       throw new HttpException(
@@ -178,7 +178,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Room PDF Error:', error.message);
 
       throw new HttpException(
@@ -219,7 +219,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Vehicle Driver Excel Error:', error.message);
 
       throw new HttpException(
@@ -256,7 +256,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Vehicle Driver PDF Error:', error.message);
 
       throw new HttpException(
@@ -297,7 +297,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Food Service Excel Error:', error.message);
 
       throw new HttpException(
@@ -334,7 +334,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Food Service PDF Error:', error.message);
 
       throw new HttpException(
@@ -375,7 +375,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Network Excel Error:', error.message);
 
       throw new HttpException(
@@ -412,7 +412,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Network PDF Error:', error.message);
 
       throw new HttpException(
@@ -449,7 +449,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Driver Duty Excel Error:', error.message);
 
       throw new HttpException(
@@ -487,7 +487,7 @@ export class ReportsPkgController {
       }
 
       return res.download(result.filePath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Driver Duty PDF Error:', error.message);
 
       throw new HttpException(
@@ -496,6 +496,86 @@ export class ReportsPkgController {
       );
     }
   }
+
+  /* ---------- OFFICER TRANSACTION EXCEL ---------- */
+  @Post('officer/excel')
+  async generateOfficerExcel(
+    @Body()
+    body: {
+      rangeType?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: express.Response
+  ) {
+    try {
+      console.log('[Officer Excel RAW BODY]', body);
+
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      console.log('[Officer Excel NORMALIZED BODY]', normalizedBody);
+
+      const result =
+        await this.service.generateOfficerExcel(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Officer Excel report',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error: any) {
+      console.error('Officer Excel Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Officer Excel generation failed',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+  /* ---------- OFFICER TRANSACTION PDF ---------- */
+  @Post('officer/pdf')
+  async generateOfficerPdf(
+    @Body()
+    body: {
+      rangeType: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    @Res() res: Response,
+  ) {
+    try {
+      const normalizedBody = {
+        ...body,
+        rangeType: normalizeRangeType(body.rangeType),
+      };
+
+      const result =
+        await this.service.generateOfficerPdf(normalizedBody);
+
+      if (!result?.filePath) {
+        throw new HttpException(
+          'Failed to generate Officer PDF report',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      return res.download(result.filePath);
+    } catch (error: any) {
+      console.error('Officer PDF Error:', error.message);
+
+      throw new HttpException(
+        error.message || 'Officer PDF generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   /* ---------- GENERIC VIEW ---------- */
   // @Post('view')
   // async viewReport(
@@ -514,7 +594,7 @@ export class ReportsPkgController {
   //     };
 
   //     return await this.service.viewReport(normalizedBody);
-  //   } catch (error) {
+  //   } catch (error: any) {
   //     throw new HttpException(
   //       error.message || 'View report failed',
   //       HttpStatus.BAD_REQUEST,
@@ -539,7 +619,7 @@ export class ReportsPkgController {
       };
 
       return await this.service.viewReport(normalizedBody);
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         error.message || 'View report failed',
         HttpStatus.BAD_REQUEST,

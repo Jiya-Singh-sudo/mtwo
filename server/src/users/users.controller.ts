@@ -45,6 +45,7 @@ export class UsersController {
     @Req() req: any,
   ) {
     const { user, ip } = getRequestContext(req);
+    console.log("Forgot password request for email:", dto.email);
     return this.service.forgotPassword(dto, ip);
   }
 
@@ -54,6 +55,7 @@ export class UsersController {
     @Req() req: any,
   ) {
     const { user, ip } = getRequestContext(req);
+    console.log("Reset password request for email:", dto.email);
     return this.service.resetPassword(dto, ip);
   }
   @Post('verify-otp')
@@ -62,6 +64,7 @@ export class UsersController {
     @Req() req: any,
   ) {
     const { ip } = getRequestContext(req);
+    console.log("Verify OTP request for email:", dto.email);
 
     return this.service.verifyOtp(dto, ip);
   }

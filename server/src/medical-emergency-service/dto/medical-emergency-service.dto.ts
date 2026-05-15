@@ -3,8 +3,9 @@
 import { IsString, IsOptional, IsBoolean} from 'class-validator';
 
 export class CreateMedicalEmergencyServiceDto {
-  @IsString()
-  service_id: string;
+  
+  // @IsString()
+  // service_id: string;
 
   @IsString()
   service_provider_name: string;
@@ -13,8 +14,8 @@ export class CreateMedicalEmergencyServiceDto {
   @IsString()
   service_provider_name_local_language?: string;
 
-  @IsString()
-  service_type: string;
+  // @IsString()
+  // service_type: string;
 
   @IsString()
   mobile: string;
@@ -41,17 +42,22 @@ export class CreateMedicalEmergencyServiceDto {
 }
 
 export class UpdateMedicalEmergencyServiceDto {
+   
+   @IsOptional()
+   @IsString()
+   service_id: string;
+
   @IsOptional()
   @IsString()
   service_provider_name?: string;
 
-  @IsOptional()
-  @IsString()
-  service_provider_name_local_language?: string;
+  // @IsOptional()
+  // @IsString()
+  // service_provider_name_local_language?: string;
 
-  @IsOptional()
-  @IsString()
-  service_type?: string;
+  // @IsOptional()
+  // @IsString()
+  // service_type?: string;
 
   @IsOptional()
   @IsString()
@@ -69,9 +75,9 @@ export class UpdateMedicalEmergencyServiceDto {
   // @IsString()
   // address_line?: string;
 
-  @IsOptional()
-  @IsString()
-  distance_from_guest_house?: string;
+  // @IsOptional()
+  // @IsString()
+  // distance_from_guest_house?: string;
 
   @IsOptional()
   @IsBoolean()

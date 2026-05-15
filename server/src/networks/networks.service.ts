@@ -81,24 +81,6 @@ export class NetworksService {
     //   `);
     // }
 
-    /* ---------- BUILD WHERE CLAUSE (IMPORTANT: AFTER filters) ---------- */
-    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-
-    if (!Number.isInteger(query.page) || query.page <= 0) {
-      throw new BadRequestException('Page must be a positive integer');
-    }
-
-    if (!Number.isInteger(query.limit) || query.limit <= 0) {
-      throw new BadRequestException('Limit must be a positive integer');
-    }
-
-    if (query.limit > 100) {
-      throw new BadRequestException('Limit cannot exceed 100');
-    }
-    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
-      throw new BadRequestException('Invalid sort order');
-    }
-    // search → provider_name, network_type, bandwidth
     if (query.search) {
       const search = query.search.trim();
 
@@ -116,8 +98,27 @@ export class NetworksService {
       where.push(`
         (
           provider_name ILIKE $${index}
-          OR network_type::text ILIKE $${index}        )
+          OR network_type::text ILIKE $${index}
+        )
       `);
+    }
+
+    /* ---------- BUILD WHERE CLAUSE (IMPORTANT: AFTER filters) ---------- */
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    if (!Number.isInteger(query.page) || query.page <= 0) {
+      throw new BadRequestException('Page must be a positive integer');
+    }
+
+    if (!Number.isInteger(query.limit) || query.limit <= 0) {
+      throw new BadRequestException('Limit must be a positive integer');
+    }
+
+    if (query.limit > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
+    if (query.sortOrder && !['asc', 'desc'].includes(query.sortOrder)) {
+      throw new BadRequestException('Invalid sort order');
     }
     /* ---------- DATA QUERY ---------- */
     const dataSql = `
@@ -127,10 +128,11 @@ export class NetworksService {
         provider_name_local_language,
         network_type,
         username,
+        password,
         is_active
       FROM m_wifi_provider
       ${whereClause}
-      ORDER BY ${sortColumn} ${sortOrder}
+      ORDER BY is_active DESC, ${sortColumn} ${sortOrder}
       LIMIT $${params.length + 1}
       OFFSET $${params.length + 2};
     `;

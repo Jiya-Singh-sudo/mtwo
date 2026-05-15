@@ -267,7 +267,6 @@ export class GuestNetworkService {
 
       LEFT JOIN t_guest_network gn
         ON gn.guest_id = g.guest_id
-        AND gn.room_id = gr.room_id
         AND gn.is_active = TRUE
 
       LEFT JOIN m_wifi_provider wp

@@ -69,7 +69,7 @@ export class GuestMedicalContactService {
             is_active,
             inserted_at,
             inserted_by,
-            inserted_ip,
+            inserted_ip
           )
           VALUES ($1,$2,$3,$4,NOW(),$5,$6)
           RETURNING *;
@@ -220,17 +220,17 @@ export class GuestMedicalContactService {
         gmc.inserted_at,
 
         st.full_name,
-        s.primary_mobile,
-        s.alternate_mobile,
+        st.primary_mobile,
+        st.alternate_mobile
 
       FROM t_guest_medical_contact gmc
 
       JOIN m_medical_emergency_service s
         ON s.service_id = gmc.service_id
-        AND is_active = TRUE
+        AND s.is_active = TRUE
       LEFT JOIN m_staff st
-        ON s.satff_id = s.staff_id
-        AND is_active = TRUE
+        ON st.staff_id = s.staff_id
+        AND st.is_active = TRUE
 
       LEFT JOIN t_guest_designation gd
         ON gd.guest_id = gmc.guest_id

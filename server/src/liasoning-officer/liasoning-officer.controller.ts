@@ -14,6 +14,11 @@ export class LiasoningOfficerController {
     return this.service.create(dto, user, ip);
   }
 
+  @Get('active')
+  async getActiveLiaisonOfficers() {
+    return await this.service.getActiveLiaisonOfficers();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -34,6 +39,7 @@ export class LiasoningOfficerController {
     const { user, ip } = getRequestContext(req);
     return this.service.softDelete(id, user, ip);
   }
+
     @Get()
     findAll(@Query() query: any) {
     return this.service.findAllWithFilters({

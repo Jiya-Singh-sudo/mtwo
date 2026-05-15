@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, ConflictException, } from '@nestjs/commo
 import { DatabaseService } from '../database/database.service';
 import { CreateMedicalEmergencyServiceDto, UpdateMedicalEmergencyServiceDto, } from './dto/medical-emergency-service.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { transliterateToDevanagari } from '../../common/utlis/transliteration.util';
+
 @Injectable()
 export class MedicalEmergencyServiceService {
   constructor(private readonly db: DatabaseService, private readonly activityLog: ActivityLogService) { }
@@ -17,6 +19,40 @@ export class MedicalEmergencyServiceService {
         `);
     return res.rows[0].id;
   }
+
+  async getActiveMedicalOfficers() {
+    const query = `
+      SELECT
+        mes.service_id,
+        mes.service_type,
+        mes.staff_id,
+
+        s.full_name,
+        s.full_name_local_language,
+        s.designation,
+        s.primary_mobile,
+        s.alternate_mobile,
+        s.email
+
+      FROM m_medical_emergency_service mes
+
+      INNER JOIN m_staff s
+        ON mes.staff_id = s.staff_id
+
+      WHERE
+        mes.is_active = true
+        AND s.is_active = true
+        AND s.designation = 'Medical Service'
+
+      ORDER BY s.full_name ASC
+    `;
+
+    const result =
+      await this.db.query(query);
+
+    return result.rows;
+  }
+
   /* ================= CREATE ================= */
 
   async create(
@@ -26,20 +62,21 @@ export class MedicalEmergencyServiceService {
   ) {
     return this.db.transaction(async (client) => {
       try {
-        const exists = await client.query(
-          `SELECT mes.*, s.*
-          FROM m_medical_emergency_service mes
-          JOIN m_staff s ON s.staff_id = mes.staff_id
-          WHERE mes.service_id = $1
-          FOR UPDATE`,
-          [dto.service_id]
-        );
+        // const exists = await client.query(
+        //   `SELECT mes.*, s.*
+        //   FROM m_medical_emergency_service mes
+        //   JOIN m_staff s ON s.staff_id = mes.staff_id
+        //   WHERE mes.service_id = $1
+        //   FOR UPDATE`,
+        //   [dto.service_id]
+        // );
 
-        if (exists.rowCount > 0) {
-          throw new ConflictException('Service already exists');
-        }
+        // if (exists.rowCount > 0) {
+        //   throw new ConflictException('Service already exists');
+        // }
         const staffId = await this.generateStaffId(client);
         const serviceId = await this.generateId(client);
+        const mr = transliterateToDevanagari(dto.service_provider_name);
 
         /* 1️⃣ Insert into m_staff */
         await client.query(`
@@ -59,7 +96,7 @@ export class MedicalEmergencyServiceService {
         `, [
           staffId,
           dto.service_provider_name,
-          dto.service_provider_name_local_language ?? null,
+          mr,
           dto.mobile ?? null,
           dto.alternate_mobile ?? null,
           user,
@@ -171,6 +208,8 @@ export class MedicalEmergencyServiceService {
         mes.inserted_at
       FROM m_medical_emergency_service mes
       LEFT JOIN m_staff s ON s.staff_id = mes.staff_id
+      AND s.is_active = TRUE 
+      AND mes.is_active = TRUE
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY ${sortColumn} ${sortDirection}
       LIMIT $${idx} OFFSET $${idx + 1}
@@ -214,6 +253,8 @@ export class MedicalEmergencyServiceService {
       }
 
       const existing = existingRes.rows[0];
+      const mr = transliterateToDevanagari(existing.full_name);
+
 
       /* 1️⃣ Update staff */
       await client.query(`
@@ -229,7 +270,7 @@ export class MedicalEmergencyServiceService {
         WHERE staff_id = $7
       `, [
         dto.service_provider_name ?? existing.full_name,
-        dto.service_provider_name_local_language ?? existing.full_name_local_language,
+        mr,
         dto.mobile ?? existing.primary_mobile,
         dto.alternate_mobile ?? existing.alternate_mobile,
         user,

@@ -52,14 +52,14 @@ export class ButlersService {
     const orderColumn = SORT_MAP[sortBy] ?? SORT_MAP.butler_name;
     const orderDir = sortOrder === "desc" ? "DESC" : "ASC";
 
-    const where: string[] = [];
+    const where: string[] = ['b.is_active = TRUE AND s.is_active = TRUE AND s.designation = \'Butler\''];
     const params: any[] = [];
     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
       throw new ConflictException('Invalid sort order');
     }
     if (sortBy && !Object.keys(SORT_MAP).includes(sortBy)) {
       throw new ConflictException('Invalid sort column');
-    } 
+    }
     const allowedStatuses = ['all', 'active', 'inactive'] as const;
 
     const normalizedStatus = status ?? 'all';
@@ -85,7 +85,7 @@ export class ButlersService {
       where.push('b.is_active = false');
     }
 
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const whereSql = `WHERE ${where.join(" AND ")}`;
 
     // ---------- DATA ----------
     const dataSql = `
@@ -105,7 +105,6 @@ export class ButlersService {
         b.updated_ip
       FROM m_butler b
       JOIN m_staff s ON s.staff_id = b.staff_id
-      WHERE b.is_active = TRUE AND s.is_active = TRUE
       ${whereSql}
       ORDER BY ${orderColumn} ${orderDir}
       LIMIT $${params.length + 1}
@@ -125,6 +124,7 @@ export class ButlersService {
     const countSql = `
       SELECT COUNT(*) AS count
       FROM m_butler b
+      JOIN m_staff s ON s.staff_id = b.staff_id
       ${whereSql};
     `;
 

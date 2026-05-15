@@ -378,7 +378,16 @@ LEFT JOIN LATERAL (
         END AS vehicle_conflict
 
       FROM base
-      ORDER BY ${sortColumn} ${order}
+      ORDER BY
+        CASE
+          WHEN base.inout_status = 'Entered' THEN 1
+          WHEN base.inout_status = 'Inside' THEN 2
+          WHEN base.inout_status = 'Scheduled' THEN 3
+          WHEN base.inout_status = 'Exited' THEN 4
+          WHEN base.inout_status = 'Cancelled' THEN 5
+          ELSE 6
+        END,
+        ${sortColumn} ${order}
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `;
 
