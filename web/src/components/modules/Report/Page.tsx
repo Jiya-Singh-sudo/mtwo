@@ -9,7 +9,7 @@ export function Reports() {
   const [globalRange, setGlobalRange] = useState('Today');
   const [language, setLanguage] = useState<'en' | 'mr'>('en');
   const [selectedSection, setSelectedSection] = useState<
-    'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network'
+    'guest' | 'room' | 'vehicle' | 'driver-duty' | 'food' | 'network' | 'officer'
   >('guest');
 
   const [exportFormat, setExportFormat] = useState<'PDF' | 'EXCEL' | 'VIEW'>('PDF');
@@ -46,53 +46,8 @@ export function Reports() {
     }
   }
 
-  // Configuration for all report sections
-  // const reportSections = [
-  //   {
-  //     id: 'guest',
-  //     title: 'Guest Summary Report',
-  //     category: 'Guest Reports',
-  //     description: 'Daily, Weekly, Monthly guest statistics and occupancy analysis',
-  //     icon: Users
-  //   },
-  //   {
-  //     id: 'room',
-  //     title: 'Room & Housekeeping Report',
-  //     category: 'Room & Housekeeping Reports',
-  //     description: 'Room utilization, occupancy trends, and housekeeping performance',
-  //     icon: BedDouble
-  //   },
-  //   {
-  //     id: 'vehicle',
-  //     title: 'Vehicle & Driver Report',
-  //     category: 'Vehicle & Driver Reports',
-  //     description: 'Vehicle usage logs, fuel consumption, and driver duty records',
-  //     icon: Car
-  //   },
-  //   {
-  //     id: 'driver-duty',
-  //     title: 'Driver Duty Report',
-  //     category: 'Driver Duty Reports',
-  //     description: 'Driver duty logs, fuel consumption, and driver duty records',
-  //     icon: Car
-  //   },
-  //   {
-  //     id: 'food',
-  //     title: 'Food Service Report',
-  //     category: 'Food Service Reports',
-  //     description: 'Kitchen inventory, meal orders, and catering summaries',
-  //     icon: Utensils
-  //   },
-  //   {
-  //     id: 'network',
-  //     title: 'Network Report',
-  //     category: 'Network Reports',
-  //     description: 'Wi-Fi usage, downtime logs, and bandwidth analysis',
-  //     icon: Wifi
-  //   }
-  // ];
-
   return (
+    <div className="reportPage">
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -141,7 +96,7 @@ export function Reports() {
       </div> */}
 
       {/* Global Report Generator */}
-      <div className="bg-white border border-gray-200 rounded-sm p-6 shadow-sm">
+      <div className="reportGenerator glassCard">
         <h3 className="text-[#00247D] text-lg font-semibold mb-4 border-b pb-2 border-gray-100">Generate Custom Report</h3>
         <div className="reportFilters">
           <div className="reportType">
@@ -149,7 +104,7 @@ export function Reports() {
             <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value as any)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              className="reportSelect"
             >
               <option value="guest">Guest Summary</option>
               <option value="room">Room Occupancy</option>
@@ -157,6 +112,7 @@ export function Reports() {
               <option value="driver-duty">Driver Duty</option>
               <option value="food">Food Service</option>
               <option value="network">Network</option>
+              <option value="officer">Officer Assignment</option>
             </select>
 
           </div>
@@ -167,7 +123,7 @@ export function Reports() {
             <select
               value={globalRange}
               onChange={(e) => setGlobalRange(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              className="reportSelect"
             >
               <option value="Today">Today</option>
               <option value="This Week">This Week</option>
@@ -184,7 +140,7 @@ export function Reports() {
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value as 'en' | 'mr')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              className="reportSelect"
             >
               <option value="en">English</option>
               <option value="mr">Marathi</option>
@@ -217,7 +173,7 @@ export function Reports() {
             <select
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as any)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-[#00247D] focus:ring-1 focus:ring-[#00247D]"
+              className="reportSelect"
             >
               <option value="PDF">PDF</option>
               <option value="EXCEL">Excel (XLSX)</option>
@@ -228,7 +184,7 @@ export function Reports() {
           <div>
             <button
               onClick={handleGlobalGenerate}
-              className="primaryBtn generateBtn w-full flex items-center justify-center gap-2"
+              className="generateBtn"
             >
               <Download className="w-4 h-4" />
               Generate
@@ -338,6 +294,7 @@ export function Reports() {
           </table>
         </div>
       </div> */}
+    </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, Eye, XCircle, BedDouble, Check, X, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, XCircle, BedDouble, Check, X, FileText, UserCheck } from "lucide-react";
 import { useError } from "@/context/ErrorContext";
 import { getActiveGuests, createGuest, updateGuest, softDeleteGuest, cancelGuestInOut } from "@/api/guest.api";
 import { createGuestDesignation, updateGuestDesignation } from "@/api/guestDesignation.api";
@@ -22,6 +22,20 @@ import { zodToFormErrors } from "@/utils/formErrors";
 import { FormErrorAlert } from "@/components/ui/FormErrorAlert";
 import { FieldError } from "@/components/ui/FieldError";
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
+import { getActiveLiaisonOfficers } from "@/api/liasoning-officer.api";
+import { getActiveMedicalOfficers } from "@/api/medicalEmergencyService.api";
+import {
+  assignMedicalContactToGuest,
+  getGuestMedicalContacts,
+  removeGuestMedicalContact,
+} from "@/api/guestMedicalContact.api";
+import {
+  assignLiasoningOfficer,
+  getGuestLiasoningOfficers,
+  updateGuestLiasoningOfficer,
+  removeGuestLiasoningOfficer,
+} from "@/api/guestLiasoningOfficer.api";
+
 
 type DesignationOption = {
   designation_id: string;
@@ -115,6 +129,24 @@ export function GuestManagement() {
   const filteredDesignations = designations.filter((d) =>
     d.designation_name.toLowerCase().includes(designationSearch.toLowerCase())
   );
+
+  const [showOfficerModal, setShowOfficerModal] = useState(false);
+
+  const [officerGuest, setOfficerGuest] =
+    useState<ActiveGuestRow | null>(null);
+
+  const [liaisonOfficerId, setLiaisonOfficerId] = useState("");
+  const [medicalOfficerId, setMedicalOfficerId] = useState("");
+
+  const [liaisonOfficers, setLiaisonOfficers] = useState<any[]>([]);
+  const [medicalOfficers, setMedicalOfficers] = useState<any[]>([]);
+
+  const [existingLiaisonAssignment, setExistingLiaisonAssignment] = useState<any>(null);
+  const [existingMedicalAssignment, setExistingMedicalAssignment] = useState<any>(null);
+  const [liaisonFromDate, setLiaisonFromDate] = useState("");
+  const [liaisonToDate, setLiaisonToDate] = useState("");
+  const [dutyLocation, setDutyLocation] = useState("");
+
   const initialGuestForm = {
     guest_name: '',
     guest_name_local_language: '',
@@ -177,27 +209,35 @@ export function GuestManagement() {
       sortKey: "guest_name",
       render: (g) => (
         <>
-          <p className="font-medium">{g.guest_name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{g.guest_name}</p>
+            {g.is_active === false && (
+              <span className="inactiveBadge">
+                Inactive
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500">
             {g.guest_name_local_language}
           </p>
         </>
       ),
+
     },
-    {
-      header: "Designation",
-      accessor: "designation_name",
-      sortable: true,
-      sortKey: "designation_name",
-      render: (g) => (
-        <>
-          <p>{g.designation_name}</p>
-          <p className="text-xs text-gray-500">
-            {g.department} {'|'} {g.organization}
-          </p>
-        </>
-      ),
-    },
+    // {
+    //   header: "Designation",
+    //   accessor: "designation_name",
+    //   sortable: true,
+    //   sortKey: "designation_name",
+    //   render: (g) => (
+    //     <>
+    //       <p>{g.designation_name}</p>
+    //       <p className="text-xs text-gray-500">
+    //         {g.department} {'|'} {g.organization}
+    //       </p>
+    //     </>
+    //   ),
+    // },
     {
       header: "Mobile",
       render: (g) => (
@@ -270,6 +310,19 @@ export function GuestManagement() {
       accessor: "purpose",
     },
     {
+      header: "Liaison Officer",
+      render: (g) => (
+        <span>{g.liaison_officer_name || "—"}</span>
+      ),
+    },
+
+    {
+      header: "Medical Officer",
+      render: (g) => (
+        <span>{g.medical_officer_name || "—"}</span>
+      ),
+    },
+    {
       header: "Actions",
       render: (g) => (
         <div className="flex gap-2">
@@ -284,8 +337,13 @@ export function GuestManagement() {
 
           {/* Edit */}
           <button
+            disabled={g.is_active === false}
             onClick={() => openEdit(g)}
-            className="icon-btn text-green-600"
+            className={`icon-btn ${
+              g.is_active === false
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-green-600"
+            }`}
             title="Edit"
           >
             <Edit className="w-4 h-4" />
@@ -294,11 +352,16 @@ export function GuestManagement() {
           {/* Cancel Visit (ONLY if Scheduled) */}
           {g.inout_status === "Scheduled" && (
             <button
+              disabled={g.is_active === false}
               onClick={() => {
                 setCancelGuest(g);
                 setShowCancelConfirm(true);
               }}
-              className="icon-btn text-orange-600"
+              className={`icon-btn ${
+                g.is_active === false
+                  ? "text-gray-400 cursor-not-allowed"
+                  : "text-orange-600"
+              }`}
               title="Cancel Visit"
             >
               <XCircle className="w-4 h-4" />
@@ -307,38 +370,151 @@ export function GuestManagement() {
 
           {/* Room Assign */}
           <button
+            disabled={g.is_active === false}
             onClick={() => {
               setRoomGuest(g);
               setRoomsRequired(g.rooms_required || 1);
               setShowRoomModal(true);
             }}
-            className="icon-btn text-purple-600"
+            className={`icon-btn ${
+              g.is_active === false
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-purple-600"
+            }`}
             title="Assign Rooms"
           >
             <BedDouble className="w-4 h-4" />
           </button>
-      {/* 🔥 NEW: View PDF */}
-      {g.request_doc_path && (
-        <button
-          onClick={() =>
-            window.open(
-              `http://localhost:3000/${g.request_doc_path}`,
-              "_blank"
-            )
-          }
-          className="icon-btn text-indigo-600"
-          title="View Request Document"
-        >
-          <FileText className="w-4 h-4" />
-        </button>
-      )}
+          {/* 🔥 NEW: View PDF */}
+          {g.request_doc_path && (
+            <button
+              onClick={() =>
+                window.open(
+                  `http://localhost:3000/${g.request_doc_path}`,
+                  "_blank"
+                )
+              }
+              className="icon-btn text-indigo-600"
+              title="View Request Document"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+          )}
+
+          <button
+            disabled={g.is_active === false}
+            onClick={async () => {
+              try {
+                setOfficerGuest(g);
+
+                // Load Existing Medical Assignment
+                const medicalRes =
+                  await getGuestMedicalContacts(
+                    g.guest_id
+                  );
+
+                const medical =
+                  medicalRes?.data?.[0];
+
+                console.log(
+                  "Existing Medical:",
+                  medical
+                );
+
+                if (medical) {
+                  setExistingMedicalAssignment(
+                    medical
+                  );
+
+                  setMedicalOfficerId(
+                    medical.service_id || ""
+                  );
+                } else {
+                  setExistingMedicalAssignment(
+                    null
+                  );
+
+                  setMedicalOfficerId("");
+                }
+
+                // Load Existing Liaison Assignment
+                const liaisonRes =
+                  await getGuestLiasoningOfficers(
+                    g.guest_id
+                  );
+
+                const liaison =
+                  liaisonRes?.data?.[0];
+
+                console.log(
+                  "Existing Liaison:",
+                  liaison
+                );
+
+                if (liaison) {
+                  setExistingLiaisonAssignment(
+                    liaison
+                  );
+
+                  setLiaisonOfficerId(
+                    liaison?.officer_id || ""
+                  );
+
+                  setLiaisonFromDate(
+                    liaison?.from_date?.split("T")[0] || ""
+                  );
+
+                  setLiaisonToDate(
+                    liaison?.to_date?.split("T")[0] || ""
+                  );
+
+                  setDutyLocation(
+                    liaison?.duty_location || ""
+                  );
+                } else {
+                  setExistingLiaisonAssignment(null);
+
+                  setLiaisonOfficerId("");
+
+                  setLiaisonFromDate("");
+
+                  setLiaisonToDate("");
+
+                  setDutyLocation("");
+                }
+
+                setShowOfficerModal(true);
+
+              } catch (err) {
+                console.error(err);
+
+                showError(
+                  "Failed to load assignments"
+                );
+              }
+            }}
+            className={`icon-btn ${
+              g.is_active === false
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-cyan-600"
+            }`}
+            title="Assign Officers"
+          >
+            <UserCheck className="w-4 h-4" />
+          </button>
+
           {/* Delete */}
           <button
+            disabled={g.is_active === false}
             onClick={() => {
               setSelectedGuest(g);
               setShowDeleteConfirm(true);
             }}
-            className="icon-btn text-red-600"
+            className={`icon-btn ${
+              g.is_active === false
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-red-600"
+            }`}
             title="Delete"
           >
             <Trash2 className="w-4 h-4" />
@@ -357,7 +533,52 @@ export function GuestManagement() {
     window.addEventListener("click", closeDropdown);
     return () => window.removeEventListener("click", closeDropdown);
   }, []);
+  useEffect(() => {
+    async function loadOfficers() {
+      try {
+        console.log(
+          "Fetching liaison officers..."
+        );
 
+        const liaison =
+          await getActiveLiaisonOfficers();
+
+        console.log(
+          "Liaison API Response:",
+          liaison
+        );
+
+        console.log(
+          "Fetching medical officers..."
+        );
+
+        const medical =
+          await getActiveMedicalOfficers();
+
+        console.log(
+          "Medical API Response:",
+          medical
+        );
+
+        setLiaisonOfficers(liaison || []);
+        setMedicalOfficers(medical || []);
+      } catch (err) {
+        console.error(
+          "Failed to load officers",
+          err
+        );
+
+        showError(
+          "Unable to load officers. Check console."
+        );
+
+        setLiaisonOfficers([]);
+        setMedicalOfficers([]);
+      }
+    }
+
+    loadOfficers();
+  }, []);
   // useEffect(() => {
   //   console.log("Status counts:", statusCounts);
   // }, [statusCounts]);
@@ -861,6 +1082,22 @@ export function GuestManagement() {
                       <ViewRow label="Organization" value={selectedGuest.organization} />
                       <ViewRow label="Office Location" value={selectedGuest.office_location} />
                     </div>
+                    {/* OFFICER DETAILS */}
+                    <div className="viewSection">
+                      <h3>Assigned Officers</h3>
+
+                      <div className="viewFormGrid">
+                        <ViewRow
+                          label="Liaison Officer"
+                          value={selectedGuest.liaison_officer_name}
+                        />
+
+                        <ViewRow
+                          label="Medical Officer"
+                          value={selectedGuest.medical_officer_name}
+                        />
+                      </div>
+                    </div>
                   </div>
 
 
@@ -927,6 +1164,264 @@ export function GuestManagement() {
                   onClick={confirmCancelVisit}
                 >
                   Yes, Cancel Visit
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        showOfficerModal && officerGuest && (
+          <div className="modalOverlay">
+            <div className="modal medium">
+              <h3>Assign Officers</h3>
+
+              <div className="modalBody">
+                <p>
+                  Guest: <strong>{officerGuest.guest_name}</strong>
+                </p>
+                {
+                  existingLiaisonAssignment && (
+                    <div className="mb-3 text-sm">
+                      Current Liaison:
+                      <strong>
+                        {" "}
+                        {
+                          existingLiaisonAssignment
+                            .officer_name
+                        }
+                      </strong>
+                    </div>
+                  )
+                }
+
+                {
+                  existingMedicalAssignment && (
+                    <div className="mb-3 text-sm">
+                      Current Medical:
+                      <strong>
+                        {" "}
+                        {
+                          existingMedicalAssignment
+                            .service_provider_name
+                        }
+                      </strong>
+                    </div>
+                  )
+                }
+                {/* Liaison Officer */}
+                <div style={{ marginTop: "15px" }}>
+                  <label>Liaison Officer</label>
+
+                  <select
+                    className="nicInput"
+                    value={liaisonOfficerId}
+                    onChange={(e) =>
+                      setLiaisonOfficerId(e.target.value)
+                    }
+                  >
+                    <option value="">
+                      Select Liaison Officer
+                    </option>
+
+                    {(liaisonOfficers || []).map((o) => {
+                      console.log("Liaison Officer Row:", o);
+
+                      return (
+                        <option
+                          key={o.officer_id}
+                          value={o.officer_id}
+                        >
+                          {o.full_name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {/* <p>
+                    Liaison Count:
+                    {liaisonOfficers.length}
+                  </p>
+
+                  <pre>
+                    {JSON.stringify(
+                      liaisonOfficers,
+                      null,
+                      2
+                    )}
+                  </pre> */}
+                </div>
+                <div style={{ marginTop: "15px" }}>
+                  <label>From Date</label>
+
+                  <input
+                    type="date"
+                    className="nicInput"
+                    value={liaisonFromDate}
+                    onChange={(e) =>
+                      setLiaisonFromDate(
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div style={{ marginTop: "15px" }}>
+                  <label>To Date</label>
+
+                  <input
+                    type="date"
+                    className="nicInput"
+                    value={liaisonToDate}
+                    onChange={(e) =>
+                      setLiaisonToDate(
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div style={{ marginTop: "15px" }}>
+                  <label>Duty Location</label>
+
+                  <input
+                    className="nicInput"
+                    value={dutyLocation}
+                    onChange={(e) =>
+                      setDutyLocation(
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                {/* Medical Officer */}
+                <div style={{ marginTop: "15px" }}>
+                  <label>Medical Officer</label>
+
+                  <select
+                    className="nicInput"
+                    value={medicalOfficerId}
+                    onChange={(e) =>
+                      setMedicalOfficerId(e.target.value)
+                    }
+                  >
+                    <option value="">
+                      Select Medical Officer
+                    </option>
+
+                    {(medicalOfficers || []).map((o) => (
+                      <option
+                        key={o.service_id}
+                        value={o.service_id}
+                      >
+                        {o.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="modalActions">
+                <button
+                  onClick={() => {
+                    setShowOfficerModal(false);
+                    setOfficerGuest(null);
+                  }}
+                >
+                  Cancel
+                </button>
+
+                {/* REMOVE ASSIGNMENTS */}
+                {(existingLiaisonAssignment || existingMedicalAssignment) && (
+                  <button
+                    style={{ backgroundColor: "#dc2626" }}
+                    className="saveBtn"
+                    onClick={async () => {
+                      try {
+                        console.log("Remove assignments clicked");
+
+                        // Remove Liaison Assignment
+                        if (existingLiaisonAssignment) {
+                          await removeGuestLiasoningOfficer(existingLiaisonAssignment.glo_id);
+                        }
+
+                        // Remove Medical Assignment
+                        if (existingMedicalAssignment) {
+                          await removeGuestMedicalContact(existingMedicalAssignment.medical_contact_id);
+                        }
+
+                        showSuccess("Officers removed successfully");
+
+                        setShowOfficerModal(false);
+                        await loadGuests();
+
+                      } catch (err: any) {
+                        console.error(err);
+                        showError(
+                          err?.response?.data?.message || "Failed to remove officers"
+                        );
+                      }
+                    }}
+                  >
+                    Remove Assignments
+                  </button>
+                )}
+
+                {/* ASSIGN/UPDATE */}
+                <button
+                  className="saveBtn"
+                  onClick={async () => {
+                    try {
+                      console.log("Assign/Update clicked");
+
+                      // Liaison Assignment/Update
+                      if (liaisonOfficerId) {
+                        if (existingLiaisonAssignment) {
+                          // Update existing
+                          await updateGuestLiasoningOfficer(existingLiaisonAssignment.glo_id, {
+                            from_date: liaisonFromDate || undefined,
+                            to_date: liaisonToDate || undefined,
+                            duty_location: dutyLocation || undefined,
+                          });
+                        } else {
+                          // Create new
+                          await assignLiasoningOfficer({
+                            guest_id: officerGuest.guest_id,
+                            officer_id: liaisonOfficerId,
+                            from_date: liaisonFromDate || officerGuest.entry_date || "",
+                            to_date: liaisonToDate || officerGuest.exit_date || undefined,
+                            duty_location: dutyLocation || officerGuest.office_location || undefined,
+                          });
+                        }
+                      }
+
+                      // Medical Assignment (always create new, as it's 1:1)
+                      if (medicalOfficerId && !existingMedicalAssignment) {
+                        await assignMedicalContactToGuest({
+                          guest_id: officerGuest.guest_id,
+                          service_id: medicalOfficerId,
+                        });
+                      }
+
+                      showSuccess(
+                        existingLiaisonAssignment || existingMedicalAssignment
+                          ? "Officers updated successfully"
+                          : "Officers assigned successfully"
+                      );
+
+                      setShowOfficerModal(false);
+                      await loadGuests();
+
+                    } catch (err: any) {
+                      console.error(err);
+                      showError(
+                        err?.response?.data?.message || "Failed to assign/update officers"
+                      );
+                    }
+                  }}
+                >
+                  {existingLiaisonAssignment || existingMedicalAssignment ? "Update" : "Assign"}
                 </button>
               </div>
             </div>

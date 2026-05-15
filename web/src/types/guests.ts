@@ -31,4 +31,11 @@ export interface ActiveGuestRow {
   rooms_required?: number;
   companions?: number;
   request_doc_path?: string;
+  is_active?: boolean;
+
+  liaison_officer_id?: string;
+  liaison_officer_name?: string;
+
+  medical_officer_id?: string;
+  medical_officer_name?: string;
 }

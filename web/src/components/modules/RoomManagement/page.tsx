@@ -6,12 +6,12 @@ import { DataTable, type Column } from "@/components/ui/DataTable";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageToolbar } from "@/components/layout/PageToolbar";
 import "./RoomManagement.css";
-import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X, DoorOpen } from 'lucide-react';
+import { Search, Plus, Loader2, Eye, Edit, XCircle, User, Trash2, Layers, CheckCircle, UserCheck, UserCog, X } from 'lucide-react';
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { StatCard } from "@/components/ui/StatCard";
 import { ZodError } from "zod";
 import { getActiveHousekeeping, createHousekeeping, updateHousekeeping, softDeleteHousekeeping, getRoomBoyOptions } from "../../../api/housekeeping.api";
-import { createGuestRoom, updateGuestRoom, getRoomReservations } from "../../../api/guestRoom.api";
+import { createGuestRoom, updateGuestRoom } from "../../../api/guestRoom.api";
 import { assignRoomBoyToRoom, unassignRoomBoy } from "../../../api/guestHousekeeping.api";
 import { createRoom } from "../../../api/rooms.api";
 import { getRoomManagementOverview, updateFullRoom, getAssignableGuests, getRoomStatusCounts } from "../../../api/roomManagement.api";
@@ -137,9 +137,9 @@ export function RoomManagement() {
   // Assignment form (for assigning room boy to a room)
   const [reservationRoom, setReservationRoom] = useState<RoomRow | null>(null);
 
-  const [roomReservations, setRoomReservations] = useState<any[]>([]);
+  // const [roomReservations, setRoomReservations] = useState<any[]>([]);
 
-  const [loadingReservations, setLoadingReservations] = useState(false);
+  // const [loadingReservations, setLoadingReservations] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormType>({
     roomBoyId: "",
     // assignmentDate: "",
@@ -206,23 +206,23 @@ export function RoomManagement() {
   //   loadRoomBoys();
   // }, []);
 
-  async function openReservationsModal(room: RoomRow) {
-    try {
-      setReservationRoom(room);
-      setLoadingReservations(true);
+  // async function openReservationsModal(room: RoomRow) {
+  //   try {
+  //     setReservationRoom(room);
+  //     setLoadingReservations(true);
 
-      const data = await getRoomReservations(room.roomId);
+  //     const data = await getRoomReservations(room.roomId);
 
-      setRoomReservations(data);
-    } catch (err: any) {
-      showError(
-        err?.response?.data?.message ||
-        "Failed to load reservations"
-      );
-    } finally {
-      setLoadingReservations(false);
-    }
-  }
+  //     setRoomReservations(data);
+  //   } catch (err: any) {
+  //     showError(
+  //       err?.response?.data?.message ||
+  //       "Failed to load reservations"
+  //     );
+  //   } finally {
+  //     setLoadingReservations(false);
+  //   }
+  // }
 
   async function loadRooms() {
     try {
@@ -1011,12 +1011,12 @@ function applyCardView(card: RoomCardFilter) {
               <User />
             </button>
           )}
-          <button
+          {/* <button
             className="tableActionBtn"
             onClick={() => openReservationsModal(row)}
           >
             <DoorOpen />
-          </button>
+          </button> */}
         </div>
       ),
     },
@@ -1244,7 +1244,7 @@ function applyCardView(card: RoomCardFilter) {
                 onClick={() => applyCardView("WITH_GUEST")}
               /> */}
               <StatCard
-                title="Housekeeping"
+                title="Room Boys Assigned"
                 value={roomStats.withHousekeeping}
                 icon={UserCog}
                 variant="purple"
@@ -1538,7 +1538,7 @@ function applyCardView(card: RoomCardFilter) {
                 className="closeBtn"
                 onClick={() => {
                   setReservationRoom(null);
-                  setRoomReservations([]);
+                  // setRoomReservations([]);
                 }}
               >
                 ✕
@@ -1548,7 +1548,7 @@ function applyCardView(card: RoomCardFilter) {
             {/* BODY */}
             <div className="nicModalBody">
 
-              {loadingReservations ? (
+              {/* {loadingReservations ? (
                 <p>Loading reservations...</p>
               ) : roomReservations.length === 0 ? (
                 <p>No reservations found.</p>
@@ -1581,7 +1581,7 @@ function applyCardView(card: RoomCardFilter) {
                     ))}
                   </tbody>
                 </table>
-              )}
+              )} */}
 
             </div>
           </div>

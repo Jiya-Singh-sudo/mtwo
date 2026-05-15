@@ -1,4 +1,4 @@
-import { safeGet, safePost, safePatch, safeDelete } from './httpHelpers';
+import { safeGet, safePost, safePut, safeDelete } from './httpHelpers';
 
 export type PaginatedResponse<T> = {
   data: T[];
@@ -11,7 +11,11 @@ export type PaginatedResponse<T> = {
 export async function getLiasoningOfficerById(id: string) {
   return safeGet(`/liasoning-officer/${id}`);
 }
+export async function getActiveLiaisonOfficers() {
+  const response = await safeGet("/liasoning-officer/active");
 
+  return response?.data ?? response;
+}
 export async function getLiasoningOfficers(params: {
   page: number;
   limit: number;
@@ -38,12 +42,12 @@ export async function getLiasoningOfficers(params: {
 export async function createLiasoningOfficer(payload: {
   // officer_id: string;
   officer_name: string;
-  officer_name_local_language?: string;
+  // officer_name_local_language?: string;
   mobile: string;
   alternate_mobile?: string;
   // email?: string;
-  role_id: string;
-  department?: string;
+  // role_id: string;
+  // department?: string;
   // designation?: string;
   is_active?: boolean;
 }) {
@@ -58,17 +62,17 @@ export async function updateLiasoningOfficer(
   id: string,
   payload: Partial<{
     officer_name: string;
-    officer_name_local_language: string;
+    // officer_name_local_language: string;
     mobile: string;
     alternate_mobile: string;
     // email: string;
-    role_id: string;
-    department: string;
+    // role_id: string;
+    // department: string;
     designation: string;
     is_active: boolean;
   }>
 ) {
-  return safePatch(`/liasoning-officer/${id}`, payload);
+  return safePut(`/liasoning-officer/${id}`, payload);
 }
 
 /* =========================

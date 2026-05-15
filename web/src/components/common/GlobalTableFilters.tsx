@@ -15,6 +15,7 @@ type Props = {
 
     children?: React.ReactNode;
     variant?: "toolbar" | "default";
+    className?: string;
 };
 
 export default function GlobalTableFilters({
@@ -26,16 +27,30 @@ export default function GlobalTableFilters({
     setToDate,
     onReset,
     children,
-    variant = "default"
+    variant = "default",
+    className = ""
 }: Props) {
-    const wrapperClassName = `flex items-center gap-3 w-full flex-nowrap bg-white border rounded-sm p-4 ${variant === "toolbar" ? "bg-slate-50" : ""}`;
+    const wrapperClassName = `
+      infoFilters
+      flex
+      items-end
+      gap-4
+      w-full
+      flex-nowrap
+      bg-white
+      border
+      rounded-sm
+      p-4
+      ${variant === "toolbar" ? "bg-slate-50" : ""}
+      ${className}
+    `;
 
     return (
         <div className={wrapperClassName}>
 
             {/* SEARCH */}
             <div className="flex-1 min-w-[260px] max-w-md">
-                <label className="text-xs text-gray-500 block mb-1">Search</label>
+                <label className="text-xs text-gray-500 block mb-2">Search</label>
                 <input
                     type="text"
                     placeholder="Search by name, department or ID..."
@@ -47,7 +62,7 @@ export default function GlobalTableFilters({
 
             {/* FROM */}
             <div className="shrink-0">
-                <label className="text-xs text-gray-500 block mb-1">From</label>
+                <label className="text-xs text-gray-500 block mb-2">From</label>
                 <input
                     type="date"
                     value={fromDate}
@@ -58,7 +73,7 @@ export default function GlobalTableFilters({
 
             {/* TO */}
             <div className="shrink-0">
-                <label className="text-xs text-gray-500 block mb-1">To</label>
+                <label className="text-xs text-gray-500 block mb-2">To</label>
                 <input
                     type="date"
                     value={toDate}
@@ -68,17 +83,16 @@ export default function GlobalTableFilters({
             </div>
 
             {/* RESET */}
-            <div className="shrink-0 flex items-end h-[60px]">
+            <div className="shrink-0 self-end">
                 <button
                     onClick={onReset}
-                    className="secondaryBtn h-10 px-4 border rounded-sm bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+                    className="secondaryBtn h-11 px-5 border rounded-md bg-white hover:bg-gray-100 text-sm font-medium"
                 >
                     Reset
                 </button>
             </div>
 
-            {/* EXISTING BUTTON — UNTOUCHED */}
-            <div className="shrink-0 flex items-end h-[60px]">
+            <div className="shrink-0 self-end">
                 {children}
             </div>
 

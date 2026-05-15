@@ -216,3 +216,283 @@ button:disabled {
   background: #ffedd5;
   color: #9a3412;
 }
+
+/* ==========================================
+   VIEW GUEST MODAL ENHANCEMENTS
+========================================== */
+
+.viewGuestModal {
+  width: 850px;
+  max-width: 95%;
+
+  border-radius: 12px;
+
+  padding: 24px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.08);
+
+  animation: modalFade 0.25s ease;
+}
+
+/* ---------- HEADER ---------- */
+
+.nicModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nicModalHeader h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #00247d;
+}
+
+/* ---------- GRID ---------- */
+
+.guestViewGrid {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 20px;
+}
+
+/* ---------- FIELD ---------- */
+
+.guestViewGrid label {
+  display: block;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #6b7280;
+
+  margin-bottom: 8px;
+
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- VALUE BOX ---------- */
+
+.viewBox {
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 12px 14px;
+
+  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+
+  color: #00247d;
+  font-size: 14px;
+  font-weight: 500;
+
+  transition: all 0.2s ease;
+}
+
+.viewBox:hover {
+  border-color: #16a34a;
+
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
+}
+
+/* ---------- ACTION ICONS ---------- */
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: transparent;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #f3f4f6;
+
+  transform: scale(1.08);
+}
+
+/* ---------- VIEW ICON ---------- */
+
+.icon-btn.text-blue-600:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* ---------- EDIT ICON ---------- */
+
+.icon-btn.text-green-600:hover {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+/* ---------- DELETE ICON ---------- */
+
+.icon-btn.text-red-600:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ---------- MODAL ANIMATION ---------- */
+
+@keyframes modalFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 768px) {
+  .guestViewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewGuestModal {
+    width: 95%;
+    padding: 18px;
+  }
+}
+
+/* ==========================================
+   GUEST DETAILS MODAL
+========================================== */
+
+/* ==========================================
+   GUEST DETAILS MODAL (ENTERPRISE GRID)
+========================================== */
+
+.guestDetailsModal {
+  width: 950px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* HORIZONTAL DETAIL GRID (3-column) */
+.detailGridHorizontal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+/* Responsive fallback */
+@media (max-width: 1024px) {
+  .detailGridHorizontal {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Detail section cards */
+.detailSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  background: #ffffff;
+  min-height: 280px;
+}
+
+.detailSection h4 {
+  color: #00247d;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detailSection p {
+  margin-bottom: 12px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.detailSection b {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* MODAL BODY SCROLL */
+.nicModalBody {
+  padding: 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* ==========================================
+   INFO PACKAGE FILTERS ALIGNMENT
+========================================== */
+
+.infoFilters {
+  display: flex !important; /* Back to flex, but with precision */
+  align-items: flex-end !important;
+  gap: 20px !important;
+  padding: 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+}
+
+/* Ensure consistent height for all inputs and buttons */
+.infoFilters input,
+.infoFilters .secondaryBtn {
+  height: 42px !important;
+  border-radius: 6px !important;
+}
+
+/* Reset Button specific styling */
+.infoFilters .secondaryBtn {
+  min-width: 120px;
+  background: #f3f4f6 !important;
+  border: 1px solid #d1d5db !important;
+  color: #374151 !important;
+  font-weight: 600 !important;
+  margin-bottom: 0 !important; /* Ensure no stray margins */
+}
+
+.infoFilters .secondaryBtn:hover {
+  background: #e5e7eb !important;
+}
+
+/* Responsive adjustment */
+@media (max-width: 1024px) {
+  .infoFilters {
+    flex-wrap: wrap !important;
+  }
+  .infoFilters > div {
+    flex: 1 1 200px;
+  }
+}

@@ -8,7 +8,12 @@ export type PaginatedResponse<T> = {
 /* =========================
    GET (Data Table Version)
 ========================= */
-
+export async function getActiveMedicalOfficers() {
+  const response = await safeGet(
+    "/medical-emergency-service/active"
+  );
+  return response?.data ?? response;
+}
 export async function getMedicalEmergencyServices(params: {
   page: number;
   limit: number;
@@ -34,15 +39,11 @@ export async function getMedicalEmergencyServices(params: {
 ========================= */
 
 export async function createMedicalEmergencyService(payload: {
-  service_id: string;
   service_provider_name: string;
-  service_provider_name_local_language?: string;
-  service_type: string;
   mobile: string;
   alternate_mobile?: string;
   // email?: string;
   // address_line?: string;
-  distance_from_guest_house?: string;
   is_active?: boolean;
 }) {
   return safePost('/medical-emergency-service', payload);
@@ -55,14 +56,15 @@ export async function createMedicalEmergencyService(payload: {
 export async function updateMedicalEmergencyService(
   id: string,
   payload: Partial<{
+    service_id: string;
     service_provider_name: string;
-    service_provider_name_local_language: string;
-    service_type: string;
+    // service_provider_name_local_language: string;
+    // service_type: string;
     mobile: string;
     alternate_mobile: string;
     // email: string;
     // address_line: string;
-    distance_from_guest_house: string;
+    // distance_from_guest_house: string;
     is_active: boolean;
   }>
 ) {

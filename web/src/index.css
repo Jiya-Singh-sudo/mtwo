@@ -10,6 +10,59 @@
   gap: 16px;
   margin-bottom: 8px;
 }
+
+/* =========================
+   INACTIVE / DELETED ROWS
+========================= */
+
+.inactiveRow {
+  opacity: 0.5;
+
+  background: #f9fafb !important;
+
+  transition: all 0.2s ease;
+}
+
+.inactiveRow td {
+  color: #9ca3af !important;
+}
+
+.inactiveRow p,
+.inactiveRow span,
+.inactiveRow div {
+  color: #9ca3af !important;
+}
+
+/* Prevent hover highlight */
+.inactiveRow:hover {
+  background: #f3f4f6 !important;
+}
+
+/* Disable action buttons visually */
+.inactiveRow .icon-btn {
+  opacity: 0.75;
+}
+
+/* Keep view button usable */
+.inactiveRow .icon-btn.text-blue-600 {
+  opacity: 1 !important;
+}
+
+.inactiveBadge {
+  padding: 2px 8px;
+
+  border-radius: 999px;
+
+  background: #fee2e2;
+
+  color: #b91c1c;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+}
 @media (max-width: 1024px) {
   .statsGrid {
     grid-template-columns: repeat(3, 1fr);

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Edit, Trash2, Eye, Plus } from 'lucide-react';
-import { Car, CheckCircle, AlertCircle } from "lucide-react";
-import { StatCard } from "@/components/ui/StatCard";
+// import { Car, CheckCircle, AlertCircle } from "lucide-react";
+// import { StatCard } from "@/components/ui/StatCard";
 // import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
-import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle, getVehicleStats } from '../../../api/vehicles.api';
+import { getVehiclesTable, createVehicle, updateVehicle, softDeleteVehicle } from '../../../api/vehicles.api';
 import { getDriversTable, createDriver, softDeleteDriver, updateDriver } from '../../../api/driver.api';
 import { VehicleUpdateDto } from '../../../types/vehicles';
 import { CreateDriverDto } from '../../../types/drivers';
@@ -64,15 +64,15 @@ export function VehicleManagement() {
   const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [showDeleteVehicleConfirm, setShowDeleteVehicleConfirm] = useState(false);
   const [viewVehicle, setViewVehicle] = useState<Vehicle | null>(null);
-  const [vehicleStats, setVehicleStats] = useState<{
-    total: number;
-    active: number;
-    inactive: number;
-  }>({
-    total: 0,
-    active: 0,
-    inactive: 0,
-  });
+  // const [vehicleStats, setVehicleStats] = useState<{
+  //   total: number;
+  //   active: number;
+  //   inactive: number;
+  // }>({
+  //   total: 0,
+  //   active: 0,
+  //   inactive: 0,
+  // });
 
   // Driver modals
   const [showAddDriver, setShowAddDriver] = useState(false);
@@ -153,14 +153,14 @@ export function VehicleManagement() {
 
     load();
   }, [driverTable.query]);
-  useEffect(() => {
-    async function loadStats() {
-      const stats = await getVehicleStats();
-      setVehicleStats(stats);
-    }
+  // useEffect(() => {
+  //   async function loadStats() {
+  //     const stats = await getVehicleStats();
+  //     setVehicleStats(stats);
+  //   }
 
-    loadStats();
-  }, []);
+  //   loadStats();
+  // }, []);
 
   // useEffect(() => {
   //   async function loadDriverStats() {
@@ -431,6 +431,12 @@ export function VehicleManagement() {
       accessor: 'vehicle_no',
       sortable: true,
       sortKey: 'vehicle_no',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <p>{row.vehicle_no}</p>
+          {!row.is_active && <span className="inactiveBadge">Inactive</span>}
+        </div>
+      ),
     },
     {
       header: 'Vehicle Name',
@@ -474,7 +480,12 @@ export function VehicleManagement() {
 
           {/* Edit */}
           <button
-            className="icon-btn text-green-600"
+            disabled={!row.is_active}
+            className={`icon-btn ${
+              row.is_active
+                ? "text-green-600"
+                : "text-gray-400 cursor-not-allowed"
+            }`}
             title="Edit"
             onClick={() => openEditVehicleModal(row)}
           >
@@ -483,7 +494,12 @@ export function VehicleManagement() {
 
           {/* Delete */}
           <button
-            className="icon-btn text-red-600"
+            disabled={!row.is_active}
+            className={`icon-btn ${
+              row.is_active
+                ? "text-red-600"
+                : "text-gray-400 cursor-not-allowed"
+            }`}
             title="Delete"
             onClick={() => openDeleteVehicleDialog(row)}
           >
@@ -502,7 +518,14 @@ export function VehicleManagement() {
       sortKey: 'driver_name',
       render: (row) => (
         <>
-          <p>{row.driver_name}</p>
+          <div className="flex items-center gap-2">
+            <p>{row.driver_name}</p>
+            {!row.is_active && (
+              <span className="inactiveBadge">
+                Inactive
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500">
             {row.driver_name_ll}
           </p>
@@ -560,7 +583,12 @@ export function VehicleManagement() {
 
           {/* Edit */}
           <button
-            className="icon-btn text-green-600"
+            disabled={!row.is_active}
+            className={`icon-btn ${
+              row.is_active
+                ? "text-green-600"
+                : "text-gray-400 cursor-not-allowed"
+            }`}
             title="Edit"
             onClick={() => openEditDriverModal(row)}
           >
@@ -569,7 +597,12 @@ export function VehicleManagement() {
 
           {/* Delete */}
           <button
-            className="icon-btn text-red-600"
+            disabled={!row.is_active}
+            className={`icon-btn ${
+              row.is_active
+                ? "text-red-600"
+                : "text-gray-400 cursor-not-allowed"
+            }`}
             title="Delete"
             onClick={() => openDeleteDriverDialog(row)}
           >
@@ -643,48 +676,48 @@ export function VehicleManagement() {
               }
             />
           }
-          stats={
-            <>
-              {/* TOTAL = ALL */}
-              <StatCard
-                title="Total Vehicles"
-                value={vehicleStats.total}
-                icon={Car}
-                variant="blue"
-                active={vehicleTable.query.status === undefined}
-                onClick={() => {
-                  vehicleTable.setStatus(undefined);
-                  vehicleTable.setPage(1);
-                }}
-              />
+          // stats={
+          //   <>
+          //     {/* TOTAL = ALL */}
+          //     <StatCard
+          //       title="Total Vehicles"
+          //       value={vehicleStats.total}
+          //       icon={Car}
+          //       variant="blue"
+          //       active={vehicleTable.query.status === undefined}
+          //       onClick={() => {
+          //         vehicleTable.setStatus(undefined);
+          //         vehicleTable.setPage(1);
+          //       }}
+          //     />
 
-              {/* ACTIVE */}
-              <StatCard
-                title="Active Vehicles"
-                value={vehicleStats.active}
-                icon={CheckCircle}
-                variant="green"
-                active={vehicleTable.query.status === "ACTIVE"}
-                onClick={() => {
-                  vehicleTable.setStatus('ACTIVE');
-                  vehicleTable.setPage(1);
-                }}
-              />
+          //     {/* ACTIVE */}
+          //     <StatCard
+          //       title="Active Vehicles"
+          //       value={vehicleStats.active}
+          //       icon={CheckCircle}
+          //       variant="green"
+          //       active={vehicleTable.query.status === "ACTIVE"}
+          //       onClick={() => {
+          //         vehicleTable.setStatus('ACTIVE');
+          //         vehicleTable.setPage(1);
+          //       }}
+          //     />
 
-              {/* INACTIVE */}
-              <StatCard
-                title="Inactive Vehicles"
-                value={vehicleStats.inactive}
-                icon={AlertCircle}
-                variant="red"
-                active={vehicleTable.query.status === "INACTIVE"}
-                onClick={() => {
-                  vehicleTable.setStatus('INACTIVE');
-                  vehicleTable.setPage(1);
-                }}
-              />
-            </>
-          }
+          //     {/* INACTIVE */}
+          //     <StatCard
+          //       title="Inactive Vehicles"
+          //       value={vehicleStats.inactive}
+          //       icon={AlertCircle}
+          //       variant="red"
+          //       active={vehicleTable.query.status === "INACTIVE"}
+          //       onClick={() => {
+          //         vehicleTable.setStatus('INACTIVE');
+          //         vehicleTable.setPage(1);
+          //       }}
+          //     />
+          //   </>
+          // }
         >
           {/* Vehicle List Table */}
           <div className="bg-white border rounded-sm overflow-hidden">

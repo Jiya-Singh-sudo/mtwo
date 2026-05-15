@@ -94,6 +94,11 @@ export function ResetPasswordPage() {
     e.preventDefault();
     setError("");
 
+    if (!email) {
+      setError("Unable to reset password. Email is missing. Please start again from the forgot password page.");
+      return;
+    }
+
     // Validate password strength
     const allStrengthMet = Object.values(passwordStrength).every((v) => v);
 
@@ -111,18 +116,22 @@ export function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
-      await resetPasswordApi(email, newPassword);
+      console.log("Reset password request", { email, newPassword });
 
-      setIsLoading(false);
+      const response = await resetPasswordApi(email, newPassword);
+
+      console.log("Reset password response", response);
+      navigate("/");
 
       setShowSuccessDialog(true);
     } catch (err: any) {
-      setIsLoading(false);
-
+      console.error("Reset password error", err);
       setError(
         err?.response?.data?.message ||
         "Failed to reset password"
       );
+    } finally {
+      setIsLoading(false);
     }
   };
   const handleSuccessClose = () => {
@@ -235,6 +244,7 @@ export function ResetPasswordPage() {
               type="submit"
               disabled={isLoading}
               className="w-full h-14 bg-[#4267B2] hover:bg-[#365899] text-white"
+              onClick={handleSubmit}
             >
               {isLoading ? "Resetting Password..." : "Reset Password"}
             </Button>

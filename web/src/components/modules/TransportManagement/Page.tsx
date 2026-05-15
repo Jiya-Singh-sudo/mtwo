@@ -85,8 +85,9 @@ function GuestTransportManagement() {
 
 
   const GuestTable = useTableQuery({
+    prefix: "guest",
     sortBy: "entry_date",
-    sortOrder: "desc",
+    sortOrder: "asc",
     limit: 6, // cards per page
   });
   const [rows, setRows] = useState<GuestTransportRow[]>([]);
@@ -419,7 +420,7 @@ function GuestTransportManagement() {
 
     try {
       const list = await getAssignableVehicles();
-      // console.log("Vehicles:", list);
+      console.log("Vehicles:", list);
       setVehicles(list || []);
     } catch (err) {
       console.error("Vehicle load failed", err);
@@ -1081,6 +1082,32 @@ function GuestTransportManagement() {
                     setDriverForm({ ...driverForm, start_time: v })
                   }
                 />
+                <h4>Drop Details</h4>
+
+                <input
+                  type="date"
+                  min={assignWindow?.minDate}
+                  max={assignWindow?.maxDate}
+                  className="nicInput"
+                  value={driverForm.drop_date}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, drop_date: e.target.value })
+                  }
+                  onBlur={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
+                />
+                <FieldError message={formErrors.drop_date} />
+                {/* <p className="errorText">{formErrors.drop_date}</p> */}
+
+
+                <TimePicker12h
+                  label="Drop Time"
+                  value={driverForm.drop_time}
+                  onChange={(v) =>
+                    setDriverForm({ ...driverForm, drop_time: v })
+                  }
+                />
+                <FieldError message={formErrors.drop_time} />
                <hr />
                 <select
                   className="nicInput"
@@ -1140,34 +1167,7 @@ function GuestTransportManagement() {
                 />
                 <FieldError message={formErrors.drop_location} />
 
-                <hr />
-
-                <h4>Drop Details</h4>
-
-                <input
-                  type="date"
-                  min={assignWindow?.minDate}
-                  max={assignWindow?.maxDate}
-                  className="nicInput"
-                  value={driverForm.drop_date}
-                  onChange={(e) =>
-                    setDriverForm({ ...driverForm, drop_date: e.target.value })
-                  }
-                  onBlur={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
-                  onKeyUp={() => validateSingleField(assignDriverSchema, "drop_date", driverForm.drop_date, setFormErrors)}
-                />
-                <FieldError message={formErrors.drop_date} />
-                {/* <p className="errorText">{formErrors.drop_date}</p> */}
-
-
-                <TimePicker12h
-                  label="Drop Time"
-                  value={driverForm.drop_time}
-                  onChange={(v) =>
-                    setDriverForm({ ...driverForm, drop_time: v })
-                  }
-                />
-                <FieldError message={formErrors.drop_time} />
+                {/* <hr /> */}
               </div>
 
               <div className="nicModalActions">

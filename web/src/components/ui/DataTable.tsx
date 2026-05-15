@@ -100,7 +100,7 @@ export function DataTable<T extends Record<string, any>>({
               data.map((row) => (
                 <tr
                   key={String(row[keyField])}
-                  className={`border-b ${loading ? "" : "hover:bg-gray-50"}`}>
+                  className={`border-b ${row.is_active === false ? "inactiveRow" : loading ? "" : "hover:bg-gray-50"}`}>
                 {columns.map((col, idx) => (
                     <td key={idx} className="px-6 py-4">
                         {col.render

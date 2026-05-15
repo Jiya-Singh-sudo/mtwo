@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState, useRef } from "react";
-import { Plus, Eye, Edit, User, XCircle, Trash2, Wifi, Router, ShieldAlert, CheckCircle, Smartphone } from "lucide-react";
+import { Plus, Eye, Edit, Wifi, XCircle, Trash2, EyeOff } from "lucide-react";
 import { GuestTableFilters } from "@/components/guest/GuestTableFilters";
 import { Button } from "@/components/ui/button";
 import { ZodError } from "zod";
-import { StatCard } from "@/components/ui/StatCard";
+// import { StatCard } from "@/components/ui/StatCard";
+import { FilterField } from "@/components/ui/FilterField";
 import { getNetworkTable, softDeleteNetwork, updateNetwork, createNetwork } from "@/api/network.api";
 import { getMessengerTable, softDeleteMessenger, createMessenger, updateMessenger } from "@/api/messenger.api";
 import { getGuestNetworkTable, createGuestNetwork, getActiveProviders } from "@/api/guestNetwork.api";
@@ -145,30 +146,31 @@ export default function NetworkManagement() {
 
     const [networkTotal, setNetworkTotal] = useState(0);
     const [networkLoading, setNetworkLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [messengerTotal, setMessengerTotal] = useState(0);
     const [messengerLoading, setMessengerLoading] = useState(false);
 
     /* ================= STATS STATE ================= */
-    const [guestStats, setGuestStats] = useState({
-        total: 0,
-        requested: 0,
-        connected: 0,
-        disconnected: 0,
-        issueReported: 0,
-        resolved: 0,
-        cancelled: 0,
-        messengerAssigned: 0,
-    });
-    const [networkStats, setNetworkStats] = useState({
-        total: 0,
-        active: 0,
-        inactive: 0,
-        wifi: 0,
-        broadband: 0,
-        hotspot: 0,
-        leasedLine: 0,
-    });
+    // const [guestStats, setGuestStats] = useState({
+    //     total: 0,
+    //     requested: 0,
+    //     connected: 0,
+    //     disconnected: 0,
+    //     issueReported: 0,
+    //     resolved: 0,
+    //     cancelled: 0,
+    //     messengerAssigned: 0,
+    // });
+    // const [networkStats, setNetworkStats] = useState({
+    //     total: 0,
+    //     active: 0,
+    //     inactive: 0,
+    //     wifi: 0,
+    //     broadband: 0,
+    //     hotspot: 0,
+    //     leasedLine: 0,
+    // });
     // const [messengerStats, setMessengerStats] = useState({
     //     total: 0,
     //     active: 0,
@@ -176,11 +178,11 @@ export default function NetworkManagement() {
     //     assigned: 0,
     //     unassigned: 0,
     // });
-    function applyNetworkStatus(status: "all" | "active" | "inactive") {
-        networkTable.setPage(1);
-        networkTable.setStatus(status);
-        networkTable.setNetworkType?.(undefined);
-    }
+    // function applyNetworkStatus(status: "all" | "active" | "inactive") {
+    //     networkTable.setPage(1);
+    //     networkTable.setStatus(status);
+    //     networkTable.setNetworkType?.(undefined);
+    // }
     // function applyMessengerStatus(
     //     status: 'all' | 'active' | 'inactive' | 'assigned' | 'unassigned'
     // ) {
@@ -197,7 +199,7 @@ export default function NetworkManagement() {
             password: "",
             address: "",
         });
-
+        setShowPassword(false);
         setEditNetwork(null);
         setIsAddNetwork(false);
         setFormErrors({});
@@ -247,14 +249,16 @@ export default function NetworkManagement() {
         if (editNetwork) {
             setNetworkForm({
                 provider_name: editNetwork.provider_name || "",
-                provider_name_local_language: editNetwork.provider_name_local_language || "",
+                provider_name_local_language:
+                    editNetwork.provider_name_local_language || "",
                 network_type: editNetwork.network_type || "WiFi",
                 username: editNetwork.username || "",
-                password: "", // leave empty for security
+                password: editNetwork.password || "",
                 address: editNetwork.address || "",
             });
         }
     }, [editNetwork]);
+
     useEffect(() => {
         loadActiveProviders();
     }, []);
@@ -276,16 +280,16 @@ export default function NetworkManagement() {
 
             setGuestRows(res?.data ?? []);
             setGuestTotal(res?.totalCount ?? 0);
-            setGuestStats(res?.stats ?? {
-                total: 0,
-                requested: 0,
-                connected: 0,
-                disconnected: 0,
-                issueReported: 0,
-                resolved: 0,
-                cancelled: 0,
-                messengerAssigned: 0,
-            });
+            // setGuestStats(res?.stats ?? {
+            //     total: 0,
+            //     requested: 0,
+            //     connected: 0,
+            //     disconnected: 0,
+            //     issueReported: 0,
+            //     resolved: 0,
+            //     cancelled: 0,
+            //     messengerAssigned: 0,
+            // });
 
         } catch (err) {
             console.error("Guest network load failed:", err);
@@ -326,15 +330,15 @@ export default function NetworkManagement() {
             setNetworks(res?.data ?? []);
             setNetworkTotal(res?.totalCount ?? 0);
 
-            setNetworkStats({
-                total: res?.stats?.total ?? 0,
-                active: res?.stats?.active ?? 0,
-                inactive: res?.stats?.inactive ?? 0,
-                wifi: res?.stats?.wifi ?? 0,
-                broadband: res?.stats?.broadband ?? 0,
-                hotspot: res?.stats?.hotspot ?? 0,
-                leasedLine: res?.stats?.leasedLine ?? 0,
-            });
+            // setNetworkStats({
+            //     total: res?.stats?.total ?? 0,
+            //     active: res?.stats?.active ?? 0,
+            //     inactive: res?.stats?.inactive ?? 0,
+            //     wifi: res?.stats?.wifi ?? 0,
+            //     broadband: res?.stats?.broadband ?? 0,
+            //     hotspot: res?.stats?.hotspot ?? 0,
+            //     leasedLine: res?.stats?.leasedLine ?? 0,
+            // });
 
         } catch (err) {
             console.error("Network load failed:", err);
@@ -564,20 +568,10 @@ export default function NetworkManagement() {
         {
             header: "Status",
             render: (row) => {
-                const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+                const base =
+                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
 
-                if (!row.network_status && !row.messenger_status) {
-                    return "—";
-                }
-
-                if (row.network_status === "Connected") {
-                    return (
-                        <span className={`${base} bg-green-100 text-green-800`}>
-                            Network Connected
-                        </span>
-                    );
-                }
-
+                // ONLY messenger assignment affects status
                 if (row.messenger_status) {
                     return (
                         <span className={`${base} bg-blue-100 text-blue-800`}>
@@ -587,12 +581,44 @@ export default function NetworkManagement() {
                 }
 
                 return (
-                    <span className={`${base} bg-red-100 text-red-800`}>
-                        {row.network_status}
+                    <span className={`${base} bg-orange-100 text-orange-800`}>
+                        Not Assigned
                     </span>
                 );
             },
         },
+        // {
+        //     header: "Status",
+        //     render: (row) => {
+        //         const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+
+        //         if (!row.network_status && !row.messenger_status) {
+        //             return "—";
+        //         }
+
+        //         if (row.network_status === "Connected") {
+        //             return (
+        //                 <span className={`${base} bg-green-100 text-green-800`}>
+        //                     Network Connected
+        //                 </span>
+        //             );
+        //         }
+
+        //         if (row.messenger_status) {
+        //             return (
+        //                 <span className={`${base} bg-blue-100 text-blue-800`}>
+        //                     Messenger Assigned
+        //                 </span>
+        //             );
+        //         }
+
+        //         return (
+        //             <span className={`${base} bg-red-100 text-red-800`}>
+        //                 {row.network_status}
+        //             </span>
+        //         );
+        //     },
+        // },
         {
             header: "Actions",
             render: (row) => (
@@ -615,7 +641,7 @@ export default function NetworkManagement() {
                             setAssignModal(true);
                         }}
                     >
-                        <User size={16} />
+                        <Wifi size={16} />
                     </button>
 
                     <button
@@ -864,34 +890,34 @@ export default function NetworkManagement() {
                             }
                         />
                     }
-                    stats={
-                        <>
-                            <StatCard
-                                title="Total Allocated"
-                                value={guestStats.total}
-                                icon={Smartphone}
-                                variant="blue"
-                            />
-                            <StatCard
-                                title="Requested"
-                                value={guestStats.requested}
-                                icon={Wifi}
-                                variant="orange"
-                            />
-                            <StatCard
-                                title="Connected"
-                                value={guestStats.connected}
-                                icon={CheckCircle}
-                                variant="green"
-                            />
-                            <StatCard
-                                title="Issue Reported"
-                                value={guestStats.issueReported}
-                                icon={ShieldAlert}
-                                variant="red"
-                            />
-                        </>
-                    }
+                    // stats={
+                    //     <>
+                    //         <StatCard
+                    //             title="Total Allocated"
+                    //             value={guestStats.total}
+                    //             icon={Smartphone}
+                    //             variant="blue"
+                    //         />
+                    //         <StatCard
+                    //             title="Requested"
+                    //             value={guestStats.requested}
+                    //             icon={Wifi}
+                    //             variant="orange"
+                    //         />
+                    //         <StatCard
+                    //             title="Connected"
+                    //             value={guestStats.connected}
+                    //             icon={CheckCircle}
+                    //             variant="green"
+                    //         />
+                    //         <StatCard
+                    //             title="Issue Reported"
+                    //             value={guestStats.issueReported}
+                    //             icon={ShieldAlert}
+                    //             variant="red"
+                    //         />
+                    //     </>
+                    // }
                 >
                     <div className="bg-white border rounded-sm overflow-hidden">
                         <DataTable
@@ -920,14 +946,16 @@ export default function NetworkManagement() {
                     toolbar={
                         <PageToolbar
                             left={
-                                <div className="flex-1 min-w-[250px] max-w-md">
-                                    <input
-                                        className="px-3 py-2 w-full border rounded-sm nicInput"
-                                        placeholder="Search provider, type, bandwidth..."
-                                        value={networkTable.query.search ?? ""}
-                                        onChange={(e) => networkTable.setSearchInput(e.target.value)}
-                                        maxLength={300}
-                                    />
+                                <div className="flex-1 w-full min-w-[200px]">
+                                    <FilterField label="Search" className="w-full">
+                                        <input
+                                            className="px-3 py-2 w-full border rounded-sm nicInput h-10"
+                                            placeholder="Search provider, type, bandwidth..."
+                                            value={networkTable.query.search ?? ""}
+                                            onChange={(e) => networkTable.setSearchInput(e.target.value)}
+                                            maxLength={300}
+                                        />
+                                    </FilterField>
                                 </div>
                             }
                             right={
@@ -945,36 +973,36 @@ export default function NetworkManagement() {
                             }
                         />
                     }
-                    stats={
-                        <>
-                            <StatCard
-                                title="Total Providers"
-                                value={networkStats.total}
-                                icon={Router}
-                                variant="blue"
-                                active={!networkTable.query.status || networkTable.query.status === "all"}
-                                onClick={() => applyNetworkStatus("all")}
-                            />
+                    // stats={
+                    //     <>
+                    //         <StatCard
+                    //             title="Total Providers"
+                    //             value={networkStats.total}
+                    //             icon={Router}
+                    //             variant="blue"
+                    //             active={!networkTable.query.status || networkTable.query.status === "all"}
+                    //             onClick={() => applyNetworkStatus("all")}
+                    //         />
 
-                            <StatCard
-                                title="Active"
-                                value={networkStats.active}
-                                icon={CheckCircle}
-                                variant="green"
-                                active={networkTable.query.status === "active"}
-                                onClick={() => applyNetworkStatus("active")}
-                            />
+                    //         <StatCard
+                    //             title="Active"
+                    //             value={networkStats.active}
+                    //             icon={CheckCircle}
+                    //             variant="green"
+                    //             active={networkTable.query.status === "active"}
+                    //             onClick={() => applyNetworkStatus("active")}
+                    //         />
 
-                            <StatCard
-                                title="Inactive"
-                                value={networkStats.inactive}
-                                icon={XCircle}
-                                variant="red"
-                                active={networkTable.query.status === "inactive"}
-                                onClick={() => applyNetworkStatus("inactive")}
-                            />
-                        </>
-                    }
+                    //         <StatCard
+                    //             title="Inactive"
+                    //             value={networkStats.inactive}
+                    //             icon={XCircle}
+                    //             variant="red"
+                    //             active={networkTable.query.status === "inactive"}
+                    //             onClick={() => applyNetworkStatus("inactive")}
+                    //         />
+                    //     </>
+                    // }
                 >
                     {deleteError && (
                         <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1008,14 +1036,16 @@ export default function NetworkManagement() {
                     toolbar={
                         <PageToolbar
                             left={
-                                <div className="flex-1 min-w-[250px] max-w-md">
-                                    <input
-                                        className="px-3 py-2 w-full border rounded-sm nicInput"
-                                        placeholder="Search messenger..."
-                                        value={messengerTable.query.search ?? ""}
-                                        onChange={(e) => messengerTable.setSearchInput(e.target.value)}
-                                        maxLength={300}
-                                    />
+                                <div className="flex-1 w-full min-w-[200px]">
+                                    <FilterField label="Search" className="w-full">
+                                        <input
+                                            className="px-3 py-2 w-full border rounded-sm nicInput h-10"
+                                            placeholder="Search messenger..."
+                                            value={messengerTable.query.search ?? ""}
+                                            onChange={(e) => messengerTable.setSearchInput(e.target.value)}
+                                            maxLength={300}
+                                        />
+                                    </FilterField>
                                 </div>
                             }
                             right={
@@ -1514,6 +1544,50 @@ export default function NetworkManagement() {
 
                                     <div>
                                         <label className="nicLabel">Password</label>
+
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                className="nicInput pr-10"
+                                                value={networkForm.password}
+                                                onChange={(e) =>
+                                                    setNetworkForm({
+                                                        ...networkForm,
+                                                        password: e.target.value,
+                                                    })
+                                                }
+                                                placeholder={
+                                                    !isAddNetwork
+                                                        ? "Leave blank to keep existing password"
+                                                        : ""
+                                                }
+                                                onBlur={() =>
+                                                    validateField(
+                                                        networkProviderSchema,
+                                                        "password",
+                                                        networkForm.password,
+                                                        setFormErrors
+                                                    )
+                                                }
+                                            />
+
+                                            <button
+                                                type="button"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff size={18} />
+                                                ) : (
+                                                    <Eye size={18} />
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        <FieldError message={formErrors.password} />
+                                    </div>
+                                    {/* <div>
+                                        <label className="nicLabel">Password</label>
                                         <input
                                             type="password"
                                             className="nicInput"
@@ -1529,9 +1603,9 @@ export default function NetworkManagement() {
                                             onBlur={() => validateField(networkProviderSchema, "password", networkForm.password, setFormErrors)}
                                         />
                                         <FieldError message={formErrors.password} />
-                                    </div>
+                                    </div> */}
 
-                                    <div>
+                                    {/* <div>
                                         <label className="nicLabel">Address</label>
                                         <textarea
                                             className="nicInput"
@@ -1541,7 +1615,7 @@ export default function NetworkManagement() {
                                                 setNetworkForm({ ...networkForm, address: e.target.value })
                                             }
                                         />
-                                    </div>
+                                    </div> */}
 
                                 </div>
                             </div>

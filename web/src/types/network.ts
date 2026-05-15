@@ -9,6 +9,7 @@ export type NetworkProvider = {
   network_type: 'WiFi' | 'Broadband' | 'Hotspot' | 'Leased-Line';
   address?: string;
   username?: string;
+  password?: string;
   is_active: boolean;
   inserted_at: string;
   updated_at?: string;

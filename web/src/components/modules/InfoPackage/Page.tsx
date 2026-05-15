@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Download, Send, X, } from "lucide-react";
+import { FileText, Download, X, Eye } from "lucide-react";
 import { formatDateTime } from "@/utils/dateTime";
 import {
   getInfoPackageGuests,
@@ -26,6 +26,8 @@ export default function InfoPackage() {
   const [loading, setLoading] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -97,10 +99,10 @@ export default function InfoPackage() {
     }
   }
 
-  function handleSendWhatsApp(guest: any) {
-    setActiveGuest(guest);
-    setShowWhatsAppModal(true);
-  }
+  // function handleSendWhatsApp(guest: any) {
+  //   setActiveGuest(guest);
+  //   setShowWhatsAppModal(true);
+  // }
 
   async function confirmSendWhatsApp() {
     try {
@@ -153,22 +155,35 @@ export default function InfoPackage() {
       render: (g: any) => (
         <div className="flex gap-2">
           <button
-            onClick={() => handleGeneratePDF(g)}
+            onClick={() => {
+              setSelectedGuest(g);
+              setIsViewOpen(true);
+            }}
             className="icon-btn text-blue-600"
+            title="View Guest"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => handleGeneratePDF(g)}
+            className="icon-btn text-green-600"
+            title="Generate PDF"
           >
             <FileText className="w-4 h-4" />
           </button>
 
-          <button
+          {/* <button
             onClick={() => handleSendWhatsApp(g)}
             className="icon-btn text-green-600"
           >
             <Send className="w-4 h-4" />
-          </button>
+          </button> */}
 
           <button
             onClick={() => handleGeneratePDF(g)}
             className="icon-btn"
+            title="Download PDF"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -184,22 +199,21 @@ export default function InfoPackage() {
 
       {/* ===== GENERATE CUSTOM REPORT ===== */}
       <div className="bg-white">
-        <div className="flex-1 w-full min-w-[200px]">
-          <GlobalTableFilters
-            search={search}
-            setSearch={setSearch}
-            fromDate={fromDate}
-            setFromDate={setFromDate}
-            toDate={toDate}
-            setToDate={setToDate}
-            onReset={() => {
-              setSearch("");
-              setFromDate("");
-              setToDate("");
-            }}
-            variant="toolbar"
-          />
-        </div>
+        <GlobalTableFilters
+          search={search}
+          setSearch={setSearch}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          onReset={() => {
+            setSearch("");
+            setFromDate("");
+            setToDate("");
+          }}
+          variant="toolbar"
+          className="infoFilters"
+        />
       </div>
 
       {/* ===== DATA TABLE (ALL GUESTS) ===== */}
@@ -255,6 +269,116 @@ export default function InfoPackage() {
             <button className="saveBtn" onClick={confirmSendWhatsApp}>
               Send
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW GUEST MODAL */}
+      {isViewOpen && selectedGuest && (
+        <div className="modalOverlay">
+          <div className="nicModal guestDetailsModal">
+
+            {/* HEADER */}
+            <div className="nicModalHeader">
+              <h2>Guest Details</h2>
+
+              <button onClick={() => setIsViewOpen(false)}>
+                <X />
+              </button>
+            </div>
+
+            {/* BODY */}
+            {/* BODY */}
+            <div className="nicModalBody">
+              <div className="detailGridHorizontal">
+
+                {/* GUEST INFO */}
+                <div className="detailSection">
+                  <h4>Guest Information</h4>
+
+                  <p>
+                    <b>Name:</b><br />
+                    {selectedGuest?.guest_name || "-"}
+                  </p>
+
+                  <p>
+                    <b>Designation:</b><br />
+                    {selectedGuest?.designation_name || "-"}
+                  </p>
+
+                  <p>
+                    <b>Department:</b><br />
+                    {selectedGuest?.department || "-"}
+                  </p>
+
+                  <p>
+                    <b>Category:</b><br />
+                    {selectedGuest?.guest_category || "-"}
+                  </p>
+                </div>
+
+                {/* STAY INFO */}
+                <div className="detailSection">
+                  <h4>Stay Information</h4>
+
+                  <p>
+                    <b>Room No:</b><br />
+                    {selectedGuest?.room_no || "Pending"}
+                  </p>
+
+                  <p>
+                    <b>Vehicle No:</b><br />
+                    {selectedGuest?.vehicle_no || "Pending"}
+                  </p>
+
+                  <p>
+                    <b>Arrival:</b><br />
+                    {selectedGuest?.arrival_date || "-"}
+                  </p>
+
+                  <p>
+                    <b>Departure:</b><br />
+                    {selectedGuest?.departure_date || "-"}
+                  </p>
+                </div>
+
+                {/* CONTACT INFO */}
+                <div className="detailSection">
+                  <h4>Contact Information</h4>
+
+                  <p>
+                    <b>Mobile:</b><br />
+                    {selectedGuest?.mobile_no || "-"}
+                  </p>
+
+                  <p>
+                    <b>Email:</b><br />
+                    {selectedGuest?.email || "N/A"}
+                  </p>
+
+                  <p>
+                    <b>ID Proof:</b><br />
+                    {selectedGuest?.id_proof || "-"}
+                  </p>
+
+                  <p>
+                    <b>ID Number:</b><br />
+                    {selectedGuest?.id_number || "-"}
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div className="nicModalActions">
+              <button
+                className="outlineBtn"
+                onClick={() => setIsViewOpen(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

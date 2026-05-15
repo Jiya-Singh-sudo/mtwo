@@ -1,4 +1,4 @@
-import { Plus, Edit, Trash2, X, Users, CheckCircle } from "lucide-react";
+import { Plus, Edit, Trash2, X, Eye } from "lucide-react";
 import "./UserManagement.css";
 import { useEffect, useState } from "react";
 import type { Role } from "@/types/userManagement.types";
@@ -42,6 +42,7 @@ export default function UserManagement() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { hasPermission } = useAuth();
@@ -309,6 +310,19 @@ export default function UserManagement() {
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-3">
+
+          {/* VIEW BUTTON */}
+          <button
+            className="icon-btn text-blue-600"
+            title="View"
+            onClick={() => {
+              setSelectedUser(row);
+              setIsViewOpen(true);
+            }}
+          >
+            <Eye size={16} />
+          </button>
+
           {hasPermission("user.update") && (
             <button
               className="icon-btn text-green-600"
@@ -384,29 +398,29 @@ export default function UserManagement() {
           }
         />
       }
-      stats={
-        <>
-          <div className="statCard blue">
-            <div className="statIcon blue">
-              <Users />
-            </div>
-            <div className="statContent">
-              <p className="statLabel">Total Users</p>
-              <h3 className="statValue">{userTable.total}</h3>
-            </div>
-          </div>
+      // stats={
+      //   <>
+      //     <div className="statCard blue">
+      //       <div className="statIcon blue">
+      //         <Users />
+      //       </div>
+      //       <div className="statContent">
+      //         <p className="statLabel">Total Users</p>
+      //         <h3 className="statValue">{userTable.total}</h3>
+      //       </div>
+      //     </div>
 
-          <div className="statCard green">
-            <div className="statIcon green">
-              <CheckCircle />
-            </div>
-            <div className="statContent">
-              <p className="statLabel">Active Roles</p>
-              <h3 className="statValue">{roles.length}</h3>
-            </div>
-          </div>
-        </>
-      }
+      //     <div className="statCard green">
+      //       <div className="statIcon green">
+      //         <CheckCircle />
+      //       </div>
+      //       <div className="statContent">
+      //         <p className="statLabel">Active Roles</p>
+      //         <h3 className="statValue">{roles.length}</h3>
+      //       </div>
+      //     </div>
+      //   </>
+      // }
     >
       {/* DATATABLE */}
       <div className="bg-white border rounded-sm overflow-hidden">
@@ -592,6 +606,66 @@ export default function UserManagement() {
                 onClick={isAddOpen ? addUser : editUser}
               >
                 {isAddOpen ? "Add User" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW USER MODAL */}
+      {isViewOpen && selectedUser && (
+        <div className="modalOverlay">
+          <div className="nicModal">
+            <div className="nicModalHeader">
+              <h2>User Details</h2>
+
+              <button onClick={() => setIsViewOpen(false)}>
+                <X />
+              </button>
+            </div>
+
+            <div className="nicForm">
+
+              <div>
+                <label>Username</label>
+                <p className="viewText">{selectedUser.username}</p>
+              </div>
+
+              <div>
+                <label>Full Name</label>
+                <p className="viewText">{selectedUser.fullName}</p>
+              </div>
+
+              <div>
+                <label>Email</label>
+                <p className="viewText">{selectedUser.email}</p>
+              </div>
+
+              <div>
+                <label>Mobile</label>
+                <p className="viewText">{selectedUser.primary_mobile}</p>
+              </div>
+
+              <div>
+                <label>Alternate Mobile</label>
+                <p className="viewText">{selectedUser.alternate_mobile}</p>
+              </div>
+
+              <div>
+                <label>Role</label>
+                <p className="viewText">
+                  {roles.find((r) => r.role_id === selectedUser.role_id)?.role_name}
+                </p>
+              </div>
+
+            </div>
+
+            <div className="nicModalActions">
+              <button
+                className="cancelBtn"
+                onClick={() => setIsViewOpen(false)}
+              >
+                Close
               </button>
             </div>
           </div>

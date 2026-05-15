@@ -6,9 +6,11 @@ import "./DriverDutyRoaster.css";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import React from "react";
 import TimePicker12h from "@/components/common/TimePicker12h";
-import { driverDutyEditSchema } from "@/validation/driverDutyManagement.validation";
+import { DriverDutyEditSchema, driverDutyEditSchema } from "@/validation/driverDutyManagement.validation";
 import { validateSingleField } from "@/utils/validateSingleField";
 import { useError } from "@/context/ErrorContext";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 type DriverDutyTableRow = {
   driver_id: string;
@@ -45,11 +47,9 @@ export default function DriverDutyRoasterPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { showError } = useError();
 
-
   const [editForm, setEditForm] = useState<DriverDuty | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const [weekStartDate, setWeekStartDate] = useState<string>(() => {
@@ -62,6 +62,13 @@ export default function DriverDutyRoasterPage() {
     const dd = String(today.getDate()).padStart(2, "0");
 
     return `${yyyy}-${mm}-${dd}`;
+  });
+
+  const {
+    formState: { errors },
+  } = useForm<DriverDutyEditSchema>({
+    resolver: zodResolver(driverDutyEditSchema),
+    mode: "onChange",
   });
 
   /* ================= LOAD DATA ================= */
@@ -117,10 +124,7 @@ export default function DriverDutyRoasterPage() {
     );
   };
 
-  const filteredRosters = rosters
-    .filter((r) =>
-      r.driver_name?.toLowerCase().includes(search.toLowerCase())
-    )
+  const filteredRosters = [...rosters]
     .sort((a, b) => {
       const nameA = a.driver_name?.toLowerCase() ?? "";
       const nameB = b.driver_name?.toLowerCase() ?? "";
@@ -306,9 +310,19 @@ export default function DriverDutyRoasterPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <h2 className="text-[#00247D] text-xl font-semibold">
-        Driver Duty Roaster
-      </h2>
+      <div className="rosterHeader">
+        <div>
+          <h1>Driver Duty Roster</h1>
+          <p>
+            Manage weekly driver schedules and assigned duties
+          </p>
+        </div>
+        <div className="rosterHeaderBadge">
+          Weekly Schedule
+        </div>
+      </div>
+
+
 
       <div className="weekNav">
         <button
@@ -322,16 +336,6 @@ export default function DriverDutyRoasterPage() {
           onClick={() => setWeekStartDate(prev => shiftWeek(prev, 7))}>
           Next Week →
         </button>
-      </div>
-      <div className="flex justify-between items-center">
-        <input
-          type="text"
-          placeholder="Search driver name..."
-          className="border px-3 py-2 rounded w-64"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          maxLength={50}
-        />
       </div>
 
       <div className="rosterTableWrapper">
@@ -388,6 +392,11 @@ export default function DriverDutyRoasterPage() {
                   <option value="night">Night</option>
                 </select>
                 <p className="errorText">{formErrors.shift}</p>
+                {errors.shift && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.shift.message}
+                  </p>
+                )}
               </label>
 
               <label className="flex gap-2 items-center">
@@ -450,10 +459,14 @@ export default function DriverDutyRoasterPage() {
                       setEditForm({ ...editForm, duty_in_time: value })
                     }
                     onBlur={() => validateSingleField(driverDutyEditSchema, "duty_in_time", editForm.duty_in_time, setFormErrors)}
-
+                    disabled={editForm.is_week_off}
                   />
                   <p className="errorText">{formErrors.duty_in_time}</p>
-
+                  {errors.duty_in_time && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.duty_in_time.message}
+                    </p>
+                  )}
 
                   <TimePicker12h
                     label="Duty Out Time"
@@ -463,9 +476,13 @@ export default function DriverDutyRoasterPage() {
                       setEditForm({ ...editForm, duty_out_time: value })
                     }
                     onBlur={() => validateSingleField(driverDutyEditSchema, "duty_out_time", editForm.duty_out_time, setFormErrors)}
-
+                    disabled={editForm.is_week_off}
                   />
-                  <p className="errorText">{formErrors.duty_out_time}</p>
+                  {errors.duty_out_time && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.duty_out_time.message}
+                    </p>
+                  )}
                 </>
               )}
             </div>

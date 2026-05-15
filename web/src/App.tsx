@@ -3,6 +3,7 @@ import { ErrorProvider } from '@/context/ErrorContext';
 import AppRoutes from '@/routes/AppRoutes';
 import { Sidebar } from './components/Sidebar';
 import HeaderUserChip from './components/common/UserBadge';
+import { Toaster } from "sonner";
 
 function Layout() {
   // const { isAuthenticated, user, logout } = useAuth();
@@ -97,6 +98,12 @@ export default function App() {
   return (
 
     <ErrorProvider>
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        duration={4000}
+      />
       <AuthProvider>
         <Layout />
       </AuthProvider>

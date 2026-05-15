@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Eye, Edit2, Trash2, UserCog } from 'lucide-react';
+// import { v4 as uuidv4 } from 'uuid';
 import './OfficerManagement.css';
 import {
   getLiasoningOfficers,
@@ -332,8 +333,8 @@ export function OfficerManagement() {
         officer_name:
           liaisoningFormData.officer_name,
 
-        officer_name_local_language:
-          liaisoningFormData.officer_name_local_language,
+        // officer_name_local_language:
+        //   liaisoningFormData.officer_name_local_language,
 
         mobile:
           liaisoningFormData.mobile,
@@ -341,11 +342,11 @@ export function OfficerManagement() {
         alternate_mobile:
           liaisoningFormData.alternate_mobile,
 
-        role_id:
-          liaisoningFormData.role_id,
+        // role_id:
+        //   liaisoningFormData.role_id,
 
-        department:
-          liaisoningFormData.department,
+        // department:
+        //   liaisoningFormData.department,
       });
 
       // setShowAddModal(false);
@@ -369,8 +370,8 @@ export function OfficerManagement() {
           officer_name:
             liaisoningFormData.officer_name,
 
-          officer_name_local_language:
-            liaisoningFormData.officer_name_local_language,
+          // officer_name_local_language:
+          //   liaisoningFormData.officer_name_local_language,
 
           mobile:
             liaisoningFormData.mobile,
@@ -378,11 +379,11 @@ export function OfficerManagement() {
           alternate_mobile:
             liaisoningFormData.alternate_mobile,
 
-          role_id:
-            liaisoningFormData.role_id,
+          // role_id:
+          //   liaisoningFormData.role_id,
 
-          department:
-            liaisoningFormData.department,
+          // department:
+          //   liaisoningFormData.department,
         }
       );
 
@@ -400,16 +401,8 @@ export function OfficerManagement() {
     try {
 
       await createMedicalEmergencyService({
-        service_id: crypto.randomUUID(),
-
         service_provider_name:
           medicalFormData.service_provider_name,
-
-        service_provider_name_local_language:
-          medicalFormData.service_provider_name_local_language,
-
-        service_type:
-          medicalFormData.service_type,
 
         mobile:
           medicalFormData.mobile,
@@ -417,8 +410,6 @@ export function OfficerManagement() {
         alternate_mobile:
           medicalFormData.alternate_mobile,
 
-        distance_from_guest_house:
-          medicalFormData.distance_from_guest_house,
       });
 
       if (activeTab === "medical") {
@@ -445,11 +436,11 @@ export function OfficerManagement() {
           service_provider_name:
             medicalFormData.service_provider_name,
 
-          service_provider_name_local_language:
-            medicalFormData.service_provider_name_local_language,
+          // service_provider_name_local_language:
+          //   medicalFormData.service_provider_name_local_language,
 
-          service_type:
-            medicalFormData.service_type,
+          // service_type:
+          //   medicalFormData.service_type,
 
           mobile:
             medicalFormData.mobile,
@@ -457,8 +448,8 @@ export function OfficerManagement() {
           alternate_mobile:
             medicalFormData.alternate_mobile,
 
-          distance_from_guest_house:
-            medicalFormData.distance_from_guest_house,
+          // distance_from_guest_house:
+          //   medicalFormData.distance_from_guest_house,
         }
       );
 
@@ -875,7 +866,7 @@ export function OfficerManagement() {
 
                     <div>
                       <label className="nicLabel">
-                        Provider Name
+                        Medical Officer Name
                       </label>
 
                       <input
@@ -891,7 +882,7 @@ export function OfficerManagement() {
                       />
                     </div>
 
-                    <div>
+                    {/* <div>
                       <label className="nicLabel">
                         Service Type
                       </label>
@@ -907,7 +898,7 @@ export function OfficerManagement() {
                           })
                         }
                       />
-                    </div>
+                    </div> */}
 
                     <div>
                       <label className="nicLabel">
@@ -926,7 +917,23 @@ export function OfficerManagement() {
                         }
                       />
                     </div>
+                    <div>
+                      <label className="nicLabel">
+                        Alternate Mobile
+                      </label>
 
+                      <input
+                        className="nicInput"
+                        value={medicalFormData.alternate_mobile}
+                        onChange={(e) =>
+                          setMedicalFormData({
+                            ...medicalFormData,
+                            alternate_mobile:
+                              e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
 
                 </div>
@@ -982,7 +989,7 @@ export function OfficerManagement() {
 
                     <div>
                       <label className="nicLabel">
-                        Provider Name
+                        Medical Officer Name
                       </label>
 
                       <input
@@ -998,7 +1005,7 @@ export function OfficerManagement() {
                       />
                     </div>
 
-                    <div>
+                    {/* <div>
                       <label className="nicLabel">
                         Service Type
                       </label>
@@ -1014,8 +1021,41 @@ export function OfficerManagement() {
                           })
                         }
                       />
-                    </div>
+                    </div> */}
+                    <div>
+                      <label className="nicLabel">
+                        Mobile
+                      </label>
 
+                      <input
+                        className="nicInput"
+                        value={medicalFormData.mobile}
+                        onChange={(e) =>
+                          setMedicalFormData({
+                            ...medicalFormData,
+                            mobile:
+                              e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="nicLabel">
+                        Alternate Mobile
+                      </label>
+
+                      <input
+                        className="nicInput"
+                        value={medicalFormData.alternate_mobile}
+                        onChange={(e) =>
+                          setMedicalFormData({
+                            ...medicalFormData,
+                            alternate_mobile:
+                              e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
 
                 </div>
@@ -1072,7 +1112,7 @@ export function OfficerManagement() {
 
                     <div>
                       <label className="nicLabel">
-                        Officer Name
+                        Liasoning Officer Name
                       </label>
 
                       <input
@@ -1105,8 +1145,24 @@ export function OfficerManagement() {
                         }
                       />
                     </div>
-
                     <div>
+                      <label className="nicLabel">
+                        Alternate Mobile
+                      </label>
+
+                      <input
+                        className="nicInput"
+                        value={liaisoningFormData.alternate_mobile}
+                        onChange={(e) =>
+                          setLiaisoningFormData({
+                            ...liaisoningFormData,
+                            alternate_mobile:
+                              e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    {/* <div>
                       <label className="nicLabel">
                         Department
                       </label>
@@ -1122,7 +1178,7 @@ export function OfficerManagement() {
                           })
                         }
                       />
-                    </div>
+                    </div> */}
 
                   </div>
 
@@ -1180,7 +1236,7 @@ export function OfficerManagement() {
 
                     <div>
                       <label className="nicLabel">
-                        Officer Name
+                        Liaisoning Officer Name
                       </label>
 
                       <input
@@ -1213,7 +1269,23 @@ export function OfficerManagement() {
                         }
                       />
                     </div>
+                    <div>
+                      <label className="nicLabel">
+                        Alternate Mobile
+                      </label>
 
+                      <input
+                        className="nicInput"
+                        value={liaisoningFormData.alternate_mobile}
+                        onChange={(e) =>
+                          setLiaisoningFormData({
+                            ...liaisoningFormData,
+                            alternate_mobile:
+                              e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
 
                 </div>

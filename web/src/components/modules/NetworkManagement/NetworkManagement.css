@@ -3,98 +3,169 @@
    Uses global patterns from global.css
    =============================== */
 
-/* ============================
-   TABS
-=============================== */
-/* .nicTabs {
-    display: flex;
-    gap: 4px;
-    border-bottom: 2px solid #e5e7eb;
-    margin-bottom: 20px;
-} */
+/* =========================
+   PREMIUM NETWORK TABS
+========================= */
 
-.nicTab {
-    height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.nicTab.active {
-    box-shadow: 0 -2px 6px rgba(0, 36, 125, 0.25);
-}
-
-/* Tabs container */
 .nicTabs {
-    display: flex;
-    gap: 12px;
-    margin-top: 12px;
-}
-
-/* Base tab – ALWAYS BLUE */
-.nicTab {
-    padding: 10px 22px;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 8px;
-    border: none;
-    background-color: #00247D;
-    /* NIC Blue */
-    color: #ffffff;
-    /* White text */
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(0, 36, 125, 0.25);
-}
-
-/* Hover – subtle darkening */
-.nicTab:hover {
-    background-color: #001c5a;
-}
-
-/* Active tab – slightly darker & raised */
-.nicTab.active {
-    background-color: #001a4d;
-    box-shadow: 0 4px 10px rgba(0, 36, 125, 0.4);
-    color: white
-}
-
-/* Focus (keyboard accessibility) */
-.nicTab:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 36, 125, 0.4);
-}
-
-/* Remove double border with container */
-.nicTab:not(.active) {
-    border-bottom-color: transparent;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 18px 0 26px;
 }
 
 .nicTab {
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #6b7280;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.15s ease;
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid #dbe1ea;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 
 .nicTab:hover {
-    color: #00247D;
-    color: #F9AB2A;
-
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  color: #00247d;
 }
 
 .nicTab.active {
-    color: #00247D;
-    border-bottom-color: #00247D;
-    font-weight: 600;
-    color: white;
+  background: linear-gradient(135deg, #00247d, #001b5e);
+  color: #ffffff;
+  border-color: #00247d;
+  box-shadow: 0 10px 24px rgba(0,36,125,0.28);
 }
+
+/* =========================
+   FILTER TOOLBAR
+========================= */
+
+.networkToolbar {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  margin-bottom: 22px;
+}
+
+.networkToolbar input {
+  height: 52px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 0 16px;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.networkToolbar input:focus {
+  outline: none;
+  border-color: #00247d;
+  box-shadow: 0 0 0 3px rgba(0,36,125,0.12);
+}
+
+/* =========================
+   TABLE WRAPPER
+========================= */
+
+.networkTableCard {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+/* =========================
+   STATS
+========================= */
+
+.networkStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.networkStatCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.2s ease;
+}
+
+.networkStatCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
+}
+
+.networkStatCard h4 {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.networkStatCard h2 {
+  color: #00247d;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+/* =========================
+   ACTION ICONS
+========================= */
+
+.actionIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.actionIcon:hover {
+  transform: scale(1.08);
+}
+
+.actionIcon.view:hover {
+  background: rgba(37,99,235,0.1);
+}
+
+.actionIcon.assign:hover {
+  background: rgba(147,51,234,0.1);
+}
+
+.actionIcon.edit:hover {
+  background: rgba(22,163,74,0.1);
+}
+
+.actionIcon.delete:hover {
+  background: rgba(220,38,38,0.1);
+}
+
+/* =========================
+   MISC
+========================= */
+
+.nicModalHeader h2 {
+  background: linear-gradient(135deg, #f5a623, #e89400);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Redundant tab styles removed */
 
 /* ============================
    MODAL OVERLAY

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Users, CheckCircle, AlertCircle, Eye, FileEdit, Trash2, Plus, Pencil, X, Search } from "lucide-react";
+import { Users, Eye, FileEdit, Trash2, Plus, Pencil, X, Search } from "lucide-react";
 import Select from "react-select";
-import { StatCard } from "@/components/ui/StatCard";
+// import { StatCard } from "@/components/ui/StatCard";
 import "./FoodService.css";
-import { getFoodDashboard, createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
-import { FoodDashboard, GuestFoodTableRow } from "../../../types/guestFood";
+import { createGuestFood, createDayMealPlan, getTodayMealPlanOverview, getGuestFoodTable, getTodayGuestOrders } from "@/api/guestFood.api";
+import { GuestFoodTableRow } from "../../../types/guestFood";
 import { createButler, updateButler, softDeleteButler, getButlerTable } from "@/api/butler.api";
 import { createGuestButler, updateGuestButler } from "@/api/guestButler.api";
 import { useTableQuery } from "@/hooks/useTableQuery";
@@ -139,7 +139,7 @@ export function FoodService() {
 
   /* ---------------- FOOD SERVICE STATE ---------------- */
   const [_formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [stats, setStats] = useState<FoodDashboard | null>(null);
+  // const [stats, setStats] = useState<FoodDashboard | null>(null);
   const [foodRows, setFoodRows] = useState<GuestFoodTableRow[]>([]);
   const [butlerAssignModalOpen, setButlerAssignModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -229,7 +229,6 @@ export function FoodService() {
 
   /* ---------------- BUTLER MANAGEMENT STATE ---------------- */
   const [butlers, setButlers] = useState<Butler[]>([]);
-
   const [butlerModalOpen, setButlerModalOpen] = useState(false);
   const [butlerMode, setButlerMode] = useState<ButlerMode>("add");
   const [activeButler, setActiveButler] = useState<Butler | null>(null);
@@ -246,8 +245,6 @@ export function FoodService() {
     // address: "",
     // remarks: "",
   });
-
-
 
   function normalizeMealType(
     meal?: string | null
@@ -342,15 +339,15 @@ export function FoodService() {
     setMenuModalOpen(true);
   }
 
-  async function loadFoodData() {
-    try {
-      const dashboard = await getFoodDashboard();
-      setStats(dashboard);
-    } catch (err: any) {
-      console.error(err);
-      showError(err?.response?.data?.message || "Failed to load dashboard data");
-    }
-  }
+  // async function loadFoodData() {
+  //   try {
+  //     const dashboard = await getFoodDashboard();
+  //     // setStats(dashboard);
+  //   } catch (err: any) {
+  //     console.error(err);
+  //     showError(err?.response?.data?.message || "Failed to load dashboard data");
+  //   }
+  // }
   async function loadTodayMealPlan() {
     const data = await getTodayMealPlanOverview();
 
@@ -415,15 +412,15 @@ export function FoodService() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "butler") {
+    // if (activeTab === "butler") {
       loadButlers();
-    }
+    // }
   }, [butlerTable.query, activeTab]);
-  useEffect(() => {
-    loadFoodData();
-    // loadButlers();
-    // loadTodayMealPlan(); // REMOVED: Only load on create mode modal open
-  }, []);
+  // useEffect(() => {
+  //   loadFoodData();
+  //   // loadButlers();
+  //   // loadTodayMealPlan(); // REMOVED: Only load on create mode modal open
+  // }, []);
 
   useEffect(() => {
     if (menuModalOpen && menuMode === "create") {
@@ -925,65 +922,65 @@ export function FoodService() {
               }
             />
           }
-          stats={
-            <>
-              <StatCard
-                title="Active Guests"
-                value={stats?.totalGuests ?? 0}
-                icon={Users}
-                variant="blue"
-                active={
-                  !foodTable.query.foodStatus &&
-                  !foodTable.query.specialRequest
-                }
-                onClick={() =>
-                  foodTable.batchUpdate(prev => ({
-                    ...prev,
-                    page: 1,
-                    status: "Entered",
-                    foodStatus: undefined,
-                    specialRequest: undefined,
-                    search: undefined,
-                  }))
-                }
-              />
+          // stats={
+          //   <>
+          //     <StatCard
+          //       title="Active Guests"
+          //       value={stats?.totalGuests ?? 0}
+          //       icon={Users}
+          //       variant="blue"
+          //       active={
+          //         !foodTable.query.foodStatus &&
+          //         !foodTable.query.specialRequest
+          //       }
+          //       onClick={() =>
+          //         foodTable.batchUpdate(prev => ({
+          //           ...prev,
+          //           page: 1,
+          //           status: "Entered",
+          //           foodStatus: undefined,
+          //           specialRequest: undefined,
+          //           search: undefined,
+          //         }))
+          //       }
+          //     />
 
-              <StatCard
-                title="Meals Served"
-                value={stats?.mealsServed ?? 0}
-                icon={CheckCircle}
-                variant="green"
-                active={foodTable.query.foodStatus === "SERVED"}
-                onClick={() =>
-                  foodTable.batchUpdate(prev => ({
-                    ...prev,
-                    page: 1,
-                    status: "Entered",
-                    foodStatus:
-                      prev.foodStatus === "SERVED" ? undefined : "SERVED",
-                    specialRequest: undefined,
-                  }))
-                }
-              />
+          //     <StatCard
+          //       title="Meals Served"
+          //       value={stats?.mealsServed ?? 0}
+          //       icon={CheckCircle}
+          //       variant="green"
+          //       active={foodTable.query.foodStatus === "SERVED"}
+          //       onClick={() =>
+          //         foodTable.batchUpdate(prev => ({
+          //           ...prev,
+          //           page: 1,
+          //           status: "Entered",
+          //           foodStatus:
+          //             prev.foodStatus === "SERVED" ? undefined : "SERVED",
+          //           specialRequest: undefined,
+          //         }))
+          //       }
+          //     />
 
-              <StatCard
-                title="Special Requests"
-                value={stats?.specialRequests ?? 0}
-                icon={AlertCircle}
-                variant="orange"
-                active={!!foodTable.query.specialRequest}
-                onClick={() =>
-                  foodTable.batchUpdate(prev => ({
-                    ...prev,
-                    page: 1,
-                    foodStatus: undefined,
-                    specialRequest:
-                      prev.specialRequest ? undefined : true,
-                  }))
-                }
-              />
-            </>
-          }
+          //     <StatCard
+          //       title="Special Requests"
+          //       value={stats?.specialRequests ?? 0}
+          //       icon={AlertCircle}
+          //       variant="orange"
+          //       active={!!foodTable.query.specialRequest}
+          //       onClick={() =>
+          //         foodTable.batchUpdate(prev => ({
+          //           ...prev,
+          //           page: 1,
+          //           foodStatus: undefined,
+          //           specialRequest:
+          //             prev.specialRequest ? undefined : true,
+          //         }))
+          //       }
+          //     />
+          //   </>
+          // }
         >
           <div className="bg-white border rounded-sm overflow-hidden">
             <DataTable
